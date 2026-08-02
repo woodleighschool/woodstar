@@ -51,7 +51,8 @@ func TestSyncServiceRecordsContactForEveryStageAfterMachineResolution(t *testing
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			recorder := &heartbeatRecorder{}
-			if err := tc.call(newTestSyncService(1, nil, recorder)); err != nil {
+			service, _ := newTestSyncService(1, nil, recorder)
+			if err := tc.call(service); err != nil {
 				t.Fatalf("sync stage: %v", err)
 			}
 			if got, want := recorder.records, []heartbeatRecord{{
@@ -101,7 +102,8 @@ func TestSyncServiceDoesNotRecordUnknownMachine(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			recorder := &heartbeatRecorder{}
-			err := tc.call(newTestSyncService(0, dbutil.ErrNotFound, recorder))
+			service, _ := newTestSyncService(0, dbutil.ErrNotFound, recorder)
+			err := tc.call(service)
 
 			if !errors.Is(err, dbutil.ErrNotFound) {
 				t.Fatalf("sync stage error = %v, want not found", err)
@@ -115,27 +117,29 @@ func TestSyncServiceDoesNotRecordUnknownMachine(t *testing.T) {
 
 func TestSyncServicePropagatesRecorderErrorsBeforeStageWork(t *testing.T) {
 	recorder := &heartbeatRecorder{err: errors.New("record heartbeat")}
-	service := newTestSyncService(1, nil, recorder)
+	service, eventStore := newTestSyncService(1, nil, recorder)
 
 	_, err := service.EventUpload(t.Context(), "machine-1", heartbeats.Contact{}, EventUploadRequest{})
 
 	if !errors.Is(err, recorder.err) {
 		t.Fatalf("EventUpload error = %v, want recorder error", err)
 	}
-	if service.deps.Events.(*testEventStore).calls != 0 {
-		t.Fatalf("event store calls = %d, want 0", service.deps.Events.(*testEventStore).calls)
+	if eventStore.calls != 0 {
+		t.Fatalf("event store calls = %d, want 0", eventStore.calls)
 	}
 }
 
-func newTestSyncService(hostID int64, hostErr error, recorder contactRecorder) *SyncService {
-	return NewSyncService(Dependencies{
+func newTestSyncService(hostID int64, hostErr error, recorder contactRecorder) (*SyncService, *testEventStore) {
+	eventStore := &testEventStore{}
+	service := NewSyncService(Dependencies{
 		HostStore:      &testHostStore{hostID: hostID, err: hostErr},
 		Configurations: testConfigurationResolver{},
-		Events:         &testEventStore{},
+		Events:         eventStore,
 		Rules:          testRuleStore{},
 		Sync:           testSyncStore{},
 		Heartbeats:     recorder,
 	})
+	return service, eventStore
 }
 
 type testHostStore struct {
