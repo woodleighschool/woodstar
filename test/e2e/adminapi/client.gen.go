@@ -1351,22 +1351,36 @@ type ErrorModel struct {
 	Type *string `json:"type,omitempty"`
 }
 
+// Heartbeat defines model for Heartbeat.
+type Heartbeat struct {
+	LastSeenAt time.Time `json:"last_seen_at"`
+	RemoteIp   *string   `json:"remote_ip,omitempty"`
+	Source     string    `json:"source"`
+	UserAgent  string    `json:"user_agent"`
+}
+
 // Host defines model for Host.
 type Host struct {
 	Agents             HostAgents                   `json:"agents"`
 	ComputerName       string                       `json:"computer_name"`
+	CreatedAt          time.Time                    `json:"created_at"`
 	DisplayName        string                       `json:"display_name"`
 	Enrollment         HostEnrollment               `json:"enrollment"`
 	Hardware           HostHardware                 `json:"hardware"`
+	Heartbeats         []Heartbeat                  `json:"heartbeats"`
 	Hostname           string                       `json:"hostname"`
 	Id                 int64                        `json:"id"`
+	InventoryUpdatedAt *time.Time                   `json:"inventory_updated_at,omitempty"`
+	LastContact        *time.Time                   `json:"last_contact,omitempty"`
+	LastRestartedAt    *time.Time                   `json:"last_restarted_at,omitempty"`
 	Network            HostNetwork                  `json:"network"`
 	Os                 HostOS                       `json:"os"`
 	PrimaryUser        *HostPrimaryUser             `json:"primary_user,omitempty"`
 	PrimaryUserSources []HostPrimaryUserObservation `json:"primary_user_sources"`
+	PublicIp           *string                      `json:"public_ip,omitempty"`
 	Status             HostStatus                   `json:"status"`
 	Storage            HostStorage                  `json:"storage"`
-	Timestamps         HostTimestamps               `json:"timestamps"`
+	UpdatedAt          time.Time                    `json:"updated_at"`
 }
 
 // HostStatus defines model for Host.Status.
@@ -1374,8 +1388,10 @@ type HostStatus string
 
 // HostAgents defines model for HostAgents.
 type HostAgents struct {
+	Munki   HostMunkiAgent   `json:"munki"`
 	Orbit   HostOrbitAgent   `json:"orbit"`
 	Osquery HostOsqueryAgent `json:"osquery"`
+	Santa   HostSantaAgent   `json:"santa"`
 }
 
 // HostBattery defines model for HostBattery.
@@ -1431,19 +1447,25 @@ type HostDetail struct {
 	Batteries          []HostBattery                `json:"batteries"`
 	Certificates       []HostCertificate            `json:"certificates"`
 	ComputerName       string                       `json:"computer_name"`
+	CreatedAt          time.Time                    `json:"created_at"`
 	DisplayName        string                       `json:"display_name"`
 	Enrollment         HostEnrollment               `json:"enrollment"`
 	Hardware           HostHardware                 `json:"hardware"`
+	Heartbeats         []Heartbeat                  `json:"heartbeats"`
 	Hostname           string                       `json:"hostname"`
 	Id                 int64                        `json:"id"`
+	InventoryUpdatedAt *time.Time                   `json:"inventory_updated_at,omitempty"`
 	Labels             []Label                      `json:"labels"`
+	LastContact        *time.Time                   `json:"last_contact,omitempty"`
+	LastRestartedAt    *time.Time                   `json:"last_restarted_at,omitempty"`
 	Network            HostNetwork                  `json:"network"`
 	Os                 HostOS                       `json:"os"`
 	PrimaryUser        *HostPrimaryUser             `json:"primary_user,omitempty"`
 	PrimaryUserSources []HostPrimaryUserObservation `json:"primary_user_sources"`
+	PublicIp           *string                      `json:"public_ip,omitempty"`
 	Status             HostDetailStatus             `json:"status"`
 	Storage            HostStorage                  `json:"storage"`
-	Timestamps         HostTimestamps               `json:"timestamps"`
+	UpdatedAt          time.Time                    `json:"updated_at"`
 	Users              []HostUser                   `json:"users"`
 }
 
@@ -1466,11 +1488,15 @@ type HostHardware struct {
 	Vendor          string  `json:"vendor"`
 }
 
+// HostMunkiAgent defines model for HostMunkiAgent.
+type HostMunkiAgent struct {
+	Version string `json:"version"`
+}
+
 // HostNetwork defines model for HostNetwork.
 type HostNetwork struct {
-	LastRemoteIp *string `json:"last_remote_ip,omitempty"`
-	PrimaryIp    *string `json:"primary_ip,omitempty"`
-	PrimaryMac   string  `json:"primary_mac"`
+	PrimaryIp  *string `json:"primary_ip,omitempty"`
+	PrimaryMac string  `json:"primary_mac"`
 }
 
 // HostOS defines model for HostOS.
@@ -1516,6 +1542,11 @@ type HostPrimaryUserObservation struct {
 // HostPrimaryUserSourceSource defines model for HostPrimaryUserSource.Source.
 type HostPrimaryUserSourceSource string
 
+// HostSantaAgent defines model for HostSantaAgent.
+type HostSantaAgent struct {
+	Version string `json:"version"`
+}
+
 // HostSoftware defines model for HostSoftware.
 type HostSoftware struct {
 	ExtensionFor      string                         `json:"extension_for"`
@@ -1537,15 +1568,6 @@ type HostSoftwareInstalledVersion struct {
 // HostStorage defines model for HostStorage.
 type HostStorage struct {
 	BootVolume HostBootVolume `json:"boot_volume"`
-}
-
-// HostTimestamps defines model for HostTimestamps.
-type HostTimestamps struct {
-	CreatedAt          time.Time  `json:"created_at"`
-	InventoryUpdatedAt *time.Time `json:"inventory_updated_at,omitempty"`
-	LastRestartedAt    *time.Time `json:"last_restarted_at,omitempty"`
-	LastSeenAt         *time.Time `json:"last_seen_at,omitempty"`
-	UpdatedAt          time.Time  `json:"updated_at"`
 }
 
 // HostUser defines model for HostUser.
@@ -2346,7 +2368,6 @@ type SantaExecutionEventDecision string
 type SantaHostState struct {
 	ClientModeReported SantaHostStateClientModeReported `json:"client_mode_reported"`
 	Configuration      *SantaConfigurationMatch         `json:"configuration,omitempty"`
-	LastSeenAt         *time.Time                       `json:"last_seen_at,omitempty"`
 	RuleSync           SantaRuleSyncSummary             `json:"rule_sync"`
 	Version            string                           `json:"version"`
 }
