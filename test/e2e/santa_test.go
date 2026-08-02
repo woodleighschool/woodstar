@@ -100,10 +100,9 @@ INSERT INTO hosts (
     hardware_model_identifier,
     os_platform,
     enrollment_agent,
-    enrolled_at,
-    last_seen_at
+    enrolled_at
 )
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, now(), now())
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, now())
 RETURNING id`,
 		machineID,
 		"Santa Integration Mac",
@@ -212,6 +211,10 @@ RETURNING id`,
 	}
 	hostsBefore := *hostsBeforeResponse.JSON200
 	requireOnlySantaHost(t, hostsBefore, hostID, machineID, serial)
+	if host := hostsBefore.Items[0]; len(host.Heartbeats) != 0 || host.LastContact != nil ||
+		host.Status != "offline" || host.PublicIp != nil {
+		t.Fatalf("seeded Santa host contact state = %+v, want no contact before a sync request", host)
+	}
 
 	client := santaProtocolFixtureClient{
 		t:         t,
@@ -221,18 +224,40 @@ RETURNING id`,
 		secret:    santaSecret,
 	}
 
+	preflightStartedAt := time.Now()
 	var firstPreflight syncv1.PreflightResponse
 	client.postFixture("preflight", "preflight_clean.json", nil, &syncv1.PreflightRequest{}, &firstPreflight)
+	preflightFinishedAt := time.Now()
 	requireSantaPreflightConfiguration(t, &firstPreflight)
+	preflightHeartbeat := requireSantaHeartbeatRefresh(
+		t,
+		"preflight",
+		requireSantaHostDetail(t, server, hostID),
+		time.Time{},
+		preflightStartedAt,
+		preflightFinishedAt,
+	)
 
 	eventTime := time.Date(2026, 7, 16, 10, 0, 0, 0, time.UTC)
+	eventUploadStartedAt := time.Now()
 	var eventUpload syncv1.EventUploadResponse
 	client.postFixture("eventupload", "event_upload.json", nil, &syncv1.EventUploadRequest{}, &eventUpload)
+	eventUploadFinishedAt := time.Now()
 	if len(eventUpload.GetEventUploadBundleBinaries()) != 0 {
 		t.Fatalf("bundle requests = %v, want none", eventUpload.GetEventUploadBundleBinaries())
 	}
+	eventUploadHeartbeat := requireSantaHeartbeatRefresh(
+		t,
+		"event upload",
+		requireSantaHostDetail(t, server, hostID),
+		preflightHeartbeat.LastSeenAt,
+		eventUploadStartedAt,
+		eventUploadFinishedAt,
+	)
 
+	ruleDownloadStartedAt := time.Now()
 	firstRules := client.downloadRules()
+	ruleDownloadFinishedAt := time.Now()
 	if len(firstRules) != 1 {
 		t.Fatalf("first sync downloaded %d rules, want 1", len(firstRules))
 	}
@@ -244,13 +269,31 @@ RETURNING id`,
 		firstRule.GetCustomUrl() != ruleURL {
 		t.Fatalf("first downloaded rule = %+v, want public blocklist rule", firstRule)
 	}
+	ruleDownloadHeartbeat := requireSantaHeartbeatRefresh(
+		t,
+		"rule download",
+		requireSantaHostDetail(t, server, hostID),
+		eventUploadHeartbeat.LastSeenAt,
+		ruleDownloadStartedAt,
+		ruleDownloadFinishedAt,
+	)
 
+	postflightStartedAt := time.Now()
 	client.postFixture(
 		"postflight",
 		"postflight_clean.json",
 		nil,
 		&syncv1.PostflightRequest{},
 		&syncv1.PostflightResponse{},
+	)
+	postflightFinishedAt := time.Now()
+	requireSantaHeartbeatRefresh(
+		t,
+		"postflight",
+		requireSantaHostDetail(t, server, hostID),
+		ruleDownloadHeartbeat.LastSeenAt,
+		postflightStartedAt,
+		postflightFinishedAt,
 	)
 
 	firstCheckpoint := loadSantaSyncCheckpoint(t, database, hostID)
@@ -353,10 +396,9 @@ RETURNING id`,
 	var observedMachineID, observedSerial, observedVersion, observedMode, primaryUser string
 	var primaryGroups []string
 	var sipStatus int16
-	var lastSeenAt *time.Time
 	if err := database.QueryRow(t.Context(), `
 SELECT machine_id, serial_number, santa_version, client_mode_reported::text,
-       primary_user, primary_user_groups, sip_status, last_seen_at
+       primary_user, primary_user_groups, sip_status
 FROM santa_hosts
 WHERE host_id = $1`, hostID).Scan(
 		&observedMachineID,
@@ -366,16 +408,15 @@ WHERE host_id = $1`, hostID).Scan(
 		&primaryUser,
 		&primaryGroups,
 		&sipStatus,
-		&lastSeenAt,
 	); err != nil {
 		t.Fatalf("load Santa host observation: %v", err)
 	}
 	if observedMachineID != machineID || observedSerial != serial || observedVersion != "2026.7" ||
 		observedMode != "monitor" || primaryUser != "alice@santa.integration.test" ||
 		!slices.Equal(primaryGroups, []string{"students", "santa-integration"}) ||
-		sipStatus != 1 || lastSeenAt == nil {
+		sipStatus != 1 {
 		t.Fatalf(
-			"Santa host observation = %q/%q/%q/%q/%q/%v/%d/%v, want uploaded observation",
+			"Santa host observation = %q/%q/%q/%q/%q/%v/%d, want uploaded observation",
 			observedMachineID,
 			observedSerial,
 			observedVersion,
@@ -383,7 +424,6 @@ WHERE host_id = $1`, hostID).Scan(
 			primaryUser,
 			primaryGroups,
 			sipStatus,
-			lastSeenAt,
 		)
 	}
 
@@ -693,6 +733,43 @@ func requireOnlySantaHost(
 		host.Hardware.Uuid != machineID || host.Hardware.Serial != serial {
 		t.Fatalf("public host = %+v, want seeded Santa host", host)
 	}
+}
+
+func requireSantaHostDetail(t *testing.T, server *testServer, hostID int64) adminapi.HostDetail {
+	t.Helper()
+
+	response, err := server.Admin.GetHostWithResponse(t.Context(), hostID)
+	response = requireAPIResponse(t, "get Santa host", http.StatusOK, response, err)
+	if response.JSON200 == nil {
+		t.Fatal("get Santa host returned no JSON body")
+	}
+	return *response.JSON200
+}
+
+func requireSantaHeartbeatRefresh(
+	t *testing.T,
+	stage string,
+	host adminapi.HostDetail,
+	previous time.Time,
+	startedAt time.Time,
+	finishedAt time.Time,
+) adminapi.Heartbeat {
+	t.Helper()
+
+	heartbeat := requireHeartbeat(t, host.Heartbeats, "santa")
+	if len(host.Heartbeats) != 1 || (!previous.IsZero() && !heartbeat.LastSeenAt.After(previous)) ||
+		heartbeat.LastSeenAt.Before(startedAt.Add(-heartbeatTimeTolerance)) ||
+		heartbeat.LastSeenAt.After(finishedAt.Add(heartbeatTimeTolerance)) ||
+		host.LastContact == nil || !host.LastContact.Equal(heartbeat.LastSeenAt) ||
+		host.Status != "offline" || host.PublicIp != nil {
+		t.Fatalf(
+			"host after Santa %s = %+v, heartbeat = %+v, want one refreshed bounded Santa contact without osquery state",
+			stage,
+			host,
+			heartbeat,
+		)
+	}
+	return heartbeat
 }
 
 func loadSantaSyncCheckpoint(t *testing.T, database *pgx.Conn, hostID int64) santaSyncCheckpoint {

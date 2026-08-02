@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/woodleighschool/woodstar/test/e2e/adminapi"
 )
@@ -17,6 +18,7 @@ import (
 const (
 	orbitFixtureHardwareUUID = "8D7A0410-6313-4EBD-A563-20EF6F2FD32C"
 	orbitFixtureEmail        = "orbit.user@woodstar.test"
+	heartbeatTimeTolerance   = time.Millisecond
 )
 
 //go:embed testdata/orbit/*.json
@@ -59,14 +61,47 @@ func TestOrbit(t *testing.T) { //nolint:funlen // Linear protocol lifecycle; spl
 		"$HARDWARE_UUID": orbitFixtureHardwareUUID,
 	}
 
+	enrollStartedAt := time.Now()
 	var enrolled orbitFixtureEnrollResponse
 	client.postFixture("enroll.json", "/api/fleet/orbit/enroll", fixtureValues, http.StatusOK, &enrolled)
+	enrollFinishedAt := time.Now()
 	if enrolled.OrbitNodeKey == "" {
 		t.Fatal("Orbit enrollment returned an empty node key")
 	}
 	server.redact(enrolled.OrbitNodeKey)
+	enrolledHost := requireOnlyOrbitFixtureHost(t, server)
+	enrolledHeartbeat := requireHeartbeat(t, enrolledHost.Heartbeats, "orbit")
+	if len(enrolledHost.Heartbeats) != 1 ||
+		enrolledHeartbeat.LastSeenAt.Before(enrollStartedAt.Add(-heartbeatTimeTolerance)) ||
+		enrolledHeartbeat.LastSeenAt.After(enrollFinishedAt.Add(heartbeatTimeTolerance)) ||
+		enrolledHost.LastContact == nil ||
+		!enrolledHost.LastContact.Equal(enrolledHeartbeat.LastSeenAt) || enrolledHost.Status != "offline" ||
+		enrolledHost.PublicIp != nil {
+		t.Fatalf(
+			"host after Orbit enrollment = %+v, heartbeat = %+v, want one bounded Orbit contact without osquery state",
+			enrolledHost,
+			enrolledHeartbeat,
+		)
+	}
+	configStartedAt := time.Now()
 	assertOrbitFixtureConfig(t, client, enrolled.OrbitNodeKey, http.StatusOK)
 	assertOrbitFixtureConfig(t, client, enrolled.OrbitNodeKey, http.StatusOK)
+	configFinishedAt := time.Now()
+	configuredHost := requireOnlyOrbitFixtureHost(t, server)
+	configuredHeartbeat := requireHeartbeat(t, configuredHost.Heartbeats, "orbit")
+	if len(configuredHost.Heartbeats) != 1 ||
+		!configuredHeartbeat.LastSeenAt.After(enrolledHeartbeat.LastSeenAt) ||
+		configuredHeartbeat.LastSeenAt.Before(configStartedAt.Add(-heartbeatTimeTolerance)) ||
+		configuredHeartbeat.LastSeenAt.After(configFinishedAt.Add(heartbeatTimeTolerance)) {
+		t.Fatalf(
+			"host after Orbit config = %+v, heartbeat = %+v, prior = %v, bounds = %v..%v, want one refreshed bounded Orbit contact",
+			configuredHost,
+			configuredHeartbeat,
+			enrolledHeartbeat.LastSeenAt,
+			configStartedAt,
+			configFinishedAt,
+		)
+	}
 
 	client.putFixture(
 		"device_mapping.json",
@@ -156,6 +191,20 @@ func TestOrbit(t *testing.T) { //nolint:funlen // Linear protocol lifecycle; spl
 	client.request(http.MethodHead, orbitDevicePingPath(secondToken), nil, http.StatusUnauthorized, nil)
 	if got := requireOnlyOrbitFixtureHost(t, server); got.Id != host.Id {
 		t.Fatalf("duplicate-hardware Orbit enrollment host id = %d, want existing id %d", got.Id, host.Id)
+	}
+	combinedHost := requireOnlyOrbitFixtureHost(t, server)
+	orbitHeartbeat := requireHeartbeat(t, combinedHost.Heartbeats, "orbit")
+	osqueryHeartbeat := requireHeartbeat(t, combinedHost.Heartbeats, "osquery")
+	if len(combinedHost.Heartbeats) != 2 || !orbitHeartbeat.LastSeenAt.After(osqueryHeartbeat.LastSeenAt) ||
+		combinedHost.LastContact == nil || !combinedHost.LastContact.Equal(orbitHeartbeat.LastSeenAt) ||
+		combinedHost.Status != "online" || osqueryHeartbeat.RemoteIp == nil || combinedHost.PublicIp == nil ||
+		*combinedHost.PublicIp != *osqueryHeartbeat.RemoteIp {
+		t.Fatalf(
+			"combined host = %+v, Orbit heartbeat = %+v, osquery heartbeat = %+v, want newest Orbit contact with osquery-derived status and public IP",
+			combinedHost,
+			orbitHeartbeat,
+			osqueryHeartbeat,
+		)
 	}
 }
 
@@ -333,4 +382,21 @@ func requireOnlyOrbitFixtureHost(t *testing.T, server *testServer) adminapi.Host
 		t.Fatalf("Orbit fixture host count/items = %d/%d, want 1/1", hosts.Count, len(hosts.Items))
 	}
 	return hosts.Items[0]
+}
+
+func requireHeartbeat(t *testing.T, heartbeats []adminapi.Heartbeat, source string) adminapi.Heartbeat {
+	t.Helper()
+
+	var match adminapi.Heartbeat
+	count := 0
+	for _, heartbeat := range heartbeats {
+		if heartbeat.Source == source {
+			match = heartbeat
+			count++
+		}
+	}
+	if count != 1 {
+		t.Fatalf("heartbeat source %q count = %d in %+v, want exactly 1", source, count, heartbeats)
+	}
+	return match
 }
