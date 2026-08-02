@@ -564,7 +564,8 @@ func createFirstRepositoryScope(
 			Version:       "1.0",
 			InstallerType: packages.InstallerTypeNoPkg,
 			Requires:      []packages.PackageReferenceMutation{{SoftwareID: dependencySoftware.ID}},
-		}},
+		},
+	},
 	)
 	if err != nil {
 		t.Fatalf("create first latest package: %v", err)
@@ -604,7 +605,8 @@ func createSecondRepositoryScope(
 		PackageMutation: packages.PackageMutation{
 			Version:           "2.0",
 			InstallerObjectID: &installer.ID,
-		}},
+		},
+	},
 	)
 	if err != nil {
 		t.Fatalf("create second package: %v", err)
