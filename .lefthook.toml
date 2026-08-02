@@ -4,8 +4,14 @@ ref = "main"
 configs = ["lefthook.common.toml"]
 
 [pre-commit.commands.format-web]
-glob = ["web/**/*.{ts,tsx,js,jsx,css}", "docs/**/*.{ts,tsx,js,jsx,css}"]
+glob = ["web/**/*.{ts,tsx,js,jsx,css}"]
 root = "web/"
+run = "oxfmt {staged_files}"
+stage_fixed = true
+
+[pre-commit.commands.format-docs]
+glob = ["docs/**/*.{ts,tsx,js,jsx,css}"]
+root = "docs/"
 run = "oxfmt {staged_files}"
 stage_fixed = true
 

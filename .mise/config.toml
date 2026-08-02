@@ -170,9 +170,13 @@ run = "golangci-lint run"
 description = "Run Go linters and apply fixes"
 run = "golangci-lint run --fix"
 
+[tasks.lint-fix]
+description = "Run backend, web, and docs linters and apply fixes"
+depends = ["go-lint-fix", "//web:lint-fix", "//docs:lint-fix"]
+
 [tasks.lint]
-description = "Run backend and web linters"
-depends = ["go-lint", "//web:lint"]
+description = "Run backend, web, and docs linters"
+depends = ["go-lint", "//web:lint", "//docs:lint"]
 
 [tasks.go-format]
 description = "Format Go code"
@@ -183,12 +187,12 @@ description = "Check Go formatting"
 run = "test -z \"$(gofmt -l .)\" || { gofmt -l .; exit 1; }"
 
 [tasks.format]
-description = "Format backend and web code"
-depends = ["go-format", "//web:format"]
+description = "Format backend, web, and docs code"
+depends = ["go-format", "//web:format", "//docs:format"]
 
 [tasks.fmt-check]
-description = "Check backend and web formatting"
-depends = ["go-fmt-check", "//web:fmt-check"]
+description = "Check backend, web, and docs formatting"
+depends = ["go-fmt-check", "//web:fmt-check", "//docs:fmt-check"]
 
 [tasks.workflow-lint]
 description = "Lint GitHub Actions workflows"

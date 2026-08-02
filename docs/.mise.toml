@@ -35,10 +35,19 @@ run = "pnpm run typecheck"
 description = "Format authored docs files"
 run = "pnpm run format"
 
+[tasks.fmt-check]
+description = "Check authored docs formatting"
+run = "oxfmt --check"
+
 [tasks.lint]
 description = "Run docs lint and typecheck"
 depends = [":deps"]
 run = "pnpm run lint"
+
+[tasks.lint-fix]
+description = "Run docs lint fixes and typecheck"
+depends = [":deps"]
+run = "pnpm run lint:fix"
 
 [tasks.clean]
 description = "Remove docs build output"

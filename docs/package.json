@@ -7,6 +7,7 @@
     "build": "pnpm run gen-api-docs && docusaurus build",
     "serve": "docusaurus serve",
     "lint": "oxlint . && pnpm run typecheck",
+    "lint:fix": "oxlint --fix . && pnpm run typecheck",
     "typecheck": "pnpm run gen-api-docs && tsc",
     "format": "oxfmt",
     "clean-api-docs": "docusaurus clean-api-docs all",
