@@ -5,10 +5,12 @@ package hosts
 import (
 	"context"
 	"errors"
+	"net/netip"
 	"testing"
 	"time"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/heartbeats"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
 )
@@ -298,71 +300,71 @@ func TestGetByHardwareSerialRequiresUniqueRealSerial(t *testing.T) {
 	}
 }
 
-func TestNodeKeyLookupThrottlesLivenessWrites(t *testing.T) {
+func TestHostProjectionUsesSourceSpecificHeartbeats(t *testing.T) {
 	store, ctx := newPostgresHostStore(t)
+	now := time.Now().UTC().Truncate(time.Microsecond)
 	host, err := store.UpsertOnOsqueryEnroll(ctx, InventoryUpdate{
-		Hardware:       HostHardware{UUID: "test-throttled-node-key-touch"},
-		OsqueryNodeKey: "test-throttled-node-key-touch",
+		Hardware:        HostHardware{UUID: "test-heartbeat-projection"},
+		OsqueryNodeKey:  "test-heartbeat-projection-osquery",
+		OrbitNodeKey:    "test-heartbeat-projection-orbit",
+		LastRestartedAt: new(now.Add(-time.Hour)),
 	})
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
 	}
-	if host.Timestamps.LastSeenAt == nil {
-		t.Fatal("enrolled host last_seen_at is nil")
+	recordTestHeartbeat(t, ctx, store, host.ID, heartbeats.SourceOsquery, now.Add(-4*time.Minute), "198.51.100.10", "osquery/5.14")
+	recordTestHeartbeat(t, ctx, store, host.ID, heartbeats.SourceSanta, now.Add(-time.Minute), "198.51.100.20", "santa/2026.4")
+	recordTestHeartbeat(t, ctx, store, host.ID, heartbeats.SourceMunki, now.Add(-2*time.Minute), "198.51.100.30", "managedsoftwareupdate/6.6")
+
+	got, err := store.GetByID(ctx, host.ID)
+	if err != nil {
+		t.Fatalf("get host: %v", err)
+	}
+	if got.Status != HostStatusOnline {
+		t.Fatalf("status = %q, want online from osquery heartbeat", got.Status)
+	}
+	if got.PublicIP == nil || *got.PublicIP != netip.MustParseAddr("198.51.100.10") {
+		t.Fatalf("public_ip = %v, want osquery IP", got.PublicIP)
+	}
+	if got.LastContact == nil || !got.LastContact.Equal(now.Add(-time.Minute)) {
+		t.Fatalf("last_contact = %v, want newest heartbeat", got.LastContact)
+	}
+	wantSources := []heartbeats.Source{heartbeats.SourceMunki, heartbeats.SourceOsquery, heartbeats.SourceSanta}
+	if len(got.Heartbeats) != len(wantSources) {
+		t.Fatalf("heartbeats = %+v, want %d", got.Heartbeats, len(wantSources))
+	}
+	for i, source := range wantSources {
+		if got.Heartbeats[i].Source != source {
+			t.Fatalf("heartbeats[%d].source = %q, want %q", i, got.Heartbeats[i].Source, source)
+		}
 	}
 
-	first, err := store.GetByOsqueryNodeKey(ctx, "test-throttled-node-key-touch")
+	empty, err := store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
+		Hardware:     HostHardware{UUID: "test-empty-heartbeats"},
+		OrbitNodeKey: "test-empty-heartbeats-orbit",
+	})
 	if err != nil {
-		t.Fatalf("first node key lookup: %v", err)
+		t.Fatalf("enroll empty-heartbeat host: %v", err)
 	}
-	second, err := store.GetByOsqueryNodeKey(ctx, "test-throttled-node-key-touch")
-	if err != nil {
-		t.Fatalf("second node key lookup: %v", err)
-	}
-	if !first.Timestamps.LastSeenAt.Equal(*second.Timestamps.LastSeenAt) {
-		t.Fatalf(
-			"second lookup changed last_seen_at from %v to %v",
-			first.Timestamps.LastSeenAt,
-			second.Timestamps.LastSeenAt,
-		)
-	}
-	if !first.Timestamps.UpdatedAt.Equal(second.Timestamps.UpdatedAt) {
-		t.Fatalf(
-			"liveness lookup changed updated_at from %v to %v",
-			first.Timestamps.UpdatedAt,
-			second.Timestamps.UpdatedAt,
-		)
-	}
-
-	oldLastSeen := time.Now().Add(-2 * time.Minute)
-	if _, err := store.db.Pool().
-		Exec(ctx, `UPDATE hosts SET last_seen_at = $2 WHERE id = $1`, host.ID, oldLastSeen); err != nil {
-		t.Fatalf("age last_seen_at: %v", err)
-	}
-	touched, err := store.GetByOsqueryNodeKey(ctx, "test-throttled-node-key-touch")
-	if err != nil {
-		t.Fatalf("aged node key lookup: %v", err)
-	}
-	if touched.Timestamps.LastSeenAt == nil || !touched.Timestamps.LastSeenAt.After(oldLastSeen) {
-		t.Fatalf("last_seen_at = %v, want after %v", touched.Timestamps.LastSeenAt, oldLastSeen)
-	}
-	if !touched.Timestamps.UpdatedAt.Equal(second.Timestamps.UpdatedAt) {
-		t.Fatalf(
-			"liveness touch changed updated_at from %v to %v",
-			second.Timestamps.UpdatedAt,
-			touched.Timestamps.UpdatedAt,
-		)
+	if empty.Heartbeats == nil || len(empty.Heartbeats) != 0 {
+		t.Fatalf("heartbeats = %#v, want non-nil empty slice", empty.Heartbeats)
 	}
 }
 
-func TestOrbitDeviceTokenValidationThrottlesLivenessWrites(t *testing.T) {
+func TestNodeKeyAndTokenLookupsAreIdentityReads(t *testing.T) {
 	store, ctx := newPostgresHostStore(t)
-	host, err := store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
-		Hardware:     HostHardware{UUID: "test-throttled-orbit-token-touch"},
-		OrbitNodeKey: "test-throttled-orbit-token-touch",
+	if _, err := store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
+		Hardware:     HostHardware{UUID: "test-identity-only-lookups"},
+		OrbitNodeKey: "test-identity-only-orbit",
+	}); err != nil {
+		t.Fatalf("enroll host with Orbit: %v", err)
+	}
+	host, err := store.UpsertOnOsqueryEnroll(ctx, InventoryUpdate{
+		Hardware:       HostHardware{UUID: "test-identity-only-lookups"},
+		OsqueryNodeKey: "test-identity-only-osquery",
 	})
 	if err != nil {
-		t.Fatalf("enroll host: %v", err)
+		t.Fatalf("enroll host with osquery: %v", err)
 	}
 	const token = "00000000-0000-4000-8000-000000000001"
 	if err := store.SetOrbitDeviceAuthToken(ctx, host.OrbitNodeKey, token); err != nil {
@@ -370,47 +372,80 @@ func TestOrbitDeviceTokenValidationThrottlesLivenessWrites(t *testing.T) {
 	}
 	before, err := store.GetByID(ctx, host.ID)
 	if err != nil {
-		t.Fatalf("get host before validation: %v", err)
+		t.Fatalf("get host before lookups: %v", err)
 	}
-	if _, err := store.ValidateOrbitDeviceAuthToken(ctx, token); err != nil {
-		t.Fatalf("validate device token: %v", err)
+	lookups := []struct {
+		name string
+		load func() (*Host, error)
+	}{
+		{name: "orbit node key", load: func() (*Host, error) { return store.GetByOrbitNodeKey(ctx, host.OrbitNodeKey) }},
+		{name: "osquery node key", load: func() (*Host, error) { return store.GetByOsqueryNodeKey(ctx, host.OsqueryNodeKey) }},
+		{name: "orbit token", load: func() (*Host, error) { return store.ValidateOrbitDeviceAuthToken(ctx, token) }},
+	}
+	for _, lookup := range lookups {
+		if _, err := lookup.load(); err != nil {
+			t.Fatalf("%s: %v", lookup.name, err)
+		}
 	}
 	after, err := store.GetByID(ctx, host.ID)
 	if err != nil {
-		t.Fatalf("get host after validation: %v", err)
+		t.Fatalf("get host after lookups: %v", err)
 	}
-	if !before.Timestamps.LastSeenAt.Equal(*after.Timestamps.LastSeenAt) {
-		t.Fatalf(
-			"validation changed last_seen_at from %v to %v",
-			before.Timestamps.LastSeenAt,
-			after.Timestamps.LastSeenAt,
-		)
+	if !after.UpdatedAt.Equal(before.UpdatedAt) {
+		t.Fatalf("identity lookups changed updated_at from %v to %v", before.UpdatedAt, after.UpdatedAt)
 	}
-	if !before.Timestamps.UpdatedAt.Equal(after.Timestamps.UpdatedAt) {
-		t.Fatalf("validation changed updated_at from %v to %v", before.Timestamps.UpdatedAt, after.Timestamps.UpdatedAt)
+	if after.LastContact != nil || len(after.Heartbeats) != 0 {
+		t.Fatalf("identity lookups recorded contact: last_contact=%v heartbeats=%+v", after.LastContact, after.Heartbeats)
+	}
+}
+
+func TestHostListFiltersAndSortsByFlattenedContactFields(t *testing.T) {
+	store, ctx := newPostgresHostStore(t)
+	now := time.Now().UTC().Truncate(time.Microsecond)
+	online := enrollTestHost(t, ctx, store, "test-list-online", new(now.Add(-2*time.Hour)))
+	offline := enrollTestHost(t, ctx, store, "test-list-offline", new(now.Add(-time.Hour)))
+	missing := enrollTestHost(t, ctx, store, "test-list-missing-osquery", nil)
+	recordTestHeartbeat(t, ctx, store, online.ID, heartbeats.SourceOsquery, now.Add(-time.Minute), "198.51.100.20", "")
+	recordTestHeartbeat(t, ctx, store, offline.ID, heartbeats.SourceOsquery, now.Add(-10*time.Minute), "198.51.100.10", "")
+	recordTestHeartbeat(t, ctx, store, offline.ID, heartbeats.SourceSanta, now, "203.0.113.50", "")
+	recordTestHeartbeat(t, ctx, store, missing.ID, heartbeats.SourceMunki, now.Add(-30*time.Second), "203.0.113.60", "")
+
+	onlineRows, _, err := store.List(ctx, HostListParams{Status: HostStatusOnline})
+	if err != nil {
+		t.Fatalf("list online hosts: %v", err)
+	}
+	if !containsHostID(onlineRows, online.ID) || containsHostID(onlineRows, offline.ID) || containsHostID(onlineRows, missing.ID) {
+		t.Fatalf("online list = %+v, want only recent osquery host", hostIDs(onlineRows))
+	}
+	offlineRows, _, err := store.List(ctx, HostListParams{Status: HostStatusOffline})
+	if err != nil {
+		t.Fatalf("list offline hosts: %v", err)
+	}
+	if containsHostID(offlineRows, online.ID) || !containsHostID(offlineRows, offline.ID) || !containsHostID(offlineRows, missing.ID) {
+		t.Fatalf("offline list = %+v, want stale/missing osquery hosts", hostIDs(offlineRows))
+	}
+	for _, host := range offlineRows {
+		if host.ID == offline.ID && host.Status != HostStatusOffline {
+			t.Fatalf("stale osquery host status = %q, want offline despite newer Santa heartbeat", host.Status)
+		}
 	}
 
-	oldLastSeen := time.Now().Add(-2 * time.Minute)
-	if _, err := store.db.Pool().
-		Exec(ctx, `UPDATE hosts SET last_seen_at = $2 WHERE id = $1`, host.ID, oldLastSeen); err != nil {
-		t.Fatalf("age last_seen_at: %v", err)
+	tests := []struct {
+		sort string
+		want int64
+	}{
+		{sort: "last_contact.desc", want: offline.ID},
+		{sort: "last_restarted_at.desc", want: offline.ID},
+		{sort: "public_ip.asc", want: offline.ID},
 	}
-	if _, err := store.ValidateOrbitDeviceAuthToken(ctx, token); err != nil {
-		t.Fatalf("validate aged device token: %v", err)
-	}
-	touched, err := store.GetByID(ctx, host.ID)
-	if err != nil {
-		t.Fatalf("get touched host: %v", err)
-	}
-	if touched.Timestamps.LastSeenAt == nil || !touched.Timestamps.LastSeenAt.After(oldLastSeen) {
-		t.Fatalf("last_seen_at = %v, want after %v", touched.Timestamps.LastSeenAt, oldLastSeen)
-	}
-	if !touched.Timestamps.UpdatedAt.Equal(after.Timestamps.UpdatedAt) {
-		t.Fatalf(
-			"validation touch changed updated_at from %v to %v",
-			after.Timestamps.UpdatedAt,
-			touched.Timestamps.UpdatedAt,
-		)
+	for _, test := range tests {
+		rows, _, err := store.List(ctx, HostListParams{ListParams: dbutil.ListParams{Sort: test.sort}})
+		if err != nil {
+			t.Fatalf("sort %q: %v", test.sort, err)
+		}
+		if len(rows) < 2 || rows[0].ID != test.want {
+			t.Fatalf("sort %q ids = %v, first = %d", test.sort, hostIDs(rows), test.want)
+		}
 	}
 }
 
@@ -474,21 +509,9 @@ func TestCountSelectedTargetsSplitsOnlineAndOffline(t *testing.T) {
 	if err != nil {
 		t.Fatalf("enroll offline host: %v", err)
 	}
-	if _, err := store.db.Pool().Exec(ctx,
-		`UPDATE hosts
-		 SET last_seen_at = CASE id
-		     WHEN $1 THEN $3::timestamptz
-		     WHEN $2 THEN $4::timestamptz
-		 END
-		 WHERE id = ANY($5::bigint[])`,
-		onlineHost.ID,
-		offlineHost.ID,
-		now.Add(-time.Minute),
-		now.Add(-10*time.Minute),
-		[]int64{onlineHost.ID, offlineHost.ID},
-	); err != nil {
-		t.Fatalf("set host seen times: %v", err)
-	}
+	recordTestHeartbeat(t, ctx, store, onlineHost.ID, heartbeats.SourceOsquery, now.Add(-time.Minute), "", "")
+	recordTestHeartbeat(t, ctx, store, offlineHost.ID, heartbeats.SourceOsquery, now.Add(-10*time.Minute), "", "")
+	recordTestHeartbeat(t, ctx, store, offlineHost.ID, heartbeats.SourceSanta, now, "", "")
 	label, err := labelStore.Create(ctx, labels.LabelMutation{
 		Name:                "Live Count Test",
 		LabelMembershipType: labels.LabelMembershipTypeManual,
@@ -542,21 +565,9 @@ func TestResolveOnlineSelectedTargetsReturnsOnlyCurrentlyOnlineHosts(t *testing.
 	if err := labelStore.SetMembership(ctx, label.ID, offlineHost.ID, true); err != nil {
 		t.Fatalf("set label membership: %v", err)
 	}
-	if _, err := store.db.Pool().Exec(ctx,
-		`UPDATE hosts
-		 SET last_seen_at = CASE id
-		     WHEN $1 THEN $3::timestamptz
-		     WHEN $2 THEN $4::timestamptz
-		 END
-		 WHERE id = ANY($5::bigint[])`,
-		onlineHost.ID,
-		offlineHost.ID,
-		now.Add(-time.Minute),
-		now.Add(-10*time.Minute),
-		[]int64{onlineHost.ID, offlineHost.ID},
-	); err != nil {
-		t.Fatalf("set host seen times: %v", err)
-	}
+	recordTestHeartbeat(t, ctx, store, onlineHost.ID, heartbeats.SourceOsquery, now.Add(-time.Minute), "", "")
+	recordTestHeartbeat(t, ctx, store, offlineHost.ID, heartbeats.SourceOsquery, now.Add(-10*time.Minute), "", "")
+	recordTestHeartbeat(t, ctx, store, offlineHost.ID, heartbeats.SourceMunki, now, "", "")
 
 	got, err := store.ResolveOnlineSelectedTargets(ctx, TargetSelection{
 		HostIDs:  []int64{onlineHost.ID},
@@ -618,6 +629,69 @@ func sameIDs(got []int64, want []int64) bool {
 		seen[id]--
 	}
 	return true
+}
+
+func enrollTestHost(
+	t *testing.T,
+	ctx context.Context,
+	store *Store,
+	hardwareUUID string,
+	lastRestartedAt *time.Time,
+) *Host {
+	t.Helper()
+	host, err := store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
+		Hardware:        HostHardware{UUID: hardwareUUID},
+		OrbitNodeKey:    hardwareUUID + "-orbit",
+		LastRestartedAt: lastRestartedAt,
+	})
+	if err != nil {
+		t.Fatalf("enroll %s: %v", hardwareUUID, err)
+	}
+	if lastRestartedAt != nil {
+		if err := store.ApplyInventory(ctx, host.ID, InventoryUpdate{LastRestartedAt: lastRestartedAt}); err != nil {
+			t.Fatalf("set %s restart time: %v", hardwareUUID, err)
+		}
+	}
+	return host
+}
+
+func recordTestHeartbeat(
+	t *testing.T,
+	ctx context.Context,
+	store *Store,
+	hostID int64,
+	source heartbeats.Source,
+	lastSeenAt time.Time,
+	remoteIP string,
+	userAgent string,
+) {
+	t.Helper()
+	if _, err := store.db.Pool().Exec(ctx, `
+INSERT INTO host_heartbeats (host_id, source, last_seen_at, remote_ip, user_agent)
+VALUES ($1, $2, $3, NULLIF($4, '')::inet, $5)
+ON CONFLICT (host_id, source) DO UPDATE SET
+	last_seen_at = EXCLUDED.last_seen_at,
+	remote_ip = EXCLUDED.remote_ip,
+	user_agent = EXCLUDED.user_agent`, hostID, source, lastSeenAt, remoteIP, userAgent); err != nil {
+		t.Fatalf("record %s heartbeat: %v", source, err)
+	}
+}
+
+func containsHostID(hosts []Host, id int64) bool {
+	for _, host := range hosts {
+		if host.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
+func hostIDs(hosts []Host) []int64 {
+	ids := make([]int64, len(hosts))
+	for i, host := range hosts {
+		ids[i] = host.ID
+	}
+	return ids
 }
 
 func newPostgresHostStore(t *testing.T) (*Store, context.Context) {

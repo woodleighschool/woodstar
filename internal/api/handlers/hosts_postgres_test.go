@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
@@ -41,7 +42,7 @@ func TestDeleteHostsDecodesCollectionIDs(t *testing.T) {
 	}
 
 	router := hostTestRouter(t, func(api huma.API) {
-		RegisterHosts(api, store, nil, discardLogger())
+		RegisterHosts(api, store, nil, nil, nil, discardLogger())
 	})
 	for _, path := range []string{"/api/hosts", "/api/hosts?ids="} {
 		rec := hostAPIRequest(t, router, http.MethodDelete, path, "")
@@ -118,7 +119,7 @@ RETURNING id`).Scan(&manualUserID); err != nil {
 	}
 
 	router := hostTestRouter(t, func(api huma.API) {
-		RegisterHosts(api, hostStore, primaryUsers, discardLogger())
+		RegisterHosts(api, hostStore, primaryUsers, nil, nil, discardLogger())
 	})
 	rec := hostAPIRequest(
 		t,
@@ -158,6 +159,138 @@ RETURNING id`).Scan(&manualUserID); err != nil {
 		t.Fatalf("delete status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
 	}
 	assertHostLabel(t, ctx, labelStore, host.ID, derivedLabel.ID, false)
+}
+
+func TestHostResponsesBatchEnrichFlatAgentContract(t *testing.T) {
+	db, ctx := testdb.Open(t)
+	hostStore := hosts.NewStore(db)
+	now := time.Now().UTC().Truncate(time.Microsecond)
+	host, err := hostStore.UpsertOnOsqueryEnroll(ctx, hosts.InventoryUpdate{
+		Hardware:       hosts.HostHardware{UUID: "host-agent-contract"},
+		OsqueryNodeKey: "host-agent-contract-osquery",
+	})
+	if err != nil {
+		t.Fatalf("enroll host: %v", err)
+	}
+	if err := hostStore.ApplyInventory(ctx, host.ID, hosts.InventoryUpdate{LastRestartedAt: &now}); err != nil {
+		t.Fatalf("apply inventory: %v", err)
+	}
+	if err := hostStore.MarkInventoryFresh(ctx, host.ID, "test-inventory-query-hash"); err != nil {
+		t.Fatalf("mark inventory fresh: %v", err)
+	}
+	if _, err := db.Pool().Exec(ctx, `
+INSERT INTO host_heartbeats (host_id, source, last_seen_at, remote_ip, user_agent)
+VALUES ($1, 'osquery', $2, '198.51.100.40', 'osquery/5.14')`, host.ID, now); err != nil {
+		t.Fatalf("insert heartbeat: %v", err)
+	}
+
+	munkiVersions := &testAgentVersionLoader{versions: map[int64]string{host.ID: "6.6.0"}}
+	santaVersions := &testAgentVersionLoader{versions: map[int64]string{host.ID: "2026.4"}}
+	router := hostTestRouter(t, func(api huma.API) {
+		RegisterHosts(api, hostStore, nil, munkiVersions, santaVersions, discardLogger())
+	})
+
+	listRec := hostAPIRequest(t, router, http.MethodGet, "/api/hosts", "")
+	if listRec.Code != http.StatusOK {
+		t.Fatalf("list status = %d, want %d; body = %q", listRec.Code, http.StatusOK, listRec.Body.String())
+	}
+	var list Page[hosts.Host]
+	if err := json.Unmarshal(listRec.Body.Bytes(), &list); err != nil {
+		t.Fatalf("decode host list: %v", err)
+	}
+	if len(list.Items) != 1 {
+		t.Fatalf("list items = %d, want 1", len(list.Items))
+	}
+
+	detailRec := hostAPIRequest(t, router, http.MethodGet, fmt.Sprintf("/api/hosts/%d", host.ID), "")
+	if detailRec.Code != http.StatusOK {
+		t.Fatalf("detail status = %d, want %d; body = %q", detailRec.Code, http.StatusOK, detailRec.Body.String())
+	}
+	var detail hosts.HostDetail
+	if err := json.Unmarshal(detailRec.Body.Bytes(), &detail); err != nil {
+		t.Fatalf("decode host detail: %v", err)
+	}
+
+	if list.Items[0].Agents.Munki.Version != "6.6.0" || list.Items[0].Agents.Santa.Version != "2026.4" {
+		t.Fatalf("list agents = %+v, want Munki and Santa versions", list.Items[0].Agents)
+	}
+	if detail.Agents.Munki != list.Items[0].Agents.Munki || detail.Agents.Santa != list.Items[0].Agents.Santa {
+		t.Fatalf("detail agents = %+v, want list enrichment %+v", detail.Agents, list.Items[0].Agents)
+	}
+	assertFlatHostContract(t, listRec.Body.Bytes(), true)
+	assertFlatHostContract(t, detailRec.Body.Bytes(), false)
+
+	for name, loader := range map[string]*testAgentVersionLoader{
+		"munki": munkiVersions,
+		"santa": santaVersions,
+	} {
+		if len(loader.calls) != 2 {
+			t.Fatalf("%s AgentVersions calls = %v, want one list and one detail batch", name, loader.calls)
+		}
+		for _, ids := range loader.calls {
+			if len(ids) != 1 || ids[0] != host.ID {
+				t.Fatalf("%s AgentVersions ids = %v, want [%d]", name, ids, host.ID)
+			}
+		}
+	}
+}
+
+type testAgentVersionLoader struct {
+	versions map[int64]string
+	calls    [][]int64
+}
+
+func (l *testAgentVersionLoader) AgentVersions(_ context.Context, hostIDs []int64) (map[int64]string, error) {
+	l.calls = append(l.calls, append([]int64(nil), hostIDs...))
+	return l.versions, nil
+}
+
+func assertFlatHostContract(t *testing.T, payload []byte, list bool) {
+	t.Helper()
+	var host map[string]any
+	if list {
+		var page struct {
+			Items []map[string]any `json:"items"`
+		}
+		if err := json.Unmarshal(payload, &page); err != nil {
+			t.Fatalf("decode list contract: %v", err)
+		}
+		host = page.Items[0]
+	} else if err := json.Unmarshal(payload, &host); err != nil {
+		t.Fatalf("decode detail contract: %v", err)
+	}
+	for _, key := range []string{
+		"public_ip",
+		"last_contact",
+		"created_at",
+		"updated_at",
+		"inventory_updated_at",
+		"last_restarted_at",
+		"heartbeats",
+	} {
+		if _, ok := host[key]; !ok {
+			t.Fatalf("host response missing root %q: %+v", key, host)
+		}
+	}
+	if _, ok := host["timestamps"]; ok {
+		t.Fatalf("host response retained nested timestamps: %+v", host["timestamps"])
+	}
+	network, ok := host["network"].(map[string]any)
+	if !ok {
+		t.Fatalf("network = %#v, want object", host["network"])
+	}
+	if _, ok := network["last_remote_ip"]; ok {
+		t.Fatalf("network retained last_remote_ip: %+v", network)
+	}
+	agents, ok := host["agents"].(map[string]any)
+	if !ok {
+		t.Fatalf("agents = %#v, want object", host["agents"])
+	}
+	for _, agent := range []string{"orbit", "osquery", "munki", "santa"} {
+		if _, ok := agents[agent].(map[string]any); !ok {
+			t.Fatalf("agents missing %q object: %+v", agent, agents)
+		}
+	}
 }
 
 func assertHostLabel(

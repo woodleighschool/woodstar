@@ -126,7 +126,7 @@ func assertInventoryUpdate(t *testing.T, got hosts.InventoryUpdate, want hosts.I
 		got.Network.PrimaryMAC != want.Network.PrimaryMAC {
 		t.Fatalf("ParseHostDetails() = %#v, want %#v", got, want)
 	}
-	if got.Timestamps.LastRestartedAt == nil {
+	if got.LastRestartedAt == nil {
 		t.Fatalf("LastRestartedAt is nil, want timestamp")
 	}
 	assertInt64Ptr(

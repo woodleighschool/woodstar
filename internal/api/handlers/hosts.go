@@ -59,17 +59,25 @@ func RegisterHosts(
 	api huma.API,
 	hostStore *hosts.Store,
 	primaryUsers *hosts.PrimaryUserStore,
+	munkiVersions agentVersionLoader,
+	santaVersions agentVersionLoader,
 	logger *slog.Logger,
 ) {
-	registerListHosts(api, hostStore, logger)
-	registerGetHost(api, hostStore, logger)
+	registerListHosts(api, hostStore, munkiVersions, santaVersions, logger)
+	registerGetHost(api, hostStore, munkiVersions, santaVersions, logger)
 	registerDeleteHost(api, hostStore, logger)
 	registerBulkDeleteHosts(api, hostStore, logger)
-	registerSetHostPrimaryUser(api, hostStore, primaryUsers, logger)
-	registerClearHostPrimaryUser(api, hostStore, primaryUsers, logger)
+	registerSetHostPrimaryUser(api, hostStore, primaryUsers, munkiVersions, santaVersions, logger)
+	registerClearHostPrimaryUser(api, hostStore, primaryUsers, munkiVersions, santaVersions, logger)
 }
 
-func registerListHosts(api huma.API, hostStore *hosts.Store, logger *slog.Logger) {
+func registerListHosts(
+	api huma.API,
+	hostStore *hosts.Store,
+	munkiVersions agentVersionLoader,
+	santaVersions agentVersionLoader,
+	logger *slog.Logger,
+) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-hosts",
 		Method:      http.MethodGet,
@@ -82,11 +90,20 @@ func registerListHosts(api huma.API, hostStore *hosts.Store, logger *slog.Logger
 		if err != nil {
 			return nil, resourceError(ctx, logger, "list-hosts", hostResource, err)
 		}
+		if err := enrichHostAgents(ctx, rows, munkiVersions, santaVersions); err != nil {
+			return nil, handlerError(ctx, logger, "list-hosts", err)
+		}
 		return &hostListOutput{Body: Page[hosts.Host]{Items: rows, Count: count}}, nil
 	})
 }
 
-func registerGetHost(api huma.API, hostStore *hosts.Store, logger *slog.Logger) {
+func registerGetHost(
+	api huma.API,
+	hostStore *hosts.Store,
+	munkiVersions agentVersionLoader,
+	santaVersions agentVersionLoader,
+	logger *slog.Logger,
+) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-host",
 		Method:      http.MethodGet,
@@ -95,7 +112,15 @@ func registerGetHost(api huma.API, hostStore *hosts.Store, logger *slog.Logger) 
 		Summary:     "Get a host",
 		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *hostGetInput) (*hostDetailOutput, error) {
-		body, err := loadHostDetailBody(ctx, hostStore, input.ID, logger, "get-host")
+		body, err := loadHostDetailBody(
+			ctx,
+			hostStore,
+			input.ID,
+			munkiVersions,
+			santaVersions,
+			logger,
+			"get-host",
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -107,6 +132,8 @@ func registerSetHostPrimaryUser(
 	api huma.API,
 	hostStore *hosts.Store,
 	primaryUsers *hosts.PrimaryUserStore,
+	munkiVersions agentVersionLoader,
+	santaVersions agentVersionLoader,
 	logger *slog.Logger,
 ) {
 	huma.Register(api, huma.Operation{
@@ -123,7 +150,15 @@ func registerSetHostPrimaryUser(
 		if err := primaryUsers.Upsert(ctx, input.ID, input.Body.Email, hosts.PrimaryUserSourceManual); err != nil {
 			return nil, resourceError(ctx, logger, "set-host-primary-user", hostResource, err, "host_id", input.ID)
 		}
-		body, err := loadHostDetailBody(ctx, hostStore, input.ID, logger, "set-host-primary-user")
+		body, err := loadHostDetailBody(
+			ctx,
+			hostStore,
+			input.ID,
+			munkiVersions,
+			santaVersions,
+			logger,
+			"set-host-primary-user",
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -135,6 +170,8 @@ func registerClearHostPrimaryUser(
 	api huma.API,
 	hostStore *hosts.Store,
 	primaryUsers *hosts.PrimaryUserStore,
+	munkiVersions agentVersionLoader,
+	santaVersions agentVersionLoader,
 	logger *slog.Logger,
 ) {
 	huma.Register(api, huma.Operation{
@@ -148,7 +185,15 @@ func registerClearHostPrimaryUser(
 		if err := primaryUsers.Delete(ctx, input.ID, hosts.PrimaryUserSourceManual); err != nil {
 			return nil, resourceError(ctx, logger, "clear-host-primary-user", hostResource, err, "host_id", input.ID)
 		}
-		body, err := loadHostDetailBody(ctx, hostStore, input.ID, logger, "clear-host-primary-user")
+		body, err := loadHostDetailBody(
+			ctx,
+			hostStore,
+			input.ID,
+			munkiVersions,
+			santaVersions,
+			logger,
+			"clear-host-primary-user",
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -160,6 +205,8 @@ func loadHostDetailBody(
 	ctx context.Context,
 	hostStore *hosts.Store,
 	hostID int64,
+	munkiVersions agentVersionLoader,
+	santaVersions agentVersionLoader,
 	logger *slog.Logger,
 	operation string,
 ) (*hosts.HostDetail, error) {
@@ -171,6 +218,11 @@ func loadHostDetailBody(
 	if err != nil {
 		return nil, handlerError(ctx, logger, operation, err, "host_id", hostID)
 	}
+	rows := []hosts.Host{detail.Host}
+	if err := enrichHostAgents(ctx, rows, munkiVersions, santaVersions); err != nil {
+		return nil, handlerError(ctx, logger, operation, err, "host_id", hostID)
+	}
+	detail.Host = rows[0]
 	return detail, nil
 }
 

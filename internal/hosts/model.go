@@ -9,6 +9,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/heartbeats"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/openapischema"
 	"github.com/woodleighschool/woodstar/internal/validation"
@@ -46,7 +47,7 @@ type InventoryUpdate struct {
 	Storage         HostStorage
 	Network         InventoryNetwork
 	Agents          HostAgents
-	Timestamps      InventoryTimestamps
+	LastRestartedAt *time.Time
 	OrbitNodeKey    string
 	OsqueryNodeKey  string
 	EnrollmentAgent string
@@ -54,14 +55,8 @@ type InventoryUpdate struct {
 
 // InventoryNetwork is network inventory before PostgreSQL inet parsing.
 type InventoryNetwork struct {
-	PrimaryIP    string
-	PrimaryMAC   string
-	LastRemoteIP string
-}
-
-// InventoryTimestamps carries timestamp inventory updates.
-type InventoryTimestamps struct {
-	LastRestartedAt *time.Time
+	PrimaryIP  string
+	PrimaryMAC string
 }
 
 // HostStatus is whether a host has checked in during the online window.
@@ -92,9 +87,15 @@ type Host struct {
 	Storage            HostStorage             `json:"storage"`
 	Network            HostNetwork             `json:"network"`
 	Agents             HostAgents              `json:"agents"`
+	PublicIP           *netip.Addr             `json:"public_ip,omitempty"`
+	LastContact        *time.Time              `json:"last_contact,omitempty"`
+	Heartbeats         []heartbeats.Heartbeat  `json:"heartbeats"`
 	PrimaryUser        *HostPrimaryUser        `json:"primary_user,omitempty"`
 	PrimaryUserSources []HostPrimaryUserSource `json:"primary_user_sources"`
-	Timestamps         HostTimestamps          `json:"timestamps"`
+	CreatedAt          time.Time               `json:"created_at"`
+	UpdatedAt          time.Time               `json:"updated_at"`
+	InventoryUpdatedAt *time.Time              `json:"inventory_updated_at,omitempty"`
+	LastRestartedAt    *time.Time              `json:"last_restarted_at,omitempty"`
 
 	OrbitNodeKey       string `json:"-"`
 	OsqueryNodeKey     string `json:"-"`
@@ -141,14 +142,15 @@ type HostBootVolume struct {
 }
 
 type HostNetwork struct {
-	PrimaryIP    *netip.Addr `json:"primary_ip,omitempty"`
-	PrimaryMAC   string      `json:"primary_mac"`
-	LastRemoteIP *netip.Addr `json:"last_remote_ip,omitempty"`
+	PrimaryIP  *netip.Addr `json:"primary_ip,omitempty"`
+	PrimaryMAC string      `json:"primary_mac"`
 }
 
 type HostAgents struct {
 	Osquery HostOsqueryAgent `json:"osquery"`
 	Orbit   HostOrbitAgent   `json:"orbit"`
+	Munki   HostMunkiAgent   `json:"munki"`
+	Santa   HostSantaAgent   `json:"santa"`
 }
 
 type HostOsqueryAgent struct {
@@ -161,12 +163,14 @@ type HostOrbitAgent struct {
 	Version string `json:"version"`
 }
 
-type HostTimestamps struct {
-	CreatedAt          time.Time  `json:"created_at"`
-	UpdatedAt          time.Time  `json:"updated_at"`
-	LastSeenAt         *time.Time `json:"last_seen_at,omitempty"`
-	InventoryUpdatedAt *time.Time `json:"inventory_updated_at,omitempty"`
-	LastRestartedAt    *time.Time `json:"last_restarted_at,omitempty"`
+// HostMunkiAgent is Munki metadata attached outside the core host store.
+type HostMunkiAgent struct {
+	Version string `json:"version"`
+}
+
+// HostSantaAgent is Santa metadata attached outside the core host store.
+type HostSantaAgent struct {
+	Version string `json:"version"`
 }
 
 // HostDetail is a host plus its loaded children.

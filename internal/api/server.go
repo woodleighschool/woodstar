@@ -375,7 +375,14 @@ func registerAppRoutes(
 		Logger:        apiLogger,
 	})
 	handlers.RegisterDirectory(ordinary, deps.App.Users, deps.App.Directory, apiLogger)
-	handlers.RegisterHosts(ordinary, deps.App.Hosts, deps.App.PrimaryUser, apiLogger)
+	handlers.RegisterHosts(
+		ordinary,
+		deps.App.Hosts,
+		deps.App.PrimaryUser,
+		deps.App.MunkiHostState,
+		deps.App.SantaState,
+		apiLogger,
+	)
 	handlers.RegisterInventory(ordinary, deps.App.Software, apiLogger)
 	handlers.RegisterLabels(ordinary, deps.App.Labels, apiLogger)
 	handlers.RegisterAgentAuth(sensitive, deps.App.Secrets, apiLogger)

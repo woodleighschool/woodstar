@@ -43,7 +43,7 @@ func ParseHostDetails(details map[string]map[string]string) hosts.InventoryUpdat
 	if row := details["uptime"]; row != nil {
 		if seconds := parsePositiveInt64Ptr(normalizeString(row["total_seconds"])); seconds != nil {
 			restarted := time.Now().Add(-time.Duration(*seconds) * time.Second)
-			update.Timestamps.LastRestartedAt = &restarted
+			update.LastRestartedAt = &restarted
 		}
 	}
 	if row := details["root_disk"]; row != nil {
