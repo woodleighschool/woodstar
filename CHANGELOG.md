@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.7.5](https://github.com/woodleighschool/woodstar/compare/0.7.4...0.7.5) (2026-08-02)
+
+
+### Features
+
+* **deps:** add Docusaurus OpenAPI group to Renovate configuration ([369e1b1](https://github.com/woodleighschool/woodstar/commit/369e1b11e065d31e2604825fb7523c74c9e3e4a3))
+* **deps:** update dependency vite (8.1.5 → 8.2.0) ([#99](https://github.com/woodleighschool/woodstar/issues/99)) ([d0eac2c](https://github.com/woodleighschool/woodstar/commit/d0eac2c543af1375940f2afb1c21b120852b15ce))
+
+
+### Bug Fixes
+
+* **deps:** update aws-sdk-go-v2 monorepo ([#103](https://github.com/woodleighschool/woodstar/issues/103)) ([ea5c5b9](https://github.com/woodleighschool/woodstar/commit/ea5c5b96057581d5ead0e8b55059b91ad0ec3016))
+* **deps:** update dependency @tanstack/react-form (1.33.2 → 1.33.3) ([#107](https://github.com/woodleighschool/woodstar/issues/107)) ([4389d14](https://github.com/woodleighschool/woodstar/commit/4389d14262ec93788b3f846bf0e80a07789bd78b))
+* **deps:** update dependency shadcn (4.16.0 → 4.16.1) ([#104](https://github.com/woodleighschool/woodstar/issues/104)) ([ebc4ec4](https://github.com/woodleighschool/woodstar/commit/ebc4ec4d2c9b3e2449a74c3ab40eb18451557458))
+* **deps:** update docusaurus openapi (5.1.2 → 5.1.3) ([#106](https://github.com/woodleighschool/woodstar/issues/106)) ([d9141ca](https://github.com/woodleighschool/woodstar/commit/d9141ca32456c4dd857148502c9b45fd640faead))
+* **deps:** update react monorepo ([#102](https://github.com/woodleighschool/woodstar/issues/102)) ([ad5b105](https://github.com/woodleighschool/woodstar/commit/ad5b10563fac19d0bcc0107a061c502e95630897))
+
+
+### Code Refactoring
+
+* **directory:** use Microsoft Graph SDK ([625ae11](https://github.com/woodleighschool/woodstar/commit/625ae11ff1a44ce83be771c8bce9c35c9da48a82))
+
 ## [0.7.4](https://github.com/woodleighschool/woodstar/compare/0.7.3...0.7.4) (2026-07-30)
 
 
