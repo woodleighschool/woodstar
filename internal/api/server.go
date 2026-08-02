@@ -24,6 +24,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/config"
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/directory"
+	"github.com/woodleighschool/woodstar/internal/heartbeats"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/inventory"
 	"github.com/woodleighschool/woodstar/internal/labels"
@@ -123,6 +124,7 @@ type ProtocolDependencies struct {
 // distribution-point protocols.
 type MunkiProtocolDependencies struct {
 	Hosts                *hosts.Store
+	Heartbeats           *heartbeats.Store
 	Repository           *munki.RepositoryService
 	Distribution         *mdp.Store
 	DistributionProtocol *mdpprotocol.Server
@@ -246,6 +248,7 @@ func protocolRoutes(
 		deps.Protocols.AgentAuth,
 		deps.Protocols.Munki.Hosts,
 		deps.Protocols.Munki.Repository,
+		deps.Protocols.Munki.Heartbeats,
 		deps.Protocols.Munki.Distribution,
 		deps.Protocols.Munki.Delivery,
 		deps.Logger.With("component", "munki"),

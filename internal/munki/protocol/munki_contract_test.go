@@ -11,10 +11,12 @@ import (
 	"testing"
 
 	"github.com/go-chi/chi/v5"
+	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"howett.net/plist"
 
 	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/heartbeats"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/munki/mdp"
@@ -55,7 +57,7 @@ func TestRegisterRoutesSelectsTransferSurface(t *testing.T) {
 	router := chi.NewRouter()
 	ordinary := router.With(testRouteSurface("ordinary"))
 	transfers := router.With(testRouteSurface("transfer"))
-	NewServer(nil, nil, nil, nil, nil, testLogger()).RegisterRoutes(ordinary, transfers)
+	NewServer(nil, nil, nil, nil, nil, nil, testLogger()).RegisterRoutes(ordinary, transfers)
 
 	for _, tc := range []struct {
 		path        string
@@ -325,6 +327,7 @@ func TestMunkiHTTPBindsEveryRepositoryRouteToAuthenticatedHost(t *testing.T) {
 						staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
 						tc.resolver,
 						repository,
+						&recordingHeartbeatRecorder{},
 						&fakeSelector{},
 						&fakeDeliverer{url: "https://storage.example/file"},
 						testLogger(),
@@ -355,6 +358,127 @@ func TestMunkiHTTPBindsEveryRepositoryRouteToAuthenticatedHost(t *testing.T) {
 	}
 }
 
+func TestMunkiHTTPRecordsKnownHostContactBeforeRepositoryDispatch(t *testing.T) {
+	routes := []struct {
+		name string
+		path string
+	}{
+		{name: "manifest", path: "/munki/manifests/C02MUNKI"},
+		{name: "catalog", path: "/munki/catalogs/woodstar"},
+		{name: "icon hashes", path: "/munki/icons/_icon_hashes.plist"},
+		{name: "package", path: "/munki/pkgs/packages/20/installer/GoogleChrome.pkg"},
+		{name: "icon", path: "/munki/icons/7-GoogleChrome.png"},
+		{name: "client resources", path: "/munki/client_resources/site_default.zip"},
+	}
+
+	for _, route := range routes {
+		t.Run(route.name, func(t *testing.T) {
+			repository := newStaticRepository()
+			repository.err = munki.ErrNotFound
+			recorder := &recordingHeartbeatRecorder{}
+			router := chi.NewRouter()
+			router.Use(chimiddleware.ClientIPFromRemoteAddr)
+			NewServer(
+				staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
+				testHostResolver(),
+				repository,
+				recorder,
+				&fakeSelector{},
+				&fakeDeliverer{},
+				testLogger(),
+			).RegisterRoutes(router, router)
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, route.path, nil)
+			req.RemoteAddr = "203.0.113.9:12345"
+			req.Header.Set("Authorization", "Bearer munki-secret")
+			req.Header.Set(testSerialHeader, "C02MUNKI")
+			req.Header.Set("User-Agent", "ManagedInstall/7.1")
+			rec := httptest.NewRecorder()
+
+			router.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusNotFound {
+				t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusNotFound, rec.Body.String())
+			}
+			if repository.calls != 1 {
+				t.Fatalf("repository calls = %d, want 1", repository.calls)
+			}
+			if got := recorder.records; !slices.Equal(got, []heartbeatRecord{{
+				hostID:  42,
+				source:  heartbeats.SourceMunki,
+				contact: heartbeats.Contact{RemoteIP: "203.0.113.9", UserAgent: "ManagedInstall/7.1"},
+			}}) {
+				t.Fatalf("records = %+v, want Munki contact", got)
+			}
+		})
+	}
+}
+
+func TestMunkiHTTPDoesNotRecordUnauthorizedOrUnknownHosts(t *testing.T) {
+	for _, tc := range []struct {
+		name          string
+		authorization string
+		serial        string
+		wantStatus    int
+	}{
+		{name: "missing bearer", wantStatus: http.StatusUnauthorized},
+		{name: "unknown serial", authorization: "Bearer munki-secret", serial: "C02UNKNOWN", wantStatus: http.StatusNotFound},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			recorder := &recordingHeartbeatRecorder{}
+			router := chi.NewRouter()
+			NewServer(
+				staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
+				testHostResolver(),
+				newStaticRepository(),
+				recorder,
+				&fakeSelector{},
+				&fakeDeliverer{},
+				testLogger(),
+			).RegisterRoutes(router, router)
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/munki/manifests/C02MUNKI", nil)
+			req.Header.Set("Authorization", tc.authorization)
+			req.Header.Set(testSerialHeader, tc.serial)
+			rec := httptest.NewRecorder()
+
+			router.ServeHTTP(rec, req)
+
+			if rec.Code != tc.wantStatus {
+				t.Fatalf("status = %d, want %d", rec.Code, tc.wantStatus)
+			}
+			if len(recorder.records) != 0 {
+				t.Fatalf("records = %+v, want none", recorder.records)
+			}
+		})
+	}
+}
+
+func TestMunkiHTTPMapsRecorderErrorsToServerErrors(t *testing.T) {
+	repository := newStaticRepository()
+	router := chi.NewRouter()
+	NewServer(
+		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
+		testHostResolver(),
+		repository,
+		&recordingHeartbeatRecorder{err: errors.New("record heartbeat")},
+		&fakeSelector{},
+		&fakeDeliverer{},
+		testLogger(),
+	).RegisterRoutes(router, router)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/munki/manifests/C02MUNKI", nil)
+	req.Header.Set("Authorization", "Bearer munki-secret")
+	req.Header.Set(testSerialHeader, "C02MUNKI")
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusInternalServerError)
+	}
+	if repository.calls != 0 {
+		t.Fatalf("repository calls = %d, want 0", repository.calls)
+	}
+}
+
 func TestMunkiHTTPRejectsConditionalRequestWithoutSerial(t *testing.T) {
 	repository := newStaticRepository()
 	router := chi.NewRouter()
@@ -362,6 +486,7 @@ func TestMunkiHTTPRejectsConditionalRequestWithoutSerial(t *testing.T) {
 		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
 		testHostResolver(),
 		repository,
+		&recordingHeartbeatRecorder{},
 		&fakeSelector{},
 		&fakeDeliverer{url: "https://storage.example/file"},
 		testLogger(),
@@ -405,6 +530,7 @@ func TestMunkiHTTPRedirectsPackageFileToDistributionPoint(t *testing.T) {
 		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
 		testHostResolver(),
 		repository,
+		&recordingHeartbeatRecorder{},
 		selector,
 		delivery,
 		testLogger(),
@@ -454,6 +580,7 @@ func TestMunkiHTTPDecodesPackageLocationBeforeResolution(t *testing.T) {
 		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
 		testHostResolver(),
 		repository,
+		&recordingHeartbeatRecorder{},
 		selector,
 		&fakeDeliverer{},
 		testLogger(),
@@ -546,7 +673,7 @@ func newMunkiContractRouter(
 		d = delivery[0]
 	}
 	r := chi.NewRouter()
-	NewServer(verifier, testHostResolver(), repository, &fakeSelector{}, d, testLogger()).RegisterRoutes(r, r)
+	NewServer(verifier, testHostResolver(), repository, &recordingHeartbeatRecorder{}, &fakeSelector{}, d, testLogger()).RegisterRoutes(r, r)
 	return r
 }
 
@@ -610,6 +737,7 @@ type staticRepository struct {
 	fileKey    string
 	packageID  int64
 	fileObject storage.Object
+	err        error
 }
 
 func newStaticRepository() *staticRepository {
@@ -628,18 +756,27 @@ func newStaticRepositoryWithPackages(packages []munkisoftware.EffectivePackage) 
 func (r *staticRepository) Manifest(ctx context.Context, hostID int64) ([]byte, error) {
 	r.calls++
 	r.hostID = hostID
+	if r.err != nil {
+		return nil, r.err
+	}
 	return r.service.Manifest(ctx, hostID)
 }
 
 func (r *staticRepository) Catalog(ctx context.Context, hostID int64, name string) ([]byte, error) {
 	r.calls++
 	r.hostID = hostID
+	if r.err != nil {
+		return nil, r.err
+	}
 	return r.service.Catalog(ctx, hostID, name)
 }
 
 func (r *staticRepository) IconHashes(ctx context.Context, hostID int64) ([]byte, error) {
 	r.calls++
 	r.hostID = hostID
+	if r.err != nil {
+		return nil, r.err
+	}
 	return r.service.IconHashes(ctx, hostID)
 }
 
@@ -652,6 +789,9 @@ func (r *staticRepository) ResolvePackageFile(
 	r.hostID = hostID
 	r.fileClass = "package"
 	r.fileKey = key
+	if r.err != nil {
+		return munki.PackageInstaller{}, r.err
+	}
 	if r.fileErr != nil {
 		return munki.PackageInstaller{}, r.fileErr
 	}
@@ -686,10 +826,34 @@ func (r *staticRepository) ResolveClientResources(
 func (r *staticRepository) resolve(class, key string) (storage.Object, error) {
 	r.fileClass = class
 	r.fileKey = key
+	if r.err != nil {
+		return storage.Object{}, r.err
+	}
 	if r.fileErr != nil {
 		return storage.Object{}, r.fileErr
 	}
 	return r.fileObject, nil
+}
+
+type heartbeatRecord struct {
+	hostID  int64
+	source  heartbeats.Source
+	contact heartbeats.Contact
+}
+
+type recordingHeartbeatRecorder struct {
+	records []heartbeatRecord
+	err     error
+}
+
+func (r *recordingHeartbeatRecorder) Record(
+	_ context.Context,
+	hostID int64,
+	source heartbeats.Source,
+	contact heartbeats.Contact,
+) error {
+	r.records = append(r.records, heartbeatRecord{hostID: hostID, source: source, contact: contact})
+	return r.err
 }
 
 type staticPackageResolver struct {

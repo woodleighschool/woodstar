@@ -296,6 +296,7 @@ func buildDependencies(
 		Events:         eventStore,
 		Rules:          ruleStore,
 		Sync:           syncStore,
+		Heartbeats:     heartbeatStore,
 	})
 	santaState := santa.NewHostStateService(santaHostStore, configurationStore)
 
@@ -348,6 +349,7 @@ func buildDependencies(
 			Osquery:   osqueryAgent,
 			Munki: api.MunkiProtocolDependencies{
 				Hosts:                hostStore,
+				Heartbeats:           heartbeatStore,
 				Repository:           munkiRepository,
 				Distribution:         munkiDistribution,
 				DistributionProtocol: munkiDistributionProtocol,

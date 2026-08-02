@@ -14,6 +14,7 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/heartbeats"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/santa"
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
@@ -46,6 +47,7 @@ func newUploadedEventFixture(t *testing.T) uploadedEventFixture {
 		Events:         eventStore,
 		Rules:          santarules.NewStore(db),
 		Sync:           syncstate.NewStore(db),
+		Heartbeats:     heartbeats.NewStore(db),
 	})
 
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
@@ -67,7 +69,7 @@ func newUploadedEventFixture(t *testing.T) uploadedEventFixture {
 		secureSigningTime: time.Date(2026, 5, 22, 8, 16, 0, 0, time.UTC),
 		bundleHash:        strings.Repeat("c", 64),
 	}
-	_, err = service.EventUpload(ctx, "santa-events-host", santa.EventUploadRequest{
+	_, err = service.EventUpload(ctx, "santa-events-host", heartbeats.Contact{}, santa.EventUploadRequest{
 		Events: []santaevents.ExecutionEventInput{
 			{
 				FileSHA256:      "sha256-a",
@@ -271,6 +273,7 @@ func TestEventUploadRequestsAndCollectsBundleBinaries(t *testing.T) {
 		Events:         eventStore,
 		Rules:          santarules.NewStore(db),
 		Sync:           syncstate.NewStore(db),
+		Heartbeats:     heartbeats.NewStore(db),
 	})
 
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
@@ -282,7 +285,7 @@ func TestEventUploadRequestsAndCollectsBundleBinaries(t *testing.T) {
 	}
 
 	bundleHash := strings.Repeat("b", 64)
-	firstResponse, err := service.EventUpload(ctx, "santa-bundle-events-host", santa.EventUploadRequest{
+	firstResponse, err := service.EventUpload(ctx, "santa-bundle-events-host", heartbeats.Contact{}, santa.EventUploadRequest{
 		Events: []santaevents.ExecutionEventInput{{
 			FileSHA256:              strings.Repeat("1", 64),
 			FilePath:                "/Applications/Bundle.app/Contents/MacOS/Bundle",
@@ -307,7 +310,7 @@ func TestEventUploadRequestsAndCollectsBundleBinaries(t *testing.T) {
 		t.Fatalf("bundle binary requests = %v, want [%s]", firstResponse.BundleBinaryRequests, bundleHash)
 	}
 
-	secondResponse, err := service.EventUpload(ctx, "santa-bundle-events-host", santa.EventUploadRequest{
+	secondResponse, err := service.EventUpload(ctx, "santa-bundle-events-host", heartbeats.Contact{}, santa.EventUploadRequest{
 		Events: []santaevents.ExecutionEventInput{{
 			FileSHA256:        strings.Repeat("2", 64),
 			FileName:          "Bundle Helper",
@@ -365,6 +368,7 @@ func TestEventUploadDerivesBundleCompletionFromFinalBatchState(t *testing.T) {
 		Events:         eventStore,
 		Rules:          santarules.NewStore(db),
 		Sync:           syncstate.NewStore(db),
+		Heartbeats:     heartbeats.NewStore(db),
 	})
 
 	if _, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
@@ -375,7 +379,7 @@ func TestEventUploadDerivesBundleCompletionFromFinalBatchState(t *testing.T) {
 	}
 
 	bundleHash := strings.Repeat("d", 64)
-	response, err := service.EventUpload(ctx, "santa-final-bundle-state-host", santa.EventUploadRequest{
+	response, err := service.EventUpload(ctx, "santa-final-bundle-state-host", heartbeats.Contact{}, santa.EventUploadRequest{
 		Events: []santaevents.ExecutionEventInput{
 			{
 				FileSHA256:        strings.Repeat("4", 64),
@@ -431,6 +435,7 @@ func TestEventUploadReopensBundleWhenExpectedCountIncreases(t *testing.T) {
 		Events:         eventStore,
 		Rules:          santarules.NewStore(db),
 		Sync:           syncstate.NewStore(db),
+		Heartbeats:     heartbeats.NewStore(db),
 	})
 
 	if _, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
@@ -448,7 +453,7 @@ func TestEventUploadReopensBundleWhenExpectedCountIncreases(t *testing.T) {
 		BundleHash:        bundleHash,
 		BundleBinaryCount: 1,
 	}
-	first, err := service.EventUpload(ctx, "santa-reopened-bundle-host", santa.EventUploadRequest{
+	first, err := service.EventUpload(ctx, "santa-reopened-bundle-host", heartbeats.Contact{}, santa.EventUploadRequest{
 		Events: []santaevents.ExecutionEventInput{event},
 	})
 	if err != nil {
@@ -460,7 +465,7 @@ func TestEventUploadReopensBundleWhenExpectedCountIncreases(t *testing.T) {
 
 	event.OccurredAt = event.OccurredAt.Add(time.Minute)
 	event.BundleBinaryCount = 2
-	second, err := service.EventUpload(ctx, "santa-reopened-bundle-host", santa.EventUploadRequest{
+	second, err := service.EventUpload(ctx, "santa-reopened-bundle-host", heartbeats.Contact{}, santa.EventUploadRequest{
 		Events: []santaevents.ExecutionEventInput{event},
 	})
 	if err != nil {
@@ -491,6 +496,7 @@ func TestEventUploadIngestsFileAccessEvents(t *testing.T) {
 		Events:         eventStore,
 		Rules:          santarules.NewStore(db),
 		Sync:           syncstate.NewStore(db),
+		Heartbeats:     heartbeats.NewStore(db),
 	})
 
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
@@ -502,7 +508,7 @@ func TestEventUploadIngestsFileAccessEvents(t *testing.T) {
 		t.Fatalf("enroll host: %v", err)
 	}
 	occurredAt := time.Date(2026, 5, 24, 9, 15, 0, 0, time.UTC)
-	_, err = service.EventUpload(ctx, "santa-file-access-host", santa.EventUploadRequest{
+	_, err = service.EventUpload(ctx, "santa-file-access-host", heartbeats.Contact{}, santa.EventUploadRequest{
 		FileAccessEvents: []santaevents.FileAccessEventInput{{
 			RuleVersion: "v7",
 			RuleName:    "Protect Payroll",
@@ -611,6 +617,7 @@ func TestEventListCursorFiltersAndRetention(t *testing.T) {
 		Events:         eventStore,
 		Rules:          santarules.NewStore(db),
 		Sync:           syncstate.NewStore(db),
+		Heartbeats:     heartbeats.NewStore(db),
 	})
 
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
@@ -626,7 +633,7 @@ func TestEventListCursorFiltersAndRetention(t *testing.T) {
 		santaevents.ExecutionDecisionAllowBinary,
 		santaevents.ExecutionDecisionBlockCertificate,
 	} {
-		_, err := service.EventUpload(ctx, "santa-event-list-host", santa.EventUploadRequest{
+		_, err := service.EventUpload(ctx, "santa-event-list-host", heartbeats.Contact{}, santa.EventUploadRequest{
 			Events: []santaevents.ExecutionEventInput{{
 				FileSHA256: string(rune('a' + i)),
 				FileName:   string(rune('A' + i)),
@@ -728,6 +735,7 @@ func TestEventUploadDeduplicatesSigningChainsAcrossConcurrentUploads(t *testing.
 		Events:         eventStore,
 		Rules:          santarules.NewStore(db),
 		Sync:           syncstate.NewStore(db),
+		Heartbeats:     heartbeats.NewStore(db),
 	})
 
 	if _, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
@@ -743,7 +751,7 @@ func TestEventUploadDeduplicatesSigningChainsAcrossConcurrentUploads(t *testing.
 		wg.Add(1)
 		go func(sha string) {
 			defer wg.Done()
-			_, err := service.EventUpload(ctx, "santa-concurrent-chain-host", santa.EventUploadRequest{
+			_, err := service.EventUpload(ctx, "santa-concurrent-chain-host", heartbeats.Contact{}, santa.EventUploadRequest{
 				Events: []santaevents.ExecutionEventInput{{
 					FileSHA256:   sha,
 					FileName:     sha,

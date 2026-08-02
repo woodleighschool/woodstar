@@ -3,6 +3,7 @@ package santa
 import (
 	"context"
 
+	"github.com/woodleighschool/woodstar/internal/heartbeats"
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 	santaevents "github.com/woodleighschool/woodstar/internal/santa/events"
 	santarules "github.com/woodleighschool/woodstar/internal/santa/rules"
@@ -22,6 +23,11 @@ type Dependencies struct {
 	Events         eventStore
 	Rules          ruleStore
 	Sync           syncStore
+	Heartbeats     contactRecorder
+}
+
+type contactRecorder interface {
+	Record(context.Context, int64, heartbeats.Source, heartbeats.Contact) error
 }
 
 type hostStore interface {
@@ -78,10 +84,14 @@ func NewSyncService(deps Dependencies) *SyncService {
 func (s *SyncService) Preflight(
 	ctx context.Context,
 	machineID string,
+	contact heartbeats.Contact,
 	req PreflightRequest,
 ) (PreflightResponse, error) {
 	hostID, err := s.deps.HostStore.hostIDByMachineID(ctx, machineID)
 	if err != nil {
+		return PreflightResponse{}, err
+	}
+	if err := s.deps.Heartbeats.Record(ctx, hostID, heartbeats.SourceSanta, contact); err != nil {
 		return PreflightResponse{}, err
 	}
 	if err := s.deps.HostStore.UpsertHostObservation(
@@ -121,10 +131,14 @@ func (s *SyncService) Preflight(
 func (s *SyncService) EventUpload(
 	ctx context.Context,
 	machineID string,
+	contact heartbeats.Contact,
 	req EventUploadRequest,
 ) (EventUploadResponse, error) {
 	hostID, err := s.deps.HostStore.hostIDByMachineID(ctx, machineID)
 	if err != nil {
+		return EventUploadResponse{}, err
+	}
+	if err := s.deps.Heartbeats.Record(ctx, hostID, heartbeats.SourceSanta, contact); err != nil {
 		return EventUploadResponse{}, err
 	}
 	bundleRequests, err := s.deps.Events.IngestEvents(
@@ -143,10 +157,14 @@ func (s *SyncService) EventUpload(
 func (s *SyncService) RuleDownload(
 	ctx context.Context,
 	machineID string,
+	contact heartbeats.Contact,
 	req RuleDownloadRequest,
 ) (RuleDownloadResponse, error) {
 	hostID, err := s.deps.HostStore.hostIDByMachineID(ctx, machineID)
 	if err != nil {
+		return RuleDownloadResponse{}, err
+	}
+	if err := s.deps.Heartbeats.Record(ctx, hostID, heartbeats.SourceSanta, contact); err != nil {
 		return RuleDownloadResponse{}, err
 	}
 	return s.deps.Sync.LoadPendingPayloadPage(ctx, hostID, req.Cursor, ruleDownloadPageSize)
@@ -155,10 +173,14 @@ func (s *SyncService) RuleDownload(
 func (s *SyncService) Postflight(
 	ctx context.Context,
 	machineID string,
+	contact heartbeats.Contact,
 	req PostflightRequest,
 ) (PostflightResponse, error) {
 	hostID, err := s.deps.HostStore.hostIDByMachineID(ctx, machineID)
 	if err != nil {
+		return PostflightResponse{}, err
+	}
+	if err := s.deps.Heartbeats.Record(ctx, hostID, heartbeats.SourceSanta, contact); err != nil {
 		return PostflightResponse{}, err
 	}
 	if err := s.deps.Sync.PromotePending(
