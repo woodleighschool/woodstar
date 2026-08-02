@@ -108,13 +108,21 @@ func orbitConfigHandler(svc enrollmentService, logger *slog.Logger) http.Handler
 			return
 		}
 		resp, err := svc.Config(r.Context(), req.OrbitNodeKey, requestContact(r))
-		if err != nil {
+		switch {
+		case errors.Is(err, dbutil.ErrNotFound):
 			logger.DebugContext(
 				r.Context(),
 				"orbit config rejected", "operation", "config",
 				"reason", "invalid_node_key",
 			)
 			httpx.WriteError(w, http.StatusUnauthorized, "invalid orbit node key")
+			return
+		case err != nil:
+			logger.ErrorContext(
+				r.Context(), "orbit config failed",
+				"operation", "config", "err", err,
+			)
+			httpx.WriteError(w, http.StatusInternalServerError, "config request failed")
 			return
 		}
 		httpx.Write(w, http.StatusOK, resp)

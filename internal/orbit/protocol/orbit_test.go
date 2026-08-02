@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -135,6 +136,28 @@ func TestOrbitConfigPassesRequestContact(t *testing.T) {
 	want := heartbeats.Contact{RemoteIP: "203.0.113.42", UserAgent: "Orbit/1.2.3"}
 	if service.configContact != want {
 		t.Fatalf("contact = %#v, want %#v", service.configContact, want)
+	}
+}
+
+func TestOrbitConfigMapsServiceErrors(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		err        error
+		wantStatus int
+	}{
+		{name: "unknown node key", err: dbutil.ErrNotFound, wantStatus: http.StatusUnauthorized},
+		{name: "heartbeat recorder failure", err: errors.New("heartbeat unavailable"), wantStatus: http.StatusInternalServerError},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			service := &stubEnrollmentService{configErr: tt.err}
+			doOrbitJSON(t, newOrbitRouter(service), http.MethodPost, "/api/fleet/orbit/config", orbit.ConfigRequest{
+				OrbitNodeKey: "node-key",
+			}, tt.wantStatus)
+		})
 	}
 }
 
