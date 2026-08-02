@@ -117,7 +117,8 @@ func TestEnrollmentServiceRecordsAuthenticatedHostContact(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			recorder := &fakeHeartbeatRecorder{}
-			service := newTestEnrollmentService(recorder)
+			hostStore := &fakeOrbitHostStore{host: &hosts.Host{ID: 42}}
+			service := newTestEnrollmentService(recorder, hostStore)
 
 			tt.call(t, service)
 
@@ -137,11 +138,11 @@ func TestEnrollmentServiceDoesNotRecordUnauthenticatedContact(t *testing.T) {
 
 	tests := []struct {
 		name string
-		call func(t *testing.T, service *EnrollmentService)
+		call func(t *testing.T, service *EnrollmentService, hostStore *fakeOrbitHostStore)
 	}{
 		{
 			name: "invalid enroll secret",
-			call: func(t *testing.T, service *EnrollmentService) {
+			call: func(t *testing.T, service *EnrollmentService, _ *fakeOrbitHostStore) {
 				t.Helper()
 				_, _, err := service.Enroll(t.Context(), EnrollRequest{EnrollSecret: "bad", HardwareUUID: "hardware-uuid"}, heartbeats.Contact{})
 				if !errors.Is(err, agentauth.ErrInvalidSecret) {
@@ -151,9 +152,9 @@ func TestEnrollmentServiceDoesNotRecordUnauthenticatedContact(t *testing.T) {
 		},
 		{
 			name: "invalid node key",
-			call: func(t *testing.T, service *EnrollmentService) {
+			call: func(t *testing.T, service *EnrollmentService, hostStore *fakeOrbitHostStore) {
 				t.Helper()
-				service.hostStore.(*fakeOrbitHostStore).getErr = dbutil.ErrNotFound
+				hostStore.getErr = dbutil.ErrNotFound
 				_, err := service.Config(t.Context(), "bad", heartbeats.Contact{})
 				if !errors.Is(err, dbutil.ErrNotFound) {
 					t.Fatalf("Config error = %v, want not found", err)
@@ -162,7 +163,7 @@ func TestEnrollmentServiceDoesNotRecordUnauthenticatedContact(t *testing.T) {
 		},
 		{
 			name: "invalid device token",
-			call: func(t *testing.T, service *EnrollmentService) {
+			call: func(t *testing.T, service *EnrollmentService, _ *fakeOrbitHostStore) {
 				t.Helper()
 				err := service.SetDeviceAuthToken(t.Context(), "node-key", "invalid", heartbeats.Contact{})
 				if !errors.Is(err, ErrInvalidDeviceAuthToken) {
@@ -172,9 +173,9 @@ func TestEnrollmentServiceDoesNotRecordUnauthenticatedContact(t *testing.T) {
 		},
 		{
 			name: "unknown device token",
-			call: func(t *testing.T, service *EnrollmentService) {
+			call: func(t *testing.T, service *EnrollmentService, hostStore *fakeOrbitHostStore) {
 				t.Helper()
-				service.hostStore.(*fakeOrbitHostStore).validateErr = dbutil.ErrNotFound
+				hostStore.validateErr = dbutil.ErrNotFound
 				err := service.ValidateDeviceAuthToken(t.Context(), "bad", heartbeats.Contact{})
 				if !errors.Is(err, dbutil.ErrNotFound) {
 					t.Fatalf("ValidateDeviceAuthToken error = %v, want not found", err)
@@ -187,12 +188,13 @@ func TestEnrollmentServiceDoesNotRecordUnauthenticatedContact(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			recorder := &fakeHeartbeatRecorder{}
-			service := newTestEnrollmentService(recorder)
+			hostStore := &fakeOrbitHostStore{host: &hosts.Host{ID: 42}}
+			service := newTestEnrollmentService(recorder, hostStore)
 			if tt.name == "invalid enroll secret" {
 				service.secretStore = fakeOrbitSecretVerifier{ok: false}
 			}
 
-			tt.call(t, service)
+			tt.call(t, service, hostStore)
 			if len(recorder.calls) != 0 {
 				t.Fatalf("Record calls = %d, want 0", len(recorder.calls))
 			}
@@ -204,7 +206,8 @@ func TestEnrollmentServicePropagatesHeartbeatError(t *testing.T) {
 	t.Parallel()
 
 	wantErr := errors.New("heartbeat unavailable")
-	service := newTestEnrollmentService(&fakeHeartbeatRecorder{err: wantErr})
+	hostStore := &fakeOrbitHostStore{host: &hosts.Host{ID: 42}}
+	service := newTestEnrollmentService(&fakeHeartbeatRecorder{err: wantErr}, hostStore)
 	_, err := service.Config(t.Context(), "node-key", heartbeats.Contact{})
 	if !errors.Is(err, wantErr) {
 		t.Fatalf("Config error = %v, want %v", err, wantErr)
@@ -259,9 +262,12 @@ func (r *fakeHeartbeatRecorder) Record(_ context.Context, hostID int64, source h
 	return r.err
 }
 
-func newTestEnrollmentService(recorder heartbeatRecorder) *EnrollmentService {
+func newTestEnrollmentService(
+	recorder heartbeatRecorder,
+	hostStore *fakeOrbitHostStore,
+) *EnrollmentService {
 	return NewEnrollmentService(
-		&fakeOrbitHostStore{host: &hosts.Host{ID: 42}},
+		hostStore,
 		fakeOrbitSecretVerifier{ok: true},
 		fakePrimaryUserStore{},
 		recorder,

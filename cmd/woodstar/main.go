@@ -199,8 +199,7 @@ func buildDependencies(
 	// Core stores.
 	labelStore := labels.NewStore(db)
 	directoryStore := directory.NewStore(db)
-	hostStore := hosts.NewStore(db)
-	heartbeatStore := heartbeats.NewStore(db)
+	hostStore, heartbeatStore := newHostStores(db)
 	secretStore := agentauth.NewStore(db)
 	inventoryStore := inventory.NewStore(db)
 	primaryUsers := hosts.NewPrimaryUserStore(db)
@@ -369,6 +368,10 @@ func buildDependencies(
 	}
 
 	return deps, starters, nil
+}
+
+func newHostStores(db *database.DB) (*hosts.Store, *heartbeats.Store) {
+	return hosts.NewStore(db), heartbeats.NewStore(db)
 }
 
 func storageUploadCleanupStarter(

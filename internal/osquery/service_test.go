@@ -148,7 +148,8 @@ func TestAgentServiceRecordsAuthenticatedHostContact(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			recorder := &fakeOsqueryHeartbeatRecorder{}
-			service := newTestAgentService(recorder)
+			hostStore := &fakeHostStore{host: &hosts.Host{ID: 42}}
+			service := newTestAgentService(recorder, hostStore)
 
 			tt.call(t, service)
 
@@ -167,7 +168,8 @@ func TestAgentServiceDoesNotRecordUnauthenticatedContact(t *testing.T) {
 	t.Parallel()
 
 	recorder := &fakeOsqueryHeartbeatRecorder{}
-	service := newTestAgentService(recorder)
+	hostStore := &fakeHostStore{host: &hosts.Host{ID: 42}}
+	service := newTestAgentService(recorder, hostStore)
 	service.deps.SecretStore = fakeSecretVerifier{ok: false}
 	_, err := service.Enroll(t.Context(), EnrollRequest{EnrollSecret: "bad", HostIdentifier: "hardware-uuid"}, heartbeats.Contact{})
 	if !errors.Is(err, agentauth.ErrInvalidSecret) {
@@ -177,8 +179,9 @@ func TestAgentServiceDoesNotRecordUnauthenticatedContact(t *testing.T) {
 		t.Fatalf("Record calls = %d, want 0", len(recorder.calls))
 	}
 
-	service = newTestAgentService(recorder)
-	service.deps.HostStore.(*fakeHostStore).getErr = dbutil.ErrNotFound
+	hostStore = &fakeHostStore{host: &hosts.Host{ID: 42}}
+	service = newTestAgentService(recorder, hostStore)
+	hostStore.getErr = dbutil.ErrNotFound
 	resp, err := service.Config(t.Context(), "bad", heartbeats.Contact{})
 	if err != nil || !resp.NodeInvalid {
 		t.Fatalf("Config = %#v, %v; want invalid node without error", resp, err)
@@ -192,7 +195,8 @@ func TestAgentServicePropagatesHeartbeatError(t *testing.T) {
 	t.Parallel()
 
 	wantErr := errors.New("heartbeat unavailable")
-	service := newTestAgentService(&fakeOsqueryHeartbeatRecorder{err: wantErr})
+	hostStore := &fakeHostStore{host: &hosts.Host{ID: 42}}
+	service := newTestAgentService(&fakeOsqueryHeartbeatRecorder{err: wantErr}, hostStore)
 	_, err := service.Config(t.Context(), "node-key", heartbeats.Contact{})
 	if !errors.Is(err, wantErr) {
 		t.Fatalf("Config error = %v, want %v", err, wantErr)
@@ -243,9 +247,9 @@ func (r *fakeOsqueryHeartbeatRecorder) Record(_ context.Context, hostID int64, s
 	return r.err
 }
 
-func newTestAgentService(recorder heartbeatRecorder) *AgentService {
+func newTestAgentService(recorder heartbeatRecorder, hostStore *fakeHostStore) *AgentService {
 	return NewAgentService(Dependencies{
-		HostStore:      &fakeHostStore{host: &hosts.Host{ID: 42}},
+		HostStore:      hostStore,
 		ReportStore:    fakeReportStore{},
 		CheckStore:     fakeCheckStore{},
 		LabelEvaluator: fakeLabelEvaluator{},
