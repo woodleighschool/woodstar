@@ -3,6 +3,7 @@ package heartbeats
 import (
 	"context"
 	"fmt"
+	"net/netip"
 
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
@@ -23,6 +24,11 @@ func (s *Store) Record(ctx context.Context, hostID int64, source Source, contact
 	}
 	if !source.valid() {
 		return fmt.Errorf("source: %w", dbutil.ErrInvalidInput)
+	}
+	if contact.RemoteIP != "" {
+		if _, err := netip.ParseAddr(contact.RemoteIP); err != nil {
+			return fmt.Errorf("remote IP %q: %w", contact.RemoteIP, dbutil.ErrInvalidInput)
+		}
 	}
 
 	_, err := s.db.Pool().Exec(ctx, `

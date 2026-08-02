@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net/netip"
 	"testing"
+	"time"
 
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
@@ -46,6 +47,13 @@ func TestRecordUpdatesCurrentHeartbeat(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("record first heartbeat: %v", err)
 	}
+	stale := time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC)
+	if _, err := db.Pool().Exec(ctx, `
+		UPDATE host_heartbeats
+		SET last_seen_at = $1
+		WHERE host_id = $2 AND source = $3`, stale, hostID, SourceOrbit); err != nil {
+		t.Fatalf("make heartbeat stale: %v", err)
+	}
 	if err := store.Record(ctx, hostID, SourceOrbit, Contact{
 		RemoteIP:  "2001:db8::1",
 		UserAgent: "Orbit/2.0",
@@ -54,6 +62,9 @@ func TestRecordUpdatesCurrentHeartbeat(t *testing.T) {
 	}
 	second := loadHeartbeat(t, ctx, db, hostID, SourceOrbit)
 
+	if !second.LastSeenAt.After(stale) {
+		t.Fatalf("LastSeenAt = %v, want after %v", second.LastSeenAt, stale)
+	}
 	if second.RemoteIP == nil || *second.RemoteIP != netip.MustParseAddr("2001:db8::1") {
 		t.Fatalf("RemoteIP = %v, want 2001:db8::1", second.RemoteIP)
 	}
@@ -91,6 +102,9 @@ func TestRecordStoresSourcesSeparately(t *testing.T) {
 	if count != 2 {
 		t.Fatalf("heartbeat count = %d, want 2", count)
 	}
+	if heartbeat := loadHeartbeat(t, ctx, db, hostID, SourceOrbit); heartbeat.RemoteIP != nil {
+		t.Fatalf("RemoteIP = %v, want nil", heartbeat.RemoteIP)
+	}
 }
 
 func TestRecordRejectsInvalidHostAndSource(t *testing.T) {
@@ -102,6 +116,18 @@ func TestRecordRejectsInvalidHostAndSource(t *testing.T) {
 	}
 	if err := store.Record(ctx, hostID, Source("other"), Contact{}); !errors.Is(err, dbutil.ErrInvalidInput) {
 		t.Fatalf("Record invalid source error = %v, want ErrInvalidInput", err)
+	}
+}
+
+func TestRecordRejectsInvalidRemoteIP(t *testing.T) {
+	store, db, ctx := newPostgresHeartbeatStore(t)
+	hostID := insertHeartbeatHost(t, ctx, db, "invalid-remote-ip")
+
+	for _, remoteIP := range []string{"not-an-ip", "192.0.2.1/24"} {
+		err := store.Record(ctx, hostID, SourceOrbit, Contact{RemoteIP: remoteIP})
+		if !errors.Is(err, dbutil.ErrInvalidInput) {
+			t.Fatalf("Record remote IP %q error = %v, want ErrInvalidInput", remoteIP, err)
+		}
 	}
 }
 
