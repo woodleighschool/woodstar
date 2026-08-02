@@ -1,0 +1,160 @@
+//go:build postgres
+
+package heartbeats
+
+import (
+	"context"
+	"errors"
+	"net/netip"
+	"testing"
+
+	"github.com/woodleighschool/woodstar/internal/database"
+	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
+)
+
+func TestRecordInsertsHeartbeat(t *testing.T) {
+	store, db, ctx := newPostgresHeartbeatStore(t)
+	hostID := insertHeartbeatHost(t, ctx, db, "first-record")
+
+	if err := store.Record(ctx, hostID, SourceOrbit, Contact{
+		RemoteIP:  "192.0.2.1",
+		UserAgent: "Orbit/1.0",
+	}); err != nil {
+		t.Fatalf("record heartbeat: %v", err)
+	}
+
+	heartbeat := loadHeartbeat(t, ctx, db, hostID, SourceOrbit)
+	if heartbeat.LastSeenAt.IsZero() {
+		t.Fatal("LastSeenAt is zero")
+	}
+	if heartbeat.RemoteIP == nil || *heartbeat.RemoteIP != netip.MustParseAddr("192.0.2.1") {
+		t.Fatalf("RemoteIP = %v, want 192.0.2.1", heartbeat.RemoteIP)
+	}
+	if heartbeat.UserAgent != "Orbit/1.0" {
+		t.Fatalf("UserAgent = %q, want Orbit/1.0", heartbeat.UserAgent)
+	}
+}
+
+func TestRecordUpdatesCurrentHeartbeat(t *testing.T) {
+	store, db, ctx := newPostgresHeartbeatStore(t)
+	hostID := insertHeartbeatHost(t, ctx, db, "update-current")
+
+	if err := store.Record(ctx, hostID, SourceOrbit, Contact{
+		RemoteIP:  "192.0.2.1",
+		UserAgent: "Orbit/1.0",
+	}); err != nil {
+		t.Fatalf("record first heartbeat: %v", err)
+	}
+	if err := store.Record(ctx, hostID, SourceOrbit, Contact{
+		RemoteIP:  "2001:db8::1",
+		UserAgent: "Orbit/2.0",
+	}); err != nil {
+		t.Fatalf("record second heartbeat: %v", err)
+	}
+	second := loadHeartbeat(t, ctx, db, hostID, SourceOrbit)
+
+	if second.RemoteIP == nil || *second.RemoteIP != netip.MustParseAddr("2001:db8::1") {
+		t.Fatalf("RemoteIP = %v, want 2001:db8::1", second.RemoteIP)
+	}
+	if second.UserAgent != "Orbit/2.0" {
+		t.Fatalf("UserAgent = %q, want Orbit/2.0", second.UserAgent)
+	}
+	var count int
+	if err := db.Pool().QueryRow(ctx, `
+		SELECT count(*)::integer
+		FROM host_heartbeats
+		WHERE host_id = $1 AND source = $2`, hostID, SourceOrbit).Scan(&count); err != nil {
+		t.Fatalf("count heartbeats: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("heartbeat count = %d, want 1", count)
+	}
+}
+
+func TestRecordStoresSourcesSeparately(t *testing.T) {
+	store, db, ctx := newPostgresHeartbeatStore(t)
+	hostID := insertHeartbeatHost(t, ctx, db, "separate-sources")
+
+	if err := store.Record(ctx, hostID, SourceOrbit, Contact{}); err != nil {
+		t.Fatalf("record orbit heartbeat: %v", err)
+	}
+	if err := store.Record(ctx, hostID, SourceOsquery, Contact{}); err != nil {
+		t.Fatalf("record osquery heartbeat: %v", err)
+	}
+
+	var count int
+	if err := db.Pool().QueryRow(ctx, `
+		SELECT count(*)::integer FROM host_heartbeats WHERE host_id = $1`, hostID).Scan(&count); err != nil {
+		t.Fatalf("count heartbeats: %v", err)
+	}
+	if count != 2 {
+		t.Fatalf("heartbeat count = %d, want 2", count)
+	}
+}
+
+func TestRecordRejectsInvalidHostAndSource(t *testing.T) {
+	store, db, ctx := newPostgresHeartbeatStore(t)
+	hostID := insertHeartbeatHost(t, ctx, db, "validation")
+
+	if err := store.Record(ctx, 0, SourceOrbit, Contact{}); !errors.Is(err, dbutil.ErrInvalidInput) {
+		t.Fatalf("Record invalid host error = %v, want ErrInvalidInput", err)
+	}
+	if err := store.Record(ctx, hostID, Source("other"), Contact{}); !errors.Is(err, dbutil.ErrInvalidInput) {
+		t.Fatalf("Record invalid source error = %v, want ErrInvalidInput", err)
+	}
+}
+
+func TestHostDeletionCascadesHeartbeats(t *testing.T) {
+	store, db, ctx := newPostgresHeartbeatStore(t)
+	hostID := insertHeartbeatHost(t, ctx, db, "delete-cascade")
+
+	if err := store.Record(ctx, hostID, SourceSanta, Contact{}); err != nil {
+		t.Fatalf("record heartbeat: %v", err)
+	}
+	if _, err := db.Pool().Exec(ctx, `DELETE FROM hosts WHERE id = $1`, hostID); err != nil {
+		t.Fatalf("delete host: %v", err)
+	}
+	var count int
+	if err := db.Pool().QueryRow(ctx, `SELECT count(*)::integer FROM host_heartbeats WHERE host_id = $1`, hostID).Scan(&count); err != nil {
+		t.Fatalf("count heartbeats: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("heartbeat count = %d, want 0", count)
+	}
+}
+
+func newPostgresHeartbeatStore(t *testing.T) (*Store, *database.DB, context.Context) {
+	t.Helper()
+	db, ctx := testdb.Open(t)
+	return NewStore(db), db, ctx
+}
+
+func insertHeartbeatHost(t *testing.T, ctx context.Context, db *database.DB, hardwareUUID string) int64 {
+	t.Helper()
+	var hostID int64
+	if err := db.Pool().QueryRow(ctx, `
+		INSERT INTO hosts (hardware_uuid)
+		VALUES ($1)
+		RETURNING id`, hardwareUUID).Scan(&hostID); err != nil {
+		t.Fatalf("insert host: %v", err)
+	}
+	return hostID
+}
+
+func loadHeartbeat(t *testing.T, ctx context.Context, db *database.DB, hostID int64, source Source) Heartbeat {
+	t.Helper()
+	var heartbeat Heartbeat
+	if err := db.Pool().QueryRow(ctx, `
+		SELECT source, last_seen_at, remote_ip, user_agent
+		FROM host_heartbeats
+		WHERE host_id = $1 AND source = $2`, hostID, source).Scan(
+		&heartbeat.Source,
+		&heartbeat.LastSeenAt,
+		&heartbeat.RemoteIP,
+		&heartbeat.UserAgent,
+	); err != nil {
+		t.Fatalf("load heartbeat: %v", err)
+	}
+	return heartbeat
+}
