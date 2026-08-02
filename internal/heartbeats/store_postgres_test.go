@@ -123,7 +123,7 @@ func TestRecordRejectsInvalidRemoteIP(t *testing.T) {
 	store, db, ctx := newPostgresHeartbeatStore(t)
 	hostID := insertHeartbeatHost(t, ctx, db, "invalid-remote-ip")
 
-	for _, remoteIP := range []string{"not-an-ip", "192.0.2.1/24"} {
+	for _, remoteIP := range []string{"not-an-ip", "192.0.2.1/24", "fe80::1%en0"} {
 		err := store.Record(ctx, hostID, SourceOrbit, Contact{RemoteIP: remoteIP})
 		if !errors.Is(err, dbutil.ErrInvalidInput) {
 			t.Fatalf("Record remote IP %q error = %v, want ErrInvalidInput", remoteIP, err)

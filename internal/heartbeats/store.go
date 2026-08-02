@@ -26,7 +26,8 @@ func (s *Store) Record(ctx context.Context, hostID int64, source Source, contact
 		return fmt.Errorf("source: %w", dbutil.ErrInvalidInput)
 	}
 	if contact.RemoteIP != "" {
-		if _, err := netip.ParseAddr(contact.RemoteIP); err != nil {
+		remoteIP, err := netip.ParseAddr(contact.RemoteIP)
+		if err != nil || remoteIP.Zone() != "" {
 			return fmt.Errorf("remote IP %q: %w", contact.RemoteIP, dbutil.ErrInvalidInput)
 		}
 	}
