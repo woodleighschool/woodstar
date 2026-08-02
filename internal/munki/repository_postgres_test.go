@@ -1325,33 +1325,30 @@ func TestHostMunkiStateKeepsDesiredSoftwareSeparateFromExactObservations(t *test
 
 	runStartedAt := time.Date(2026, 5, 31, 9, 23, 0, 0, time.UTC)
 	runEndedAt := time.Date(2026, 5, 31, 9, 24, 14, 0, time.UTC)
-	if err := stores.hoststate.UpsertHostObservation(ctx, munki.HostObservation{
-		HostID:          host.ID,
-		Version:         "7.1.2.5700",
-		ManifestName:    "site_default",
-		Errors:          []string{"first error"},
-		Warnings:        []string{"first warning"},
-		ProblemInstalls: []string{"Broken App"},
-		RunStartedAt:    &runStartedAt,
-		RunEndedAt:      &runEndedAt,
-	}); err != nil {
-		t.Fatalf("upsert munki host status: %v", err)
+	if _, err := db.Pool().Exec(ctx, `INSERT INTO host_heartbeats (host_id, source) VALUES ($1, 'munki')`, host.ID); err != nil {
+		t.Fatalf("record Munki contact: %v", err)
 	}
-	if err := stores.hoststate.ReplaceHostItems(ctx, host.ID, []munki.ItemObservation{
-		{
-			Name:          "NotGoogleChrome",
-			DisplayName:   "GoogleChrome",
-			TargetVersion: "148.0",
+	if err := stores.hoststate.ApplyEnvelope(ctx, munki.EnvelopeResult{
+		HostID:      host.ID,
+		AttemptedAt: runEndedAt,
+		Complete:    true,
+		HasReport:   true,
+		Observation: munki.HostObservation{
+			HostID:          host.ID,
+			Version:         "7.1.2.5700",
+			ManifestName:    "site_default",
+			Errors:          []string{"first error"},
+			Warnings:        []string{"first warning"},
+			ProblemInstalls: []string{"Broken App"},
+			RunStartedAt:    &runStartedAt,
+			RunEndedAt:      &runEndedAt,
 		},
-		{
-			Name:             "VisualStudioCode",
-			DisplayName:      "Visual Studio Code",
-			Installed:        false,
-			InstalledVersion: "",
-			TargetVersion:    "1.130.0",
+		Items: []munki.ItemObservation{
+			{Name: "NotGoogleChrome", DisplayName: "GoogleChrome", TargetVersion: "148.0"},
+			{Name: "VisualStudioCode", DisplayName: "Visual Studio Code", TargetVersion: "1.130.0"},
 		},
 	}); err != nil {
-		t.Fatalf("replace munki host items: %v", err)
+		t.Fatalf("apply Munki report envelope: %v", err)
 	}
 
 	detail, err := stores.hoststate.LoadHostState(ctx, host.ID)
@@ -1410,13 +1407,20 @@ func TestHostMunkiStateKeepsDesiredSoftwareSeparateFromExactObservations(t *test
 			nextVSCodePackage.ID,
 		),
 	})
-	if err := stores.hoststate.ReplaceHostItems(ctx, host.ID, []munki.ItemObservation{{
-		Name:             "VisualStudioCode",
-		DisplayName:      "Visual Studio Code",
-		Installed:        true,
-		InstalledVersion: "1.130.0",
-	}}); err != nil {
-		t.Fatalf("replace Munki items with satisfied prior target: %v", err)
+	if err := stores.hoststate.ApplyEnvelope(ctx, munki.EnvelopeResult{
+		HostID:      host.ID,
+		AttemptedAt: runEndedAt.Add(time.Hour),
+		Complete:    true,
+		HasReport:   true,
+		Observation: munki.HostObservation{HostID: host.ID, Version: "7.1.2.5700", ManifestName: "site_default"},
+		Items: []munki.ItemObservation{{
+			Name:             "VisualStudioCode",
+			DisplayName:      "Visual Studio Code",
+			Installed:        true,
+			InstalledVersion: "1.130.0",
+		}},
+	}); err != nil {
+		t.Fatalf("apply Munki report envelope with satisfied prior target: %v", err)
 	}
 	desired, _, err = stores.software.ListForHost(
 		ctx,
@@ -1439,13 +1443,17 @@ func TestHostMunkiStateKeepsDesiredSoftwareSeparateFromExactObservations(t *test
 		)
 	}
 
-	if err := stores.hoststate.ClearHostObservation(ctx, host.ID); err != nil {
-		t.Fatalf("clear munki host status: %v", err)
+	if err := stores.hoststate.ApplyEnvelope(ctx, munki.EnvelopeResult{
+		HostID:      host.ID,
+		AttemptedAt: runEndedAt.Add(2 * time.Hour),
+		Complete:    true,
+	}); err != nil {
+		t.Fatalf("apply no-report Munki envelope: %v", err)
 	}
 	if detail, err := stores.hoststate.LoadHostState(ctx, host.ID); err != nil {
 		t.Fatalf("load cleared munki detail: %v", err)
-	} else if detail != nil {
-		t.Fatalf("cleared munki detail = %+v, want nil", detail)
+	} else if detail == nil || detail.ReportState != munki.ReportNoReport {
+		t.Fatalf("no-report Munki detail = %+v, want no_report", detail)
 	}
 	desired, _, err = stores.software.ListForHost(
 		ctx,

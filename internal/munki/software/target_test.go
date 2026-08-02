@@ -37,7 +37,7 @@ func TestSoftwareTargetsValidatePackageSelectorAndActionRules(t *testing.T) {
 			},
 		},
 		{
-			name: "featured does not require optional install",
+			name: "featured requires optional install",
 			include: Include{
 				LabelID: 1,
 				Package: PackageSelector{
@@ -45,6 +45,52 @@ func TestSoftwareTargetsValidatePackageSelectorAndActionRules(t *testing.T) {
 				},
 				Actions: []Action{ActionFeaturedItems},
 			},
+			wantErr: true,
+		},
+		{
+			name:    "managed updates may combine with optional installs",
+			include: Include{LabelID: 1, Package: PackageSelector{Strategy: PackageLatest}, Actions: []Action{ActionManagedUpdates, ActionOptionalInstalls}},
+		},
+		{
+			name:    "managed updates may combine with optional installs and featured items",
+			include: Include{LabelID: 1, Package: PackageSelector{Strategy: PackageLatest}, Actions: []Action{ActionManagedUpdates, ActionOptionalInstalls, ActionFeaturedItems}},
+		},
+		{
+			name:    "managed updates may combine with optional installs and default installs",
+			include: Include{LabelID: 1, Package: PackageSelector{Strategy: PackageLatest}, Actions: []Action{ActionManagedUpdates, ActionOptionalInstalls, ActionDefaultInstalls}},
+		},
+		{
+			name:    "managed updates may combine with every optional presentation modifier",
+			include: Include{LabelID: 1, Package: PackageSelector{Strategy: PackageLatest}, Actions: []Action{ActionManagedUpdates, ActionOptionalInstalls, ActionFeaturedItems, ActionDefaultInstalls}},
+		},
+		{
+			name:    "optional installs may combine with featured and default",
+			include: Include{LabelID: 1, Package: PackageSelector{Strategy: PackageLatest}, Actions: []Action{ActionOptionalInstalls, ActionFeaturedItems, ActionDefaultInstalls}},
+		},
+		{
+			name:    "managed installs are exclusive",
+			include: Include{LabelID: 1, Package: PackageSelector{Strategy: PackageLatest}, Actions: []Action{ActionManagedInstalls, ActionOptionalInstalls}},
+			wantErr: true,
+		},
+		{
+			name:    "managed uninstalls are exclusive",
+			include: Include{LabelID: 1, Package: PackageSelector{Strategy: PackageLatest}, Actions: []Action{ActionManagedUninstalls, ActionManagedUpdates}},
+			wantErr: true,
+		},
+		{
+			name:    "managed updates require optional installs when combined",
+			include: Include{LabelID: 1, Package: PackageSelector{Strategy: PackageLatest}, Actions: []Action{ActionManagedUpdates, ActionFeaturedItems}},
+			wantErr: true,
+		},
+		{
+			name:    "default requires optional installs",
+			include: Include{LabelID: 1, Package: PackageSelector{Strategy: PackageLatest}, Actions: []Action{ActionDefaultInstalls}},
+			wantErr: true,
+		},
+		{
+			name:    "duplicate actions rejected",
+			include: Include{LabelID: 1, Package: PackageSelector{Strategy: PackageLatest}, Actions: []Action{ActionOptionalInstalls, ActionOptionalInstalls}},
+			wantErr: true,
 		},
 		{
 			name: "specific requires package id",

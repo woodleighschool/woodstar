@@ -6,7 +6,7 @@ import { ScrollableTabsList } from "@components/layout/scrollable-tabs";
 import { FieldDescription, FieldGroup, FieldLegend, FieldSet } from "@components/ui/field";
 import { Tabs, TabsContent, TabsTrigger } from "@components/ui/tabs";
 import { ValidatedFormField } from "@components/validated-form-field";
-import type { MunkiPackage, MunkiSoftware } from "@lib/api";
+import type { MunkiPackage, MunkiSoftwareWithDeployment } from "@lib/api";
 import { assertNever } from "@lib/utils";
 
 import type { PackageEditorForm } from "./fields";
@@ -137,7 +137,7 @@ export function PackageEditorTabContent({
   tab: (typeof packageFormTabs)[number]["value"];
   form: PackageEditorForm;
   softwareInfo: SoftwareInfo | null;
-  softwareOptions?: MunkiSoftware[];
+  softwareOptions?: MunkiSoftwareWithDeployment[];
   softwareLoading?: boolean;
   packageOptions: MunkiPackage[];
   installerMetadata?: MunkiPackage["installer_file"];
@@ -180,7 +180,7 @@ function BasicInfoTab({
 }: {
   form: PackageEditorForm;
   software: SoftwareInfo | null;
-  softwareOptions?: MunkiSoftware[];
+  softwareOptions?: MunkiSoftwareWithDeployment[];
   softwareLoading?: boolean;
   installerMetadata?: MunkiPackage["installer_file"];
 }) {

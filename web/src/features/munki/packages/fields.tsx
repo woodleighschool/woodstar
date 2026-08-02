@@ -6,7 +6,7 @@ import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { ScrollableTabs, ScrollableTabsList } from "@components/layout/scrollable-tabs";
 import { TabsContent } from "@components/ui/tabs";
 import { usePageFormExitGuard } from "@hooks/use-page-form-exit-guard";
-import type { MunkiPackage, MunkiSoftware } from "@lib/api";
+import type { MunkiPackage, MunkiSoftwareWithDeployment } from "@lib/api";
 
 import { type PackageFormMutation, packageMutationFromForm } from "./form-adapter";
 import { type PackageFormInput, type PackageFormOutput, packageFormSchema } from "./form-schema";
@@ -51,7 +51,7 @@ type PackageFormProps = {
   title: string;
   submitLabel: string;
   softwareInfo: SoftwareInfo | null;
-  softwareOptions?: MunkiSoftware[];
+  softwareOptions?: MunkiSoftwareWithDeployment[];
   softwareLoading?: boolean;
   packageOptions: MunkiPackage[];
   installerMetadata?: MunkiPackage["installer_file"];
@@ -121,7 +121,7 @@ function PackageEditorTabs({
   activeTab: string;
   onActiveTabChange: (value: string) => void;
   softwareInfo: SoftwareInfo | null;
-  softwareOptions?: MunkiSoftware[];
+  softwareOptions?: MunkiSoftwareWithDeployment[];
   softwareLoading?: boolean;
   packageOptions: MunkiPackage[];
   installerMetadata?: MunkiPackage["installer_file"];

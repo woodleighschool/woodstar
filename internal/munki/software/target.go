@@ -79,6 +79,7 @@ type HostManifestSoftware struct {
 	Software    packages.PackageSoftware         `json:"software"`
 	Package     HostManifestPackage              `json:"package"`
 	Actions     []Action                         `json:"actions" nullable:"false"`
+	Status      *DeploymentStatus                `json:"status,omitempty"`
 	Observation *HostManifestSoftwareObservation `json:"observation,omitempty"`
 }
 
@@ -165,7 +166,44 @@ func (targets Targets) validate() error {
 	if err := targeting.ValidateTargets(targets.Include, targets.Exclude, includeLabelID); err != nil {
 		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
 	}
+	for _, include := range targets.Include {
+		if !validActions(include.Actions) {
+			return fmt.Errorf("%w: invalid action combination", dbutil.ErrInvalidInput)
+		}
+	}
 	return nil
+}
+
+func validActions(actions []Action) bool {
+	if len(actions) == 0 {
+		return false
+	}
+	seen := make(map[Action]struct{}, len(actions))
+	for _, action := range actions {
+		if _, ok := seen[action]; ok {
+			return false
+		}
+		seen[action] = struct{}{}
+	}
+	if (containsAction(seen, ActionFeaturedItems) || containsAction(seen, ActionDefaultInstalls)) &&
+		!containsAction(seen, ActionOptionalInstalls) {
+		return false
+	}
+	if len(actions) == 1 {
+		return true
+	}
+	if containsAction(seen, ActionManagedInstalls) || containsAction(seen, ActionManagedUninstalls) {
+		return false
+	}
+	if !containsAction(seen, ActionOptionalInstalls) {
+		return false
+	}
+	return true
+}
+
+func containsAction(actions map[Action]struct{}, action Action) bool {
+	_, ok := actions[action]
+	return ok
 }
 
 func includeLabelID(include Include) int64 {

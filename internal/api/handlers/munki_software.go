@@ -2,8 +2,10 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
 
@@ -42,7 +44,7 @@ type munkiSoftwareDeleteInput struct {
 }
 
 type munkiSoftwareListOutput struct {
-	Body Page[munkisoftware.Software]
+	Body Page[munkisoftware.SoftwareWithDeployment]
 }
 
 type munkiSoftwareDetailOutput struct {
@@ -52,12 +54,38 @@ type munkiSoftwareDetailOutput struct {
 type munkiSoftwareDetail struct {
 	munkisoftware.Software
 
-	Packages []packages.Package    `json:"packages"`
-	Targets  munkisoftware.Targets `json:"targets"`
+	Packages   []packages.Package              `json:"packages"`
+	Targets    munkisoftware.Targets           `json:"targets"`
+	Deployment munkisoftware.DeploymentSummary `json:"deployment"`
+}
+
+type munkiSoftwareHostsInput struct {
+	ListQueryInput
+
+	ID     int64                          `path:"id"`
+	Status munkisoftware.DeploymentStatus `query:"status,omitempty"`
+	Action munkisoftware.Action           `query:"action,omitempty"`
+}
+
+type munkiSoftwareHostsOutput struct {
+	Body Page[munkisoftware.DeploymentHost]
 }
 
 func (input munkiSoftwareListInput) params() dbutil.ListParams {
 	return input.ListQueryInput.params()
+}
+
+func (input munkiSoftwareHostsInput) params() munkisoftware.DeploymentHostListParams {
+	params := munkisoftware.DeploymentHostListParams{
+		ListParams: input.ListQueryInput.params(),
+	}
+	if input.Status != "" {
+		params.Status = &input.Status
+	}
+	if input.Action != "" {
+		params.Action = &input.Action
+	}
+	return params
 }
 
 func registerMunkiSoftware(
@@ -70,12 +98,48 @@ func registerMunkiSoftware(
 	logger *slog.Logger,
 ) {
 	registerListMunkiSoftware(api, store, logger)
+	registerListMunkiSoftwareHosts(api, store, logger)
 	registerCreateMunkiSoftware(api, store, packageService, logger)
 	registerGetMunkiSoftware(api, store, packageService, logger)
 	registerPutMunkiSoftware(api, store, packageService, logger)
 	registerDeleteMunkiSoftware(api, deletions, logger)
 	registerBulkDeleteMunkiSoftware(api, deletions, logger)
 	registerIconRoutes(api, store, objects, ingestor, logger)
+}
+
+func registerListMunkiSoftwareHosts(
+	api huma.API,
+	store *munkisoftware.Store,
+	logger *slog.Logger,
+) {
+	huma.Register(api, huma.Operation{
+		OperationID: "list-munki-software-hosts",
+		Method:      http.MethodGet,
+		Path:        munkiSoftwareIDPath + "/hosts",
+		Tags:        []string{munkiSoftwareTag},
+		Summary:     "List assigned hosts for a software title",
+		Errors:      []int{http.StatusNotFound, http.StatusUnprocessableEntity},
+	}, func(ctx context.Context, input *munkiSoftwareHostsInput) (*munkiSoftwareHostsOutput, error) {
+		rows, count, err := store.ListDeploymentHosts(ctx, input.ID, input.params())
+		if errors.Is(err, dbutil.ErrInvalidInput) {
+			message := strings.TrimPrefix(err.Error(), dbutil.ErrInvalidInput.Error()+": ")
+			return nil, huma.Error422UnprocessableEntity(message)
+		}
+		if err != nil {
+			return nil, resourceError(
+				ctx,
+				logger,
+				"list-munki-software-hosts",
+				munkiSoftwareLabel,
+				err,
+				"software_id",
+				input.ID,
+			)
+		}
+		return &munkiSoftwareHostsOutput{
+			Body: Page[munkisoftware.DeploymentHost]{Items: rows, Count: count},
+		}, nil
+	})
 }
 
 func registerListMunkiSoftware(api huma.API, store *munkisoftware.Store, logger *slog.Logger) {
@@ -86,12 +150,12 @@ func registerListMunkiSoftware(api huma.API, store *munkisoftware.Store, logger 
 		Tags:        []string{munkiSoftwareTag},
 		Summary:     "List software titles",
 	}, func(ctx context.Context, input *munkiSoftwareListInput) (*munkiSoftwareListOutput, error) {
-		rows, count, err := store.List(ctx, input.params())
+		rows, count, err := store.ListWithDeployment(ctx, input.params())
 		if err != nil {
 			return nil, resourceError(ctx, logger, "list-munki-software", munkiSoftwareLabel, err)
 		}
 		return &munkiSoftwareListOutput{
-			Body: Page[munkisoftware.Software]{Items: rows, Count: count},
+			Body: Page[munkisoftware.SoftwareWithDeployment]{Items: rows, Count: count},
 		}, nil
 	})
 }
@@ -247,11 +311,16 @@ func loadMunkiSoftwareDetail(
 	if err != nil {
 		return nil, resourceError(ctx, logger, operation, munkiSoftwareLabel, err, "software_id", id)
 	}
+	deployment, err := store.GetDeployment(ctx, id)
+	if err != nil {
+		return nil, resourceError(ctx, logger, operation, munkiSoftwareLabel, err, "software_id", id)
+	}
 	return &munkiSoftwareDetailOutput{
 		Body: munkiSoftwareDetail{
-			Software: *title,
-			Packages: packageRows,
-			Targets:  targets,
+			Software:   *title,
+			Packages:   packageRows,
+			Targets:    targets,
+			Deployment: deployment,
 		},
 	}, nil
 }

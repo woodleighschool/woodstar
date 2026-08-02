@@ -29,7 +29,7 @@ import {
 } from "@components/ui/field";
 import { ValidatedFormField } from "@components/validated-form-field";
 import { SoftwareArtwork } from "@features/software/software-icon";
-import type { MunkiPackage, MunkiSoftware } from "@lib/api";
+import type { MunkiPackage, MunkiSoftwareWithDeployment } from "@lib/api";
 
 import type { PackageEditorForm } from "./fields";
 import type { PackageReferenceRow } from "./form-schema";
@@ -68,7 +68,7 @@ export function SoftwareSelector({
   loading,
 }: {
   form: PackageEditorForm;
-  rows: MunkiSoftware[];
+  rows: MunkiSoftwareWithDeployment[];
   loading: boolean;
 }) {
   return (
@@ -109,8 +109,8 @@ function SoftwareCombobox({
   onChange,
 }: {
   control: { id: string | undefined; "aria-invalid": true | undefined };
-  rows: MunkiSoftware[];
-  selected: MunkiSoftware | null;
+  rows: MunkiSoftwareWithDeployment[];
+  selected: MunkiSoftwareWithDeployment | null;
   loading: boolean;
   onBlur: () => void;
   onChange: (value: number | null) => void;

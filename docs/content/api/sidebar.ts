@@ -650,6 +650,13 @@ const sidebar: SidebarsConfig = {
               className: "api-method put",
               key: "munki-munki-software-api-update-munki-software",
             },
+            {
+              type: "doc",
+              id: "api/list-munki-software-hosts",
+              label: "List assigned hosts for a software title",
+              className: "api-method get",
+              key: "munki-munki-software-api-list-munki-software-hosts",
+            },
           ],
         },
       ],

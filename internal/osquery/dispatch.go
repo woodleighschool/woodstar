@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/osquery/catalog"
 	"github.com/woodleighschool/woodstar/internal/osquery/ingest"
 	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
@@ -103,6 +104,7 @@ type detailResult struct {
 	rows      []map[string]string
 	status    json.RawMessage
 	hasStatus bool
+	message   string
 }
 
 func newDetailDispatchPass() *detailDispatchPass {
@@ -204,7 +206,7 @@ func (s *AgentService) handleDetailResult(
 	message string,
 	pass *detailDispatchPass,
 ) error {
-	pass.results[suffix] = detailResult{rows: rows, status: status, hasStatus: hasStatus}
+	pass.results[suffix] = detailResult{rows: rows, status: status, hasStatus: hasStatus, message: message}
 
 	query, ok := pass.registry[suffix]
 	if !ok {
@@ -227,6 +229,9 @@ func (s *AgentService) handleDetailResult(
 	if query.Deferred() {
 		return nil
 	}
+	if query.Ingest == catalog.IngestMunkiInfo || query.Ingest == catalog.IngestMunkiInstalls {
+		return nil
+	}
 	return s.deps.InventoryProjector.IngestDetail(ctx, query, suffix, hostID, rows)
 }
 
@@ -240,19 +245,43 @@ func (s *AgentService) finalizeDetailPass(
 			return fmt.Errorf("ingest software inventory: %w", err)
 		}
 	}
-	if !pass.allSucceeded || !sawEveryRequiredDetailQuery(pass) {
+	if pass.allSucceeded && sawEveryRequiredDetailQuery(pass) {
+		if err := s.deps.InventoryProjector.MarkFresh(ctx, host.ID); err != nil {
+			return err
+		}
+		s.deps.Logger.DebugContext(
+			ctx,
+			"osquery detail inventory refreshed", "operation", "inventory_refresh",
+			"host_id", host.ID,
+			"query_count", len(pass.results),
+		)
+	}
+	return s.finalizeMunkiEnvelope(ctx, host.ID, pass)
+}
+
+func (s *AgentService) finalizeMunkiEnvelope(ctx context.Context, hostID int64, pass *detailDispatchPass) error {
+	info, hasInfo := pass.results[catalog.QueryMunkiInfo]
+	installs, hasInstalls := pass.results[catalog.QueryMunkiInstalls]
+	if !hasInfo && !hasInstalls {
 		return nil
 	}
-	if err := s.deps.InventoryProjector.MarkFresh(ctx, host.ID); err != nil {
-		return err
+	if s.deps.MunkiEnvelopeIngestor == nil {
+		return fmt.Errorf("munki detail ingestor is not configured")
 	}
-	s.deps.Logger.DebugContext(
-		ctx,
-		"osquery detail inventory refreshed", "operation", "inventory_refresh",
-		"host_id", host.ID,
-		"query_count", len(pass.results),
-	)
-	return nil
+	return s.deps.MunkiEnvelopeIngestor.IngestEnvelope(ctx, hostID, munki.EnvelopeInput{
+		Info:     munkiQueryResult(hasInfo, info),
+		Installs: munkiQueryResult(hasInstalls, installs),
+	})
+}
+
+func munkiQueryResult(present bool, result detailResult) munki.QueryResult {
+	status := -1
+	if present && result.hasStatus {
+		if err := json.Unmarshal(result.status, &status); err != nil {
+			status = -1
+		}
+	}
+	return munki.QueryResult{Present: present, Status: status, Message: result.message, Rows: result.rows}
 }
 
 func successfulSoftwareRows(
