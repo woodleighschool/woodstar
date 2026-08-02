@@ -41,7 +41,7 @@ type orbitProtocolFixtureClient struct {
 	baseURL string
 }
 
-func TestOrbit(t *testing.T) { //nolint:funlen // Linear protocol lifecycle; splitting would hide the order being proved.
+func TestOrbit(t *testing.T) { //nolint:cyclop,funlen // Linear protocol lifecycle; splitting would hide the order being proved.
 	const enrollSecret = "orbit-fixture-enroll-secret-0123456789abcdef" //nolint:gosec // Protocol fixture secret.
 	server := startTestServer(t)
 	server.redact(enrollSecret)
