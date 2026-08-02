@@ -11,6 +11,7 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/enrollment"
+	"github.com/woodleighschool/woodstar/internal/heartbeats"
 	"github.com/woodleighschool/woodstar/internal/httpx"
 	"github.com/woodleighschool/woodstar/internal/osquery"
 )
@@ -29,11 +30,11 @@ type Server struct {
 }
 
 type agentService interface {
-	Enroll(context.Context, osquery.EnrollRequest) (string, error)
-	Config(context.Context, string, string) (osquery.ConfigResponse, error)
-	DistributedRead(context.Context, string, string) (osquery.DistributedReadResponse, error)
-	DistributedWrite(context.Context, osquery.DistributedWriteRequest, string) (osquery.DistributedWriteResponse, error)
-	Log(context.Context, string, string, osquery.LogRequest) (osquery.LogResponse, error)
+	Enroll(context.Context, osquery.EnrollRequest, heartbeats.Contact) (string, error)
+	Config(context.Context, string, heartbeats.Contact) (osquery.ConfigResponse, error)
+	DistributedRead(context.Context, string, heartbeats.Contact) (osquery.DistributedReadResponse, error)
+	DistributedWrite(context.Context, osquery.DistributedWriteRequest, heartbeats.Contact) (osquery.DistributedWriteResponse, error)
+	Log(context.Context, string, heartbeats.Contact, osquery.LogRequest) (osquery.LogResponse, error)
 }
 
 // NewServer returns an osquery protocol server.
@@ -57,7 +58,7 @@ func osqueryEnrollHandler(svc agentService, logger *slog.Logger) http.HandlerFun
 			httpx.WriteDecodeError(w, err)
 			return
 		}
-		nodeKey, err := svc.Enroll(r.Context(), req)
+		nodeKey, err := svc.Enroll(r.Context(), req, requestContact(r))
 		switch {
 		case errors.Is(err, agentauth.ErrInvalidSecret):
 			logger.WarnContext(
@@ -92,7 +93,7 @@ func osqueryConfigHandler(svc agentService, logger *slog.Logger) http.HandlerFun
 			httpx.WriteDecodeError(w, err)
 			return
 		}
-		resp, err := svc.Config(r.Context(), req.NodeKey, chimiddleware.GetClientIP(r.Context()))
+		resp, err := svc.Config(r.Context(), req.NodeKey, requestContact(r))
 		writeOsqueryResult(r, w, logger, "config", resp, err)
 	}
 }
@@ -104,7 +105,7 @@ func osqueryDistributedReadHandler(svc agentService, logger *slog.Logger) http.H
 			httpx.WriteDecodeError(w, err)
 			return
 		}
-		resp, err := svc.DistributedRead(r.Context(), req.NodeKey, chimiddleware.GetClientIP(r.Context()))
+		resp, err := svc.DistributedRead(r.Context(), req.NodeKey, requestContact(r))
 		writeOsqueryResult(r, w, logger, "distributed_read", resp, err)
 	}
 }
@@ -116,7 +117,7 @@ func osqueryDistributedWriteHandler(svc agentService, logger *slog.Logger) http.
 			httpx.WriteDecodeError(w, err)
 			return
 		}
-		resp, err := svc.DistributedWrite(r.Context(), req, chimiddleware.GetClientIP(r.Context()))
+		resp, err := svc.DistributedWrite(r.Context(), req, requestContact(r))
 		writeOsqueryResult(r, w, logger, "distributed_write", resp, err)
 	}
 }
@@ -128,8 +129,15 @@ func osqueryLogHandler(svc agentService, logger *slog.Logger) http.HandlerFunc {
 			httpx.WriteDecodeError(w, err)
 			return
 		}
-		resp, err := svc.Log(r.Context(), req.NodeKey, chimiddleware.GetClientIP(r.Context()), req)
+		resp, err := svc.Log(r.Context(), req.NodeKey, requestContact(r), req)
 		writeOsqueryResult(r, w, logger, "log", resp, err)
+	}
+}
+
+func requestContact(r *http.Request) heartbeats.Contact {
+	return heartbeats.Contact{
+		RemoteIP:  chimiddleware.GetClientIP(r.Context()),
+		UserAgent: r.UserAgent(),
 	}
 }
 

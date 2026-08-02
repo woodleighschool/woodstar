@@ -34,26 +34,30 @@ WHERE orbit_node_key = $1 AND orbit_node_key <> ''`, nodeKey, token)
 }
 
 // ValidateOrbitDeviceAuthToken confirms that a machine token belongs to a host.
-func (s *Store) ValidateOrbitDeviceAuthToken(ctx context.Context, token string) error {
-	var hostID int64
-	err := s.db.Pool().QueryRow(ctx, `
+func (s *Store) ValidateOrbitDeviceAuthToken(ctx context.Context, token string) (*Host, error) {
+	row, err := dbutil.GetOne[hostRow](ctx, s.db.Pool(), `
 WITH touched AS (
     UPDATE hosts
     SET last_seen_at = now()
     WHERE orbit_device_auth_token = $1
       AND orbit_device_auth_token <> ''
       AND (last_seen_at IS NULL OR last_seen_at < now() - interval '1 minute')
-    RETURNING id
+    RETURNING`+hostColumnsSQL()+`
 )
-SELECT id FROM touched
+SELECT`+hostColumnsSQL()+`
+FROM touched
 UNION ALL
-SELECT id
+SELECT`+hostColumnsSQL()+`
 FROM hosts
 WHERE orbit_device_auth_token = $1
   AND orbit_device_auth_token <> ''
   AND NOT EXISTS (SELECT 1 FROM touched)
-LIMIT 1`, token).Scan(&hostID)
-	return dbutil.GetError(err)
+LIMIT 1`, token)
+	if err != nil {
+		return nil, err
+	}
+	host := hostFromRow(row, time.Now())
+	return &host, nil
 }
 
 func hostTouchSQL(nodeKeyColumn string) string {

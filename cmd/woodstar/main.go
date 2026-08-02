@@ -24,6 +24,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/directory"
 	"github.com/woodleighschool/woodstar/internal/directory/entra"
+	"github.com/woodleighschool/woodstar/internal/heartbeats"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/inventory"
 	"github.com/woodleighschool/woodstar/internal/labels"
@@ -199,6 +200,7 @@ func buildDependencies(
 	labelStore := labels.NewStore(db)
 	directoryStore := directory.NewStore(db)
 	hostStore := hosts.NewStore(db)
+	heartbeatStore := heartbeats.NewStore(db)
 	secretStore := agentauth.NewStore(db)
 	inventoryStore := inventory.NewStore(db)
 	primaryUsers := hosts.NewPrimaryUserStore(db)
@@ -238,7 +240,7 @@ func buildDependencies(
 	if err != nil {
 		return nil, nil, err
 	}
-	orbitAgent := orbit.NewEnrollmentService(hostStore, secretStore, primaryUsers)
+	orbitAgent := orbit.NewEnrollmentService(hostStore, secretStore, primaryUsers, heartbeatStore)
 
 	inventoryProjector := ingest.NewProjector(
 		hostStore,
@@ -257,6 +259,7 @@ func buildDependencies(
 		CheckStore:         checkStore,
 		LiveQueries:        liveQueries,
 		SecretStore:        secretStore,
+		Heartbeats:         heartbeatStore,
 		Logger:             logger.With("component", "osquery"),
 	})
 

@@ -372,7 +372,7 @@ func TestOrbitDeviceTokenValidationThrottlesLivenessWrites(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get host before validation: %v", err)
 	}
-	if err := store.ValidateOrbitDeviceAuthToken(ctx, token); err != nil {
+	if _, err := store.ValidateOrbitDeviceAuthToken(ctx, token); err != nil {
 		t.Fatalf("validate device token: %v", err)
 	}
 	after, err := store.GetByID(ctx, host.ID)
@@ -395,7 +395,7 @@ func TestOrbitDeviceTokenValidationThrottlesLivenessWrites(t *testing.T) {
 		Exec(ctx, `UPDATE hosts SET last_seen_at = $2 WHERE id = $1`, host.ID, oldLastSeen); err != nil {
 		t.Fatalf("age last_seen_at: %v", err)
 	}
-	if err := store.ValidateOrbitDeviceAuthToken(ctx, token); err != nil {
+	if _, err := store.ValidateOrbitDeviceAuthToken(ctx, token); err != nil {
 		t.Fatalf("validate aged device token: %v", err)
 	}
 	touched, err := store.GetByID(ctx, host.ID)

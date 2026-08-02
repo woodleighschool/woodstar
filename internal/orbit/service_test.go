@@ -1,9 +1,15 @@
 package orbit
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"testing"
+
+	"github.com/woodleighschool/woodstar/internal/agentauth"
+	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/heartbeats"
+	"github.com/woodleighschool/woodstar/internal/hosts"
 )
 
 func TestConfigResponseWireShapeMatchesOrbit(t *testing.T) {
@@ -50,4 +56,214 @@ func TestValidateDeviceAuthToken(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestEnrollmentServiceRecordsAuthenticatedHostContact(t *testing.T) {
+	t.Parallel()
+
+	contact := heartbeats.Contact{RemoteIP: "203.0.113.42", UserAgent: "Orbit/1.2.3"}
+	tests := []struct {
+		name string
+		call func(t *testing.T, service *EnrollmentService)
+	}{
+		{
+			name: "enroll",
+			call: func(t *testing.T, service *EnrollmentService) {
+				t.Helper()
+				if _, _, err := service.Enroll(t.Context(), EnrollRequest{EnrollSecret: "secret", HardwareUUID: "hardware-uuid"}, contact); err != nil {
+					t.Fatalf("Enroll: %v", err)
+				}
+			},
+		},
+		{
+			name: "config",
+			call: func(t *testing.T, service *EnrollmentService) {
+				t.Helper()
+				if _, err := service.Config(t.Context(), "node-key", contact); err != nil {
+					t.Fatalf("Config: %v", err)
+				}
+			},
+		},
+		{
+			name: "device mapping",
+			call: func(t *testing.T, service *EnrollmentService) {
+				t.Helper()
+				if err := service.SetPrimaryUser(t.Context(), "node-key", "person@example.test", contact); err != nil {
+					t.Fatalf("SetPrimaryUser: %v", err)
+				}
+			},
+		},
+		{
+			name: "device token rotation",
+			call: func(t *testing.T, service *EnrollmentService) {
+				t.Helper()
+				if err := service.SetDeviceAuthToken(t.Context(), "node-key", "11111111-2222-4333-8444-555555555555", contact); err != nil {
+					t.Fatalf("SetDeviceAuthToken: %v", err)
+				}
+			},
+		},
+		{
+			name: "device ping",
+			call: func(t *testing.T, service *EnrollmentService) {
+				t.Helper()
+				if err := service.ValidateDeviceAuthToken(t.Context(), "device-token", contact); err != nil {
+					t.Fatalf("ValidateDeviceAuthToken: %v", err)
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			recorder := &fakeHeartbeatRecorder{}
+			service := newTestEnrollmentService(recorder)
+
+			tt.call(t, service)
+
+			if len(recorder.calls) != 1 {
+				t.Fatalf("Record calls = %d, want 1", len(recorder.calls))
+			}
+			got := recorder.calls[0]
+			if got.hostID != 42 || got.source != heartbeats.SourceOrbit || got.contact != contact {
+				t.Fatalf("Record call = %#v, want host 42, orbit, %#v", got, contact)
+			}
+		})
+	}
+}
+
+func TestEnrollmentServiceDoesNotRecordUnauthenticatedContact(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		call func(t *testing.T, service *EnrollmentService)
+	}{
+		{
+			name: "invalid enroll secret",
+			call: func(t *testing.T, service *EnrollmentService) {
+				t.Helper()
+				_, _, err := service.Enroll(t.Context(), EnrollRequest{EnrollSecret: "bad", HardwareUUID: "hardware-uuid"}, heartbeats.Contact{})
+				if !errors.Is(err, agentauth.ErrInvalidSecret) {
+					t.Fatalf("Enroll error = %v, want invalid secret", err)
+				}
+			},
+		},
+		{
+			name: "invalid node key",
+			call: func(t *testing.T, service *EnrollmentService) {
+				t.Helper()
+				service.hostStore.(*fakeOrbitHostStore).getErr = dbutil.ErrNotFound
+				_, err := service.Config(t.Context(), "bad", heartbeats.Contact{})
+				if !errors.Is(err, dbutil.ErrNotFound) {
+					t.Fatalf("Config error = %v, want not found", err)
+				}
+			},
+		},
+		{
+			name: "invalid device token",
+			call: func(t *testing.T, service *EnrollmentService) {
+				t.Helper()
+				err := service.SetDeviceAuthToken(t.Context(), "node-key", "invalid", heartbeats.Contact{})
+				if !errors.Is(err, ErrInvalidDeviceAuthToken) {
+					t.Fatalf("SetDeviceAuthToken error = %v, want invalid token", err)
+				}
+			},
+		},
+		{
+			name: "unknown device token",
+			call: func(t *testing.T, service *EnrollmentService) {
+				t.Helper()
+				service.hostStore.(*fakeOrbitHostStore).validateErr = dbutil.ErrNotFound
+				err := service.ValidateDeviceAuthToken(t.Context(), "bad", heartbeats.Contact{})
+				if !errors.Is(err, dbutil.ErrNotFound) {
+					t.Fatalf("ValidateDeviceAuthToken error = %v, want not found", err)
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			recorder := &fakeHeartbeatRecorder{}
+			service := newTestEnrollmentService(recorder)
+			if tt.name == "invalid enroll secret" {
+				service.secretStore = fakeOrbitSecretVerifier{ok: false}
+			}
+
+			tt.call(t, service)
+			if len(recorder.calls) != 0 {
+				t.Fatalf("Record calls = %d, want 0", len(recorder.calls))
+			}
+		})
+	}
+}
+
+func TestEnrollmentServicePropagatesHeartbeatError(t *testing.T) {
+	t.Parallel()
+
+	wantErr := errors.New("heartbeat unavailable")
+	service := newTestEnrollmentService(&fakeHeartbeatRecorder{err: wantErr})
+	_, err := service.Config(t.Context(), "node-key", heartbeats.Contact{})
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("Config error = %v, want %v", err, wantErr)
+	}
+}
+
+type fakeOrbitHostStore struct {
+	host        *hosts.Host
+	getErr      error
+	validateErr error
+}
+
+func (s *fakeOrbitHostStore) UpsertOnOrbitEnroll(context.Context, hosts.InventoryUpdate) (*hosts.Host, error) {
+	return s.host, nil
+}
+
+func (s *fakeOrbitHostStore) GetByOrbitNodeKey(context.Context, string) (*hosts.Host, error) {
+	return s.host, s.getErr
+}
+
+func (*fakeOrbitHostStore) SetOrbitDeviceAuthToken(context.Context, string, string) error { return nil }
+
+func (s *fakeOrbitHostStore) ValidateOrbitDeviceAuthToken(context.Context, string) (*hosts.Host, error) {
+	return s.host, s.validateErr
+}
+
+type fakeOrbitSecretVerifier struct{ ok bool }
+
+func (v fakeOrbitSecretVerifier) Verify(context.Context, agentauth.Agent, string) (bool, error) {
+	return v.ok, nil
+}
+
+type fakePrimaryUserStore struct{}
+
+func (fakePrimaryUserStore) Upsert(context.Context, int64, string, hosts.PrimaryUserSource) error {
+	return nil
+}
+
+type heartbeatCall struct {
+	hostID  int64
+	source  heartbeats.Source
+	contact heartbeats.Contact
+}
+
+type fakeHeartbeatRecorder struct {
+	calls []heartbeatCall
+	err   error
+}
+
+func (r *fakeHeartbeatRecorder) Record(_ context.Context, hostID int64, source heartbeats.Source, contact heartbeats.Contact) error {
+	r.calls = append(r.calls, heartbeatCall{hostID: hostID, source: source, contact: contact})
+	return r.err
+}
+
+func newTestEnrollmentService(recorder heartbeatRecorder) *EnrollmentService {
+	return NewEnrollmentService(
+		&fakeOrbitHostStore{host: &hosts.Host{ID: 42}},
+		fakeOrbitSecretVerifier{ok: true},
+		fakePrimaryUserStore{},
+		recorder,
+	)
 }
