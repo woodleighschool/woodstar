@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.7.6](https://github.com/woodleighschool/woodstar/compare/0.7.5...0.7.6) (2026-08-03)
+
+
+### Features
+
+* **deps:** update dependency simple-icons (16.27.1 → 16.28.0) ([#114](https://github.com/woodleighschool/woodstar/issues/114)) ([568e7b4](https://github.com/woodleighschool/woodstar/commit/568e7b44532de13a1b34b90d1d44d7cbbd1712bd))
+* modernize data tables and facets ([4b28d3a](https://github.com/woodleighschool/woodstar/commit/4b28d3ab482ef485574c9abf7cf4388734f76695))
+
 ## [0.7.5](https://github.com/woodleighschool/woodstar/compare/0.7.4...0.7.5) (2026-08-02)
 
 
