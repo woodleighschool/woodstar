@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.7.7](https://github.com/woodleighschool/woodstar/compare/0.7.6...0.7.7) (2026-08-03)
+
+
+### Bug Fixes
+
+* **data-table:** align responsive toolbars ([9d83b46](https://github.com/woodleighschool/woodstar/commit/9d83b4676af1544794a854b829fea3fa1091ee3b))
+* **hosts:** refine inventory detail dialogs ([7f52c15](https://github.com/woodleighschool/woodstar/commit/7f52c158773090b3d947dbff5a3712a708365c18))
+* **osquery:** link check result counts ([5ab915a](https://github.com/woodleighschool/woodstar/commit/5ab915a52e1ce9762a374d25dbcf41099a5e4457))
+* **software:** link host counts directly ([dbe42ee](https://github.com/woodleighschool/woodstar/commit/dbe42eeb95368f7efa76b34f034f858b49d60ae6))
+
 ## [0.7.6](https://github.com/woodleighschool/woodstar/compare/0.7.5...0.7.6) (2026-08-03)
 
 
