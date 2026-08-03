@@ -14,7 +14,6 @@ import {
   ComboboxItem,
   ComboboxList,
   ComboboxTrigger,
-  useComboboxAnchor,
 } from "@components/ui/combobox";
 import { Separator } from "@components/ui/separator";
 
@@ -22,35 +21,25 @@ interface DataTableFacetedFilterProps<TData, TValue> {
   column?: Column<TData, TValue>;
   title?: string;
   options: Option[];
-  multiple?: boolean;
 }
 
 export function DataTableFacetedFilter<TData, TValue>({
   column,
   title,
   options,
-  multiple = false,
 }: DataTableFacetedFilterProps<TData, TValue>) {
-  const [open, setOpen] = React.useState(false);
-  const anchorRef = useComboboxAnchor();
   const columnFilterValue = column?.getFilterValue();
   const selectedValues = React.useMemo(
     () => new Set(Array.isArray(columnFilterValue) ? columnFilterValue : []),
     [columnFilterValue],
   );
 
-  function setFilter(next: string[]) {
-    if (!column) return;
+  function setMultipleFilter(next: string[]) {
+    column?.setFilterValue(next.length > 0 ? next : undefined);
+  }
 
-    if (multiple) {
-      column.setFilterValue(next.length > 0 ? next : undefined);
-      return;
-    }
-
-    const added = next.find((value) => !selectedValues.has(value));
-    const value = added ?? next[0];
-    column.setFilterValue(value ? [value] : undefined);
-    setOpen(false);
+  function setSingleFilter(next: string | null) {
+    column?.setFilterValue(next ? [next] : undefined);
   }
 
   function resetFilter() {
@@ -58,47 +47,36 @@ export function DataTableFacetedFilter<TData, TValue>({
   }
 
   const selected = Array.from(selectedValues, String);
-
-  return (
-    <Combobox
-      multiple
-      items={options.map((option) => option.value)}
-      value={selected}
-      onValueChange={setFilter}
-      open={open}
-      onOpenChange={setOpen}
-    >
-      <ButtonGroup ref={anchorRef}>
+  const items = options.map((option) => option.value);
+  const multiple = options.length > 2;
+  const content = (
+    <>
+      <ButtonGroup>
         <ComboboxTrigger
           render={<Button variant="outline" size="sm" className="border-dashed font-normal" />}
         >
-          <PlusCircle />
+          <PlusCircle data-icon="inline-start" />
           {title}
           {selectedValues.size > 0 ? (
             <>
               <Separator orientation="vertical" className="mx-0.5 h-4" />
-              <Badge variant="secondary" className="rounded-sm px-1 font-normal lg:hidden">
-                {selectedValues.size}
-              </Badge>
-              <span className="hidden items-center gap-1 lg:flex">
-                {selectedValues.size > 2 ? (
-                  <Badge variant="secondary" className="rounded-sm px-1 font-normal">
-                    {selectedValues.size} selected
-                  </Badge>
-                ) : (
-                  options
-                    .filter((option) => selectedValues.has(option.value))
-                    .map((option) => (
-                      <Badge
-                        variant="secondary"
-                        key={option.value}
-                        className="rounded-sm px-1 font-normal"
-                      >
-                        {option.label}
-                      </Badge>
-                    ))
-                )}
-              </span>
+              {selectedValues.size > 2 ? (
+                <Badge variant="secondary" className="rounded-sm px-1 font-normal">
+                  {selectedValues.size} selected
+                </Badge>
+              ) : (
+                options
+                  .filter((option) => selectedValues.has(option.value))
+                  .map((option) => (
+                    <Badge
+                      key={option.value}
+                      variant="secondary"
+                      className="rounded-sm px-1 font-normal"
+                    >
+                      {option.label}
+                    </Badge>
+                  ))
+              )}
             </>
           ) : null}
         </ComboboxTrigger>
@@ -108,14 +86,17 @@ export function DataTableFacetedFilter<TData, TValue>({
           </Button>
         ) : null}
       </ButtonGroup>
-      <ComboboxContent anchor={anchorRef} className="w-56">
-        <ComboboxInput placeholder={title ? `Search ${title.toLowerCase()}...` : "Search..."} />
+      <ComboboxContent className="w-64 min-w-64">
+        <ComboboxInput
+          showTrigger={false}
+          placeholder={title ? `Search ${title.toLowerCase()}...` : "Search..."}
+        />
         <ComboboxEmpty>No results found.</ComboboxEmpty>
         <ComboboxList className="max-h-72">
           {options.map((option) => (
             <ComboboxItem key={option.value} value={option.value}>
               {option.icon ? <option.icon /> : null}
-              <span className="truncate">{option.label}</span>
+              <span>{option.label}</span>
               {option.count !== undefined ? (
                 <span className="ml-auto pr-5 text-xs tabular-nums">{option.count}</span>
               ) : null}
@@ -123,6 +104,20 @@ export function DataTableFacetedFilter<TData, TValue>({
           ))}
         </ComboboxList>
       </ComboboxContent>
+    </>
+  );
+
+  if (multiple) {
+    return (
+      <Combobox multiple items={items} value={selected} onValueChange={setMultipleFilter}>
+        {content}
+      </Combobox>
+    );
+  }
+
+  return (
+    <Combobox items={items} value={selected[0] ?? null} onValueChange={setSingleFilter}>
+      {content}
     </Combobox>
   );
 }

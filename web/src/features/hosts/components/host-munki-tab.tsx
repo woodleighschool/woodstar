@@ -145,6 +145,7 @@ function MunkiSoftwareCell({ software }: { software: MunkiHostManifestSoftware }
         to="/munki/software/$id"
         params={{ id: String(software.software.id) }}
         className="min-w-0 truncate font-medium"
+        title={label}
       >
         {label}
       </Link>

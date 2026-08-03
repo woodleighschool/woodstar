@@ -30,7 +30,6 @@ import { ReportDeleteDialog } from "./delete-dialog";
 import { listAllReportSnapshots, useReport, useReportSnapshots } from "./queries";
 import {
   createReportResultColumns,
-  parseReportSnapshotStatus,
   REPORT_SNAPSHOT_STATUS_OPTIONS,
   reportResultFromSnapshot,
   type ReportResultRow,
@@ -73,7 +72,7 @@ export function ReportDetailPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const id = parseRouteID(reportId);
   const report = useReport(id);
-  const status = parseReportSnapshotStatus(tableSearch.filters.status?.[0]);
+  const status = search.status;
   const snapshots = useReportSnapshots(activeTab === "results" ? id : null, {
     q: tableSearch.q,
     page: tableSearch.page,
@@ -231,7 +230,7 @@ export function ReportDetailPage() {
               onRetry={() => void snapshots.refetch()}
             />
           ) : snapshots.isLoading ? (
-            <DataTableSkeleton columnCount={5} filterCount={1} withExport withViewOptions={false} />
+            <DataTableSkeleton columnCount={5} filterCount={1} withExport />
           ) : (
             <DataTable
               table={table}
@@ -245,15 +244,12 @@ export function ReportDetailPage() {
                 </PanelEmptyState>
               }
             >
-              <div className="flex flex-wrap items-center gap-2">
-                <DataTableSearchInput
-                  value={tableSearch.q ?? ""}
-                  onValueChange={tableSearch.onQueryChange}
-                  placeholder="Search hosts and results"
-                  className="h-8 w-full sm:w-64"
-                />
-                <ReportResultsToolbar table={table} />
-              </div>
+              <DataTableSearchInput
+                value={tableSearch.q ?? ""}
+                onValueChange={tableSearch.onQueryChange}
+                placeholder="Search hosts and results"
+              />
+              <ReportResultsToolbar table={table} />
             </DataTable>
           )}
         </TabsContent>

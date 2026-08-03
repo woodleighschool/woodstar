@@ -1,26 +1,29 @@
 import {
+  type ColumnFiltersState,
   type ColumnDef,
   getCoreRowModel,
   type PaginationState,
   type RowSelectionState,
   type SortingState,
+  type Updater,
   useReactTable,
 } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
 
 import { DataTable } from "@components/data-table/data-table";
+import { DataTableFacetedFilter } from "@components/data-table/data-table-faceted-filter";
+import { DATA_TABLE_DEFAULT_COLUMN } from "@components/data-table/data-table-sizing";
 import { selectColumn } from "@components/data-table/select-column";
 import { encodeSort } from "@components/data-table/use-data-table-search";
 import { PanelEmptyState } from "@components/panel-empty-state";
 import { QueryError } from "@components/query-error";
 import { Input } from "@components/ui/input";
-import { ToggleGroup, ToggleGroupItem } from "@components/ui/toggle-group";
 import { useGroups } from "@features/directory/groups/queries";
 import { useUserDepartments, useUsers } from "@features/directory/users/queries";
 import { useHosts } from "@features/hosts/queries";
 import type { LabelDerivedAttribute } from "@features/labels/model";
 import type { Department, Group, Host, User } from "@lib/api";
-import { DEFAULT_PAGE_SIZE } from "@lib/pagination";
+import { PAGE_SIZE_OPTIONS } from "@lib/pagination";
 import { assertNever } from "@lib/utils";
 
 export function HostSelector({
@@ -258,25 +261,32 @@ function UserSelector({
 
 type SelectionFilter = "all" | "selected";
 
+const SELECTOR_PAGE_SIZE = 10;
+const SELECTOR_PAGE_SIZE_OPTIONS = [SELECTOR_PAGE_SIZE, ...PAGE_SIZE_OPTIONS] as const;
+
 interface SelectorControls {
   q: string;
   filter: SelectionFilter;
   pagination: PaginationState;
   sorting: SortingState;
+  columnFilters: ColumnFiltersState;
   setPagination: React.Dispatch<React.SetStateAction<PaginationState>>;
   setSorting: React.Dispatch<React.SetStateAction<SortingState>>;
+  setColumnFilters: (updater: Updater<ColumnFiltersState>) => void;
   setSearch: (next: string) => void;
-  setSelectionFilter: (next: SelectionFilter) => void;
 }
 
 function useSelectorControls(defaultSorting: SortingState): SelectorControls {
   const [q, setQ] = useState("");
-  const [filter, setFilter] = useState<SelectionFilter>("all");
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
-    pageSize: DEFAULT_PAGE_SIZE,
+    pageSize: SELECTOR_PAGE_SIZE,
   });
   const [sorting, setSorting] = useState<SortingState>(defaultSorting);
+  const selectionFilter = columnFilters.find((item) => item.id === "select")?.value;
+  const filter: SelectionFilter =
+    Array.isArray(selectionFilter) && selectionFilter.includes("selected") ? "selected" : "all";
 
   function resetPage() {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
@@ -287,14 +297,15 @@ function useSelectorControls(defaultSorting: SortingState): SelectorControls {
     filter,
     pagination,
     sorting,
+    columnFilters,
     setPagination,
     setSorting,
     setSearch: (next: string) => {
       setQ(next);
       resetPage();
     },
-    setSelectionFilter: (next: SelectionFilter) => {
-      setFilter(next);
+    setColumnFilters: (updater) => {
+      setColumnFilters((previous) => (typeof updater === "function" ? updater(previous) : updater));
       resetPage();
     },
   };
@@ -343,6 +354,9 @@ function SelectorTable<TData>({
     manualPagination: true,
     manualSorting: true,
     enableMultiSort: false,
+    defaultColumn: DATA_TABLE_DEFAULT_COLUMN,
+    enableColumnResizing: true,
+    columnResizeMode: "onChange",
     enableRowSelection: true,
     pageCount: Math.max(1, Math.ceil(totalCount / controls.pagination.pageSize)),
     rowCount: totalCount,
@@ -350,6 +364,7 @@ function SelectorTable<TData>({
       pagination: controls.pagination,
       rowSelection,
       sorting: controls.sorting,
+      columnFilters: controls.columnFilters,
     },
     onPaginationChange: controls.setPagination,
     onRowSelectionChange: (updater) => {
@@ -361,6 +376,8 @@ function SelectorTable<TData>({
         singleSort(typeof updater === "function" ? updater(prev) : updater),
       );
     },
+    onColumnFiltersChange: controls.setColumnFilters,
+    manualFiltering: true,
   });
 
   if (error) {
@@ -370,6 +387,7 @@ function SelectorTable<TData>({
   return (
     <DataTable
       table={table}
+      pageSizeOptions={SELECTOR_PAGE_SIZE_OPTIONS}
       empty={
         isLoading ? (
           <div className="h-24 text-center leading-24 text-muted-foreground">Loading...</div>
@@ -378,26 +396,17 @@ function SelectorTable<TData>({
         )
       }
     >
-      <div className="flex flex-wrap items-center gap-2">
-        <Input
-          value={controls.q}
-          onChange={(event) => controls.setSearch(event.target.value)}
-          placeholder={searchPlaceholder}
-          className="h-8 min-w-64 flex-1"
-        />
-        <ToggleGroup
-          value={[controls.filter]}
-          onValueChange={(next) => {
-            const value = next[0];
-            if (value === "all" || value === "selected") controls.setSelectionFilter(value);
-          }}
-          variant="outline"
-          size="sm"
-        >
-          <ToggleGroupItem value="all">Show all</ToggleGroupItem>
-          <ToggleGroupItem value="selected">Selected {selectedCount}</ToggleGroupItem>
-        </ToggleGroup>
-      </div>
+      <Input
+        value={controls.q}
+        onChange={(event) => controls.setSearch(event.target.value)}
+        placeholder={searchPlaceholder}
+        className="w-full max-w-sm"
+      />
+      <DataTableFacetedFilter
+        column={table.getColumn("select")}
+        title="Selection"
+        options={[{ label: "Selected", value: "selected", count: selectedCount }]}
+      />
     </DataTable>
   );
 }

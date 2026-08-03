@@ -6,7 +6,6 @@ import { TableSurface } from "@components/data-table/table-surface";
 import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link } from "@components/link";
-import { PathText } from "@components/path-text";
 import { QueryGate } from "@components/query-gate";
 import { TargetDetails } from "@components/targeting/target-details";
 import { Button } from "@components/ui/button";
@@ -89,7 +88,7 @@ export function RuleDetailPage() {
         <KeyValueRow label="Name" value={rule.name} />
         <KeyValueRow label="Description" value={rule.description} />
         <KeyValueRow label="Rule Type" value={ruleTypeLabel(rule.rule_type)} />
-        <KeyValueRow label="Identifier" value={<PathText value={rule.identifier} />} />
+        <KeyValueRow label="Identifier" value={rule.identifier || "-"} />
         <KeyValueRow label="Custom URL" value={rule.custom_url} />
         <KeyValueRow label="Custom Message" value={rule.custom_message} />
       </KeyValueSection>

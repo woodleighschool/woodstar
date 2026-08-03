@@ -7,7 +7,6 @@ import { EnumStatusIndicator } from "@components/enum-status-indicator";
 import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { Link } from "@components/link";
 import { PanelEmptyState } from "@components/panel-empty-state";
-import { PathText } from "@components/path-text";
 import { QueryError } from "@components/query-error";
 import { Button } from "@components/ui/button";
 import { Separator } from "@components/ui/separator";
@@ -46,7 +45,7 @@ const santaRuleColumns: ColumnDef<SantaRuleStatus>[] = [
   {
     accessorKey: "identifier",
     header: () => "Identifier",
-    cell: ({ row }) => <PathText value={row.original.identifier} />,
+    cell: ({ row }) => row.original.identifier || "-",
   },
   {
     accessorKey: "policy",

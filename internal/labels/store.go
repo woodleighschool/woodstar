@@ -285,8 +285,8 @@ func labelListWhere(params LabelListParams) (string, []any) {
 	if params.LabelType != "" {
 		where.Addf("l.label_type = %s", string(params.LabelType))
 	}
-	if params.LabelMembershipType != "" {
-		where.Addf("l.label_membership_type = %s", string(params.LabelMembershipType))
+	if len(params.LabelMembershipTypes) > 0 {
+		where.Addf("l.label_membership_type = ANY(%s::text[])", params.LabelMembershipTypes)
 	}
 	return where.Build()
 }

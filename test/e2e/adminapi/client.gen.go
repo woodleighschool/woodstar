@@ -2606,12 +2606,12 @@ type ListHostSoftwareParams struct {
 
 // ListLabelsParams defines parameters for ListLabels.
 type ListLabelsParams struct {
-	Q                   *string                              `form:"q,omitempty" json:"q,omitempty"`
-	Page                *int32                               `form:"page,omitempty" json:"page,omitempty"`
-	PerPage             *int32                               `form:"per_page,omitempty" json:"per_page,omitempty"`
-	Sort                *string                              `form:"sort,omitempty" json:"sort,omitempty"`
-	LabelType           *ListLabelsParamsLabelType           `form:"label_type,omitempty" json:"label_type,omitempty"`
-	LabelMembershipType *ListLabelsParamsLabelMembershipType `form:"label_membership_type,omitempty" json:"label_membership_type,omitempty"`
+	Q                   *string                                `form:"q,omitempty" json:"q,omitempty"`
+	Page                *int32                                 `form:"page,omitempty" json:"page,omitempty"`
+	PerPage             *int32                                 `form:"per_page,omitempty" json:"per_page,omitempty"`
+	Sort                *string                                `form:"sort,omitempty" json:"sort,omitempty"`
+	LabelType           *ListLabelsParamsLabelType             `form:"label_type,omitempty" json:"label_type,omitempty"`
+	LabelMembershipType *[]ListLabelsParamsLabelMembershipType `form:"label_membership_type,omitempty" json:"label_membership_type,omitempty"`
 }
 
 // ListLabelsParamsLabelType defines parameters for ListLabels.
@@ -4824,7 +4824,7 @@ func NewListLabelsRequest(server string, params *ListLabelsParams) (*http.Reques
 
 		if params.LabelMembershipType != nil {
 
-			if queryFrag, err := runtime.StyleParamWithOptions("form", false, "label_membership_type", *params.LabelMembershipType, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+			if queryFrag, err := runtime.StyleParamWithOptions("form", false, "label_membership_type", *params.LabelMembershipType, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "array", Format: ""}); err != nil {
 				return nil, err
 			} else {
 				for _, qp := range strings.Split(queryFrag, "&") {

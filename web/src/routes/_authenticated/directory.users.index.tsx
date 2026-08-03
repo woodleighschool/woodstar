@@ -14,7 +14,7 @@ const searchSchema = createTableSearchSchema([
   "created_at",
   "updated_at",
 ]).extend({
-  role: z.enum(USER_ACCESS_ROLE_VALUES).optional().catch(undefined),
+  role: z.array(z.enum(USER_ACCESS_ROLE_VALUES)).optional().catch(undefined),
   source: z.enum(DIRECTORY_SOURCE_VALUES).optional().catch(undefined),
   group_id: z.coerce.number().int().positive().optional().catch(undefined),
 });

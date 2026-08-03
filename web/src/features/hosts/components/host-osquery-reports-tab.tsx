@@ -15,7 +15,6 @@ import { PanelEmptyState } from "@components/panel-empty-state";
 import { QueryError } from "@components/query-error";
 import { listAllHostOsqueryReports, useHostOsqueryReports } from "@features/hosts/queries";
 import {
-  parseReportSnapshotStatus,
   REPORT_SNAPSHOT_STATUS_OPTIONS,
   resultColumnNames,
   resultRowCountLabel,
@@ -36,6 +35,9 @@ const hostReportColumns: ColumnDef<OsqueryReportSnapshot>[] = [
     cell: ({ row }) => <DataTableRowExpander row={row} label={row.original.report_name} />,
     enableSorting: false,
     size: 44,
+    minSize: 44,
+    maxSize: 44,
+    enableResizing: false,
   },
   {
     id: "report_name",
@@ -51,7 +53,7 @@ const hostReportColumns: ColumnDef<OsqueryReportSnapshot>[] = [
           {row.original.report_name}
         </Link>
         {row.original.report_description ? (
-          <span className="max-w-xl truncate text-xs text-muted-foreground">
+          <span className="text-xs whitespace-normal text-muted-foreground">
             {row.original.report_description}
           </span>
         ) : null}
@@ -101,7 +103,7 @@ export function HostOsqueryReportsTab({ hostId }: { hostId: number | null }) {
     onSearchChange: (updater) => void navigate({ search: updater, replace: true }),
     filterKeys: STATUS_FILTER_KEYS,
   });
-  const status = parseReportSnapshotStatus(tableSearch.filters.status?.[0]);
+  const status = search.status;
   const reports = useHostOsqueryReports(hostId, {
     q: tableSearch.q,
     page: tableSearch.page,
@@ -142,7 +144,7 @@ export function HostOsqueryReportsTab({ hostId }: { hostId: number | null }) {
   }
 
   if (reports.isLoading) {
-    return <DataTableSkeleton columnCount={5} filterCount={1} withExport withViewOptions={false} />;
+    return <DataTableSkeleton columnCount={5} filterCount={1} withExport />;
   }
 
   const exportMetadata: DataTableExportOptions<OsqueryReportSnapshot>["columns"] = [
@@ -176,15 +178,12 @@ export function HostOsqueryReportsTab({ hostId }: { hostId: number | null }) {
         </PanelEmptyState>
       }
     >
-      <div className="flex flex-wrap items-center gap-2">
-        <DataTableSearchInput
-          value={tableSearch.q ?? ""}
-          onValueChange={tableSearch.onQueryChange}
-          placeholder="Search reports and results"
-          className="h-8 w-full sm:w-64"
-        />
-        <HostReportsToolbar table={table} />
-      </div>
+      <DataTableSearchInput
+        value={tableSearch.q ?? ""}
+        onValueChange={tableSearch.onQueryChange}
+        placeholder="Search reports and results"
+      />
+      <HostReportsToolbar table={table} />
     </DataTable>
   );
 }

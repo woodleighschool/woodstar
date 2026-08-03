@@ -10,6 +10,7 @@ import {
 } from "@tanstack/react-table";
 import * as React from "react";
 
+import { DATA_TABLE_DEFAULT_COLUMN } from "@components/data-table/data-table-sizing";
 import type { DataTableQuery } from "@components/data-table/use-data-table-search";
 
 interface UseDataTableProps<TData>
@@ -88,9 +89,12 @@ export function useDataTable<TData>(props: UseDataTableProps<TData>) {
       expanded,
     },
     defaultColumn: {
+      ...DATA_TABLE_DEFAULT_COLUMN,
       ...tableProps.defaultColumn,
       enableColumnFilter: false,
     },
+    enableColumnResizing: tableProps.enableColumnResizing ?? true,
+    columnResizeMode: tableProps.columnResizeMode ?? "onChange",
     enableRowSelection,
     onRowSelectionChange: setRowSelection,
     onPaginationChange: tableState.onPaginationChange,

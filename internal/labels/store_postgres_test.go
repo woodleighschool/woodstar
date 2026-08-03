@@ -220,6 +220,19 @@ func TestListIncludesDerivedCriteria(t *testing.T) {
 		len(got.Criteria.Values) != 1 || got.Criteria.Values[0] != "Engineering" {
 		t.Fatalf("Criteria = %#v, want department Engineering", got.Criteria)
 	}
+
+	filtered, _, err := store.List(ctx, LabelListParams{
+		LabelMembershipTypes: []LabelMembershipType{
+			LabelMembershipTypeDerived,
+			LabelMembershipTypeManual,
+		},
+	})
+	if err != nil {
+		t.Fatalf("list multiple membership types: %v", err)
+	}
+	if len(filtered) < 2 {
+		t.Fatalf("multi-membership labels = %+v, want derived and manual labels", filtered)
+	}
 }
 
 func TestDerivedLabelsMatchUserAndEntraAttributes(t *testing.T) {

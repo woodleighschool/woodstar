@@ -40,11 +40,6 @@ export const REPORT_SNAPSHOT_STATUS_OPTIONS = [
   { label: "Pending", value: "pending" },
 ] satisfies { label: string; value: SnapshotStatus }[];
 
-export function parseReportSnapshotStatus(value: unknown): SnapshotStatus | undefined {
-  if (typeof value !== "string") return undefined;
-  return REPORT_SNAPSHOT_STATUS_OPTIONS.find((option) => option.value === value)?.value;
-}
-
 export function reportResultFromSnapshot(snapshot: OsqueryReportSnapshot): ReportResultRow {
   return {
     host_id: snapshot.host_id,
@@ -88,6 +83,9 @@ export function createReportResultColumns({
       cell: ({ row }) => <DataTableRowExpander row={row} label={row.original.host_name} />,
       enableSorting: false,
       size: 44,
+      minSize: 44,
+      maxSize: 44,
+      enableResizing: false,
     },
     {
       id: "host_name",

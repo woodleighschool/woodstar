@@ -13,7 +13,7 @@ const SEARCH_DEFAULTS = {
 const searchSchema = createTableSearchSchema(["check_name", "status", "updated_at"], {
   defaultSort: SEARCH_DEFAULTS.sort,
 }).extend({
-  status: z.enum(CHECK_RESULT_STATUS_VALUES).optional().catch(undefined),
+  status: z.array(z.enum(CHECK_RESULT_STATUS_VALUES)).optional().catch(undefined),
 });
 
 export const Route = createFileRoute("/_authenticated/hosts/$id/checks")({

@@ -4780,11 +4780,13 @@ paths:
           in: query
           name: status
           schema:
-            enum:
-              - pass
-              - fail
-              - pending
-            type: string
+            items:
+              enum:
+                - pass
+                - fail
+                - pending
+              type: string
+            type: array
       responses:
         "200":
           content:
@@ -5264,11 +5266,13 @@ paths:
           in: query
           name: label_membership_type
           schema:
-            enum:
-              - dynamic
-              - manual
-              - derived
-            type: string
+            items:
+              enum:
+                - dynamic
+                - manual
+                - derived
+              type: string
+            type: array
       responses:
         "200":
           content:
@@ -7945,11 +7949,13 @@ paths:
           in: query
           name: status
           schema:
-            enum:
-              - pass
-              - fail
-              - pending
-            type: string
+            items:
+              enum:
+                - pass
+                - fail
+                - pending
+              type: string
+            type: array
       responses:
         "200":
           content:
@@ -9386,14 +9392,16 @@ paths:
           in: query
           name: rule_type
           schema:
-            enum:
-              - binary
-              - certificate
-              - teamid
-              - signingid
-              - cdhash
-              - bundle
-            type: string
+            items:
+              enum:
+                - binary
+                - certificate
+                - teamid
+                - signingid
+                - cdhash
+                - bundle
+              type: string
+            type: array
       responses:
         "200":
           content:
@@ -9903,11 +9911,13 @@ paths:
           in: query
           name: role
           schema:
-            enum:
-              - admin
-              - viewer
-              - none
-            type: string
+            items:
+              enum:
+                - admin
+                - viewer
+                - none
+              type: string
+            type: array
         - explode: false
           in: query
           name: source

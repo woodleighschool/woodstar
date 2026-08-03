@@ -158,12 +158,13 @@ const packageStateColumns: ColumnDef<MunkiPackageState>[] = [
     id: "package",
     header: () => "Package",
     cell: ({ row }) => (
-      <div className="flex max-w-xl min-w-0 items-center gap-2">
+      <div className="flex items-center gap-2">
         <SoftwareArtwork src={row.original.software_icon_url} />
         <Link
           to="/munki/packages/$id"
           params={{ id: String(row.original.package_id) }}
           className="min-w-0 truncate font-medium"
+          title={`${row.original.name} ${row.original.version}`}
         >
           {row.original.name} {row.original.version}
         </Link>

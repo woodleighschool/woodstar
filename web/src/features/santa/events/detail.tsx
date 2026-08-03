@@ -232,16 +232,10 @@ function SigningChainTable({
         <TableBody>
           {signingChain.map((cert) => (
             <TableRow key={`${cert.sha256}:${cert.common_name ?? ""}:${cert.valid_from ?? ""}`}>
-              <TableCell className="min-w-64 whitespace-normal">
-                {cert.common_name ?? "-"}
-              </TableCell>
-              <TableCell className="min-w-40 whitespace-normal">
-                {cert.organization ?? "-"}
-              </TableCell>
-              <TableCell className="min-w-40 whitespace-normal">
-                {cert.organizational_unit ?? "-"}
-              </TableCell>
-              <TableCell className="min-w-64 whitespace-normal">
+              <TableCell>{cert.common_name ?? "-"}</TableCell>
+              <TableCell>{cert.organization ?? "-"}</TableCell>
+              <TableCell>{cert.organizational_unit ?? "-"}</TableCell>
+              <TableCell>
                 <ValueText value={cert.sha256} />
               </TableCell>
               <TableCell>{formatDateTime(cert.valid_from)}</TableCell>
@@ -267,10 +261,10 @@ function EntitlementsTable({ entitlements }: { entitlements: EntitlementEntry[] 
         <TableBody>
           {entitlements.map((entitlement) => (
             <TableRow key={entitlement.key}>
-              <TableCell className="min-w-72 whitespace-normal">
+              <TableCell>
                 <ValueText value={entitlement.key} />
               </TableCell>
-              <TableCell className="whitespace-normal">
+              <TableCell>
                 <EntitlementValue value={entitlement.value} />
               </TableCell>
             </TableRow>

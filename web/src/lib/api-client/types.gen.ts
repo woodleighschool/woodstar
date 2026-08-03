@@ -2067,7 +2067,7 @@ export type ListHostOsqueryChecksData = {
         page?: number;
         per_page?: number;
         sort?: string;
-        status?: 'pass' | 'fail' | 'pending';
+        status?: Array<'pass' | 'fail' | 'pending'>;
     };
     url: '/api/hosts/{id}/osquery/checks';
 };
@@ -2378,7 +2378,7 @@ export type ListLabelsData = {
         per_page?: number;
         sort?: string;
         label_type?: 'builtin' | 'regular';
-        label_membership_type?: 'dynamic' | 'manual' | 'derived';
+        label_membership_type?: Array<'dynamic' | 'manual' | 'derived'>;
     };
     url: '/api/labels';
 };
@@ -4435,7 +4435,7 @@ export type ListOsqueryCheckResultsData = {
         page?: number;
         per_page?: number;
         sort?: string;
-        status?: 'pass' | 'fail' | 'pending';
+        status?: Array<'pass' | 'fail' | 'pending'>;
     };
     url: '/api/osquery/checks/{id}/results';
 };
@@ -5472,7 +5472,7 @@ export type ListSantaRulesData = {
         page?: number;
         per_page?: number;
         sort?: string;
-        rule_type?: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
+        rule_type?: Array<'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle'>;
     };
     url: '/api/santa/rules';
 };
@@ -5867,7 +5867,7 @@ export type ListUsersData = {
         per_page?: number;
         sort?: string;
         values?: Array<string>;
-        role?: 'admin' | 'viewer' | 'none';
+        role?: Array<'admin' | 'viewer' | 'none'>;
         source?: 'local' | 'entra';
         group_id?: number;
     };

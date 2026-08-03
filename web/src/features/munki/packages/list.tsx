@@ -45,6 +45,7 @@ function PackageSoftwareCell({ row }: CellContext<MunkiPackage, unknown>) {
         to="/munki/packages/$id"
         params={{ id: String(row.original.id) }}
         className="min-w-0 truncate font-medium"
+        title={row.original.software.name}
       >
         {row.original.software.name}
       </Link>
@@ -107,7 +108,10 @@ function packageColumns(
       header: () => null,
       enableSorting: false,
       enableHiding: false,
-      size: 48,
+      size: 44,
+      minSize: 44,
+      maxSize: 44,
+      enableResizing: false,
       cell: ({ row }) => (
         <PackageRowActions pkg={row.original} onDelete={() => onDelete(row.original)} />
       ),
@@ -193,21 +197,15 @@ export function MunkiPackageListPage() {
             />
           }
         >
-          <div className="flex items-start justify-between gap-2 p-1">
-            <div className="flex flex-1 flex-wrap items-center gap-2">
-              <DataTableSearchInput
-                className="h-8 w-40 lg:w-56"
-                value={tableSearch.q ?? ""}
-                onValueChange={tableSearch.onQueryChange}
-              />
-              <DataTableFacetedFilter
-                column={table.getColumn("type")}
-                title="Type"
-                options={MUNKI_INSTALLER_TYPE_OPTIONS}
-                multiple
-              />
-            </div>
-          </div>
+          <DataTableSearchInput
+            value={tableSearch.q ?? ""}
+            onValueChange={tableSearch.onQueryChange}
+          />
+          <DataTableFacetedFilter
+            column={table.getColumn("type")}
+            title="Type"
+            options={MUNKI_INSTALLER_TYPE_OPTIONS}
+          />
         </DataTable>
       )}
 

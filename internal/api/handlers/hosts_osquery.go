@@ -15,14 +15,14 @@ import (
 type hostOsqueryChecksInput struct {
 	ListQueryInput
 
-	ID     int64              `path:"id"`
-	Status checks.CheckStatus `          query:"status,omitempty"`
+	ID     int64                `path:"id"`
+	Status []checks.CheckStatus `          query:"status,omitempty"`
 }
 
 func (input hostOsqueryChecksInput) params() checks.CheckResultListParams {
 	return checks.CheckResultListParams{
 		ListParams: input.ListQueryInput.params(),
-		Status:     input.Status,
+		Statuses:   input.Status,
 	}
 }
 

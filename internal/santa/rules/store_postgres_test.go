@@ -405,6 +405,29 @@ func TestRuleStoreBulkDeleteIgnoresMissingIDs(t *testing.T) {
 	}
 }
 
+func TestRuleStoreListsMultipleRuleTypes(t *testing.T) {
+	db, ctx := testdb.Open(t)
+	store := rules.NewStore(db)
+	for _, mutation := range []rules.RuleMutation{
+		{RuleType: rules.RuleTypeBinary, Identifier: strings.Repeat("4", 64), Name: "Binary"},
+		{RuleType: rules.RuleTypeTeamID, Identifier: "FILTERTEAM", Name: "Team"},
+	} {
+		if _, err := store.Create(ctx, mutation); err != nil {
+			t.Fatalf("create %s rule: %v", mutation.RuleType, err)
+		}
+	}
+
+	got, count, err := store.List(ctx, rules.RuleListParams{
+		RuleTypes: []rules.RuleType{rules.RuleTypeBinary, rules.RuleTypeTeamID},
+	})
+	if err != nil {
+		t.Fatalf("list multiple rule types: %v", err)
+	}
+	if count != 2 || len(got) != 2 {
+		t.Fatalf("rules = %+v count=%d, want binary and team ID rules", got, count)
+	}
+}
+
 func createSantaRuleLabel(t *testing.T, db *database.DB, name string) int64 {
 	t.Helper()
 

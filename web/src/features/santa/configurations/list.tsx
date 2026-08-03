@@ -174,15 +174,10 @@ export function ConfigurationListPage() {
           }
           empty={emptyState}
         >
-          <div className="flex items-start justify-between gap-2 p-1">
-            <div className="flex flex-1 flex-wrap items-center gap-2">
-              <DataTableSearchInput
-                className="h-8 w-40 lg:w-56"
-                value={tableSearch.q ?? ""}
-                onValueChange={tableSearch.onQueryChange}
-              />
-            </div>
-          </div>
+          <DataTableSearchInput
+            value={tableSearch.q ?? ""}
+            onValueChange={tableSearch.onQueryChange}
+          />
         </DataTable>
       )}
 
@@ -220,7 +215,6 @@ function configurationColumns(
       header: "Order",
       cell: ({ row }) => row.original.position + 1,
       meta: { label: "Order" },
-      size: 80,
     },
     {
       id: "name",
@@ -263,7 +257,10 @@ function configurationColumns(
             header: () => null,
             enableSorting: false,
             enableHiding: false,
-            size: 48,
+            size: 44,
+            minSize: 44,
+            maxSize: 44,
+            enableResizing: false,
             cell: ({ row }) => (
               <ConfigurationRowActions configuration={row.original} onDelete={onDelete} />
             ),

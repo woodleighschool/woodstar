@@ -12,7 +12,7 @@ const searchSchema = createTableSearchSchema([
   "hosts_count",
   "updated_at",
 ]).extend({
-  label_membership_type: z.enum(LABEL_MEMBERSHIP_VALUES).optional().catch(undefined),
+  label_membership_type: z.array(z.enum(LABEL_MEMBERSHIP_VALUES)).optional().catch(undefined),
 });
 
 export const Route = createFileRoute("/_authenticated/labels/")({

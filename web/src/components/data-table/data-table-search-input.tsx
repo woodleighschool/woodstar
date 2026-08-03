@@ -2,6 +2,7 @@ import * as React from "react";
 
 import { Input } from "@components/ui/input";
 import { useDebouncedCallback } from "@hooks/use-debounced-callback";
+import { cn } from "@lib/utils";
 
 interface DataTableSearchInputProps extends Omit<
   React.ComponentProps<typeof Input>,
@@ -17,6 +18,7 @@ export function DataTableSearchInput({
   onValueChange,
   debounceMs = 300,
   placeholder = "Search",
+  className,
   ...props
 }: DataTableSearchInputProps) {
   const [draft, setDraft] = React.useState(value);
@@ -35,6 +37,7 @@ export function DataTableSearchInput({
   return (
     <Input
       {...props}
+      className={cn("w-full max-w-sm", className)}
       placeholder={placeholder}
       value={draft}
       onChange={(event) => {

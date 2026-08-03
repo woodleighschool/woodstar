@@ -145,7 +145,7 @@ func TestCountsAndResultsUseCurrentTargets(t *testing.T) {
 	}
 
 	results, _, err := store.CheckResults(ctx, check.ID, CheckResultListParams{
-		Status: CheckStatusFail,
+		Statuses: []CheckStatus{CheckStatusFail},
 	})
 	if err != nil {
 		t.Fatalf("list failing results: %v", err)
@@ -658,7 +658,7 @@ func TestCheckResultsFiltersByMembershipStatus(t *testing.T) {
 	}
 
 	passingResults, _, err := store.CheckResults(ctx, check.ID, CheckResultListParams{
-		Status: CheckStatusPass,
+		Statuses: []CheckStatus{CheckStatusPass},
 	})
 	if err != nil {
 		t.Fatalf("pass results: %v", err)
@@ -671,7 +671,7 @@ func TestCheckResultsFiltersByMembershipStatus(t *testing.T) {
 	}
 
 	failingResults, _, err := store.CheckResults(ctx, check.ID, CheckResultListParams{
-		Status: CheckStatusFail,
+		Statuses: []CheckStatus{CheckStatusFail},
 	})
 	if err != nil {
 		t.Fatalf("fail results: %v", err)
@@ -684,7 +684,7 @@ func TestCheckResultsFiltersByMembershipStatus(t *testing.T) {
 	}
 
 	pendingResults, _, err := store.CheckResults(ctx, check.ID, CheckResultListParams{
-		Status: CheckStatusPending,
+		Statuses: []CheckStatus{CheckStatusPending},
 	})
 	if err != nil {
 		t.Fatalf("pending results: %v", err)
@@ -693,6 +693,16 @@ func TestCheckResultsFiltersByMembershipStatus(t *testing.T) {
 		pendingResults[0].HostID != unevaluatedHost.ID ||
 		pendingResults[0].Status != CheckStatusPending {
 		t.Fatalf("pending results = %+v, want unevaluated host status", pendingResults)
+	}
+
+	completedResults, _, err := store.CheckResults(ctx, check.ID, CheckResultListParams{
+		Statuses: []CheckStatus{CheckStatusPass, CheckStatusFail},
+	})
+	if err != nil {
+		t.Fatalf("completed results: %v", err)
+	}
+	if len(completedResults) != 2 {
+		t.Fatalf("completed results = %+v, want passing and failing hosts", completedResults)
 	}
 }
 

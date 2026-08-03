@@ -273,7 +273,8 @@ func (s *Store) CheckResults(
 	params CheckResultListParams,
 ) ([]CheckHostStatus, int, error) {
 	params.ListParams = dbutil.NormalizeListParams(params.ListParams)
-	if err := validateCheckStatusFilter(params.Status); err != nil {
+	params.Statuses = dbutil.NormalizeListValues(params.Statuses)
+	if err := validateCheckStatusFilters(params.Statuses); err != nil {
 		return nil, 0, err
 	}
 	where, args := checkResultListWhere(params, "c.id", checkID, "h.display_name")
@@ -332,7 +333,8 @@ func (s *Store) HostChecks(
 	params CheckResultListParams,
 ) ([]CheckHostStatus, int, error) {
 	params.ListParams = dbutil.NormalizeListParams(params.ListParams)
-	if err := validateCheckStatusFilter(params.Status); err != nil {
+	params.Statuses = dbutil.NormalizeListValues(params.Statuses)
+	if err := validateCheckStatusFilters(params.Statuses); err != nil {
 		return nil, 0, err
 	}
 	where, args := checkResultListWhere(params, "h.id", host.ID, "c.name")
@@ -384,12 +386,12 @@ func checkResultListWhere(
 		search := where.Arg("%" + params.Q + "%")
 		where.Add(nameSQL + " ILIKE " + search)
 	}
-	if params.Status != "" {
-		status := where.Arg(params.Status)
+	if len(params.Statuses) > 0 {
+		statuses := where.Arg(params.Statuses)
 		where.Add(`(
-			(` + status + ` = 'pass' AND m.passes IS TRUE)
-			OR (` + status + ` = 'fail' AND m.passes IS FALSE)
-			OR (` + status + ` = 'pending' AND m.passes IS NULL)
+			('pass' = ANY(` + statuses + `::text[]) AND m.passes IS TRUE)
+			OR ('fail' = ANY(` + statuses + `::text[]) AND m.passes IS FALSE)
+			OR ('pending' = ANY(` + statuses + `::text[]) AND m.passes IS NULL)
 		)`)
 	}
 	return where.Build()
@@ -428,13 +430,15 @@ func checkStatusFromPasses(passes *bool) CheckStatus {
 	return CheckStatusFail
 }
 
-func validateCheckStatusFilter(status CheckStatus) error {
-	switch status {
-	case "", CheckStatusPass, CheckStatusFail, CheckStatusPending:
-		return nil
-	default:
-		return dbutil.ErrInvalidInput
+func validateCheckStatusFilters(statuses []CheckStatus) error {
+	for _, status := range statuses {
+		switch status {
+		case CheckStatusPass, CheckStatusFail, CheckStatusPending:
+		default:
+			return dbutil.ErrInvalidInput
+		}
 	}
+	return nil
 }
 
 type checkCounts struct {

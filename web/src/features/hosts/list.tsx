@@ -136,7 +136,7 @@ export function HostListPage() {
           onRetry={() => void query.refetch()}
         />
       ) : query.isLoading ? (
-        <DataTableSkeleton columnCount={8} filterCount={1} withExport />
+        <DataTableSkeleton columnCount={8} filterCount={1} withExport withViewOptions />
       ) : (
         <DataTable
           table={table}
@@ -162,18 +162,15 @@ export function HostListPage() {
             />
           }
         >
-          <div className="flex flex-wrap items-center gap-2">
-            <DataTableSearchInput
-              className="h-8 w-40 lg:w-56"
-              value={tableSearch.q ?? ""}
-              onValueChange={tableSearch.onQueryChange}
-            />
-            <DataTableFacetedFilter
-              column={table.getColumn("status")}
-              title="Status"
-              options={STATUS_OPTIONS}
-            />
-          </div>
+          <DataTableSearchInput
+            value={tableSearch.q ?? ""}
+            onValueChange={tableSearch.onQueryChange}
+          />
+          <DataTableFacetedFilter
+            column={table.getColumn("status")}
+            title="Status"
+            options={STATUS_OPTIONS}
+          />
         </DataTable>
       )}
     </PageShell>
@@ -192,6 +189,8 @@ const hostColumns: ColumnDef<Host>[] = [
       </Link>
     ),
     enableHiding: false,
+    size: 220,
+    minSize: 140,
     meta: { label: "Name" },
   },
   {
@@ -199,6 +198,8 @@ const hostColumns: ColumnDef<Host>[] = [
     accessorFn: (row) => row.status,
     header: () => "Status",
     enableSorting: false,
+    size: 104,
+    minSize: 96,
     cell: ({ row }) => <HostStatus status={row.original.status} />,
     meta: { label: "Status", options: STATUS_OPTIONS },
     enableColumnFilter: true,
@@ -208,6 +209,7 @@ const hostColumns: ColumnDef<Host>[] = [
     accessorFn: (row) => row.os.version,
     header: "OS",
     cell: ({ row }) => row.original.os.version || "-",
+    size: 96,
     meta: { label: "OS" },
   },
   {
@@ -215,6 +217,7 @@ const hostColumns: ColumnDef<Host>[] = [
     accessorFn: (row) => row.hardware.model_identifier,
     header: "Model",
     cell: ({ row }) => row.original.hardware.model_identifier || "-",
+    size: 160,
     meta: { label: "Model" },
   },
   {
@@ -222,6 +225,7 @@ const hostColumns: ColumnDef<Host>[] = [
     accessorFn: (row) => row.hardware.serial,
     header: "Serial",
     cell: ({ row }) => row.original.hardware.serial || "-",
+    size: 136,
     meta: { label: "Serial" },
   },
   {
@@ -232,6 +236,7 @@ const hostColumns: ColumnDef<Host>[] = [
       row.original.storage.boot_volume.available_bytes
         ? filesize(row.original.storage.boot_volume.available_bytes)
         : "-",
+    size: 112,
     meta: { label: "Disk Free" },
   },
   {
@@ -239,6 +244,7 @@ const hostColumns: ColumnDef<Host>[] = [
     header: () => "User Email",
     enableSorting: false,
     cell: ({ row }) => row.original.primary_user?.email ?? "",
+    size: 220,
     meta: { label: "User Email" },
   },
   {
@@ -246,6 +252,7 @@ const hostColumns: ColumnDef<Host>[] = [
     accessorFn: (row) => row.timestamps.last_seen_at,
     header: "Last Seen",
     cell: ({ row }) => formatRelative(row.original.timestamps.last_seen_at),
+    size: 144,
     meta: { label: "Last Seen" },
   },
   {
@@ -253,6 +260,7 @@ const hostColumns: ColumnDef<Host>[] = [
     accessorFn: (row) => row.hardware.uuid,
     header: "UUID",
     cell: ({ row }) => row.original.hardware.uuid || "-",
+    size: 280,
     meta: { label: "UUID" },
   },
   {
@@ -260,6 +268,7 @@ const hostColumns: ColumnDef<Host>[] = [
     accessorFn: (row) => row.network.primary_ip,
     header: "Private IP",
     cell: ({ row }) => row.original.network.primary_ip ?? "-",
+    size: 176,
     meta: { label: "Private IP" },
   },
   {
@@ -267,6 +276,7 @@ const hostColumns: ColumnDef<Host>[] = [
     accessorFn: (row) => row.network.last_remote_ip,
     header: "Public IP",
     cell: ({ row }) => row.original.network.last_remote_ip ?? "-",
+    size: 208,
     meta: { label: "Public IP" },
   },
   {
@@ -275,6 +285,7 @@ const hostColumns: ColumnDef<Host>[] = [
     header: "Memory",
     cell: ({ row }) =>
       row.original.hardware.memory_bytes > 0 ? filesize(row.original.hardware.memory_bytes) : "-",
+    size: 112,
     meta: { label: "Memory" },
   },
   {
@@ -282,6 +293,7 @@ const hostColumns: ColumnDef<Host>[] = [
     accessorFn: (row) => row.agents.osquery.version,
     header: "Osquery",
     cell: ({ row }) => row.original.agents.osquery.version || "-",
+    size: 120,
     meta: { label: "Osquery Version" },
   },
   {
@@ -292,6 +304,7 @@ const hostColumns: ColumnDef<Host>[] = [
       row.original.timestamps.last_restarted_at
         ? formatRelative(row.original.timestamps.last_restarted_at)
         : "-",
+    size: 152,
     meta: { label: "Last Restarted" },
   },
 ];

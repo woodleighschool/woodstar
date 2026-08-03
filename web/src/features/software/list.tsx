@@ -93,21 +93,15 @@ export function SoftwareListPage() {
             />
           }
         >
-          <div className="flex items-start justify-between gap-2 p-1">
-            <div className="flex flex-1 flex-wrap items-center gap-2">
-              <DataTableSearchInput
-                className="h-8 w-40 lg:w-56"
-                value={tableSearch.q ?? ""}
-                onValueChange={tableSearch.onQueryChange}
-              />
-              <DataTableFacetedFilter
-                column={table.getColumn("source")}
-                title="Type"
-                options={SOURCE_FILTER_OPTIONS}
-                multiple
-              />
-            </div>
-          </div>
+          <DataTableSearchInput
+            value={tableSearch.q ?? ""}
+            onValueChange={tableSearch.onQueryChange}
+          />
+          <DataTableFacetedFilter
+            column={table.getColumn("source")}
+            title="Type"
+            options={SOURCE_FILTER_OPTIONS}
+          />
         </DataTable>
       )}
     </PageShell>
@@ -126,12 +120,15 @@ const softwareColumns: ColumnDef<SoftwareTitle>[] = [
           to="/software/titles/$id"
           params={{ id: String(row.original.id) }}
           className="min-w-0 truncate font-medium"
+          title={row.original.name}
         >
           {row.original.name}
         </Link>
       </div>
     ),
     enableHiding: false,
+    size: 320,
+    minSize: 180,
     meta: { label: "Name" },
   },
   {
@@ -140,6 +137,7 @@ const softwareColumns: ColumnDef<SoftwareTitle>[] = [
     header: "Versions",
     cell: ({ row }) => versionsSummaryLabel(row.original.versions.items),
     meta: { label: "Versions" },
+    size: 112,
   },
   {
     id: "source",
@@ -148,6 +146,7 @@ const softwareColumns: ColumnDef<SoftwareTitle>[] = [
     cell: ({ row }) => softwareSourceLabel(row.original.source, row.original.extension_for),
     meta: { label: "Type", options: SOURCE_FILTER_OPTIONS },
     enableColumnFilter: true,
+    size: 160,
   },
   {
     id: "hosts_count",
@@ -155,6 +154,7 @@ const softwareColumns: ColumnDef<SoftwareTitle>[] = [
     header: "Hosts",
     cell: ({ row }) => row.original.hosts_count,
     meta: { label: "Hosts" },
+    size: 96,
   },
   {
     id: "actions",
@@ -163,7 +163,6 @@ const softwareColumns: ColumnDef<SoftwareTitle>[] = [
       <Button
         variant="ghost"
         size="xs"
-        className="opacity-0 transition-opacity group-hover/row:opacity-100 focus-visible:opacity-100"
         render={<Link to="/hosts" search={{ software_title_id: row.original.id }} />}
         nativeButton={false}
       >
@@ -173,6 +172,9 @@ const softwareColumns: ColumnDef<SoftwareTitle>[] = [
     ),
     enableSorting: false,
     enableHiding: false,
-    size: 88,
+    size: 96,
+    minSize: 96,
+    maxSize: 96,
+    enableResizing: false,
   },
 ];

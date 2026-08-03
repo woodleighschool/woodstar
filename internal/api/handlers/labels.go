@@ -26,8 +26,8 @@ type labelOutput struct {
 type labelListInput struct {
 	ListQueryInput
 
-	LabelType      labels.LabelType           `query:"label_type,omitempty"`
-	MembershipType labels.LabelMembershipType `query:"label_membership_type,omitempty"`
+	LabelType      labels.LabelType             `query:"label_type,omitempty"`
+	MembershipType []labels.LabelMembershipType `query:"label_membership_type,omitempty"`
 }
 
 type labelGetInput struct {
@@ -49,9 +49,9 @@ type labelDeleteInput struct {
 
 func (i labelListInput) params() labels.LabelListParams {
 	return labels.LabelListParams{
-		ListParams:          i.ListQueryInput.params(),
-		LabelType:           i.LabelType,
-		LabelMembershipType: i.MembershipType,
+		ListParams:           i.ListQueryInput.params(),
+		LabelType:            i.LabelType,
+		LabelMembershipTypes: i.MembershipType,
 	}
 }
 

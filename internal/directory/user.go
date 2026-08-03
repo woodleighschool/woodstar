@@ -55,9 +55,9 @@ type UserListParams struct {
 	dbutil.ListParams
 
 	Values  []string
-	Role    string `validate:"omitempty,oneof=admin viewer none"`
-	Source  string `validate:"omitempty,oneof=local entra"`
-	GroupID int64  `validate:"gte=0"`
+	Roles   []string `validate:"unique,dive,oneof=admin viewer none"`
+	Source  string   `validate:"omitempty,oneof=local entra"`
+	GroupID int64    `validate:"gte=0"`
 }
 
 // UserCreate contains fields needed to create a user.
@@ -78,7 +78,7 @@ type UserMutation struct {
 func (params *UserListParams) normalize() {
 	params.ListParams = dbutil.NormalizeListParams(params.ListParams)
 	params.Values = dbutil.NormalizeListValues(params.Values)
-	params.Role = strings.TrimSpace(params.Role)
+	params.Roles = dbutil.NormalizeListValues(params.Roles)
 	params.Source = strings.TrimSpace(params.Source)
 }
 

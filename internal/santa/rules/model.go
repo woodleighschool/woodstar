@@ -73,12 +73,12 @@ func (Policy) Schema(_ huma.Registry) *huma.Schema {
 type RuleListParams struct {
 	dbutil.ListParams
 
-	RuleType RuleType `validate:"omitempty,oneof=binary certificate teamid signingid cdhash bundle"`
+	RuleTypes []RuleType `validate:"unique,dive,oneof=binary certificate teamid signingid cdhash bundle"`
 }
 
 func (params *RuleListParams) normalize() {
 	params.ListParams = dbutil.NormalizeListParams(params.ListParams)
-	params.RuleType = RuleType(strings.TrimSpace(string(params.RuleType)))
+	params.RuleTypes = dbutil.NormalizeListValues(params.RuleTypes)
 }
 
 func (params *RuleListParams) validate() error {

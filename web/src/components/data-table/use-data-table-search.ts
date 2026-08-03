@@ -32,11 +32,7 @@ export interface DataTableQuery<Search extends DataTableSearchState = DataTableS
   page: number;
   per_page: number;
   sort?: string;
-  // Column filter values are always arrays: useDataTable stores every column
-  // filter as an array, so we parse them the same way (single-select facets just
-  // carry a one-element array). Keys are sparse (only active filters present), so
-  // the value is optional. Read `filters.x?.[0]` for single, `filters.x ?? []` for
-  // multi.
+  // TanStack column filter values are arrays even when the route/API facet is scalar.
   filters: Record<string, string[] | undefined>;
   isFiltered: boolean;
   pagination: PaginationState;

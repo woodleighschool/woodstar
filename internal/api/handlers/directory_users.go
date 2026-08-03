@@ -33,7 +33,7 @@ type userListInput struct {
 	ListQueryInput
 
 	Values  []string `query:"values,omitempty"`
-	Role    string   `query:"role,omitempty"     enum:"admin,viewer,none"`
+	Role    []string `query:"role,omitempty"     enum:"admin,viewer,none"`
 	Source  string   `query:"source,omitempty"   enum:"local,entra"`
 	GroupID int64    `query:"group_id,omitempty"                          minimum:"1"`
 }
@@ -82,7 +82,7 @@ func (i userListInput) params() directory.UserListParams {
 	return directory.UserListParams{
 		ListParams: i.ListQueryInput.params(),
 		Values:     dbutil.NormalizeListValues(i.Values),
-		Role:       i.Role,
+		Roles:      i.Role,
 		Source:     i.Source,
 		GroupID:    i.GroupID,
 	}

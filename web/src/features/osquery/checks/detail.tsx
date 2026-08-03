@@ -22,10 +22,7 @@ import { Button } from "@components/ui/button";
 import { Skeleton } from "@components/ui/skeleton";
 import { TabsContent, TabsTrigger } from "@components/ui/tabs";
 import { useAuth } from "@features/auth/queries";
-import {
-  CHECK_RESULT_STATUS_OPTIONS,
-  parseCheckResultStatus,
-} from "@features/osquery/checks/model";
+import { CHECK_RESULT_STATUS_OPTIONS } from "@features/osquery/checks/model";
 import { LiveRunButton, ShowQueryButton } from "@features/osquery/live/query-actions";
 import { parseRouteID } from "@lib/route-params";
 import { formatRelative } from "@lib/utils";
@@ -46,7 +43,7 @@ const resultExportColumns: DataTableExportOptions<CheckResultRow>["columns"] = [
   { header: "Last Evaluated", value: (row) => row.updated_at },
 ];
 
-const STATUS_FILTER_KEYS = [{ id: "status" }] as const;
+const STATUS_FILTER_KEYS = [{ id: "status", multiple: true }] as const;
 const routeApi = getRouteApi("/_authenticated/osquery/checks/$id/");
 
 function CheckResultsToolbar({ table }: { table: Table<CheckResultRow> }) {
@@ -76,7 +73,7 @@ export function CheckDetailPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const id = parseRouteID(checkId);
   const check = useCheck(id);
-  const status = parseCheckResultStatus(tableSearch.filters.status?.[0]);
+  const status = search.status;
   const results = useCheckResults(activeTab === "results" ? id : null, {
     q: tableSearch.q,
     page: tableSearch.page,
@@ -217,7 +214,7 @@ export function CheckDetailPage() {
               onRetry={() => void results.refetch()}
             />
           ) : results.isLoading ? (
-            <DataTableSkeleton columnCount={3} filterCount={1} withExport withViewOptions={false} />
+            <DataTableSkeleton columnCount={3} filterCount={1} withExport />
           ) : (
             <DataTable
               table={table}
@@ -228,15 +225,12 @@ export function CheckDetailPage() {
                 </PanelEmptyState>
               }
             >
-              <div className="flex flex-wrap items-center gap-2">
-                <DataTableSearchInput
-                  value={tableSearch.q ?? ""}
-                  onValueChange={tableSearch.onQueryChange}
-                  placeholder="Search check results"
-                  className="h-8 w-full sm:w-64"
-                />
-                <CheckResultsToolbar table={table} />
-              </div>
+              <DataTableSearchInput
+                value={tableSearch.q ?? ""}
+                onValueChange={tableSearch.onQueryChange}
+                placeholder="Search check results"
+              />
+              <CheckResultsToolbar table={table} />
             </DataTable>
           )}
         </TabsContent>

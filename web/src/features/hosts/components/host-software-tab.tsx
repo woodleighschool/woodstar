@@ -10,7 +10,6 @@ import { useDataTableSearch } from "@components/data-table/use-data-table-search
 import { KeyValueRow, KeyValueRows } from "@components/key-value";
 import { Link } from "@components/link";
 import { PanelEmptyState } from "@components/panel-empty-state";
-import { PathText } from "@components/path-text";
 import { QueryError } from "@components/query-error";
 import { Button } from "@components/ui/button";
 import {
@@ -46,6 +45,7 @@ const softwareColumns: ColumnDef<HostSoftware>[] = [
           to="/software/titles/$id"
           params={{ id: String(row.original.id) }}
           className="min-w-0 truncate font-medium"
+          title={row.original.name}
         >
           {row.original.name}
         </Link>
@@ -145,20 +145,16 @@ export function HostSoftwareTab({ hostId }: { hostId: number | null }) {
         </PanelEmptyState>
       }
     >
-      <div className="flex flex-wrap items-center gap-2 p-1">
-        <DataTableSearchInput
-          value={tableSearch.q ?? ""}
-          onValueChange={tableSearch.onQueryChange}
-          placeholder="Search software"
-          className="h-8 w-56"
-        />
-        <DataTableFacetedFilter
-          column={table.getColumn("source")}
-          title="Type"
-          options={SOURCE_FILTER_OPTIONS}
-          multiple
-        />
-      </div>
+      <DataTableSearchInput
+        value={tableSearch.q ?? ""}
+        onValueChange={tableSearch.onQueryChange}
+        placeholder="Search software"
+      />
+      <DataTableFacetedFilter
+        column={table.getColumn("source")}
+        title="Type"
+        options={SOURCE_FILTER_OPTIONS}
+      />
     </DataTable>
   );
 }
@@ -182,7 +178,7 @@ function InstalledPathCell({
     return "-";
   }
   if (paths.length === 1) {
-    return <PathText value={paths[0].path} />;
+    return paths[0].path;
   }
   return (
     <Dialog>

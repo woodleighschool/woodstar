@@ -44,6 +44,7 @@ const packageColumns: ColumnDef<MunkiPackage>[] = [
           to="/munki/packages/$id"
           params={{ id: String(row.original.id) }}
           className="min-w-0 truncate font-medium"
+          title={row.original.version}
         >
           {row.original.version}
         </Link>

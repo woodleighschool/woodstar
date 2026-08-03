@@ -41,11 +41,11 @@ func ValidateListParams(params ListParams) error {
 }
 
 // NormalizeListValues splits, trims, removes empty values, and deduplicates a list.
-func NormalizeListValues(values []string) []string {
-	out := make([]string, 0, len(values))
+func NormalizeListValues[T ~string](values []T) []T {
+	out := make([]T, 0, len(values))
 	seen := make(map[string]struct{}, len(values))
 	for _, value := range values {
-		for item := range strings.SplitSeq(value, ",") {
+		for item := range strings.SplitSeq(string(value), ",") {
 			item = strings.TrimSpace(item)
 			if item == "" {
 				continue
@@ -54,7 +54,7 @@ func NormalizeListValues(values []string) []string {
 				continue
 			}
 			seen[item] = struct{}{}
-			out = append(out, item)
+			out = append(out, T(item))
 		}
 	}
 	return out

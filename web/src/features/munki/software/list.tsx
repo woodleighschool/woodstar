@@ -41,6 +41,7 @@ function SoftwareNameCell({ row }: CellContext<MunkiSoftware, unknown>) {
         to="/munki/software/$id"
         params={{ id: String(row.original.id) }}
         className="min-w-0 truncate font-medium"
+        title={row.original.name}
       >
         {row.original.name}
       </Link>
@@ -59,6 +60,8 @@ function softwareColumns(
       header: "Name",
       cell: SoftwareNameCell,
       enableHiding: false,
+      size: 340,
+      minSize: 180,
       meta: { label: "Name" },
     },
     {
@@ -66,6 +69,7 @@ function softwareColumns(
       accessorKey: "category",
       header: "Category",
       cell: ({ row }) => row.original.category || "-",
+      size: 144,
       meta: { label: "Category" },
     },
     {
@@ -73,6 +77,7 @@ function softwareColumns(
       accessorKey: "developer",
       header: "Developer",
       cell: ({ row }) => row.original.developer || "-",
+      size: 200,
       meta: { label: "Developer" },
     },
     {
@@ -80,6 +85,7 @@ function softwareColumns(
       accessorKey: "updated_at",
       header: "Updated",
       cell: ({ row }) => formatRelative(row.original.updated_at),
+      size: 144,
       meta: { label: "Updated" },
     },
   ];
@@ -92,7 +98,10 @@ function softwareColumns(
       header: () => null,
       enableSorting: false,
       enableHiding: false,
-      size: 48,
+      size: 44,
+      minSize: 44,
+      maxSize: 44,
+      enableResizing: false,
       cell: ({ row }) => (
         <SoftwareRowActions software={row.original} onDelete={() => onDelete(row.original)} />
       ),
@@ -177,15 +186,10 @@ export function MunkiSoftwareListPage() {
             />
           }
         >
-          <div className="flex items-start justify-between gap-2 p-1">
-            <div className="flex flex-1 flex-wrap items-center gap-2">
-              <DataTableSearchInput
-                className="h-8 w-40 lg:w-56"
-                value={tableSearch.q ?? ""}
-                onValueChange={tableSearch.onQueryChange}
-              />
-            </div>
-          </div>
+          <DataTableSearchInput
+            value={tableSearch.q ?? ""}
+            onValueChange={tableSearch.onQueryChange}
+          />
         </DataTable>
       )}
 

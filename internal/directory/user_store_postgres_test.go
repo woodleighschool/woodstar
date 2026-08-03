@@ -196,12 +196,25 @@ WHERE external_id = 'engineering'`).Scan(&engineeringGroupID); err != nil {
 		t.Fatalf("engineering group users = %+v count=%d, want Alice only", users, count)
 	}
 
-	users, count, err = store.ListUsers(ctx, UserListParams{Role: "admin", Source: "local"})
+	users, count, err = store.ListUsers(ctx, UserListParams{
+		Roles:  []string{"admin"},
+		Source: "local",
+	})
 	if err != nil {
 		t.Fatalf("list local admins: %v", err)
 	}
 	if count != 1 || len(users) != 1 || users[0].ID != local.ID {
 		t.Fatalf("local admins = %+v count=%d, want local admin", users, count)
+	}
+
+	users, count, err = store.ListUsers(ctx, UserListParams{
+		Roles: []string{"admin", "none"},
+	})
+	if err != nil {
+		t.Fatalf("list multiple roles and sources: %v", err)
+	}
+	if count != 2 || len(users) != 2 {
+		t.Fatalf("multi-filter users = %+v count=%d, want local admin and current Entra user", users, count)
 	}
 }
 

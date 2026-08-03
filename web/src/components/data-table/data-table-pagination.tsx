@@ -2,6 +2,7 @@ import type { Table } from "@tanstack/react-table";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 
 import { Button } from "@components/ui/button";
+import { ButtonGroup } from "@components/ui/button-group";
 import {
   Select,
   SelectContent,
@@ -34,22 +35,15 @@ export function DataTablePagination<TData>({
 
   return (
     <div
-      className={cn(
-        `
-          flex w-full flex-col-reverse items-center justify-between gap-4
-          overflow-auto p-1
-          sm:flex-row sm:gap-8
-        `,
-        className,
-      )}
+      className={cn("flex w-full flex-wrap items-center justify-between gap-3 p-1", className)}
       {...props}
     >
-      <div className="flex-1 text-sm whitespace-nowrap text-muted-foreground">
+      <div className="min-w-fit flex-1 text-sm text-muted-foreground">
         {firstRow}-{lastRow} of {rowCount}
       </div>
-      <div className="flex flex-col-reverse items-center gap-4 sm:flex-row sm:gap-6 lg:gap-8">
+      <div className="flex flex-wrap items-center justify-end gap-3">
         <div className="flex items-center gap-2">
-          <p className="text-sm font-medium whitespace-nowrap">Rows per page</p>
+          <p className="text-sm font-medium">Rows per page</p>
           <Select
             value={`${table.getState().pagination.pageSize}`}
             onValueChange={(value) => {
@@ -70,15 +64,14 @@ export function DataTablePagination<TData>({
             </SelectContent>
           </Select>
         </div>
-        <div className="flex items-center justify-center text-sm font-medium">
+        <div className="text-sm font-medium">
           Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
         </div>
-        <div className="flex items-center gap-2">
+        <ButtonGroup>
           <Button
             type="button"
             variant="outline"
             size="icon"
-            className="hidden size-8 lg:flex"
             onClick={() => table.setPageIndex(0)}
             disabled={!table.getCanPreviousPage()}
           >
@@ -88,7 +81,6 @@ export function DataTablePagination<TData>({
             type="button"
             variant="outline"
             size="icon"
-            className="size-8"
             onClick={() => table.previousPage()}
             disabled={!table.getCanPreviousPage()}
           >
@@ -98,7 +90,6 @@ export function DataTablePagination<TData>({
             type="button"
             variant="outline"
             size="icon"
-            className="size-8"
             onClick={() => table.nextPage()}
             disabled={!table.getCanNextPage()}
           >
@@ -108,13 +99,12 @@ export function DataTablePagination<TData>({
             type="button"
             variant="outline"
             size="icon"
-            className="hidden size-8 lg:flex"
             onClick={() => table.setPageIndex(table.getPageCount() - 1)}
             disabled={!table.getCanNextPage()}
           >
             <ChevronsRight />
           </Button>
-        </div>
+        </ButtonGroup>
       </div>
     </div>
   );

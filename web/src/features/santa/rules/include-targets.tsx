@@ -105,13 +105,11 @@ export function SantaIncludeTargets({
               {include.map((row) => (
                 <TableRow key={row.id}>
                   <TableCell>{includeLabel(row, labelsByID)}</TableCell>
-                  <TableCell className="max-w-md">
+                  <TableCell>
                     <div className="flex min-w-0 items-center gap-2">
                       <EnumBadge value={row.policy} metadata={POLICIES} />
                       {row.policy === "cel" && row.cel_expression ? (
-                        <code className="min-w-0 truncate text-xs text-muted-foreground">
-                          {row.cel_expression}
-                        </code>
+                        <code className="text-xs text-muted-foreground">{row.cel_expression}</code>
                       ) : null}
                     </div>
                   </TableCell>

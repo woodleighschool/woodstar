@@ -39,10 +39,10 @@ export function DataTableViewOptions<TData>({
           <Button variant="outline" size="sm" className="h-8 font-normal" disabled={disabled} />
         }
       >
-        <Settings2 className="text-muted-foreground" />
+        <Settings2 data-icon="inline-start" className="text-muted-foreground" />
         View
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-44" {...props}>
+      <DropdownMenuContent align="end" className="min-w-44" {...props}>
         <DropdownMenuGroup>
           <DropdownMenuLabel>Toggle columns</DropdownMenuLabel>
           {columns.map((column) => (
@@ -51,7 +51,7 @@ export function DataTableViewOptions<TData>({
               checked={column.getIsVisible()}
               onCheckedChange={(checked) => column.toggleVisibility(checked)}
             >
-              <span className="truncate">{column.columnDef.meta?.label ?? column.id}</span>
+              <span>{column.columnDef.meta?.label ?? column.id}</span>
             </DropdownMenuCheckboxItem>
           ))}
         </DropdownMenuGroup>

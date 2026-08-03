@@ -340,7 +340,8 @@ function certificateColumns(
         <button
           type="button"
           onClick={() => onSelect(row.original)}
-          className="max-w-[360px] truncate text-left font-medium hover:underline"
+          className="block max-w-full truncate text-left font-medium hover:underline"
+          title={row.original.common_name || undefined}
         >
           {row.original.common_name || "-"}
         </button>

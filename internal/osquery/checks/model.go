@@ -67,7 +67,7 @@ type CheckListParams struct {
 type CheckResultListParams struct {
 	dbutil.ListParams
 
-	Status CheckStatus
+	Statuses []CheckStatus
 }
 
 // CheckStatus is the latest check result.

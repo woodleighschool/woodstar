@@ -1,4 +1,3 @@
-//nolint:dupl // Checks and reports are distinct API resources; two parallel handlers do not justify generic registration machinery.
 package handlers
 
 import (

@@ -505,8 +505,8 @@ func ruleListWhere(params RuleListParams) (string, []any) {
 			OR description ILIKE ` + search + `
 		)`)
 	}
-	if params.RuleType != "" {
-		where.Add("rule_type = " + where.Arg(params.RuleType))
+	if len(params.RuleTypes) > 0 {
+		where.Add("rule_type::text = ANY(" + where.Arg(params.RuleTypes) + "::text[])")
 	}
 	return where.Build()
 }

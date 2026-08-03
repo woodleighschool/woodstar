@@ -245,6 +245,7 @@ export const listHostMunkiSoftware = <ThrowOnError extends boolean = false>(opti
  * List checks for a host
  */
 export const listHostOsqueryChecks = <ThrowOnError extends boolean = false>(options: Options<ListHostOsqueryChecksData, ThrowOnError>): RequestResult<ListHostOsqueryChecksResponses, ListHostOsqueryChecksErrors, ThrowOnError> => (options.client ?? client).get<ListHostOsqueryChecksResponses, ListHostOsqueryChecksErrors, ThrowOnError>({
+    querySerializer: { parameters: { status: { array: { explode: false } } } },
     security: [{
             in: 'cookie',
             name: 'woodstar_session',
@@ -341,6 +342,7 @@ export const listHostSoftware = <ThrowOnError extends boolean = false>(options: 
  * List labels
  */
 export const listLabels = <ThrowOnError extends boolean = false>(options?: Options<ListLabelsData, ThrowOnError>): RequestResult<ListLabelsResponses, ListLabelsErrors, ThrowOnError> => (options?.client ?? client).get<ListLabelsResponses, ListLabelsErrors, ThrowOnError>({
+    querySerializer: { parameters: { label_membership_type: { array: { explode: false } } } },
     security: [{
             in: 'cookie',
             name: 'woodstar_session',
@@ -1032,6 +1034,7 @@ export const updateOsqueryCheck = <ThrowOnError extends boolean = false>(options
  * List check results
  */
 export const listOsqueryCheckResults = <ThrowOnError extends boolean = false>(options: Options<ListOsqueryCheckResultsData, ThrowOnError>): RequestResult<ListOsqueryCheckResultsResponses, ListOsqueryCheckResultsErrors, ThrowOnError> => (options.client ?? client).get<ListOsqueryCheckResultsResponses, ListOsqueryCheckResultsErrors, ThrowOnError>({
+    querySerializer: { parameters: { status: { array: { explode: false } } } },
     security: [{
             in: 'cookie',
             name: 'woodstar_session',
@@ -1377,6 +1380,7 @@ export const bulkDeleteSantaRules = <ThrowOnError extends boolean = false>(optio
  * List rules
  */
 export const listSantaRules = <ThrowOnError extends boolean = false>(options?: Options<ListSantaRulesData, ThrowOnError>): RequestResult<ListSantaRulesResponses, ListSantaRulesErrors, ThrowOnError> => (options?.client ?? client).get<ListSantaRulesResponses, ListSantaRulesErrors, ThrowOnError>({
+    querySerializer: { parameters: { rule_type: { array: { explode: false } } } },
     security: [{
             in: 'cookie',
             name: 'woodstar_session',
@@ -1507,7 +1511,7 @@ export const getSoftware = <ThrowOnError extends boolean = false>(options: Optio
  * List users
  */
 export const listUsers = <ThrowOnError extends boolean = false>(options?: Options<ListUsersData, ThrowOnError>): RequestResult<ListUsersResponses, ListUsersErrors, ThrowOnError> => (options?.client ?? client).get<ListUsersResponses, ListUsersErrors, ThrowOnError>({
-    querySerializer: { parameters: { values: { array: { explode: false } } } },
+    querySerializer: { parameters: { values: { array: { explode: false } }, role: { array: { explode: false } } } },
     security: [{
             in: 'cookie',
             name: 'woodstar_session',

@@ -12,11 +12,7 @@ import { Link } from "@components/link";
 import { PanelEmptyState } from "@components/panel-empty-state";
 import { QueryError } from "@components/query-error";
 import { useHostOsqueryChecks } from "@features/hosts/queries";
-import {
-  CHECK_RESULT_STATUSES,
-  CHECK_RESULT_STATUS_OPTIONS,
-  parseCheckResultStatus,
-} from "@features/osquery/checks/model";
+import { CHECK_RESULT_STATUSES, CHECK_RESULT_STATUS_OPTIONS } from "@features/osquery/checks/model";
 import type { OsqueryCheckHostStatus } from "@lib/api";
 import { formatRelative } from "@lib/utils";
 
@@ -45,7 +41,7 @@ const checkColumns: ColumnDef<OsqueryCheckHostStatus>[] = [
   },
 ];
 
-const STATUS_FILTER_KEYS = [{ id: "status" }] as const;
+const STATUS_FILTER_KEYS = [{ id: "status", multiple: true }] as const;
 const routeApi = getRouteApi("/_authenticated/hosts/$id/checks");
 
 function HostChecksToolbar({ table }: { table: Table<OsqueryCheckHostStatus> }) {
@@ -66,7 +62,7 @@ export function HostOsqueryChecksTab({ hostId }: { hostId: number | null }) {
     onSearchChange: (updater) => void navigate({ search: updater, replace: true }),
     filterKeys: STATUS_FILTER_KEYS,
   });
-  const status = parseCheckResultStatus(tableSearch.filters.status?.[0]);
+  const status = search.status;
   const query = useHostOsqueryChecks(hostId, {
     q: tableSearch.q,
     page: tableSearch.page,
@@ -102,7 +98,7 @@ export function HostOsqueryChecksTab({ hostId }: { hostId: number | null }) {
     );
   }
   if (query.isLoading) {
-    return <DataTableSkeleton columnCount={3} filterCount={1} withViewOptions={false} />;
+    return <DataTableSkeleton columnCount={3} filterCount={1} />;
   }
 
   return (
@@ -115,15 +111,12 @@ export function HostOsqueryChecksTab({ hostId }: { hostId: number | null }) {
         </PanelEmptyState>
       }
     >
-      <div className="flex flex-wrap items-center gap-2">
-        <DataTableSearchInput
-          value={tableSearch.q ?? ""}
-          onValueChange={tableSearch.onQueryChange}
-          placeholder="Search checks"
-          className="h-8 w-full sm:w-64"
-        />
-        <HostChecksToolbar table={table} />
-      </div>
+      <DataTableSearchInput
+        value={tableSearch.q ?? ""}
+        onValueChange={tableSearch.onQueryChange}
+        placeholder="Search checks"
+      />
+      <HostChecksToolbar table={table} />
     </DataTable>
   );
 }

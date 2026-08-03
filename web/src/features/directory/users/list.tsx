@@ -38,7 +38,7 @@ import { DEFAULT_PAGE_SIZE } from "@lib/pagination";
 import { nonEmpty } from "@lib/utils";
 
 const routeApi = getRouteApi("/_authenticated/directory/users/");
-const USER_FILTER_KEYS = [{ id: "role" }, { id: "source" }] as const;
+const USER_FILTER_KEYS = [{ id: "role", multiple: true }, { id: "source" }] as const;
 
 interface UserTableRow {
   user: User;
@@ -120,7 +120,10 @@ const userColumns: ColumnDef<UserTableRow>[] = [
     header: () => null,
     enableSorting: false,
     enableHiding: false,
-    size: 48,
+    size: 44,
+    minSize: 44,
+    maxSize: 44,
+    enableResizing: false,
     cell: UserActionsCell,
   },
 ];
@@ -217,25 +220,20 @@ export function UserListPage() {
             />
           }
         >
-          <div className="flex items-start justify-between gap-2 p-1">
-            <div className="flex flex-1 flex-wrap items-center gap-2">
-              <DataTableSearchInput
-                className="h-8 w-40 lg:w-56"
-                value={tableSearch.q ?? ""}
-                onValueChange={tableSearch.onQueryChange}
-              />
-              <DataTableFacetedFilter
-                column={table.getColumn("role")}
-                title="Role"
-                options={USER_ACCESS_ROLE_OPTIONS}
-              />
-              <DataTableFacetedFilter
-                column={table.getColumn("source")}
-                title="Source"
-                options={DIRECTORY_SOURCE_OPTIONS}
-              />
-            </div>
-          </div>
+          <DataTableSearchInput
+            value={tableSearch.q ?? ""}
+            onValueChange={tableSearch.onQueryChange}
+          />
+          <DataTableFacetedFilter
+            column={table.getColumn("role")}
+            title="Role"
+            options={USER_ACCESS_ROLE_OPTIONS}
+          />
+          <DataTableFacetedFilter
+            column={table.getColumn("source")}
+            title="Source"
+            options={DIRECTORY_SOURCE_OPTIONS}
+          />
         </DataTable>
       )}
 

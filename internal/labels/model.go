@@ -101,14 +101,14 @@ type Criteria struct {
 type LabelListParams struct {
 	dbutil.ListParams
 
-	LabelType           LabelType           `validate:"omitempty,oneof=builtin regular"`
-	LabelMembershipType LabelMembershipType `validate:"omitempty,oneof=dynamic manual derived"`
+	LabelType            LabelType             `validate:"omitempty,oneof=builtin regular"`
+	LabelMembershipTypes []LabelMembershipType `validate:"unique,dive,oneof=dynamic manual derived"`
 }
 
 func (params *LabelListParams) normalize() {
 	params.ListParams = dbutil.NormalizeListParams(params.ListParams)
 	params.LabelType = LabelType(strings.TrimSpace(string(params.LabelType)))
-	params.LabelMembershipType = LabelMembershipType(strings.TrimSpace(string(params.LabelMembershipType)))
+	params.LabelMembershipTypes = dbutil.NormalizeListValues(params.LabelMembershipTypes)
 }
 
 func (params *LabelListParams) validate() error {

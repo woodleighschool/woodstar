@@ -13,7 +13,6 @@ import { FilterChip } from "@components/filter-controls";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { ScrollableTabs, ScrollableTabsList } from "@components/layout/scrollable-tabs";
 import { Link } from "@components/link";
-import { PathText } from "@components/path-text";
 import { QueryError } from "@components/query-error";
 import { TabsTrigger } from "@components/ui/tabs";
 import { useHost } from "@features/hosts/queries";
@@ -44,6 +43,7 @@ const executionEventColumns: ColumnDef<ExecutionEventTableRow>[] = [
     accessorFn: (row) => row.event.occurred_at,
     header: "Occurred",
     cell: ({ row }) => <Timestamp value={row.original.event.occurred_at} />,
+    size: 144,
     meta: { label: "Occurred" },
   },
   {
@@ -60,6 +60,8 @@ const executionEventColumns: ColumnDef<ExecutionEventTableRow>[] = [
       </Link>
     ),
     enableHiding: false,
+    size: 200,
+    minSize: 120,
     meta: { label: "Executable" },
   },
   {
@@ -67,7 +69,9 @@ const executionEventColumns: ColumnDef<ExecutionEventTableRow>[] = [
     accessorFn: (row) => row.event.file_path,
     enableSorting: false,
     header: "Path",
-    cell: ({ row }) => <PathText value={row.original.event.file_path} />,
+    cell: ({ row }) => row.original.event.file_path || "-",
+    size: 360,
+    minSize: 200,
     meta: { label: "Path" },
   },
   {
@@ -77,12 +81,15 @@ const executionEventColumns: ColumnDef<ExecutionEventTableRow>[] = [
     cell: ({ row }) => <ExecutionDecisionBadge decision={row.original.event.decision} />,
     meta: { label: "Decision", options: DECISION_FILTERS },
     enableColumnFilter: true,
+    size: 152,
+    minSize: 136,
   },
   {
     id: "host",
     accessorFn: (row) => row.event.host.display_name,
     header: "Host",
     cell: ({ row }) => <EventHostLink host={row.original.event.host} />,
+    size: 160,
     meta: { label: "Host" },
   },
   {
@@ -90,6 +97,7 @@ const executionEventColumns: ColumnDef<ExecutionEventTableRow>[] = [
     accessorFn: (row) => row.event.executing_user,
     header: "User",
     cell: ExecutionUserCell,
+    size: 144,
     meta: { label: "User" },
   },
 ];
@@ -100,6 +108,7 @@ const fileAccessEventColumns: ColumnDef<SantaFileAccessEvent>[] = [
     accessorKey: "occurred_at",
     header: "Occurred",
     cell: ({ row }) => <Timestamp value={row.original.occurred_at} />,
+    size: 144,
     meta: { label: "Occurred" },
   },
   {
@@ -116,6 +125,8 @@ const fileAccessEventColumns: ColumnDef<SantaFileAccessEvent>[] = [
       </Link>
     ),
     enableHiding: false,
+    size: 280,
+    minSize: 160,
     meta: { label: "Target" },
   },
   {
@@ -125,12 +136,15 @@ const fileAccessEventColumns: ColumnDef<SantaFileAccessEvent>[] = [
     cell: ({ row }) => <FileAccessDecisionBadge decision={row.original.decision} />,
     meta: { label: "Decision", options: FILE_ACCESS_DECISION_FILTERS },
     enableColumnFilter: true,
+    size: 152,
+    minSize: 136,
   },
   {
     id: "host",
     accessorFn: (row) => row.host.display_name,
     header: "Host",
     cell: ({ row }) => <EventHostLink host={row.original.host} />,
+    size: 160,
     meta: { label: "Host" },
   },
   {
@@ -138,6 +152,7 @@ const fileAccessEventColumns: ColumnDef<SantaFileAccessEvent>[] = [
     enableSorting: false,
     header: "Process",
     cell: ({ row }) => row.original.primary_process.file_name || "-",
+    size: 200,
     meta: { label: "Process" },
   },
   {
@@ -145,6 +160,7 @@ const fileAccessEventColumns: ColumnDef<SantaFileAccessEvent>[] = [
     accessorKey: "rule_name",
     header: "Rule",
     cell: ({ row }) => row.original.rule_name || "-",
+    size: 180,
     meta: { label: "Rule" },
   },
   {
@@ -153,6 +169,7 @@ const fileAccessEventColumns: ColumnDef<SantaFileAccessEvent>[] = [
     header: "Rule Version",
     cell: ({ row }) => row.original.rule_version || "-",
     enableSorting: false,
+    size: 112,
     meta: { label: "Rule Version" },
   },
 ];
@@ -317,20 +334,16 @@ function ExecutionEventsTable({ hostId, user }: { hostId?: number; user?: string
       table={table}
       empty={<EventsEmptyState hasFilters={tableSearch.isFiltered} noun="execution events" />}
     >
-      <div className="flex flex-wrap items-center gap-2 p-1">
-        <DataTableSearchInput
-          className="h-8 w-56 lg:w-72"
-          placeholder="Search executable, path, host, user"
-          value={tableSearch.q ?? ""}
-          onValueChange={tableSearch.onQueryChange}
-        />
-        <DataTableFacetedFilter
-          column={table.getColumn("decision")}
-          title="Decision"
-          options={DECISION_FILTERS}
-          multiple
-        />
-      </div>
+      <DataTableSearchInput
+        placeholder="Search executable, path, host, user"
+        value={tableSearch.q ?? ""}
+        onValueChange={tableSearch.onQueryChange}
+      />
+      <DataTableFacetedFilter
+        column={table.getColumn("decision")}
+        title="Decision"
+        options={DECISION_FILTERS}
+      />
     </DataTable>
   );
 }
@@ -381,20 +394,16 @@ function FileAccessEventsTable({ hostId }: { hostId?: number }) {
       table={table}
       empty={<EventsEmptyState hasFilters={tableSearch.isFiltered} noun="file access events" />}
     >
-      <div className="flex flex-wrap items-center gap-2 p-1">
-        <DataTableSearchInput
-          className="h-8 w-56 lg:w-72"
-          placeholder="Search target, process, host, signer"
-          value={tableSearch.q ?? ""}
-          onValueChange={tableSearch.onQueryChange}
-        />
-        <DataTableFacetedFilter
-          column={table.getColumn("decision")}
-          title="Decision"
-          options={FILE_ACCESS_DECISION_FILTERS}
-          multiple
-        />
-      </div>
+      <DataTableSearchInput
+        placeholder="Search target, process, host, signer"
+        value={tableSearch.q ?? ""}
+        onValueChange={tableSearch.onQueryChange}
+      />
+      <DataTableFacetedFilter
+        column={table.getColumn("decision")}
+        title="Decision"
+        options={FILE_ACCESS_DECISION_FILTERS}
+      />
     </DataTable>
   );
 }

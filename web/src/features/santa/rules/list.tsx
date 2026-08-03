@@ -15,7 +15,6 @@ import { useDataTableSearch } from "@components/data-table/use-data-table-search
 import { EnumBadge } from "@components/enum-badge";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link } from "@components/link";
-import { PathText } from "@components/path-text";
 import { QueryError } from "@components/query-error";
 import { Button } from "@components/ui/button";
 import {
@@ -35,7 +34,7 @@ import { RULE_TYPES, RULE_TYPE_OPTIONS } from "./metadata";
 import { useBulkDeleteSantaRules, useSantaRules } from "./queries";
 
 const routeApi = getRouteApi("/_authenticated/santa/rules/");
-const RULE_TYPE_FILTER_KEYS = [{ id: "rule_type" }] as const;
+const RULE_TYPE_FILTER_KEYS = [{ id: "rule_type", multiple: true }] as const;
 
 interface RuleTableRow {
   id: number;
@@ -82,7 +81,7 @@ function ruleColumns(isAdmin: boolean): ColumnDef<RuleTableRow>[] {
       id: "identifier",
       accessorFn: (row) => row.rule.identifier,
       header: "Identifier",
-      cell: ({ row }) => <PathText value={row.original.rule.identifier} />,
+      cell: ({ row }) => row.original.rule.identifier || "-",
       meta: { label: "Identifier" },
     },
     {
@@ -99,7 +98,10 @@ function ruleColumns(isAdmin: boolean): ColumnDef<RuleTableRow>[] {
             header: () => null,
             enableSorting: false,
             enableHiding: false,
-            size: 48,
+            size: 44,
+            minSize: 44,
+            maxSize: 44,
+            enableResizing: false,
             cell: RuleActionsCell,
           } satisfies ColumnDef<RuleTableRow>,
         ]
@@ -190,20 +192,15 @@ export function RuleListPage() {
             />
           }
         >
-          <div className="flex items-start justify-between gap-2 p-1">
-            <div className="flex flex-1 flex-wrap items-center gap-2">
-              <DataTableSearchInput
-                className="h-8 w-40 lg:w-56"
-                value={tableSearch.q ?? ""}
-                onValueChange={tableSearch.onQueryChange}
-              />
-              <DataTableFacetedFilter
-                column={table.getColumn("rule_type")}
-                title="Rule Type"
-                options={RULE_TYPE_OPTIONS}
-              />
-            </div>
-          </div>
+          <DataTableSearchInput
+            value={tableSearch.q ?? ""}
+            onValueChange={tableSearch.onQueryChange}
+          />
+          <DataTableFacetedFilter
+            column={table.getColumn("rule_type")}
+            title="Rule Type"
+            options={RULE_TYPE_OPTIONS}
+          />
         </DataTable>
       )}
 

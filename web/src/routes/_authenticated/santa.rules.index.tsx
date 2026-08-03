@@ -12,7 +12,7 @@ const searchSchema = createTableSearchSchema([
   "description",
   "updated_at",
 ]).extend({
-  rule_type: z.enum(RULE_TYPE_VALUES).optional().catch(undefined),
+  rule_type: z.array(z.enum(RULE_TYPE_VALUES)).optional().catch(undefined),
 });
 
 export const Route = createFileRoute("/_authenticated/santa/rules/")({

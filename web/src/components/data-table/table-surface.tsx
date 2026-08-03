@@ -8,7 +8,6 @@ export function TableSurface({
   footer,
   variant = "flat",
   className,
-  viewportClassName,
   children,
   ...props
 }: Omit<ComponentProps<"section">, "children"> & {
@@ -17,7 +16,6 @@ export function TableSurface({
   footer?: ReactNode;
   variant?: "flat" | "embedded";
   className?: string;
-  viewportClassName?: string;
   children: ReactNode;
 }) {
   return (
@@ -31,14 +29,7 @@ export function TableSurface({
             "rounded-xl bg-background text-foreground ring-1 ring-foreground/10",
         )}
       >
-        <div
-          className={cn(
-            "overflow-auto *:data-[slot=table-container]:overflow-visible",
-            viewportClassName,
-          )}
-        >
-          {children}
-        </div>
+        {children}
         {footer}
       </div>
     </section>

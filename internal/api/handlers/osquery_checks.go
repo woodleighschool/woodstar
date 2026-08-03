@@ -1,4 +1,3 @@
-//nolint:dupl // Checks and reports are distinct API resources; two parallel handlers do not justify generic registration machinery.
 package handlers
 
 import (
@@ -34,14 +33,14 @@ type checkGetInput struct {
 type checkResultsInput struct {
 	ListQueryInput
 
-	ID     int64              `path:"id"`
-	Status checks.CheckStatus `          query:"status,omitempty"`
+	ID     int64                `path:"id"`
+	Status []checks.CheckStatus `          query:"status,omitempty"`
 }
 
 func (input checkResultsInput) params() checks.CheckResultListParams {
 	return checks.CheckResultListParams{
 		ListParams: input.ListQueryInput.params(),
-		Status:     input.Status,
+		Statuses:   input.Status,
 	}
 }
 

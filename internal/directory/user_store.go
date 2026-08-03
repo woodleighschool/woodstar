@@ -451,11 +451,12 @@ func userWhere(params UserListParams) (string, []any) {
 	if len(params.Values) > 0 {
 		where.Addf("u.id::text = ANY(%s::text[])", dbutil.NormalizeListValues(params.Values))
 	}
-	switch params.Role {
-	case string(RoleAdmin), string(RoleViewer):
-		where.Addf("u.role = %s::user_role", params.Role)
-	case "none":
-		where.Add("u.role IS NULL")
+	if len(params.Roles) > 0 {
+		roles := where.Arg(params.Roles)
+		where.Add(`(
+			u.role::text = ANY(` + roles + `::text[])
+			OR ('none' = ANY(` + roles + `::text[]) AND u.role IS NULL)
+		)`)
 	}
 	switch params.Source {
 	case string(SourceLocal):

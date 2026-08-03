@@ -92,15 +92,13 @@ func TestCheckMutationValidate(t *testing.T) {
 	}
 }
 
-func TestValidateCheckStatusFilter(t *testing.T) {
+func TestValidateCheckStatusFilters(t *testing.T) {
 	t.Parallel()
 
-	for _, status := range append([]CheckStatus{""}, CheckStatusValues...) {
-		if err := validateCheckStatusFilter(status); err != nil {
-			t.Fatalf("validateCheckStatusFilter(%q) = %v, want nil", status, err)
-		}
+	if err := validateCheckStatusFilters(CheckStatusValues); err != nil {
+		t.Fatalf("validateCheckStatusFilters(%q) = %v, want nil", CheckStatusValues, err)
 	}
-	if err := validateCheckStatusFilter(CheckStatus("unknown")); !errors.Is(err, dbutil.ErrInvalidInput) {
+	if err := validateCheckStatusFilters([]CheckStatus{"unknown"}); !errors.Is(err, dbutil.ErrInvalidInput) {
 		t.Fatalf("unknown status error = %v, want ErrInvalidInput", err)
 	}
 }
