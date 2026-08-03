@@ -37,7 +37,7 @@ export function DataTableSearchInput({
   return (
     <Input
       {...props}
-      className={cn("w-full max-w-sm", className)}
+      className={cn("max-w-sm min-w-48 flex-1 basis-48", className)}
       placeholder={placeholder}
       value={draft}
       onChange={(event) => {

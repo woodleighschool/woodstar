@@ -53,7 +53,7 @@ export function DataTableFacetedFilter<TData, TValue>({
     <>
       <ButtonGroup>
         <ComboboxTrigger
-          render={<Button variant="outline" size="sm" className="border-dashed font-normal" />}
+          render={<Button variant="outline" size="sm" className="h-8 border-dashed font-normal" />}
         >
           <PlusCircle data-icon="inline-start" />
           {title}
@@ -81,7 +81,13 @@ export function DataTableFacetedFilter<TData, TValue>({
           ) : null}
         </ComboboxTrigger>
         {selectedValues.size > 0 ? (
-          <Button type="button" variant="outline" size="icon-sm" onClick={resetFilter}>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon-sm"
+            className="size-8"
+            onClick={resetFilter}
+          >
             <X />
           </Button>
         ) : null}

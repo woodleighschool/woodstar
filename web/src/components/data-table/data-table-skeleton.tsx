@@ -50,12 +50,10 @@ export function DataTableSkeleton({
       className={className}
       toolbar={
         <div className="flex w-full flex-wrap items-center gap-2 p-1">
-          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-            <Skeleton className="h-8 w-full max-w-sm" />
-            {Array.from({ length: filterCount }).map((_, i) => (
-              <Skeleton key={i} className="h-7 w-24" />
-            ))}
-          </div>
+          <Skeleton className="h-8 max-w-sm min-w-48 flex-1 basis-48" />
+          {Array.from({ length: filterCount }).map((_, i) => (
+            <Skeleton key={i} className="h-8 w-24" />
+          ))}
           {withViewOptions || withExport ? (
             <div className="ml-auto flex shrink-0 items-center gap-2">
               {withViewOptions ? <Skeleton className="h-7 w-18" /> : null}

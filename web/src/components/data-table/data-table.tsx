@@ -51,15 +51,13 @@ export function DataTable<TData>({
   const toolbar =
     children || toolbarActions || exportOptions ? (
       <div className="flex flex-wrap items-center gap-2 p-1">
-        {children ? (
-          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">{children}</div>
-        ) : (
-          <div className="flex-1" />
-        )}
-        <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
-          {toolbarActions}
-          {exportOptions ? <DataTableExport table={table} options={exportOptions} /> : null}
-        </div>
+        {children}
+        {toolbarActions || exportOptions ? (
+          <div className="ml-auto flex shrink-0 items-center gap-2">
+            {toolbarActions}
+            {exportOptions ? <DataTableExport table={table} options={exportOptions} /> : null}
+          </div>
+        ) : null}
       </div>
     ) : null;
 
