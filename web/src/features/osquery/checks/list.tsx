@@ -29,6 +29,7 @@ import { formatRelative } from "@lib/utils";
 
 import { CheckDeleteDialog } from "./delete-dialog";
 import { useBulkDeleteChecks, useChecks } from "./queries";
+import { CheckResultCountLink } from "./result-count-link";
 
 const routeApi = getRouteApi("/_authenticated/osquery/checks/");
 
@@ -155,7 +156,13 @@ const checkColumns: ColumnDef<CheckTableRow>[] = [
         Pass
       </span>
     ),
-    cell: ({ row }) => formatHostCount(row.original.passing_host_count),
+    cell: ({ row }) => (
+      <CheckResultCountLink
+        checkId={row.original.id}
+        count={row.original.passing_host_count}
+        status="pass"
+      />
+    ),
     meta: { label: "Pass" },
   },
   {
@@ -168,7 +175,13 @@ const checkColumns: ColumnDef<CheckTableRow>[] = [
         Fail
       </span>
     ),
-    cell: ({ row }) => formatHostCount(row.original.failing_host_count),
+    cell: ({ row }) => (
+      <CheckResultCountLink
+        checkId={row.original.id}
+        count={row.original.failing_host_count}
+        status="fail"
+      />
+    ),
     meta: { label: "Fail" },
   },
   {
@@ -219,7 +232,3 @@ const checkAdminColumns: ColumnDef<CheckTableRow>[] = [
     cell: CheckActionsCell,
   },
 ];
-
-function formatHostCount(count: number) {
-  return `${count} ${count === 1 ? "host" : "hosts"}`;
-}

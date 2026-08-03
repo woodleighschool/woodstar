@@ -34,6 +34,7 @@ import {
   type CheckResultRow,
   createCheckResultColumns,
 } from "./query-results";
+import { CheckResultCountLink } from "./result-count-link";
 
 const resultColumns = createCheckResultColumns({ timestampHeader: "Last Evaluated" });
 
@@ -199,8 +200,26 @@ export function CheckDetailPage() {
           <KeyValueSection title="Overview">
             <KeyValueRow label="Name" value={check.data.name} />
             <KeyValueRow label="Description" value={check.data.description} />
-            <KeyValueRow label="Passing" value={formatHostCount(check.data.passing_host_count)} />
-            <KeyValueRow label="Failing" value={formatHostCount(check.data.failing_host_count)} />
+            <KeyValueRow
+              label="Passing"
+              value={
+                <CheckResultCountLink
+                  checkId={check.data.id}
+                  count={check.data.passing_host_count}
+                  status="pass"
+                />
+              }
+            />
+            <KeyValueRow
+              label="Failing"
+              value={
+                <CheckResultCountLink
+                  checkId={check.data.id}
+                  count={check.data.failing_host_count}
+                  status="fail"
+                />
+              }
+            />
           </KeyValueSection>
 
           <LabelTargetDetails targets={check.data.targets} />
@@ -246,8 +265,4 @@ export function CheckDetailPage() {
       ) : null}
     </PageShell>
   );
-}
-
-function formatHostCount(count: number) {
-  return `${count} ${count === 1 ? "host" : "hosts"}`;
 }
