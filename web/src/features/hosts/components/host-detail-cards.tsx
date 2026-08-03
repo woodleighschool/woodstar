@@ -337,14 +337,16 @@ function certificateColumns(
       accessorKey: "common_name",
       header: () => "Name",
       cell: ({ row }) => (
-        <button
+        <Button
           type="button"
+          variant="link"
+          size="sm"
           onClick={() => onSelect(row.original)}
-          className="block max-w-full truncate text-left font-medium hover:underline"
+          className="max-w-full justify-start font-medium"
           title={row.original.common_name || undefined}
         >
-          {row.original.common_name || "-"}
-        </button>
+          <span className="truncate">{row.original.common_name || "-"}</span>
+        </Button>
       ),
     },
     {
@@ -450,7 +452,12 @@ function CertificateDetailSection({
       <h3 className="text-sm font-medium">{title}</h3>
       <KeyValueRows>
         {visibleRows.map(([label, value]) => (
-          <KeyValueRow key={label} label={label} value={value} />
+          <KeyValueRow
+            key={label}
+            label={label}
+            value={value}
+            className="px-3 py-2 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-4"
+          />
         ))}
       </KeyValueRows>
     </section>

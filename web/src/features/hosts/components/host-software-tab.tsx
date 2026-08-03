@@ -7,7 +7,6 @@ import { DataTableSearchInput } from "@components/data-table/data-table-search-i
 import { DataTableSkeleton } from "@components/data-table/data-table-skeleton";
 import { useDataTable } from "@components/data-table/use-data-table";
 import { useDataTableSearch } from "@components/data-table/use-data-table-search";
-import { KeyValueRow, KeyValueRows } from "@components/key-value";
 import { Link } from "@components/link";
 import { PanelEmptyState } from "@components/panel-empty-state";
 import { QueryError } from "@components/query-error";
@@ -15,10 +14,19 @@ import { Button } from "@components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@components/ui/table";
 import { useHostSoftware } from "@features/hosts/queries";
 import { SoftwareIcon, softwareIconProps } from "@features/software/software-icon";
 import {
@@ -89,7 +97,7 @@ const softwareColumns: ColumnDef<HostSoftware>[] = [
       const typeLabel = softwareSourceLabel(row.original.source, row.original.extension_for);
       return (
         <InstalledPathCell
-          row={row.original}
+          software={row.original}
           versionLabel={versionLabel}
           typeLabel={typeLabel}
           paths={paths}
@@ -164,12 +172,12 @@ interface InstalledPath {
   version: string;
 }
 function InstalledPathCell({
-  row,
+  software,
   versionLabel,
   typeLabel,
   paths,
 }: {
-  row: HostSoftware;
+  software: HostSoftware;
   versionLabel: string;
   typeLabel: string;
   paths: InstalledPath[];
@@ -182,31 +190,33 @@ function InstalledPathCell({
   }
   return (
     <Dialog>
-      <DialogTrigger render={<Button variant="link" size="sm" className="h-auto p-0 text-xs" />}>
+      <DialogTrigger render={<Button variant="link" size="sm" />}>
         {paths.length} paths
       </DialogTrigger>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>{row.name}</DialogTitle>
+      <DialogContent className="max-h-[85vh] gap-0 overflow-hidden p-0 sm:max-w-4xl">
+        <DialogHeader className="border-b px-4 py-3 pr-12">
+          <DialogTitle>{software.name}</DialogTitle>
+          <DialogDescription>
+            {versionLabel}, {typeLabel}, {paths.length} installed paths
+          </DialogDescription>
         </DialogHeader>
-        <div className="flex flex-col gap-4 text-sm">
-          <div>
-            <div className="font-medium">
-              Current version{versionLabel.endsWith("versions") ? "s" : ""}:
-            </div>
-            <KeyValueRows className="mt-2">
-              <KeyValueRow label="Version" value={versionLabel} />
-              <KeyValueRow label="Type" value={typeLabel} />
-            </KeyValueRows>
-          </div>
-          <div className="flex max-h-[60vh] flex-col gap-3 overflow-auto pr-1">
-            {paths.map((item) => (
-              <div key={`${item.version}-${item.path}`}>
-                <div className="text-muted-foreground">Path:</div>
-                <div className="break-all">{item.path}</div>
-              </div>
-            ))}
-          </div>
+        <div className="min-h-0 overflow-y-auto p-4">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Version</TableHead>
+                <TableHead>Installed path</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {paths.map((item) => (
+                <TableRow key={`${item.version}-${item.path}`}>
+                  <TableCell className="align-top">{item.version}</TableCell>
+                  <TableCell>{item.path}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
       </DialogContent>
     </Dialog>
