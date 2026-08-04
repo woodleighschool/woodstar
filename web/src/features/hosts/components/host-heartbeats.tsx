@@ -2,9 +2,9 @@ import type { ColumnDef } from "@tanstack/react-table";
 
 import { DataTableStatic } from "@components/data-table/data-table-static";
 import { PanelEmptyState } from "@components/panel-empty-state";
+import { RelativeTime } from "@components/relative-time";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@components/ui/hover-card";
 import type { Heartbeat, Host } from "@lib/api";
-import { formatRelative } from "@lib/utils";
 
 const heartbeatSourceLabels: Record<string, string> = {
   orbit: "Orbit",
@@ -48,10 +48,11 @@ const heartbeatColumns: ColumnDef<Heartbeat>[] = [
 ];
 
 export function HostLastContact({ host }: { host: Host }) {
-  const lastContact = host.last_contact ? formatRelative(host.last_contact) : "Never";
   const heartbeats = orderedHeartbeats(host.heartbeats);
 
-  if (heartbeats.length === 0) return lastContact;
+  if (!host.last_contact) return "Never";
+
+  if (heartbeats.length === 0) return <RelativeTime value={host.last_contact} />;
 
   return (
     <HoverCard>
@@ -59,14 +60,12 @@ export function HostLastContact({ host }: { host: Host }) {
         render={
           <button
             type="button"
-            aria-label={`${lastContact}; heartbeat details`}
             className="cursor-default underline decoration-dotted underline-offset-4"
-            title={host.last_contact ? new Date(host.last_contact).toLocaleString() : undefined}
-          />
+          >
+            <RelativeTime value={host.last_contact} />
+          </button>
         }
-      >
-        {lastContact}
-      </HoverCardTrigger>
+      />
       <HoverCardContent align="start" className="w-72">
         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
           {heartbeats.map((heartbeat) => (
@@ -95,7 +94,7 @@ export function HostHeartbeatTable({ heartbeats }: { heartbeats: Heartbeat[] }) 
 }
 
 function HeartbeatTime({ value }: { value: string }) {
-  return <span title={new Date(value).toLocaleString()}>{formatRelative(value)}</span>;
+  return <RelativeTime value={value} />;
 }
 
 function heartbeatSourceLabel(source: string) {
