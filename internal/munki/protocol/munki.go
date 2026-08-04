@@ -14,6 +14,7 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/heartbeats"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/httpx"
 	"github.com/woodleighschool/woodstar/internal/munki"
@@ -28,6 +29,10 @@ const (
 
 type hostResolver interface {
 	GetByHardwareSerial(context.Context, string) (*hosts.Host, error)
+}
+
+type heartbeatRecorder interface {
+	Record(context.Context, int64, heartbeats.Source, heartbeats.Contact) error
 }
 
 // Repository loads raw Munki repository objects.
@@ -49,6 +54,7 @@ type handler struct {
 	secretVerifier agentauth.SecretVerifier
 	hostResolver   hostResolver
 	repository     Repository
+	heartbeats     heartbeatRecorder
 	selector       Selector
 	delivery       storage.Deliverer
 	logger         *slog.Logger
@@ -59,6 +65,7 @@ type Server struct {
 	secretVerifier agentauth.SecretVerifier
 	hostResolver   hostResolver
 	repository     Repository
+	heartbeats     heartbeatRecorder
 	selector       Selector
 	delivery       storage.Deliverer
 	logger         *slog.Logger
@@ -69,6 +76,7 @@ func NewServer(
 	secretVerifier agentauth.SecretVerifier,
 	hostResolver hostResolver,
 	repository Repository,
+	heartbeats heartbeatRecorder,
 	selector Selector,
 	delivery storage.Deliverer,
 	logger *slog.Logger,
@@ -77,6 +85,7 @@ func NewServer(
 		secretVerifier: secretVerifier,
 		hostResolver:   hostResolver,
 		repository:     repository,
+		heartbeats:     heartbeats,
 		selector:       selector,
 		delivery:       delivery,
 		logger:         logger,
@@ -90,6 +99,7 @@ func (s *Server) RegisterRoutes(ordinary chi.Router, transfers chi.Router) {
 		secretVerifier: s.secretVerifier,
 		hostResolver:   s.hostResolver,
 		repository:     s.repository,
+		heartbeats:     s.heartbeats,
 		selector:       s.selector,
 		delivery:       s.delivery,
 		logger:         s.logger,
@@ -195,6 +205,14 @@ func (h handler) authorizedHost(w http.ResponseWriter, r *http.Request, operatio
 		return 0, false
 	}
 	if err != nil {
+		h.log(r, operation, err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return 0, false
+	}
+	if err := h.heartbeats.Record(r.Context(), host.ID, heartbeats.SourceMunki, heartbeats.Contact{
+		RemoteIP:  chimiddleware.GetClientIP(r.Context()),
+		UserAgent: r.UserAgent(),
+	}); err != nil {
 		h.log(r, operation, err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return 0, false

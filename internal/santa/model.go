@@ -16,14 +16,12 @@ type HostObservation struct {
 	PrimaryUser        string
 	PrimaryUserGroups  []string
 	SIPStatus          *uint32
-	LastSeenAt         *time.Time
 }
 
 // HostState is the Santa sub-object attached to host detail responses.
 type HostState struct {
 	Version            string                             `json:"version"`
 	ClientModeReported configurations.ReportedClientMode  `json:"client_mode_reported"`
-	LastSeenAt         *time.Time                         `json:"last_seen_at,omitempty"`
 	Configuration      *configurations.ConfigurationMatch `json:"configuration,omitempty"`
 	RuleSync           RuleSyncSummary                    `json:"rule_sync"`
 }

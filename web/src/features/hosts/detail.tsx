@@ -13,20 +13,32 @@ import {
   HostUsersCard,
 } from "@features/hosts/components/host-detail-cards";
 import { HostHeader } from "@features/hosts/components/host-header";
+import { HostHeartbeatTable } from "@features/hosts/components/host-heartbeats";
 import { HostMunkiTab } from "@features/hosts/components/host-munki-tab";
 import { HostOsqueryChecksTab } from "@features/hosts/components/host-osquery-checks-tab";
 import { HostOsqueryReportsTab } from "@features/hosts/components/host-osquery-reports-tab";
 import { HostSantaTab } from "@features/hosts/components/host-santa-tab";
 import { HostSoftwareTab } from "@features/hosts/components/host-software-tab";
 import { useHost, useHostMunkiState, useHostSantaState } from "@features/hosts/queries";
+import type { HostDetail } from "@lib/api";
 
 const hostSections = [
   { value: "details", label: "Details", path: "/hosts/$id" },
   { value: "software", label: "Software", path: "/hosts/$id/software" },
   { value: "reports", label: "Reports", path: "/hosts/$id/reports" },
   { value: "checks", label: "Checks", path: "/hosts/$id/checks" },
-  { value: "munki", label: "Munki", path: "/hosts/$id/munki" },
-  { value: "santa", label: "Santa", path: "/hosts/$id/santa" },
+  {
+    value: "munki",
+    label: "Munki",
+    path: "/hosts/$id/munki",
+    heartbeatSource: "munki",
+  },
+  {
+    value: "santa",
+    label: "Santa",
+    path: "/hosts/$id/santa",
+    heartbeatSource: "santa",
+  },
 ] as const;
 
 export function HostDetailPage() {
@@ -47,7 +59,7 @@ export function HostDetailPage() {
   return (
     <PageShell>
       <HostHeader host={host} />
-      <HostSectionNav hostID={hostID} />
+      <HostSectionNav hostID={hostID} host={host} />
       <Outlet />
     </PageShell>
   );
@@ -70,6 +82,7 @@ export function HostDetailsPage() {
   return (
     <div className="flex flex-col gap-5">
       <HostInfoCard host={host} />
+      <HostHeartbeatTable heartbeats={host.heartbeats} />
       <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,28rem),1fr))] items-start gap-5">
         <HostIdentityCard host={host} />
         <HostLabelsCard host={host} />
@@ -118,7 +131,7 @@ export function HostSantaPage() {
   );
 }
 
-function HostSectionNav({ hostID }: { hostID: number }) {
+function HostSectionNav({ hostID, host }: { hostID: number; host: HostDetail }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const active =
     hostSections.find(
@@ -128,16 +141,22 @@ function HostSectionNav({ hostID }: { hostID: number }) {
   return (
     <ScrollableTabs value={active}>
       <ScrollableTabsList>
-        {hostSections.map((section) => (
-          <TabsTrigger
-            key={section.value}
-            value={section.value}
-            render={<Link to={section.path} params={{ id: String(hostID) }} preload="intent" />}
-            nativeButton={false}
-          >
-            {section.label}
-          </TabsTrigger>
-        ))}
+        {hostSections
+          .filter(
+            (section) =>
+              !("heartbeatSource" in section) ||
+              host.heartbeats.some((heartbeat) => heartbeat.source === section.heartbeatSource),
+          )
+          .map((section) => (
+            <TabsTrigger
+              key={section.value}
+              value={section.value}
+              render={<Link to={section.path} params={{ id: String(hostID) }} preload="intent" />}
+              nativeButton={false}
+            >
+              {section.label}
+            </TabsTrigger>
+          ))}
       </ScrollableTabsList>
     </ScrollableTabs>
   );

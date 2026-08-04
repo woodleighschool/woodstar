@@ -2,20 +2,18 @@ package munki
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 )
 
 // hostStateStore persists observed Munki host state.
 type hostStateStore interface {
-	UpsertHostObservation(ctx context.Context, observation HostObservation) error
-	ClearHostObservation(ctx context.Context, hostID int64) error
-	ReplaceHostItems(ctx context.Context, hostID int64, items []ItemObservation) error
+	ApplyEnvelope(ctx context.Context, result EnvelopeResult) error
 }
 
 // DetailIngestor projects osquery munki_info and munki_installs detail rows into
-// observed host state. It is registered onto the osquery projector from the
-// wiring layer so the projector core stays free of Munki types.
+// observed host state.
 type DetailIngestor struct {
 	store hostStateStore
 }
@@ -25,19 +23,55 @@ func NewDetailIngestor(store hostStateStore) *DetailIngestor {
 	return &DetailIngestor{store: store}
 }
 
-// IngestInfo records a host's munki_info observation, clearing it when the host
-// reports no Munki data.
-func (i *DetailIngestor) IngestInfo(ctx context.Context, hostID int64, rows []map[string]string) error {
-	status, ok := hostStatusFromInfoRows(hostID, rows)
-	if !ok {
-		return i.store.ClearHostObservation(ctx, hostID)
+// IngestEnvelope projects the whole Munki osquery query family into one
+// authoritative collection attempt.
+func (i *DetailIngestor) IngestEnvelope(ctx context.Context, hostID int64, envelope EnvelopeInput) error {
+	if !envelope.Info.Present && !envelope.Installs.Present {
+		return nil
 	}
-	return i.store.UpsertHostObservation(ctx, status)
+	result := EnvelopeResult{HostID: hostID, AttemptedAt: time.Now().UTC()}
+	if diagnostics := envelopeDiagnostics(envelope); diagnostics != "" {
+		result.CollectionError = diagnostics
+		return i.store.ApplyEnvelope(ctx, result)
+	}
+
+	result.Complete = true
+	result.Observation, result.HasReport = hostStatusFromInfoRows(hostID, envelope.Info.Rows)
+	if result.HasReport {
+		result.Items = itemsFromInstallRows(hostID, envelope.Installs.Rows)
+	}
+	return i.store.ApplyEnvelope(ctx, result)
 }
 
-// IngestInstalls records the managed-install items a host reports.
-func (i *DetailIngestor) IngestInstalls(ctx context.Context, hostID int64, rows []map[string]string) error {
-	return i.store.ReplaceHostItems(ctx, hostID, itemsFromInstallRows(hostID, rows))
+func envelopeDiagnostics(envelope EnvelopeInput) string {
+	diagnostics := []string{
+		queryResultDiagnostic("munki_info", envelope.Info),
+		queryResultDiagnostic("munki_installs", envelope.Installs),
+	}
+	return strings.Join(compactStrings(diagnostics), "; ")
+}
+
+func queryResultDiagnostic(name string, result QueryResult) string {
+	if !result.Present {
+		return name + ": missing result"
+	}
+	if result.Status == 0 {
+		return ""
+	}
+	if result.Message != "" {
+		return fmt.Sprintf("%s: %s", name, result.Message)
+	}
+	return fmt.Sprintf("%s: status %d", name, result.Status)
+}
+
+func compactStrings(values []string) []string {
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		if value != "" {
+			result = append(result, value)
+		}
+	}
+	return result
 }
 
 func hostStatusFromInfoRows(hostID int64, rows []map[string]string) (HostObservation, bool) {

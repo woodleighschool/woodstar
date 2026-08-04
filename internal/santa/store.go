@@ -21,6 +21,33 @@ func NewStore(db *database.DB) *Store {
 	return &Store{db: db}
 }
 
+// AgentVersions returns Santa versions keyed by host ID for the requested hosts.
+func (s *Store) AgentVersions(ctx context.Context, hostIDs []int64) (map[int64]string, error) {
+	versions := make(map[int64]string, len(hostIDs))
+	if len(hostIDs) == 0 {
+		return versions, nil
+	}
+	rows, err := s.db.Pool().Query(ctx, `
+SELECT host_id, santa_version
+FROM santa_hosts
+WHERE host_id = ANY($1::bigint[])`, hostIDs)
+	if err != nil {
+		return nil, err
+	}
+	type agentVersionRow struct {
+		HostID  int64  `db:"host_id"`
+		Version string `db:"santa_version"`
+	}
+	records, err := pgx.CollectRows(rows, pgx.RowToStructByName[agentVersionRow])
+	if err != nil {
+		return nil, err
+	}
+	for _, record := range records {
+		versions[record.HostID] = record.Version
+	}
+	return versions, nil
+}
+
 func (s *Store) UpsertHostObservation(ctx context.Context, observation HostObservation) error {
 	if observation.ClientModeReported == "" {
 		observation.ClientModeReported = configurations.ReportedClientModeUnknown
@@ -38,8 +65,7 @@ func (s *Store) UpsertHostObservation(ctx context.Context, observation HostObser
 			client_mode_reported,
 			primary_user,
 			primary_user_groups,
-			sip_status,
-			last_seen_at
+			sip_status
 		)
 		VALUES (
 			@host_id,
@@ -49,8 +75,7 @@ func (s *Store) UpsertHostObservation(ctx context.Context, observation HostObser
 			@client_mode_reported::santa_client_mode,
 			@primary_user,
 			@primary_user_groups,
-			@sip_status,
-			COALESCE(@last_seen_at::timestamptz, now())
+			@sip_status
 		)
 		ON CONFLICT (host_id) DO UPDATE SET
 			machine_id = EXCLUDED.machine_id,
@@ -60,7 +85,6 @@ func (s *Store) UpsertHostObservation(ctx context.Context, observation HostObser
 			primary_user = EXCLUDED.primary_user,
 			primary_user_groups = EXCLUDED.primary_user_groups,
 			sip_status = EXCLUDED.sip_status,
-			last_seen_at = EXCLUDED.last_seen_at,
 			updated_at = now()`, pgx.NamedArgs{
 		"host_id":              observation.HostID,
 		"machine_id":           observation.MachineID,
@@ -70,7 +94,6 @@ func (s *Store) UpsertHostObservation(ctx context.Context, observation HostObser
 		"primary_user":         observation.PrimaryUser,
 		"primary_user_groups":  observation.PrimaryUserGroups,
 		"sip_status":           observation.SIPStatus,
-		"last_seen_at":         observation.LastSeenAt,
 	})
 	return err
 }
@@ -85,7 +108,6 @@ func (s *Store) hostIDByMachineID(ctx context.Context, machineID string) (int64,
 type observedSantaHostStateRow struct {
 	SantaVersion       string     `db:"santa_version"`
 	ClientModeReported string     `db:"client_mode_reported"`
-	LastSeenAt         *time.Time `db:"last_seen_at"`
 	LastCleanSyncAt    *time.Time `db:"last_clean_sync_at"`
 }
 
@@ -94,7 +116,6 @@ func (s *Store) LoadObservedHostState(ctx context.Context, hostID int64) (*HostS
 		SELECT
 			sh.santa_version,
 			sh.client_mode_reported::text AS client_mode_reported,
-			sh.last_seen_at,
 			ss.last_clean_sync_at
 		FROM santa_hosts sh
 		LEFT JOIN santa_sync_state ss ON ss.host_id = sh.host_id
@@ -107,7 +128,6 @@ func (s *Store) LoadObservedHostState(ctx context.Context, hostID int64) (*HostS
 	}
 	detail := HostState{
 		Version:            row.SantaVersion,
-		LastSeenAt:         row.LastSeenAt,
 		ClientModeReported: configurations.ReportedClientMode(row.ClientModeReported),
 	}
 

@@ -2,28 +2,33 @@ package software
 
 import (
 	"context"
+	"time"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 )
 
 type hostSoftwareRow struct {
-	SoftwareID           int64    `db:"software_id"`
-	SoftwareName         string   `db:"software_name"`
-	SoftwareDisplayName  *string  `db:"software_display_name"`
-	SoftwareDescription  string   `db:"software_description"`
-	SoftwareCategory     string   `db:"software_category"`
-	SoftwareDeveloper    string   `db:"software_developer"`
-	SoftwareIconObjectID *int64   `db:"software_icon_object_id"`
-	Actions              []string `db:"actions"`
-	PackageSelection     string   `db:"package_selection"`
-	PinnedPackageID      *int64   `db:"pinned_package_id"`
-	PackageVersion       *string  `db:"package_version"`
-	ObservationName      *string  `db:"observation_name"`
-	DisplayName          *string  `db:"display_name"`
-	Installed            *bool    `db:"installed"`
-	InstalledVersion     *string  `db:"installed_version"`
-	TargetVersion        *string  `db:"target_version"`
+	SoftwareID           int64      `db:"software_id"`
+	SoftwareName         string     `db:"software_name"`
+	SoftwareDisplayName  *string    `db:"software_display_name"`
+	SoftwareDescription  string     `db:"software_description"`
+	SoftwareCategory     string     `db:"software_category"`
+	SoftwareDeveloper    string     `db:"software_developer"`
+	SoftwareIconObjectID *int64     `db:"software_icon_object_id"`
+	Actions              []string   `db:"actions"`
+	PackageSelection     string     `db:"package_selection"`
+	PinnedPackageID      *int64     `db:"pinned_package_id"`
+	PackageVersion       *string    `db:"package_version"`
+	ObservationName      *string    `db:"observation_name"`
+	DisplayName          *string    `db:"display_name"`
+	Installed            *bool      `db:"installed"`
+	InstalledVersion     *string    `db:"installed_version"`
+	TargetVersion        *string    `db:"target_version"`
+	MunkiLastSeenAt      *time.Time `db:"munki_last_seen_at"`
+	LastSuccessfulAt     *time.Time `db:"last_successful_at"`
+	CollectionError      string     `db:"collection_error"`
+	HasReport            bool       `db:"has_report"`
 }
 
 // ListForHost returns the exact software enumeration used to render a host manifest.
@@ -57,10 +62,16 @@ SELECT
 	observed.display_name,
 	observed.installed,
 	observed.installed_version,
-	observed.target_version
+	observed.target_version,
+	contact.last_seen_at AS munki_last_seen_at,
+	envelope.last_successful_at,
+	COALESCE(envelope.collection_error, '') AS collection_error,
+	COALESCE(envelope.has_report, FALSE) AS has_report
 FROM munki_resolved_software_for_host($1) resolved
 JOIN munki_software software ON software.id = resolved.software_id
 LEFT JOIN munki_packages pinned ON pinned.id = resolved.pinned_package_id
+LEFT JOIN host_heartbeats contact ON contact.host_id = $1 AND contact.source = 'munki'
+LEFT JOIN munki_host_status envelope ON envelope.host_id = $1
 LEFT JOIN munki_host_items observed
 	ON observed.host_id = $1
 	AND observed.name = resolved.name`,
@@ -107,6 +118,14 @@ func hostSoftwareFromRow(row hostSoftwareRow) HostManifestSoftware {
 		pkg.ID = selector.PackageID
 		pkg.Version = valueOrEmpty(row.PackageVersion)
 	}
+	fact := deploymentFact{
+		MunkiLastSeenAt:  row.MunkiLastSeenAt,
+		LastSuccessfulAt: row.LastSuccessfulAt,
+		CollectionError:  row.CollectionError,
+		HasReport:        row.HasReport,
+		Actions:          actionsFromStorage(row.Actions),
+		Package:          pkg,
+	}
 	software := HostManifestSoftware{
 		Software: packages.PackageSoftware{
 			ID:           row.SoftwareID,
@@ -119,7 +138,7 @@ func hostSoftwareFromRow(row hostSoftwareRow) HostManifestSoftware {
 			IconURL:      IconURL(row.SoftwareIconObjectID),
 		},
 		Package: pkg,
-		Actions: actionsFromStorage(row.Actions),
+		Actions: fact.Actions,
 	}
 	if row.ObservationName != nil {
 		software.Observation = &HostManifestSoftwareObservation{
@@ -128,7 +147,9 @@ func hostSoftwareFromRow(row hostSoftwareRow) HostManifestSoftware {
 			InstalledVersion: valueOrEmpty(row.InstalledVersion),
 			TargetVersion:    valueOrEmpty(row.TargetVersion),
 		}
+		fact.Observation = software.Observation
 	}
+	software.Status = deploymentStatus(fact)
 	return software
 }
 

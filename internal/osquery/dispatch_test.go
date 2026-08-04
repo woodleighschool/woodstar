@@ -8,8 +8,10 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/osquery/catalog"
 	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
 )
@@ -187,8 +189,9 @@ func TestHandleLiveResultReplacesHostSnapshot(t *testing.T) {
 	}
 }
 
-func TestFinalizeDetailPassPreservesMunkiWithoutSuccessfulObservation(t *testing.T) {
+func TestFinalizeDetailPassDeliversFailedMunkiEnvelopeWithoutBlockingInventory(t *testing.T) {
 	projector := &recordingInventoryProjector{}
+	munkiIngestor := &recordingMunkiEnvelopeIngestor{}
 	pass := &detailDispatchPass{
 		registry: map[string]catalog.DetailQuery{
 			"required":                 {Ingest: catalog.IngestHostDetail},
@@ -205,33 +208,93 @@ func TestFinalizeDetailPassPreservesMunkiWithoutSuccessfulObservation(t *testing
 		allSucceeded: true,
 	}
 
-	s := &AgentService{deps: Dependencies{Logger: testLogger(), InventoryProjector: projector}}
+	s := &AgentService{deps: Dependencies{Logger: testLogger(), InventoryProjector: projector, MunkiEnvelopeIngestor: munkiIngestor}}
 	if err := s.finalizeDetailPass(context.Background(), testHost(42), pass); err != nil {
 		t.Fatalf("finalize detail pass: %v", err)
 	}
-	if len(projector.cleared) > 0 {
-		t.Fatalf("cleared = %#v, want none", projector.cleared)
+	if munkiIngestor.calls != 1 || munkiIngestor.envelope.Info.Status != 1 || !munkiIngestor.envelope.Info.Present || munkiIngestor.envelope.Installs.Present {
+		t.Fatalf("Munki envelope = %+v calls=%d, want one failed/missing family envelope", munkiIngestor.envelope, munkiIngestor.calls)
 	}
 	if !projector.markedFresh {
 		t.Fatal("optional Munki failure blocked inventory freshness")
 	}
 }
 
+func TestDetailPassAccumulatesMunkiEnvelopeUntilFinalization(t *testing.T) {
+	projector := &recordingInventoryProjector{}
+	munkiIngestor := &recordingMunkiEnvelopeIngestor{}
+	pass := &detailDispatchPass{
+		registry: map[string]catalog.DetailQuery{
+			catalog.QueryMunkiInfo:     {Optional: true, Ingest: catalog.IngestMunkiInfo},
+			catalog.QueryMunkiInstalls: {Optional: true, Ingest: catalog.IngestMunkiInstalls},
+		},
+		results:      map[string]detailResult{},
+		allSucceeded: true,
+	}
+	s := &AgentService{deps: Dependencies{Logger: testLogger(), InventoryProjector: projector, MunkiEnvelopeIngestor: munkiIngestor}}
+	infoRows := []map[string]string{{"version": "7.1"}}
+	if err := s.handleDetailResult(context.Background(), 42, catalog.QueryMunkiInfo, infoRows, json.RawMessage(`0`), true, "info ok", pass); err != nil {
+		t.Fatalf("handle info: %v", err)
+	}
+	if munkiIngestor.calls != 0 {
+		t.Fatalf("Munki calls after first family result = %d, want 0", munkiIngestor.calls)
+	}
+	installsRows := []map[string]string{{"name": "Firefox"}}
+	if err := s.handleDetailResult(context.Background(), 42, catalog.QueryMunkiInstalls, installsRows, json.RawMessage(`0`), true, "installs ok", pass); err != nil {
+		t.Fatalf("handle installs: %v", err)
+	}
+	if munkiIngestor.calls != 0 {
+		t.Fatalf("Munki calls before finalization = %d, want 0", munkiIngestor.calls)
+	}
+	if err := s.finalizeDetailPass(context.Background(), testHost(42), pass); err != nil {
+		t.Fatalf("finalize detail pass: %v", err)
+	}
+	if munkiIngestor.calls != 1 || !munkiIngestor.envelope.Info.Present || !munkiIngestor.envelope.Installs.Present ||
+		munkiIngestor.envelope.Info.Message != "info ok" || munkiIngestor.envelope.Installs.Message != "installs ok" ||
+		!reflect.DeepEqual(munkiIngestor.envelope.Info.Rows, infoRows) || !reflect.DeepEqual(munkiIngestor.envelope.Installs.Rows, installsRows) {
+		t.Fatalf("Munki envelope = %+v calls=%d, want one complete retained envelope", munkiIngestor.envelope, munkiIngestor.calls)
+	}
+}
+
+func TestFinalizeDetailPassSkipsAbsentMunkiFamily(t *testing.T) {
+	projector := &recordingInventoryProjector{}
+	munkiIngestor := &recordingMunkiEnvelopeIngestor{}
+	pass := &detailDispatchPass{
+		registry:     map[string]catalog.DetailQuery{"required": {Ingest: catalog.IngestHostDetail}},
+		results:      map[string]detailResult{"required": {status: json.RawMessage(`0`), hasStatus: true}},
+		allSucceeded: true,
+	}
+	s := &AgentService{deps: Dependencies{Logger: testLogger(), InventoryProjector: projector, MunkiEnvelopeIngestor: munkiIngestor}}
+	if err := s.finalizeDetailPass(context.Background(), testHost(42), pass); err != nil {
+		t.Fatalf("finalize detail pass: %v", err)
+	}
+	if munkiIngestor.calls != 0 {
+		t.Fatalf("Munki calls = %d, want none", munkiIngestor.calls)
+	}
+}
+
+func TestDetailQueryCadenceRemainsHourly(t *testing.T) {
+	lastUpdated := time.Now().Add(-59 * time.Minute)
+	if due := catalog.DetailQueriesDue(&lastUpdated, catalog.DetailQueryHash()); len(due.Queries) != 0 {
+		t.Fatalf("detail queries due after 59 minutes = %#v, want none", due.Queries)
+	}
+	lastUpdated = time.Now().Add(-61 * time.Minute)
+	if due := catalog.DetailQueriesDue(&lastUpdated, catalog.DetailQueryHash()); len(due.Queries) == 0 {
+		t.Fatal("detail queries were not due after 61 minutes")
+	}
+}
+
 type recordingInventoryProjector struct {
-	cleared     []string
 	markedFresh bool
 }
 
 func (p *recordingInventoryProjector) IngestDetail(
 	_ context.Context,
 	_ catalog.DetailQuery,
-	name string,
+	_ string,
 	_ int64,
-	rows []map[string]string,
+	_ []map[string]string,
 ) error {
-	if rows == nil {
-		p.cleared = append(p.cleared, name)
-	}
 	return nil
 }
 
@@ -245,6 +308,17 @@ func (p *recordingInventoryProjector) IngestSoftware(
 
 func (p *recordingInventoryProjector) MarkFresh(context.Context, int64) error {
 	p.markedFresh = true
+	return nil
+}
+
+type recordingMunkiEnvelopeIngestor struct {
+	calls    int
+	envelope munki.EnvelopeInput
+}
+
+func (i *recordingMunkiEnvelopeIngestor) IngestEnvelope(_ context.Context, _ int64, envelope munki.EnvelopeInput) error {
+	i.calls++
+	i.envelope = envelope
 	return nil
 }
 

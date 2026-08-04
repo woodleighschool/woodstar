@@ -1,6 +1,6 @@
 import { ConfirmDialog } from "@components/confirm-dialog";
 import { toast } from "@components/ui/toast";
-import type { MunkiSoftware } from "@lib/api";
+import type { MunkiSoftwareDetail, MunkiSoftwareWithDeployment } from "@lib/api";
 
 import { useDeleteMunkiSoftware } from "./queries";
 
@@ -10,7 +10,7 @@ export function MunkiSoftwareDeleteDialog({
   onOpenChange,
   onDeleted,
 }: {
-  software: MunkiSoftware | null;
+  software: MunkiSoftwareDetail | MunkiSoftwareWithDeployment | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onDeleted?: () => void;

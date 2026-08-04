@@ -8,6 +8,7 @@ import (
 
 type observedHostStateStore interface {
 	LoadObservedHostState(ctx context.Context, hostID int64) (*HostState, error)
+	AgentVersions(ctx context.Context, hostIDs []int64) (map[int64]string, error)
 }
 
 type configurationWithTargetsResolver interface {
@@ -29,6 +30,11 @@ func NewHostStateService(
 	configurations configurationWithTargetsResolver,
 ) *HostStateService {
 	return &HostStateService{state: state, configurations: configurations}
+}
+
+// AgentVersions returns Santa versions keyed by host ID for the requested hosts.
+func (s *HostStateService) AgentVersions(ctx context.Context, hostIDs []int64) (map[int64]string, error) {
+	return s.state.AgentVersions(ctx, hostIDs)
 }
 
 // LoadHostState returns the Santa detail attached to an existing host, if any.

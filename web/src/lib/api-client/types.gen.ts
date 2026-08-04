@@ -100,26 +100,41 @@ export type Group = {
     updated_at: string;
 };
 
+export type Heartbeat = {
+    last_seen_at: string;
+    remote_ip?: string;
+    source: string;
+    user_agent: string;
+};
+
 export type Host = {
     agents: HostAgents;
     computer_name: string;
+    created_at: string;
     display_name: string;
     enrollment: HostEnrollment;
     hardware: HostHardware;
+    heartbeats: Array<Heartbeat>;
     hostname: string;
     id: number;
+    inventory_updated_at?: string;
+    last_contact?: string;
+    last_restarted_at?: string;
     network: HostNetwork;
     os: HostOs;
     primary_user?: HostPrimaryUser;
     primary_user_sources: Array<HostPrimaryUserSource>;
+    public_ip?: string;
     status: 'online' | 'offline';
     storage: HostStorage;
-    timestamps: HostTimestamps;
+    updated_at: string;
 };
 
 export type HostAgents = {
+    munki: HostMunkiAgent;
     orbit: HostOrbitAgent;
     osquery: HostOsqueryAgent;
+    santa: HostSantaAgent;
 };
 
 export type HostBattery = {
@@ -170,19 +185,25 @@ export type HostDetail = {
     batteries: Array<HostBattery>;
     certificates: Array<HostCertificate>;
     computer_name: string;
+    created_at: string;
     display_name: string;
     enrollment: HostEnrollment;
     hardware: HostHardware;
+    heartbeats: Array<Heartbeat>;
     hostname: string;
     id: number;
+    inventory_updated_at?: string;
     labels: Array<Label>;
+    last_contact?: string;
+    last_restarted_at?: string;
     network: HostNetwork;
     os: HostOs;
     primary_user?: HostPrimaryUser;
     primary_user_sources: Array<HostPrimaryUserSource>;
+    public_ip?: string;
     status: 'online' | 'offline';
     storage: HostStorage;
-    timestamps: HostTimestamps;
+    updated_at: string;
     users: Array<HostUser>;
 };
 
@@ -200,8 +221,11 @@ export type HostHardware = {
     vendor: string;
 };
 
+export type HostMunkiAgent = {
+    version: string;
+};
+
 export type HostNetwork = {
-    last_remote_ip?: string;
     primary_ip?: string;
     primary_mac: string;
 };
@@ -242,6 +266,10 @@ export type HostPrimaryUserSource = {
     source: 'manual' | 'orbit_profile';
 };
 
+export type HostSantaAgent = {
+    version: string;
+};
+
 export type HostSoftware = {
     extension_for: string;
     id: number;
@@ -260,14 +288,6 @@ export type HostSoftwareInstalledVersion = {
 
 export type HostStorage = {
     boot_volume: HostBootVolume;
-};
-
-export type HostTimestamps = {
-    created_at: string;
-    inventory_updated_at?: string;
-    last_restarted_at?: string;
-    last_seen_at?: string;
-    updated_at: string;
 };
 
 export type HostUser = {
@@ -349,6 +369,33 @@ export type MunkiCreateMutation = {
     targets: MunkiTargets;
 };
 
+export type MunkiDeploymentHost = {
+    actions: Array<'managed_installs' | 'managed_uninstalls' | 'managed_updates' | 'optional_installs' | 'featured_items' | 'default_installs'>;
+    collection_error?: string;
+    display_name: string;
+    hardware_serial: string;
+    host_id: number;
+    installed: boolean;
+    installed_version?: string;
+    last_attempt_at?: string;
+    last_successful_at?: string;
+    package: ({
+        strategy: 'latest';
+    } & MunkiHostManifestLatestPackage) | ({
+        strategy: 'specific';
+    } & MunkiHostManifestSpecificPackage);
+    report_state: 'current' | 'not_contacted' | 'never_collected' | 'no_report' | 'collection_failed';
+    status?: 'up_to_date' | 'pending' | 'not_installed' | 'installed' | 'available';
+    target_version?: string;
+};
+
+export type MunkiDeploymentSummary = {
+    assigned_count: number;
+    installed_count: number;
+    packages: Array<MunkiPackageDeployment>;
+    reporting_count: number;
+};
+
 export type MunkiDirectUploadAction = {
     headers?: {
         [key: string]: string;
@@ -422,6 +469,7 @@ export type MunkiHostManifestSoftware = {
         strategy: 'specific';
     } & MunkiHostManifestSpecificPackage);
     software: MunkiPackageSoftware;
+    status?: 'up_to_date' | 'pending' | 'not_installed' | 'installed' | 'available';
 };
 
 export type MunkiHostManifestSoftwareObservation = {
@@ -438,9 +486,13 @@ export type MunkiHostManifestSpecificPackage = {
 };
 
 export type MunkiHostState = {
+    collection_error?: string;
     errors: Array<string>;
+    last_attempt_at?: string;
+    last_successful_at?: string;
     manifest_name: string;
     problem_installs: Array<string>;
+    report_state: string;
     run_ended_at?: string;
     run_started_at?: string;
     version: string;
@@ -617,6 +669,13 @@ export type MunkiPackageCreateMutation = {
     version_script?: string;
 };
 
+export type MunkiPackageDeployment = {
+    assigned_count: number;
+    installed_count: number;
+    reporting_count: number;
+    version: string;
+};
+
 export type MunkiPackageInstallItem = {
     bundle_identifier?: string;
     bundle_name?: string;
@@ -764,23 +823,10 @@ export type MunkiRevealedDistributionPoint = {
     worker?: MunkiDistributionPointWorker;
 };
 
-export type MunkiSoftware = {
-    category: string;
-    created_at: string;
-    description: string;
-    developer: string;
-    display_name?: string;
-    icon_file?: MunkiIconFile;
-    icon_object_id?: number;
-    icon_url?: string;
-    id: number;
-    name: string;
-    updated_at: string;
-};
-
 export type MunkiSoftwareDetail = {
     category: string;
     created_at: string;
+    deployment: MunkiDeploymentSummary;
     description: string;
     developer: string;
     display_name?: string;
@@ -791,6 +837,21 @@ export type MunkiSoftwareDetail = {
     name: string;
     packages: Array<MunkiPackage>;
     targets: MunkiTargets;
+    updated_at: string;
+};
+
+export type MunkiSoftwareWithDeployment = {
+    category: string;
+    created_at: string;
+    deployment: MunkiDeploymentSummary;
+    description: string;
+    developer: string;
+    display_name?: string;
+    icon_file?: MunkiIconFile;
+    icon_object_id?: number;
+    icon_url?: string;
+    id: number;
+    name: string;
     updated_at: string;
 };
 
@@ -955,6 +1016,11 @@ export type PageDepartment = {
     items: Array<Department>;
 };
 
+export type PageDeploymentHost = {
+    count: number;
+    items: Array<MunkiDeploymentHost>;
+};
+
 export type PageDistributionPoint = {
     count: number;
     items: Array<MunkiDistributionPoint>;
@@ -1030,14 +1096,14 @@ export type PageRuleStatus = {
     items: Array<SantaRuleStatus>;
 };
 
-export type PageSoftware = {
-    count: number;
-    items: Array<MunkiSoftware>;
-};
-
 export type PageSoftwareTitle = {
     count: number;
     items: Array<SoftwareTitle>;
+};
+
+export type PageSoftwareWithDeployment = {
+    count: number;
+    items: Array<MunkiSoftwareWithDeployment>;
 };
 
 export type PageUser = {
@@ -1192,7 +1258,6 @@ export type SantaFileAccessEvent = {
 export type SantaHostState = {
     client_mode_reported: 'unknown' | 'monitor' | 'lockdown' | 'standalone';
     configuration?: SantaConfigurationMatch;
-    last_seen_at?: string;
     rule_sync: SantaRuleSyncSummary;
     version: string;
 };
@@ -1385,19 +1450,25 @@ export type HostDetailWritable = {
     batteries: Array<HostBattery>;
     certificates: Array<HostCertificate>;
     computer_name: string;
+    created_at: string;
     display_name: string;
     enrollment: HostEnrollment;
     hardware: HostHardware;
+    heartbeats: Array<Heartbeat>;
     hostname: string;
     id: number;
+    inventory_updated_at?: string;
     labels: Array<LabelWritable>;
+    last_contact?: string;
+    last_restarted_at?: string;
     network: HostNetwork;
     os: HostOs;
     primary_user?: HostPrimaryUser;
     primary_user_sources: Array<HostPrimaryUserSource>;
+    public_ip?: string;
     status: 'online' | 'offline';
     storage: HostStorage;
-    timestamps: HostTimestamps;
+    updated_at: string;
     users: Array<HostUser>;
 };
 
@@ -3932,7 +4003,7 @@ export type ListMunkiSoftwareResponses = {
     /**
      * OK
      */
-    200: PageSoftware;
+    200: PageSoftwareWithDeployment;
 };
 
 export type ListMunkiSoftwareResponse = ListMunkiSoftwareResponses[keyof ListMunkiSoftwareResponses];
@@ -4118,6 +4189,52 @@ export type UpdateMunkiSoftwareResponses = {
 };
 
 export type UpdateMunkiSoftwareResponse = UpdateMunkiSoftwareResponses[keyof UpdateMunkiSoftwareResponses];
+
+export type ListMunkiSoftwareHostsData = {
+    body?: never;
+    path: {
+        id: number;
+    };
+    query?: {
+        q?: string;
+        page?: number;
+        per_page?: number;
+        sort?: string;
+        status?: 'up_to_date' | 'pending' | 'not_installed' | 'installed' | 'available';
+        action?: 'managed_installs' | 'managed_uninstalls' | 'managed_updates' | 'optional_installs' | 'featured_items' | 'default_installs';
+    };
+    url: '/api/munki/software/{id}/hosts';
+};
+
+export type ListMunkiSoftwareHostsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type ListMunkiSoftwareHostsError = ListMunkiSoftwareHostsErrors[keyof ListMunkiSoftwareHostsErrors];
+
+export type ListMunkiSoftwareHostsResponses = {
+    /**
+     * OK
+     */
+    200: PageDeploymentHost;
+};
+
+export type ListMunkiSoftwareHostsResponse = ListMunkiSoftwareHostsResponses[keyof ListMunkiSoftwareHostsResponses];
 
 export type SetMunkiSoftwareIconData = {
     body: MunkiObjectMutation;

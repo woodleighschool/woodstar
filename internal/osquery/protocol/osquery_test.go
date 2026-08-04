@@ -11,9 +11,11 @@ import (
 	"testing"
 
 	"github.com/go-chi/chi/v5"
+	chimiddleware "github.com/go-chi/chi/v5/middleware"
 
 	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/enrollment"
+	"github.com/woodleighschool/woodstar/internal/heartbeats"
 	"github.com/woodleighschool/woodstar/internal/osquery"
 )
 
@@ -92,6 +94,33 @@ func TestOsqueryEnrollMapsServiceErrors(t *testing.T) {
 	}
 }
 
+func TestOsqueryConfigPassesRequestContact(t *testing.T) {
+	t.Parallel()
+
+	service := &stubAgentService{}
+	router := chi.NewRouter()
+	router.Use(chimiddleware.ClientIPFromRemoteAddr)
+	NewServer(service, slog.New(slog.DiscardHandler)).RegisterRoutes(router)
+
+	body, err := json.Marshal(osquery.ConfigRequest{NodeKey: "node-key"})
+	if err != nil {
+		t.Fatalf("marshal config request: %v", err)
+	}
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, osqueryPath+"/config", strings.NewReader(string(body)))
+	req.RemoteAddr = "203.0.113.42:1234"
+	req.Header.Set("User-Agent", "osquery/5.12.1")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body: %s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	want := heartbeats.Contact{RemoteIP: "203.0.113.42", UserAgent: "osquery/5.12.1"}
+	if service.configContact != want {
+		t.Fatalf("contact = %#v, want %#v", service.configContact, want)
+	}
+}
+
 func postOsqueryEnroll(t *testing.T, router http.Handler, body osquery.EnrollRequest) *httptest.ResponseRecorder {
 	t.Helper()
 	payload, err := json.Marshal(body)
@@ -106,21 +135,23 @@ func postOsqueryEnroll(t *testing.T, router http.Handler, body osquery.EnrollReq
 }
 
 type stubAgentService struct {
-	enrollErr error
+	enrollErr     error
+	configContact heartbeats.Contact
 }
 
-func (s *stubAgentService) Enroll(context.Context, osquery.EnrollRequest) (string, error) {
+func (s *stubAgentService) Enroll(context.Context, osquery.EnrollRequest, heartbeats.Contact) (string, error) {
 	return "node-key", s.enrollErr
 }
 
-func (*stubAgentService) Config(context.Context, string, string) (osquery.ConfigResponse, error) {
+func (s *stubAgentService) Config(_ context.Context, _ string, contact heartbeats.Contact) (osquery.ConfigResponse, error) {
+	s.configContact = contact
 	return osquery.ConfigResponse{}, nil
 }
 
 func (*stubAgentService) DistributedRead(
 	context.Context,
 	string,
-	string,
+	heartbeats.Contact,
 ) (osquery.DistributedReadResponse, error) {
 	return osquery.DistributedReadResponse{}, nil
 }
@@ -128,7 +159,7 @@ func (*stubAgentService) DistributedRead(
 func (*stubAgentService) DistributedWrite(
 	context.Context,
 	osquery.DistributedWriteRequest,
-	string,
+	heartbeats.Contact,
 ) (osquery.DistributedWriteResponse, error) {
 	return osquery.DistributedWriteResponse{}, nil
 }
@@ -136,7 +167,7 @@ func (*stubAgentService) DistributedWrite(
 func (*stubAgentService) Log(
 	context.Context,
 	string,
-	string,
+	heartbeats.Contact,
 	osquery.LogRequest,
 ) (osquery.LogResponse, error) {
 	return osquery.LogResponse{}, nil

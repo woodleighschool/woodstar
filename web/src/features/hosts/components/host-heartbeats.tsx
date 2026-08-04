@@ -1,0 +1,111 @@
+import type { ColumnDef } from "@tanstack/react-table";
+
+import { DataTableStatic } from "@components/data-table/data-table-static";
+import { PanelEmptyState } from "@components/panel-empty-state";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@components/ui/hover-card";
+import type { Heartbeat, Host } from "@lib/api";
+import { formatRelative } from "@lib/utils";
+
+const heartbeatSourceLabels: Record<string, string> = {
+  orbit: "Orbit",
+  osquery: "osquery",
+  munki: "Munki",
+  santa: "Santa",
+};
+
+const heartbeatSourceRanks: Record<string, number> = {
+  orbit: 0,
+  osquery: 1,
+  munki: 2,
+  santa: 3,
+};
+
+const heartbeatColumns: ColumnDef<Heartbeat>[] = [
+  {
+    accessorKey: "source",
+    header: () => "Agent",
+    cell: ({ row }) => heartbeatSourceLabel(row.original.source),
+  },
+  {
+    accessorKey: "last_seen_at",
+    header: () => "Last Seen",
+    cell: ({ row }) => <HeartbeatTime value={row.original.last_seen_at} />,
+  },
+  {
+    accessorKey: "remote_ip",
+    header: () => "Remote IP",
+    cell: ({ row }) => row.original.remote_ip ?? "-",
+  },
+  {
+    accessorKey: "user_agent",
+    header: () => "User Agent",
+    cell: ({ row }) => (
+      <span className="block max-w-64 truncate" title={row.original.user_agent}>
+        {row.original.user_agent || "-"}
+      </span>
+    ),
+  },
+];
+
+export function HostLastContact({ host }: { host: Host }) {
+  const lastContact = host.last_contact ? formatRelative(host.last_contact) : "Never";
+  const heartbeats = orderedHeartbeats(host.heartbeats);
+
+  if (heartbeats.length === 0) return lastContact;
+
+  return (
+    <HoverCard>
+      <HoverCardTrigger
+        render={
+          <button
+            type="button"
+            aria-label={`${lastContact}; heartbeat details`}
+            className="cursor-default underline decoration-dotted underline-offset-4"
+            title={host.last_contact ? new Date(host.last_contact).toLocaleString() : undefined}
+          />
+        }
+      >
+        {lastContact}
+      </HoverCardTrigger>
+      <HoverCardContent align="start" className="w-72">
+        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
+          {heartbeats.map((heartbeat) => (
+            <div key={heartbeat.source} className="contents">
+              <dt className="text-muted-foreground">{heartbeatSourceLabel(heartbeat.source)}</dt>
+              <dd className="text-right">
+                <HeartbeatTime value={heartbeat.last_seen_at} />
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </HoverCardContent>
+    </HoverCard>
+  );
+}
+
+export function HostHeartbeatTable({ heartbeats }: { heartbeats: Heartbeat[] }) {
+  return (
+    <DataTableStatic
+      heading="Heartbeats"
+      columns={heartbeatColumns}
+      data={orderedHeartbeats(heartbeats)}
+      empty={<PanelEmptyState>No agent contact reported</PanelEmptyState>}
+    />
+  );
+}
+
+function HeartbeatTime({ value }: { value: string }) {
+  return <span title={new Date(value).toLocaleString()}>{formatRelative(value)}</span>;
+}
+
+function heartbeatSourceLabel(source: string) {
+  return heartbeatSourceLabels[source] ?? source;
+}
+
+function orderedHeartbeats(heartbeats: Heartbeat[]) {
+  return heartbeats.toSorted((left, right) => sourceRank(left.source) - sourceRank(right.source));
+}
+
+function sourceRank(source: string) {
+  return heartbeatSourceRanks[source] ?? Number.MAX_SAFE_INTEGER;
+}

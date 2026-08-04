@@ -82,12 +82,12 @@ func hostListQuery(params HostListParams, where string, args []any) dbutil.ListQ
 			"hardware.uuid":                       {SQL: "hardware_uuid"},
 			"os.version":                          {SQL: "lower(os_version)"},
 			"agents.osquery.version":              {SQL: "lower(osquery_version)"},
-			"timestamps.last_seen_at":             {SQL: "last_seen_at", NullOrder: dbutil.NullsLast},
-			"timestamps.last_restarted_at":        {SQL: "last_restarted_at", NullOrder: dbutil.NullsLast},
+			"last_contact":                        {SQL: "last_contact", NullOrder: dbutil.NullsLast},
+			"last_restarted_at":                   {SQL: "last_restarted_at", NullOrder: dbutil.NullsLast},
 			"storage.boot_volume.available_bytes": {SQL: "boot_volume_available_bytes", NullOrder: dbutil.NullsLast},
 			"hardware.memory_bytes":               {SQL: "memory_bytes"},
 			"network.primary_ip":                  {SQL: "primary_ip", NullOrder: dbutil.NullsLast},
-			"network.last_remote_ip":              {SQL: "last_remote_ip", NullOrder: dbutil.NullsLast},
+			"public_ip":                           {SQL: "public_ip", NullOrder: dbutil.NullsLast},
 		},
 		DefaultOrder: []dbutil.OrderExpr{{SQL: "lower(display_name)"}, {SQL: "id"}},
 		Params:       params.ListParams,
@@ -118,9 +118,21 @@ func hostListWhere(params HostListParams) (string, []any) {
 	switch params.Status {
 	case "":
 	case HostStatusOnline:
-		where.Add("last_seen_at >= now() - interval '5 minutes'")
+		where.Add(`EXISTS (
+			SELECT 1
+			FROM host_heartbeats hh
+			WHERE hh.host_id = hosts.id
+			  AND hh.source = 'osquery'
+			  AND hh.last_seen_at >= now() - interval '5 minutes'
+		)`)
 	case HostStatusOffline:
-		where.Add("(last_seen_at IS NULL OR last_seen_at < now() - interval '5 minutes')")
+		where.Add(`NOT EXISTS (
+			SELECT 1
+			FROM host_heartbeats hh
+			WHERE hh.host_id = hosts.id
+			  AND hh.source = 'osquery'
+			  AND hh.last_seen_at >= now() - interval '5 minutes'
+		)`)
 	}
 	if params.LabelID != 0 {
 		labelID := where.Arg(params.LabelID)

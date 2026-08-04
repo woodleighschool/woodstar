@@ -28,10 +28,9 @@ func (s *Store) ApplyInventory(ctx context.Context, hostID int64, update Invento
 		MemoryBytes:                       update.Hardware.MemoryBytes,
 		HardwareVendor:                    update.Hardware.Vendor,
 		OSKernelVersion:                   update.OS.KernelVersion,
-		LastRestartedAt:                   update.Timestamps.LastRestartedAt,
+		LastRestartedAt:                   update.LastRestartedAt,
 		BootVolumeAvailableBytes:          update.Storage.BootVolume.AvailableBytes,
 		BootVolumeTotalBytes:              update.Storage.BootVolume.TotalBytes,
-		LastRemoteIP:                      update.Network.LastRemoteIP,
 		PrimaryIP:                         update.Network.PrimaryIP,
 		PrimaryMAC:                        update.Network.PrimaryMAC,
 		OsqueryDistributedIntervalSeconds: update.Agents.Osquery.DistributedIntervalSeconds,
@@ -62,7 +61,6 @@ SET
 	last_restarted_at = COALESCE(@last_restarted_at::timestamptz, last_restarted_at),
 	boot_volume_available_bytes = COALESCE(@boot_volume_available_bytes::bigint, boot_volume_available_bytes),
 	boot_volume_total_bytes = COALESCE(@boot_volume_total_bytes::bigint, boot_volume_total_bytes),
-	last_remote_ip = COALESCE(NULLIF(@last_remote_ip::text, '')::inet, last_remote_ip),
 	primary_ip = COALESCE(NULLIF(@primary_ip::text, '')::inet, primary_ip),
 	primary_mac = COALESCE(NULLIF(@primary_mac::text, ''), primary_mac),
 	osquery_distributed_interval_seconds = COALESCE(@osquery_distributed_interval_seconds::integer, osquery_distributed_interval_seconds),
@@ -350,7 +348,6 @@ type applyInventoryWrite struct {
 	LastRestartedAt                   *time.Time `db:"last_restarted_at"`
 	BootVolumeAvailableBytes          *int64     `db:"boot_volume_available_bytes"`
 	BootVolumeTotalBytes              *int64     `db:"boot_volume_total_bytes"`
-	LastRemoteIP                      string     `db:"last_remote_ip"`
 	PrimaryIP                         string     `db:"primary_ip"`
 	PrimaryMAC                        string     `db:"primary_mac"`
 	OsqueryDistributedIntervalSeconds *int32     `db:"osquery_distributed_interval_seconds"`

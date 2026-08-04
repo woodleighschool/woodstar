@@ -24,6 +24,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/directory"
 	"github.com/woodleighschool/woodstar/internal/directory/entra"
+	"github.com/woodleighschool/woodstar/internal/heartbeats"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/inventory"
 	"github.com/woodleighschool/woodstar/internal/labels"
@@ -36,7 +37,6 @@ import (
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
 	"github.com/woodleighschool/woodstar/internal/orbit"
 	"github.com/woodleighschool/woodstar/internal/osquery"
-	"github.com/woodleighschool/woodstar/internal/osquery/catalog"
 	"github.com/woodleighschool/woodstar/internal/osquery/checks"
 	"github.com/woodleighschool/woodstar/internal/osquery/ingest"
 	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
@@ -198,7 +198,7 @@ func buildDependencies(
 	// Core stores.
 	labelStore := labels.NewStore(db)
 	directoryStore := directory.NewStore(db)
-	hostStore := hosts.NewStore(db)
+	hostStore, heartbeatStore := newHostStores(db)
 	secretStore := agentauth.NewStore(db)
 	inventoryStore := inventory.NewStore(db)
 	primaryUsers := hosts.NewPrimaryUserStore(db)
@@ -238,7 +238,7 @@ func buildDependencies(
 	if err != nil {
 		return nil, nil, err
 	}
-	orbitAgent := orbit.NewEnrollmentService(hostStore, secretStore, primaryUsers)
+	orbitAgent := orbit.NewEnrollmentService(hostStore, secretStore, primaryUsers, heartbeatStore)
 
 	inventoryProjector := ingest.NewProjector(
 		hostStore,
@@ -246,18 +246,18 @@ func buildDependencies(
 		logger.With("component", "inventory"),
 	)
 	munkiIngestor := munki.NewDetailIngestor(munkiHostState)
-	inventoryProjector.RegisterDetailHandler(catalog.IngestMunkiInfo, munkiIngestor.IngestInfo)
-	inventoryProjector.RegisterDetailHandler(catalog.IngestMunkiInstalls, munkiIngestor.IngestInstalls)
 	labelEvaluator := ingest.NewLabelEvaluator(labelStore, logger.With("component", "labels"))
 	osqueryAgent := osquery.NewAgentService(osquery.Dependencies{
-		HostStore:          hostStore,
-		InventoryProjector: inventoryProjector,
-		LabelEvaluator:     labelEvaluator,
-		ReportStore:        reportStore,
-		CheckStore:         checkStore,
-		LiveQueries:        liveQueries,
-		SecretStore:        secretStore,
-		Logger:             logger.With("component", "osquery"),
+		HostStore:             hostStore,
+		InventoryProjector:    inventoryProjector,
+		MunkiEnvelopeIngestor: munkiIngestor,
+		LabelEvaluator:        labelEvaluator,
+		ReportStore:           reportStore,
+		CheckStore:            checkStore,
+		LiveQueries:           liveQueries,
+		SecretStore:           secretStore,
+		Heartbeats:            heartbeatStore,
+		Logger:                logger.With("component", "osquery"),
 	})
 
 	munkiRepository := munki.NewRepositoryService(munki.Dependencies{
@@ -293,6 +293,7 @@ func buildDependencies(
 		Events:         eventStore,
 		Rules:          ruleStore,
 		Sync:           syncStore,
+		Heartbeats:     heartbeatStore,
 	})
 	santaState := santa.NewHostStateService(santaHostStore, configurationStore)
 
@@ -345,6 +346,7 @@ func buildDependencies(
 			Osquery:   osqueryAgent,
 			Munki: api.MunkiProtocolDependencies{
 				Hosts:                hostStore,
+				Heartbeats:           heartbeatStore,
 				Repository:           munkiRepository,
 				Distribution:         munkiDistribution,
 				DistributionProtocol: munkiDistributionProtocol,
@@ -364,6 +366,10 @@ func buildDependencies(
 	}
 
 	return deps, starters, nil
+}
+
+func newHostStores(db *database.DB) (*hosts.Store, *heartbeats.Store) {
+	return hosts.NewStore(db), heartbeats.NewStore(db)
 }
 
 func storageUploadCleanupStarter(

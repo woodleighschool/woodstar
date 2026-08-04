@@ -61,12 +61,12 @@ export function HostInfoCard({ host }: { host: HostDetail }) {
         }
       />
       <KeyValueRow label="Hardware Model" value={host.hardware.model_identifier} />
-      {host.timestamps.last_restarted_at ? (
+      {host.last_restarted_at ? (
         <KeyValueRow
           label="Last Restarted"
           value={
-            <span title={new Date(host.timestamps.last_restarted_at).toLocaleString()}>
-              {formatRelative(host.timestamps.last_restarted_at)}
+            <span title={new Date(host.last_restarted_at).toLocaleString()}>
+              {formatRelative(host.last_restarted_at)}
             </span>
           }
         />
@@ -83,7 +83,7 @@ export function HostInfoCard({ host }: { host: HostDetail }) {
       {host.hardware.cpu.architecture ? (
         <KeyValueRow label="Architecture" value={host.hardware.cpu.architecture} />
       ) : null}
-      <KeyValueRow label="Public IP Address" value={host.network.last_remote_ip} />
+      <KeyValueRow label="Public IP Address" value={host.public_ip} />
       <KeyValueRow label="Serial Number" value={host.hardware.serial} />
     </KeyValueSection>
   );

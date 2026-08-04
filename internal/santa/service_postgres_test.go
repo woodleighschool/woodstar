@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/woodleighschool/woodstar/internal/database"
+	"github.com/woodleighschool/woodstar/internal/heartbeats"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/santa"
@@ -32,6 +33,7 @@ func TestSyncServiceRuleDownloadUsesPreflightSnapshot(t *testing.T) {
 		Events:         santaevents.NewStore(db),
 		Rules:          ruleStore,
 		Sync:           syncstate.NewStore(db),
+		Heartbeats:     heartbeats.NewStore(db),
 	})
 
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
@@ -62,7 +64,7 @@ func TestSyncServiceRuleDownloadUsesPreflightSnapshot(t *testing.T) {
 		t.Fatalf("create initial rule: %v", err)
 	}
 
-	if _, err := service.Preflight(ctx, "santa-sync-host", santa.PreflightRequest{
+	if _, err := service.Preflight(ctx, "santa-sync-host", heartbeats.Contact{}, santa.PreflightRequest{
 		SerialNumber:     "SANTASYNC",
 		RulesHash:        "00000000000000000000000000000000",
 		RequestCleanSync: true,
@@ -83,7 +85,7 @@ func TestSyncServiceRuleDownloadUsesPreflightSnapshot(t *testing.T) {
 		t.Fatalf("create rule after preflight: %v", err)
 	}
 
-	frozenDownload, err := service.RuleDownload(ctx, "santa-sync-host", santa.RuleDownloadRequest{})
+	frozenDownload, err := service.RuleDownload(ctx, "santa-sync-host", heartbeats.Contact{}, santa.RuleDownloadRequest{})
 	if err != nil {
 		t.Fatalf("download frozen rules: %v", err)
 	}

@@ -632,7 +632,9 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 		server.BaseURL+"/munki/manifests/"+serial,
 		serial,
 	)
+	manifestStartedAt := time.Now()
 	manifestResponse, err := munkiClient.Do(manifestRequest)
+	manifestFinishedAt := time.Now()
 	if err != nil {
 		t.Fatalf("fetch Munki manifest: %v", err)
 	}
@@ -658,6 +660,98 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 		len(manifest.ManagedInstalls) != 1 || manifest.ManagedInstalls[0] != softwareName {
 		t.Fatalf("manifest = %+v, want woodstar catalog and %s install", manifest, softwareName)
 	}
+	manifestHostResponse, err := server.Admin.GetHostWithResponse(t.Context(), hostID)
+	manifestHostResponse = requireAPIResponse(
+		t,
+		"get host after Munki manifest",
+		http.StatusOK,
+		manifestHostResponse,
+		err,
+	)
+	if manifestHostResponse.JSON200 == nil {
+		t.Fatal("get host after Munki manifest returned no JSON body")
+	}
+	manifestHost := *manifestHostResponse.JSON200
+	manifestHeartbeat := requireHeartbeat(t, manifestHost.Heartbeats, "munki")
+	if len(manifestHost.Heartbeats) != 1 ||
+		manifestHeartbeat.LastSeenAt.Before(manifestStartedAt.Add(-heartbeatTimeTolerance)) ||
+		manifestHeartbeat.LastSeenAt.After(manifestFinishedAt.Add(heartbeatTimeTolerance)) ||
+		manifestHost.LastContact == nil ||
+		!manifestHost.LastContact.Equal(manifestHeartbeat.LastSeenAt) || manifestHost.Status != "offline" ||
+		manifestHost.PublicIp != nil {
+		t.Fatalf(
+			"host after Munki manifest = %+v, heartbeat = %+v, want one bounded Munki contact without osquery state",
+			manifestHost,
+			manifestHeartbeat,
+		)
+	}
+	hostMunkiResponse, err := server.Admin.GetHostMunkiStateWithResponse(t.Context(), hostID)
+	requireAPIResponse(
+		t,
+		"get host Munki state after contact before collection",
+		http.StatusNotFound,
+		hostMunkiResponse,
+		err,
+	)
+
+	softwarePageResponse, err := server.Admin.ListMunkiSoftwareWithResponse(t.Context(), nil)
+	softwarePageResponse = requireAPIResponse(
+		t,
+		"list software deployments",
+		http.StatusOK,
+		softwarePageResponse,
+		err,
+	)
+	if softwarePageResponse.JSON200 == nil {
+		t.Fatal("software deployment page returned no JSON body")
+	}
+	softwareIndex := -1
+	for i := range softwarePageResponse.JSON200.Items {
+		if softwarePageResponse.JSON200.Items[i].Id == software.Id {
+			softwareIndex = i
+			break
+		}
+	}
+	if softwareIndex < 0 ||
+		softwarePageResponse.JSON200.Items[softwareIndex].Deployment.AssignedCount != 1 ||
+		softwarePageResponse.JSON200.Items[softwareIndex].Deployment.ReportingCount != 0 ||
+		softwarePageResponse.JSON200.Items[softwareIndex].Deployment.InstalledCount != 0 {
+		t.Fatalf("software deployment page = %+v, want one unreported assignment", softwarePageResponse.JSON200)
+	}
+
+	assignedHostsResponse, err := server.Admin.ListMunkiSoftwareHostsWithResponse(
+		t.Context(),
+		software.Id,
+		nil,
+	)
+	assignedHostsResponse = requireAPIResponse(
+		t,
+		"list assigned software hosts",
+		http.StatusOK,
+		assignedHostsResponse,
+		err,
+	)
+	if assignedHostsResponse.JSON200 == nil || assignedHostsResponse.JSON200.Count != 1 ||
+		len(assignedHostsResponse.JSON200.Items) != 1 ||
+		assignedHostsResponse.JSON200.Items[0].ReportState != adminapi.MunkiDeploymentHostReportStateNeverCollected ||
+		assignedHostsResponse.JSON200.Items[0].Installed {
+		t.Fatalf("assigned software hosts = %+v, want one never-collected host", assignedHostsResponse.JSON200)
+	}
+
+	hostSoftwareResponse, err := server.Admin.ListHostMunkiSoftwareWithResponse(t.Context(), hostID, nil)
+	hostSoftwareResponse = requireAPIResponse(
+		t,
+		"list host Munki software status",
+		http.StatusOK,
+		hostSoftwareResponse,
+		err,
+	)
+	if hostSoftwareResponse.JSON200 == nil || hostSoftwareResponse.JSON200.Count != 1 ||
+		len(hostSoftwareResponse.JSON200.Items) != 1 ||
+		hostSoftwareResponse.JSON200.Items[0].Status != nil {
+		t.Fatalf("host Munki software = %+v, want one never-collected assignment", hostSoftwareResponse.JSON200)
+	}
+
 	secondManifestRequest := newMunkiRequest(
 		t,
 		t.Context(),
@@ -901,13 +995,40 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 		server.BaseURL+"/munki/pkgs/"+secondInstallerItemLocation,
 		serial,
 	)
+	missingPackageStartedAt := time.Now()
 	secondPackageForFirstHostResponse, err := munkiClient.Do(secondPackageForFirstHostRequest)
+	missingPackageFinishedAt := time.Now()
 	if err != nil {
 		t.Fatalf("fetch second-host package as first host: %v", err)
 	}
 	drainAndClose(t, secondPackageForFirstHostResponse)
 	if secondPackageForFirstHostResponse.StatusCode != http.StatusNotFound {
 		t.Fatalf("second-host package as first host status = %d, want 404", secondPackageForFirstHostResponse.StatusCode)
+	}
+	missingPackageHostResponse, err := server.Admin.GetHostWithResponse(t.Context(), hostID)
+	missingPackageHostResponse = requireAPIResponse(
+		t,
+		"get host after known Munki package miss",
+		http.StatusOK,
+		missingPackageHostResponse,
+		err,
+	)
+	if missingPackageHostResponse.JSON200 == nil {
+		t.Fatal("get host after known Munki package miss returned no JSON body")
+	}
+	missingPackageHost := *missingPackageHostResponse.JSON200
+	missingPackageHeartbeat := requireHeartbeat(t, missingPackageHost.Heartbeats, "munki")
+	if len(missingPackageHost.Heartbeats) != 1 ||
+		!missingPackageHeartbeat.LastSeenAt.After(manifestHeartbeat.LastSeenAt) ||
+		missingPackageHeartbeat.LastSeenAt.Before(missingPackageStartedAt.Add(-heartbeatTimeTolerance)) ||
+		missingPackageHeartbeat.LastSeenAt.After(missingPackageFinishedAt.Add(heartbeatTimeTolerance)) ||
+		missingPackageHost.LastContact == nil ||
+		!missingPackageHost.LastContact.Equal(missingPackageHeartbeat.LastSeenAt) {
+		t.Fatalf(
+			"host after known Munki package miss = %+v, heartbeat = %+v, want refreshed current Munki contact",
+			missingPackageHost,
+			missingPackageHeartbeat,
+		)
 	}
 	redirectRequest := newMunkiRequest(
 		t,

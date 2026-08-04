@@ -27,29 +27,17 @@ type softwareStore interface {
 }
 
 type Projector struct {
-	hostStore      hostStore
-	softwareStore  softwareStore
-	logger         *slog.Logger
-	detailHandlers map[catalog.DetailIngest]DetailHandler
+	hostStore     hostStore
+	softwareStore softwareStore
+	logger        *slog.Logger
 }
-
-// DetailHandler ingests one detail query's rows for a host. Capabilities outside
-// osquery register handlers for detail kinds the projector core does not own.
-type DetailHandler func(ctx context.Context, hostID int64, rows []map[string]string) error
 
 func NewProjector(hostStore hostStore, softwareStore softwareStore, logger *slog.Logger) *Projector {
 	return &Projector{
-		hostStore:      hostStore,
-		softwareStore:  softwareStore,
-		logger:         logger,
-		detailHandlers: map[catalog.DetailIngest]DetailHandler{},
+		hostStore:     hostStore,
+		softwareStore: softwareStore,
+		logger:        logger,
 	}
-}
-
-// RegisterDetailHandler routes a detail-query ingest kind to a handler owned by
-// another capability, keeping cross-capability enrichment out of the core.
-func (p *Projector) RegisterDetailHandler(kind catalog.DetailIngest, handler DetailHandler) {
-	p.detailHandlers[kind] = handler
 }
 
 func (p *Projector) MarkFresh(ctx context.Context, hostID int64) error {
@@ -78,10 +66,7 @@ func (p *Projector) IngestDetail(
 	case catalog.IngestCertificates:
 		return ingestCertificates(ctx, p, hostID, rows)
 	case catalog.IngestMunkiInfo, catalog.IngestMunkiInstalls:
-		if handler, ok := p.detailHandlers[query.Ingest]; ok {
-			return handler(ctx, hostID, rows)
-		}
-		return fmt.Errorf("no detail handler registered for %q", query.Ingest)
+		return fmt.Errorf("munki ingest %q cannot be projected alone", query.Ingest)
 	case catalog.IngestSoftwareBase, catalog.IngestSoftwareEnrichment:
 		return fmt.Errorf("deferred software ingest %q cannot be projected alone", query.Ingest)
 	default:

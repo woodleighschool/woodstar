@@ -15,10 +15,12 @@ import (
 
 	syncv1 "buf.build/gen/go/northpolesec/protos/protocolbuffers/go/sync"
 	"github.com/go-chi/chi/v5"
+	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/heartbeats"
 	"github.com/woodleighschool/woodstar/internal/santa"
 	santaevents "github.com/woodleighschool/woodstar/internal/santa/events"
 	santarules "github.com/woodleighschool/woodstar/internal/santa/rules"
@@ -53,6 +55,43 @@ func TestSantaHTTPRuleDownloadRoundTripsCursor(t *testing.T) {
 	}
 	if service.ruleDownloadCursor != "current" {
 		t.Fatalf("request cursor = %q, want current", service.ruleDownloadCursor)
+	}
+}
+
+func TestSantaHTTPSyncPassesConnectionContactForEveryStage(t *testing.T) {
+	tests := []struct {
+		name    string
+		path    string
+		request proto.Message
+		stage   string
+	}{
+		{name: "preflight", path: "/santa/sync/preflight/machine-1", request: &syncv1.PreflightRequest{}, stage: "preflight"},
+		{name: "event upload", path: "/santa/sync/eventupload/machine-1", request: &syncv1.EventUploadRequest{}, stage: "eventupload"},
+		{name: "rule download", path: "/santa/sync/ruledownload/machine-1", request: &syncv1.RuleDownloadRequest{}, stage: "ruledownload"},
+		{name: "postflight", path: "/santa/sync/postflight/machine-1", request: &syncv1.PostflightRequest{SyncType: syncv1.SyncType_NORMAL}, stage: "postflight"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			service := &recordingService{}
+			router := newSantaContractRouter(&staticVerifier{ok: true}, service)
+			req := santaContractRequest(t, tt.path, tt.request)
+			req.RemoteAddr = "203.0.113.12:54321"
+			req.Header.Set("User-Agent", "santad/2026.1")
+			rec := httptest.NewRecorder()
+
+			router.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusOK {
+				t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
+			}
+			if service.stage != tt.stage {
+				t.Fatalf("stage = %q, want %q", service.stage, tt.stage)
+			}
+			if got, want := service.contact, (heartbeats.Contact{RemoteIP: "203.0.113.12", UserAgent: "santad/2026.1"}); got != want {
+				t.Fatalf("contact = %+v, want %+v", got, want)
+			}
+		})
 	}
 }
 
@@ -571,6 +610,7 @@ func TestSantaHTTPMapsInvalidCursorToBadRequest(t *testing.T) {
 
 func newSantaContractRouter(verifier agentauth.SecretVerifier, service SyncService) chi.Router {
 	r := chi.NewRouter()
+	r.Use(chimiddleware.ClientIPFromRemoteAddr)
 	NewServer(verifier, service, slog.New(slog.DiscardHandler)).RegisterRoutes(r)
 	return r
 }
@@ -661,49 +701,58 @@ type recordingService struct {
 	ruleDownloadCursor   string
 	ruleDownloadResponse santa.RuleDownloadResponse
 	postflightRequest    santa.PostflightRequest
+	contact              heartbeats.Contact
 	err                  error
 }
 
 func (s *recordingService) Preflight(
 	_ context.Context,
 	machineID string,
+	contact heartbeats.Contact,
 	req santa.PreflightRequest,
 ) (santa.PreflightResponse, error) {
 	s.stage = "preflight"
 	s.machineID = machineID
 	s.preflightCounts = req.RuleCounts
+	s.contact = contact
 	return santa.PreflightResponse{SyncType: syncstate.SyncTypeNormal}, s.err
 }
 
 func (s *recordingService) EventUpload(
 	_ context.Context,
 	machineID string,
+	contact heartbeats.Contact,
 	req santa.EventUploadRequest,
 ) (santa.EventUploadResponse, error) {
 	s.stage = "eventupload"
 	s.machineID = machineID
 	s.eventUploadRequest = req
+	s.contact = contact
 	return s.eventUploadResponse, s.err
 }
 
 func (s *recordingService) RuleDownload(
 	_ context.Context,
 	machineID string,
+	contact heartbeats.Contact,
 	req santa.RuleDownloadRequest,
 ) (santa.RuleDownloadResponse, error) {
 	s.stage = "ruledownload"
 	s.machineID = machineID
 	s.ruleDownloadCursor = req.Cursor
+	s.contact = contact
 	return s.ruleDownloadResponse, s.err
 }
 
 func (s *recordingService) Postflight(
 	_ context.Context,
 	machineID string,
+	contact heartbeats.Contact,
 	req santa.PostflightRequest,
 ) (santa.PostflightResponse, error) {
 	s.stage = "postflight"
 	s.machineID = machineID
 	s.postflightRequest = req
+	s.contact = contact
 	return santa.PostflightResponse{}, s.err
 }

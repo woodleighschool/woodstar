@@ -10,8 +10,10 @@ import (
 	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/enrollment"
+	"github.com/woodleighschool/woodstar/internal/heartbeats"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
+	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/osquery/catalog"
 	"github.com/woodleighschool/woodstar/internal/osquery/checks"
 	"github.com/woodleighschool/woodstar/internal/osquery/ingest"
@@ -25,20 +27,29 @@ type AgentService struct {
 }
 
 type Dependencies struct {
-	HostStore          hostStore
-	InventoryProjector inventoryProjector
-	LabelEvaluator     labelEvaluator
-	ReportStore        reportStore
-	CheckStore         checkStore
-	LiveQueries        liveQueries
-	SecretStore        agentauth.SecretVerifier
-	Logger             *slog.Logger
+	HostStore             hostStore
+	InventoryProjector    inventoryProjector
+	MunkiEnvelopeIngestor munkiEnvelopeIngestor
+	LabelEvaluator        labelEvaluator
+	ReportStore           reportStore
+	CheckStore            checkStore
+	LiveQueries           liveQueries
+	SecretStore           agentauth.SecretVerifier
+	Heartbeats            heartbeatRecorder
+	Logger                *slog.Logger
+}
+
+type munkiEnvelopeIngestor interface {
+	IngestEnvelope(ctx context.Context, hostID int64, envelope munki.EnvelopeInput) error
 }
 
 type hostStore interface {
 	UpsertOnOsqueryEnroll(ctx context.Context, update hosts.InventoryUpdate) (*hosts.Host, error)
 	GetByOsqueryNodeKey(ctx context.Context, nodeKey string) (*hosts.Host, error)
-	ApplyInventory(ctx context.Context, hostID int64, update hosts.InventoryUpdate) error
+}
+
+type heartbeatRecorder interface {
+	Record(context.Context, int64, heartbeats.Source, heartbeats.Contact) error
 }
 
 type inventoryProjector interface {
@@ -85,7 +96,7 @@ func NewAgentService(deps Dependencies) *AgentService {
 }
 
 // Enroll validates the enroll secret, stores host details, and returns a node key.
-func (s *AgentService) Enroll(ctx context.Context, req EnrollRequest) (string, error) {
+func (s *AgentService) Enroll(ctx context.Context, req EnrollRequest, contact heartbeats.Contact) (string, error) {
 	nodeKey, err := enrollment.IssueNodeKey(ctx, s.deps.SecretStore, req.EnrollSecret)
 	if err != nil {
 		return "", err
@@ -104,6 +115,9 @@ func (s *AgentService) Enroll(ctx context.Context, req EnrollRequest) (string, e
 	if err != nil {
 		return "", fmt.Errorf("upsert host: %w", err)
 	}
+	if err := s.deps.Heartbeats.Record(ctx, host.ID, heartbeats.SourceOsquery, contact); err != nil {
+		return "", fmt.Errorf("record heartbeat: %w", err)
+	}
 	s.deps.Logger.DebugContext(
 		ctx,
 		"osquery host enrolled", "operation", "enroll",
@@ -115,8 +129,8 @@ func (s *AgentService) Enroll(ctx context.Context, req EnrollRequest) (string, e
 }
 
 // Config returns the current osquery config including the host's report schedule.
-func (s *AgentService) Config(ctx context.Context, nodeKey string, publicIP string) (ConfigResponse, error) {
-	host, ok, err := s.hostByNodeKey(ctx, nodeKey, publicIP)
+func (s *AgentService) Config(ctx context.Context, nodeKey string, contact heartbeats.Contact) (ConfigResponse, error) {
+	host, ok, err := s.hostByNodeKey(ctx, nodeKey, contact)
 	if err != nil {
 		return ConfigResponse{}, err
 	}
@@ -144,9 +158,9 @@ func (s *AgentService) Config(ctx context.Context, nodeKey string, publicIP stri
 func (s *AgentService) DistributedRead(
 	ctx context.Context,
 	nodeKey string,
-	publicIP string,
+	contact heartbeats.Contact,
 ) (DistributedReadResponse, error) {
-	host, ok, err := s.hostByNodeKey(ctx, nodeKey, publicIP)
+	host, ok, err := s.hostByNodeKey(ctx, nodeKey, contact)
 	if err != nil {
 		return DistributedReadResponse{}, err
 	}
@@ -154,7 +168,7 @@ func (s *AgentService) DistributedRead(
 		return DistributedReadResponse{NodeInvalid: true}, nil
 	}
 
-	due := catalog.DetailQueriesDue(host.Timestamps.InventoryUpdatedAt, host.InventoryQueryHash)
+	due := catalog.DetailQueriesDue(host.InventoryUpdatedAt, host.InventoryQueryHash)
 	detailQueries := make(map[string]string, len(due.Queries))
 	for suffix, sql := range due.Queries {
 		detailQueries[queryName(kindDetail, suffix)] = sql
@@ -236,9 +250,9 @@ func (s *AgentService) queueLiveQueries(host *hosts.Host, queryMap map[string]st
 func (s *AgentService) DistributedWrite(
 	ctx context.Context,
 	req DistributedWriteRequest,
-	publicIP string,
+	contact heartbeats.Contact,
 ) (DistributedWriteResponse, error) {
-	host, ok, err := s.hostByNodeKey(ctx, req.NodeKey, publicIP)
+	host, ok, err := s.hostByNodeKey(ctx, req.NodeKey, contact)
 	if err != nil {
 		return DistributedWriteResponse{}, err
 	}
@@ -252,8 +266,8 @@ func (s *AgentService) DistributedWrite(
 }
 
 // Log accepts osquery scheduled-query logs and persists snapshot results.
-func (s *AgentService) Log(ctx context.Context, nodeKey string, publicIP string, req LogRequest) (LogResponse, error) {
-	host, ok, err := s.hostByNodeKey(ctx, nodeKey, publicIP)
+func (s *AgentService) Log(ctx context.Context, nodeKey string, contact heartbeats.Contact, req LogRequest) (LogResponse, error) {
+	host, ok, err := s.hostByNodeKey(ctx, nodeKey, contact)
 	if err != nil {
 		return LogResponse{}, err
 	}
@@ -268,7 +282,7 @@ func (s *AgentService) Log(ctx context.Context, nodeKey string, publicIP string,
 	return LogResponse{NodeInvalid: false}, nil
 }
 
-func (s *AgentService) hostByNodeKey(ctx context.Context, nodeKey string, publicIP string) (*hosts.Host, bool, error) {
+func (s *AgentService) hostByNodeKey(ctx context.Context, nodeKey string, contact heartbeats.Contact) (*hosts.Host, bool, error) {
 	host, err := s.deps.HostStore.GetByOsqueryNodeKey(ctx, nodeKey)
 	if errors.Is(err, dbutil.ErrNotFound) {
 		return nil, false, nil
@@ -276,16 +290,8 @@ func (s *AgentService) hostByNodeKey(ctx context.Context, nodeKey string, public
 	if err != nil {
 		return nil, false, err
 	}
-	if publicIP != "" && !hostPublicIPMatches(host, publicIP) {
-		if err := s.deps.HostStore.ApplyInventory(ctx, host.ID, hosts.InventoryUpdate{
-			Network: hosts.InventoryNetwork{LastRemoteIP: publicIP},
-		}); err != nil {
-			return nil, false, err
-		}
+	if err := s.deps.Heartbeats.Record(ctx, host.ID, heartbeats.SourceOsquery, contact); err != nil {
+		return nil, false, fmt.Errorf("record heartbeat: %w", err)
 	}
 	return host, true, nil
-}
-
-func hostPublicIPMatches(host *hosts.Host, publicIP string) bool {
-	return host.Network.LastRemoteIP != nil && host.Network.LastRemoteIP.String() == publicIP
 }

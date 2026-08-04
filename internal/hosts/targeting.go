@@ -65,7 +65,13 @@ func (s *Store) ResolveOnlineSelectedTargets(
 		SELECT id, display_name
 		FROM hosts
 		WHERE id = ANY($1::bigint[])
-		  AND last_seen_at >= $2
+		  AND EXISTS (
+			  SELECT 1
+			  FROM host_heartbeats hh
+			  WHERE hh.host_id = hosts.id
+			    AND hh.source = 'osquery'
+			    AND hh.last_seen_at >= $2
+		  )
 		ORDER BY id`, hostIDs, &onlineSince)
 	if err != nil {
 		return nil, err
@@ -92,8 +98,20 @@ func (s *Store) CountSelectedTargets(
 	err = s.db.Pool().QueryRow(ctx, `
 		SELECT
 			count(*)::integer AS total,
-			count(*) FILTER (WHERE last_seen_at >= $1)::integer AS online,
-			count(*) FILTER (WHERE last_seen_at IS NULL OR last_seen_at < $1)::integer AS offline
+			count(*) FILTER (WHERE EXISTS (
+				SELECT 1
+				FROM host_heartbeats hh
+				WHERE hh.host_id = hosts.id
+				  AND hh.source = 'osquery'
+				  AND hh.last_seen_at >= $1
+			))::integer AS online,
+			count(*) FILTER (WHERE NOT EXISTS (
+				SELECT 1
+				FROM host_heartbeats hh
+				WHERE hh.host_id = hosts.id
+				  AND hh.source = 'osquery'
+				  AND hh.last_seen_at >= $1
+			))::integer AS offline
 		FROM hosts
 		WHERE id = ANY($2::bigint[])`, &onlineSince, hostIDs).
 		Scan(&metrics.Total, &metrics.Online, &metrics.Offline)
