@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.9](https://github.com/woodleighschool/woodstar/compare/0.7.8...0.7.9) (2026-08-04)
+
+
+### Bug Fixes
+
+* **ci:** disable automatic mise installs ([c4d6e0c](https://github.com/woodleighschool/woodstar/commit/c4d6e0c01fb97ec3845850374bfa09dc3358cfe5))
+
 ## [0.7.8](https://github.com/woodleighschool/woodstar/compare/0.7.7...0.7.8) (2026-08-04)
 
 
