@@ -1,5 +1,39 @@
 # Changelog
 
+## [0.7.8](https://github.com/woodleighschool/woodstar/compare/0.7.7...0.7.8) (2026-08-04)
+
+
+### Features
+
+* **deps:** update all deps ([b461453](https://github.com/woodleighschool/woodstar/commit/b46145356309190a2c6e0b392013c0cf8e772ed7))
+* **deps:** update pnpm (11.18.0 → 11.19.0) ([#118](https://github.com/woodleighschool/woodstar/issues/118)) ([b68a445](https://github.com/woodleighschool/woodstar/commit/b68a445408e13f684571df0d518e9d19f51cb712))
+* **deps:** update pnpm (11.19.0 → 11.20.0) ([#122](https://github.com/woodleighschool/woodstar/issues/122)) ([2bb05ca](https://github.com/woodleighschool/woodstar/commit/2bb05cade040dc2c1817aa764f1a10427d456872))
+* **hosts:** add current agent heartbeats ([2dfbbee](https://github.com/woodleighschool/woodstar/commit/2dfbbee504362958132335f5067a4c869f9096fb))
+* **hosts:** project agent heartbeats ([9eb9a4c](https://github.com/woodleighschool/woodstar/commit/9eb9a4c3e2bdb6f4cf9d8c479ebd7aa9234dc93a))
+* **hosts:** record munki and santa contact ([88df843](https://github.com/woodleighschool/woodstar/commit/88df843fc0db9462c80744fd3b73308914c18882))
+* **hosts:** record orbit and osquery contact ([7a048fb](https://github.com/woodleighschool/woodstar/commit/7a048fb81490cef9f5f4885a651a76ecbeaf1acd))
+* **hosts:** show granular last contact ([e5bac5e](https://github.com/woodleighschool/woodstar/commit/e5bac5e036bd16f40f11cb3309cdcab5af182489))
+* **munki:** bind repository requests to hosts ([ee7ef03](https://github.com/woodleighschool/woodstar/commit/ee7ef0341f7eaaebd2986328d23d7d31b13adaa2))
+* **munki:** bind repository requests to hosts ([#109](https://github.com/woodleighschool/woodstar/issues/109)) ([ac17562](https://github.com/woodleighschool/woodstar/commit/ac175622f6fc8033218800abd3abbf02fed5fad1))
+* **munki:** scope repository content by host ([ce30ea6](https://github.com/woodleighschool/woodstar/commit/ce30ea6f5a3f068b00c21ef0e1a4010f8341488d))
+* **munki:** show software install coverage ([0ae5190](https://github.com/woodleighschool/woodstar/commit/0ae5190e86a98b0178264a3d7c4e852b14a968a0))
+* **munki:** show software install coverage ([edc5458](https://github.com/woodleighschool/woodstar/commit/edc54589d46c9d690aed34a5a9da4b4daa8ea5b2))
+* **munki:** show software install coverage ([#108](https://github.com/woodleighschool/woodstar/issues/108)) ([0ae5190](https://github.com/woodleighschool/woodstar/commit/0ae5190e86a98b0178264a3d7c4e852b14a968a0))
+
+
+### Bug Fixes
+
+* **deps:** update module github.com/aws/aws-sdk-go-v2/service/s3 (v1.106.3 → v1.106.4) ([#119](https://github.com/woodleighschool/woodstar/issues/119)) ([17aa61c](https://github.com/woodleighschool/woodstar/commit/17aa61cc0a3968eaad535131dafd7fe0d6943a31))
+* **hosts:** reject scoped heartbeat IPs ([3eec7ec](https://github.com/woodleighschool/woodstar/commit/3eec7eca445ba5578e84b652f7337c7765af0eab))
+* **hosts:** validate heartbeat remote IPs ([13f6839](https://github.com/woodleighschool/woodstar/commit/13f6839753dc0ed0921e12480a87a3d7af64854a))
+* **munki:** keep pinned updates package-specific ([b453ca4](https://github.com/woodleighschool/woodstar/commit/b453ca41408bd355375bf0c7f3327fead76b3084))
+* **orbit:** classify config heartbeat failures ([e05b9c5](https://github.com/woodleighschool/woodstar/commit/e05b9c5d3266b30bdc8113478f9144d08b987f18))
+
+
+### Documentation
+
+* **munki:** configure serial request identity ([c62b3c5](https://github.com/woodleighschool/woodstar/commit/c62b3c5712f8289daecdfc7fd383cb7a9e9e0b69))
+
 ## [0.7.7](https://github.com/woodleighschool/woodstar/compare/0.7.6...0.7.7) (2026-08-03)
 
 
