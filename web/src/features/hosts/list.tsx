@@ -19,6 +19,7 @@ import { FilterChip } from "@components/filter-controls";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link } from "@components/link";
 import { QueryError } from "@components/query-error";
+import { RelativeTime } from "@components/relative-time";
 import { useAuth } from "@features/auth/queries";
 import { HostLastContact } from "@features/hosts/components/host-heartbeats";
 import { HostOnlineDot } from "@features/hosts/components/host-online-dot";
@@ -27,7 +28,6 @@ import { useLabel } from "@features/labels/queries";
 import { useSoftwareTitle } from "@features/software/queries";
 import type { Host, SoftwareTitle } from "@lib/api";
 import { DEFAULT_PAGE_SIZE } from "@lib/pagination";
-import { formatRelative } from "@lib/utils";
 
 const STATUS_OPTIONS = [
   { value: "online", label: "Online" },
@@ -186,10 +186,10 @@ const hostColumns: ColumnDef<Host>[] = [
     header: "Name",
     cell: ({ row }) => (
       <div className="flex items-center gap-2">
-        <HostOnlineDot status={row.original.status} />
         <Link to="/hosts/$id" params={{ id: String(row.original.id) }} className="font-medium">
           {row.original.display_name}
         </Link>
+        <HostOnlineDot status={row.original.status} />
       </div>
     ),
     enableHiding: false,
@@ -302,7 +302,11 @@ const hostColumns: ColumnDef<Host>[] = [
     accessorFn: (row) => row.last_restarted_at,
     header: "Last Restarted",
     cell: ({ row }) =>
-      row.original.last_restarted_at ? formatRelative(row.original.last_restarted_at) : "-",
+      row.original.last_restarted_at ? (
+        <RelativeTime value={row.original.last_restarted_at} />
+      ) : (
+        "-"
+      ),
     size: 152,
     meta: { label: "Last Restarted" },
   },
