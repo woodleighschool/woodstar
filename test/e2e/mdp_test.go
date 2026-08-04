@@ -17,6 +17,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+
 	"github.com/woodleighschool/woodstar/internal/munki/mdp/wire"
 	"github.com/woodleighschool/woodstar/test/e2e/adminapi"
 )
@@ -27,19 +29,21 @@ func TestMDP(t *testing.T) { //nolint:funlen // Linear product lifecycle; splitt
 	const (
 		installerFilename = "WoodstarMDPIntegration.pkg"
 		munkiSecret       = "munki-mdp-integration-secret-0123456789" //nolint:gosec // Protocol fixture secret.
+		serial            = "MDP-INTEGRATION-001"
 	)
 
 	server := startTestServer(t)
 	server.redact(munkiSecret)
 	provisionMDPAdmin(t, server)
 	createMDPMunkiSecret(t, server, munkiSecret)
+	allHostsLabelID := seedMDPHost(t, server, serial)
 
 	installerBytes := bytes.Repeat(
 		[]byte("woodstar-mdp-storage-agnostic-installer\x00\x01\x02\x03"),
 		128,
 	)
 	installer := createMDPInstaller(t, server, installerFilename, installerBytes)
-	softwareID := createMDPSoftware(t, server)
+	softwareID := createMDPSoftware(t, server, allHostsLabelID)
 	pkg := createMDPPackage(t, server, softwareID, installer)
 
 	workerRoot := t.TempDir()
@@ -141,6 +145,7 @@ func TestMDP(t *testing.T) { //nolint:funlen // Linear product lifecycle; splitt
 		t.Fatalf("create Munki package request: %v", err)
 	}
 	packageRequest.Header.Set("Authorization", "Bearer "+munkiSecret)
+	packageRequest.Header.Set("X-Woodstar-Serial-Number", serial)
 	redirectResponse, err := redirectClient.Do(packageRequest)
 	if err != nil {
 		t.Fatalf("request Munki package: %v", err)
@@ -212,6 +217,53 @@ func createMDPMunkiSecret(t *testing.T, server *testServer, secret string) {
 	createAgentSecret(t, server, adminapi.AgentSecretCreateAgentMunki, secret)
 }
 
+func seedMDPHost(t *testing.T, server *testServer, serial string) int64 {
+	t.Helper()
+
+	database, err := pgx.Connect(t.Context(), server.DatabaseURL)
+	if err != nil {
+		t.Fatalf("connect to isolated Woodstar database: %v", err)
+	}
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), databaseOperationTimeout)
+		defer cancel()
+		if closeErr := database.Close(ctx); closeErr != nil {
+			t.Errorf("close isolated Woodstar database connection: %v", closeErr)
+		}
+	})
+
+	var hostID int64
+	err = database.QueryRow(
+		t.Context(),
+		`INSERT INTO hosts (hardware_uuid, hardware_serial, os_platform)
+		 VALUES ($1, $2, $3)
+		 RETURNING id`,
+		"5DBCA52D-6518-4E25-B3B9-5F3AC72865E8",
+		serial,
+		"darwin",
+	).Scan(&hostID)
+	if err != nil {
+		t.Fatalf("seed canonical MDP host: %v", err)
+	}
+
+	var allHostsLabelID int64
+	if err := database.QueryRow(
+		t.Context(),
+		"SELECT id FROM labels WHERE builtin_key = 'all-hosts'",
+	).Scan(&allHostsLabelID); err != nil {
+		t.Fatalf("load migration-seeded all-hosts label: %v", err)
+	}
+	if _, err := database.Exec(
+		t.Context(),
+		"INSERT INTO label_membership (label_id, host_id) VALUES ($1, $2)",
+		allHostsLabelID,
+		hostID,
+	); err != nil {
+		t.Fatalf("seed MDP all-hosts membership: %v", err)
+	}
+	return allHostsLabelID
+}
+
 func createMDPInstaller(
 	t *testing.T,
 	server *testServer,
@@ -272,7 +324,7 @@ func createMDPInstaller(
 	return *finalized.JSON200
 }
 
-func createMDPSoftware(t *testing.T, server *testServer) int64 {
+func createMDPSoftware(t *testing.T, server *testServer, labelID int64) int64 {
 	t.Helper()
 
 	created, err := server.Admin.CreateMunkiSoftwareWithResponse(
@@ -282,7 +334,11 @@ func createMDPSoftware(t *testing.T, server *testServer) int64 {
 			DisplayName: new("Woodstar MDP Integration"),
 			Description: new("Compiled distribution point lifecycle fixture."),
 			Targets: adminapi.MunkiTargets{
-				Include: []adminapi.MunkiInclude{},
+				Include: []adminapi.MunkiInclude{{
+					LabelId: labelID,
+					Package: adminapi.MunkiPackageSelector{Strategy: "latest"},
+					Actions: []adminapi.MunkiIncludeActions{"managed_installs"},
+				}},
 				Exclude: []adminapi.LabelRef{},
 			},
 		},

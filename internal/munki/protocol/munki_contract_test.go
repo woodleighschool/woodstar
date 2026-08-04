@@ -31,6 +31,7 @@ func TestMunkiHTTPServesIconHashIndex(t *testing.T) {
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/munki/icons/_icon_hashes.plist", nil)
 	req.Header.Set("Authorization", "Bearer munki-secret")
+	req.Header.Set(testSerialHeader, "C02MUNKI")
 
 	router.ServeHTTP(rec, req)
 
@@ -54,7 +55,7 @@ func TestRegisterRoutesSelectsTransferSurface(t *testing.T) {
 	router := chi.NewRouter()
 	ordinary := router.With(testRouteSurface("ordinary"))
 	transfers := router.With(testRouteSurface("transfer"))
-	NewServer(nil, nil, nil, nil, testLogger()).RegisterRoutes(ordinary, transfers)
+	NewServer(nil, nil, nil, nil, nil, testLogger()).RegisterRoutes(ordinary, transfers)
 
 	for _, tc := range []struct {
 		path        string
@@ -85,19 +86,21 @@ func testRouteSurface(surface string) func(http.Handler) http.Handler {
 }
 
 func TestMunkiCatalogNoPkgOmitsInstallerFields(t *testing.T) {
-	service := munki.NewRepositoryService(munki.Dependencies{
-		Packages: staticPackageResolver{packages: []munkisoftware.EffectivePackage{
-			{
-				Actions: []munkisoftware.Action{munkisoftware.ActionManagedInstalls},
-				Selector: munkisoftware.PackageSelector{
-					Strategy: munkisoftware.PackageLatest,
-				},
-				Package: staticMunkiPackage(20, "ExternalURLApp", "1.0"),
+	resolver := staticPackageResolver{packages: []munkisoftware.EffectivePackage{
+		{
+			Actions: []munkisoftware.Action{munkisoftware.ActionManagedInstalls},
+			Selector: munkisoftware.PackageSelector{
+				Strategy: munkisoftware.PackageLatest,
 			},
-		}},
+			Package: staticMunkiPackage(20, "ExternalURLApp", "1.0"),
+		},
+	}}
+	service := munki.NewRepositoryService(munki.Dependencies{
+		Software: resolver,
+		Packages: resolver,
 	})
 
-	body, err := service.Catalog(context.Background(), "woodstar")
+	body, err := service.Catalog(context.Background(), 42, "woodstar")
 	if err != nil {
 		t.Fatalf("catalog: %v", err)
 	}
@@ -146,6 +149,7 @@ func TestMunkiHTTPRendersLatestSoftwareIDOnceWithAllPkginfos(t *testing.T) {
 	manifest := httptest.NewRecorder()
 	manifestReq := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/munki/manifests/C02MUNKI", nil)
 	manifestReq.Header.Set("Authorization", "Bearer munki-secret")
+	manifestReq.Header.Set(testSerialHeader, "C02MUNKI")
 	router.ServeHTTP(manifest, manifestReq)
 
 	if manifest.Code != http.StatusOK {
@@ -164,6 +168,7 @@ func TestMunkiHTTPRendersLatestSoftwareIDOnceWithAllPkginfos(t *testing.T) {
 	catalog := httptest.NewRecorder()
 	catalogReq := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/munki/catalogs/woodstar", nil)
 	catalogReq.Header.Set("Authorization", "Bearer munki-secret")
+	catalogReq.Header.Set(testSerialHeader, "C02MUNKI")
 	router.ServeHTTP(catalog, catalogReq)
 
 	if catalog.Code != http.StatusOK {
@@ -199,6 +204,7 @@ func TestMunkiHTTPRendersPinnedPackageName(t *testing.T) {
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/munki/manifests/C02MUNKI", nil)
 	req.Header.Set("Authorization", "Bearer munki-secret")
+	req.Header.Set(testSerialHeader, "C02MUNKI")
 
 	router.ServeHTTP(rec, req)
 
@@ -249,32 +255,129 @@ func TestMunkiHTTPRequiresMunkiBearerSecret(t *testing.T) {
 	}
 }
 
-func TestMunkiHTTPRequiresExistingManifestSerial(t *testing.T) {
-	router := newMunkiContractRouter(
-		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
-		newStaticRepository(),
-	)
-
-	cases := []struct {
-		name string
-		path string
+func TestMunkiHTTPBindsEveryRepositoryRouteToAuthenticatedHost(t *testing.T) {
+	routes := []struct {
+		name       string
+		path       string
+		wantStatus int
 	}{
-		{name: "unknown serial", path: "/munki/manifests/C02UNKNOWN"},
-		{name: "site default", path: "/munki/manifests/site_default"},
+		{name: "manifest", path: "/munki/manifests/C02MUNKI", wantStatus: http.StatusOK},
+		{name: "catalog", path: "/munki/catalogs/woodstar", wantStatus: http.StatusOK},
+		{name: "icon hashes", path: "/munki/icons/_icon_hashes.plist", wantStatus: http.StatusOK},
+		{name: "package", path: "/munki/pkgs/packages/20/installer/GoogleChrome.pkg", wantStatus: http.StatusFound},
+		{name: "icon", path: "/munki/icons/7-GoogleChrome.png", wantStatus: http.StatusFound},
+		{name: "client resources", path: "/munki/client_resources/site_default.zip", wantStatus: http.StatusFound},
 	}
+	for _, route := range routes {
+		t.Run(route.name, func(t *testing.T) {
+			for _, tc := range []struct {
+				name          string
+				authorization string
+				serial        string
+				resolver      staticHostResolver
+				wantStatus    int
+				wantCalls     int
+			}{
+				{
+					name:       "missing bearer authenticates before resolution",
+					resolver:   staticHostResolver{err: errors.New("resolver should not run")},
+					wantStatus: http.StatusUnauthorized,
+				},
+				{
+					name:          "bad bearer authenticates before resolution",
+					authorization: "Bearer bad-secret",
+					resolver:      staticHostResolver{err: errors.New("resolver should not run")},
+					wantStatus:    http.StatusUnauthorized,
+				},
+				{
+					name:          "missing serial",
+					authorization: "Bearer munki-secret",
+					resolver:      testHostResolver(),
+					wantStatus:    http.StatusNotFound,
+				},
+				{
+					name:          "unknown serial",
+					authorization: "Bearer munki-secret",
+					serial:        "C02UNKNOWN",
+					resolver:      testHostResolver(),
+					wantStatus:    http.StatusNotFound,
+				},
+				{
+					name:          "resolver failure",
+					authorization: "Bearer munki-secret",
+					serial:        "C02MUNKI",
+					resolver:      staticHostResolver{err: errors.New("resolver failed")},
+					wantStatus:    http.StatusInternalServerError,
+				},
+				{
+					name:          "resolved host",
+					authorization: "Bearer munki-secret",
+					serial:        " C02MUNKI ",
+					resolver:      testHostResolver(),
+					wantStatus:    route.wantStatus,
+					wantCalls:     1,
+				},
+			} {
+				t.Run(tc.name, func(t *testing.T) {
+					repository := newStaticRepository()
+					router := chi.NewRouter()
+					NewServer(
+						staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
+						tc.resolver,
+						repository,
+						&fakeSelector{},
+						&fakeDeliverer{url: "https://storage.example/file"},
+						testLogger(),
+					).RegisterRoutes(router, router)
+					recorder := httptest.NewRecorder()
+					request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, route.path, nil)
+					if tc.authorization != "" {
+						request.Header.Set("Authorization", tc.authorization)
+					}
+					if tc.serial != "" {
+						request.Header.Set(testSerialHeader, tc.serial)
+					}
 
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			rec := httptest.NewRecorder()
-			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, tc.path, nil)
-			req.Header.Set("Authorization", "Bearer munki-secret")
+					router.ServeHTTP(recorder, request)
 
-			router.ServeHTTP(rec, req)
-
-			if rec.Code != http.StatusNotFound {
-				t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusNotFound, rec.Body.String())
+					if recorder.Code != tc.wantStatus {
+						t.Fatalf("status = %d, want %d; body = %q", recorder.Code, tc.wantStatus, recorder.Body.String())
+					}
+					if repository.calls != tc.wantCalls {
+						t.Fatalf("repository calls = %d, want %d", repository.calls, tc.wantCalls)
+					}
+					if tc.wantCalls == 1 && repository.hostID != 42 {
+						t.Fatalf("repository host ID = %d, want 42", repository.hostID)
+					}
+				})
 			}
 		})
+	}
+}
+
+func TestMunkiHTTPRejectsConditionalRequestWithoutSerial(t *testing.T) {
+	repository := newStaticRepository()
+	router := chi.NewRouter()
+	NewServer(
+		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
+		testHostResolver(),
+		repository,
+		&fakeSelector{},
+		&fakeDeliverer{url: "https://storage.example/file"},
+		testLogger(),
+	).RegisterRoutes(router, router)
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/munki/manifests/C02MUNKI", nil)
+	request.Header.Set("Authorization", "Bearer munki-secret")
+	request.Header.Set("If-None-Match", "*")
+
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want %d; body = %q", recorder.Code, http.StatusNotFound, recorder.Body.String())
+	}
+	if repository.calls != 0 {
+		t.Fatalf("repository calls = %d, want 0", repository.calls)
 	}
 }
 
@@ -300,6 +403,7 @@ func TestMunkiHTTPRedirectsPackageFileToDistributionPoint(t *testing.T) {
 	router := chi.NewRouter()
 	NewServer(
 		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
+		testHostResolver(),
 		repository,
 		selector,
 		delivery,
@@ -309,6 +413,7 @@ func TestMunkiHTTPRedirectsPackageFileToDistributionPoint(t *testing.T) {
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/munki/pkgs/packages/20/installer/GoogleChrome.pkg", nil)
 	req.Header.Set("Authorization", "Bearer munki-secret")
+	req.Header.Set(testSerialHeader, "C02MUNKI")
 	router.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusFound {
@@ -347,6 +452,7 @@ func TestMunkiHTTPDecodesPackageLocationBeforeResolution(t *testing.T) {
 	router := chi.NewRouter()
 	NewServer(
 		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
+		testHostResolver(),
 		repository,
 		selector,
 		&fakeDeliverer{},
@@ -361,6 +467,7 @@ func TestMunkiHTTPDecodesPackageLocationBeforeResolution(t *testing.T) {
 		nil,
 	)
 	req.Header.Set("Authorization", "Bearer munki-secret")
+	req.Header.Set(testSerialHeader, "C02MUNKI")
 	router.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusFound {
@@ -397,6 +504,7 @@ func TestMunkiHTTPDeliversIconFileWithNestedIconName(t *testing.T) {
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/munki/icons/7-GoogleChrome.png", nil)
 	req.Header.Set("Authorization", "Bearer munki-secret")
+	req.Header.Set(testSerialHeader, "C02MUNKI")
 
 	router.ServeHTTP(rec, req)
 
@@ -438,7 +546,7 @@ func newMunkiContractRouter(
 		d = delivery[0]
 	}
 	r := chi.NewRouter()
-	NewServer(verifier, repository, &fakeSelector{}, d, testLogger()).RegisterRoutes(r, r)
+	NewServer(verifier, testHostResolver(), repository, &fakeSelector{}, d, testLogger()).RegisterRoutes(r, r)
 	return r
 }
 
@@ -494,13 +602,14 @@ func (errorVerifier) Verify(context.Context, agentauth.Agent, string) (bool, err
 }
 
 type staticRepository struct {
-	service      *munki.RepositoryService
-	manifestName string
-	fileErr      error
-	fileClass    string
-	fileKey      string
-	packageID    int64
-	fileObject   storage.Object
+	service    *munki.RepositoryService
+	hostID     int64
+	calls      int
+	fileErr    error
+	fileClass  string
+	fileKey    string
+	packageID  int64
+	fileObject storage.Object
 }
 
 func newStaticRepository() *staticRepository {
@@ -510,30 +619,37 @@ func newStaticRepository() *staticRepository {
 func newStaticRepositoryWithPackages(packages []munkisoftware.EffectivePackage) *staticRepository {
 	return &staticRepository{
 		service: munki.NewRepositoryService(munki.Dependencies{
-			Hosts:    staticHostResolver{serial: "C02MUNKI"},
 			Software: staticPackageResolver{packages: packages},
 			Packages: staticPackageResolver{packages: packages},
 		}),
 	}
 }
 
-func (r *staticRepository) Manifest(ctx context.Context, name string) ([]byte, error) {
-	r.manifestName = name
-	return r.service.Manifest(ctx, name)
+func (r *staticRepository) Manifest(ctx context.Context, hostID int64) ([]byte, error) {
+	r.calls++
+	r.hostID = hostID
+	return r.service.Manifest(ctx, hostID)
 }
 
-func (r *staticRepository) Catalog(ctx context.Context, name string) ([]byte, error) {
-	return r.service.Catalog(ctx, name)
+func (r *staticRepository) Catalog(ctx context.Context, hostID int64, name string) ([]byte, error) {
+	r.calls++
+	r.hostID = hostID
+	return r.service.Catalog(ctx, hostID, name)
 }
 
-func (r *staticRepository) IconHashes(ctx context.Context) ([]byte, error) {
-	return r.service.IconHashes(ctx)
+func (r *staticRepository) IconHashes(ctx context.Context, hostID int64) ([]byte, error) {
+	r.calls++
+	r.hostID = hostID
+	return r.service.IconHashes(ctx, hostID)
 }
 
 func (r *staticRepository) ResolvePackageFile(
 	_ context.Context,
+	hostID int64,
 	key string,
 ) (munki.PackageInstaller, error) {
+	r.calls++
+	r.hostID = hostID
 	r.fileClass = "package"
 	r.fileKey = key
 	if r.fileErr != nil {
@@ -549,15 +665,21 @@ func (r *staticRepository) ResolvePackageFile(
 
 func (r *staticRepository) ResolveIconFile(
 	_ context.Context,
+	hostID int64,
 	key string,
 ) (storage.Object, error) {
+	r.calls++
+	r.hostID = hostID
 	return r.resolve("icon", key)
 }
 
 func (r *staticRepository) ResolveClientResources(
 	_ context.Context,
+	hostID int64,
 	name string,
 ) (storage.Object, error) {
+	r.calls++
+	r.hostID = hostID
 	return r.resolve("client resources", name)
 }
 
@@ -591,23 +713,6 @@ func (r staticPackageResolver) ListRepositoryPackages(
 	return pkgs, nil
 }
 
-func (r staticPackageResolver) ListRepositoryIconObjectIDs(context.Context) ([]int64, error) {
-	ids := make([]int64, 0, len(r.packages))
-	seen := make(map[int64]struct{}, len(r.packages))
-	for _, pkg := range r.packages {
-		if pkg.Package.Software.IconObjectID == nil {
-			continue
-		}
-		id := *pkg.Package.Software.IconObjectID
-		if _, ok := seen[id]; ok {
-			continue
-		}
-		seen[id] = struct{}{}
-		ids = append(ids, id)
-	}
-	return ids, nil
-}
-
 func (r staticPackageResolver) PackagesByID(
 	_ context.Context,
 	ids []int64,
@@ -624,32 +729,30 @@ func (r staticPackageResolver) PackagesByID(
 	return pkgs, nil
 }
 
-func (r staticPackageResolver) RepositoryPackagesByIconObjectID(
-	_ context.Context,
-	iconObjectID int64,
-) ([]packages.Package, error) {
-	pkgs := make([]packages.Package, 0, len(r.packages))
-	for _, pkg := range r.packages {
-		if pkg.Package.Software.IconObjectID != nil && *pkg.Package.Software.IconObjectID == iconObjectID {
-			pkgs = append(pkgs, pkg.Package)
-		}
-	}
-	return pkgs, nil
-}
-
 type staticHostResolver struct {
 	serial string
+	hostID int64
+	err    error
 }
 
 func (r staticHostResolver) GetByHardwareSerial(_ context.Context, serial string) (*hosts.Host, error) {
+	if r.err != nil {
+		return nil, r.err
+	}
 	if serial != r.serial {
 		return nil, dbutil.ErrNotFound
 	}
 	return &hosts.Host{
-		ID:          1,
+		ID:          r.hostID,
 		DisplayName: "Test MacBook",
 		Hardware:    hosts.HostHardware{Serial: serial},
 	}, nil
+}
+
+const testSerialHeader = "X-Woodstar-Serial-Number"
+
+func testHostResolver() staticHostResolver {
+	return staticHostResolver{serial: "C02MUNKI", hostID: 42}
 }
 
 func staticMunkiPackage(id int64, name string, version string) packages.Package {

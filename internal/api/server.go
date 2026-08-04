@@ -122,6 +122,7 @@ type ProtocolDependencies struct {
 // MunkiProtocolDependencies are the services backing Munki client and
 // distribution-point protocols.
 type MunkiProtocolDependencies struct {
+	Hosts                *hosts.Store
 	Repository           *munki.RepositoryService
 	Distribution         *mdp.Store
 	DistributionProtocol *mdpprotocol.Server
@@ -243,6 +244,7 @@ func protocolRoutes(
 	).RegisterRoutes(ordinary)
 	munkiServer := munkiprotocol.NewServer(
 		deps.Protocols.AgentAuth,
+		deps.Protocols.Munki.Hosts,
 		deps.Protocols.Munki.Repository,
 		deps.Protocols.Munki.Distribution,
 		deps.Protocols.Munki.Delivery,

@@ -9,11 +9,15 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"image/png"
 	"io"
 	"net/http"
 	"net/url"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -27,13 +31,17 @@ import (
 	"github.com/woodleighschool/woodstar/test/e2e/adminapi"
 )
 
-const tinyPNGBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+const (
+	tinyPNGBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+	munkiSecret   = "munki-integration-secret-0123456789abcdef"
+)
 
 func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product lifecycle; splitting would hide the order being proved.
 	const (
-		serial       = "C02WOODSTARMUNKI"
-		softwareName = "WoodstarIntegrationApp"
-		munkiSecret  = "munki-integration-secret-0123456789abcdef"
+		serial             = "C02WOODSTARMUNKI"
+		secondSerial       = "C02WOODSTARMUNKI2"
+		softwareName       = "WoodstarIntegrationApp"
+		secondSoftwareName = "WoodstarSecondIntegrationApp"
 	)
 
 	server := startTestServer(t)
@@ -148,6 +156,38 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 			installerUploadAction.Strategy,
 		)
 	}
+	var secondHostID int64
+	err = database.QueryRow(
+		t.Context(),
+		`INSERT INTO hosts (hardware_uuid, hardware_serial, os_platform)
+		 VALUES ($1, $2, $3)
+		 RETURNING id`,
+		"9FB5D1F5-4DDD-4B3B-839A-8C05E904F70A",
+		secondSerial,
+		"darwin",
+	).Scan(&secondHostID)
+	if err != nil {
+		t.Fatalf("seed second canonical macOS host: %v", err)
+	}
+	secondLabelResponse, err := server.Admin.CreateLabelWithResponse(
+		t.Context(),
+		adminapi.LabelMutation{
+			Name:                "Munki Second Integration Host",
+			LabelMembershipType: new(adminapi.LabelMutationLabelMembershipType("manual")),
+			HostIds:             new([]int64{secondHostID}),
+		},
+	)
+	secondLabelResponse = requireAPIResponse(
+		t,
+		"create second-host Munki label",
+		http.StatusCreated,
+		secondLabelResponse,
+		err,
+	)
+	if secondLabelResponse.JSON201 == nil || secondLabelResponse.JSON201.Id <= 0 {
+		t.Fatal("create second-host Munki label returned no label")
+	}
+	secondHostLabelID := secondLabelResponse.JSON201.Id
 	assertStorageCapabilityTTL(
 		t,
 		installerUploadAction.Url,
@@ -255,6 +295,100 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 		t.Fatalf("created software = %+v, want %s", createdSoftware.JSON201, softwareName)
 	}
 	software := *createdSoftware.JSON201
+	firstIconBytes, err := base64.StdEncoding.DecodeString(tinyPNGBase64)
+	if err != nil {
+		t.Fatalf("decode first icon fixture: %v", err)
+	}
+	firstIcon := attachMunkiIcon(t, server, transferClient, software.Id, "WoodstarIntegrationApp.png", firstIconBytes)
+	firstIconName := strconv.FormatInt(firstIcon.Id, 10) + "-" + firstIcon.Filename
+
+	secondInstallerBytes := bytes.Repeat([]byte{0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01, 0x00}, 200)
+	createdSecondInstaller, err := server.Admin.CreateMunkiPackageInstallerUploadWithResponse(
+		t.Context(),
+		adminapi.MunkiUploadRequest{Filename: "WoodstarSecondIntegration.pkg"},
+	)
+	createdSecondInstaller = requireAPIResponse(
+		t,
+		"create second package installer",
+		http.StatusCreated,
+		createdSecondInstaller,
+		err,
+	)
+	secondInstallerTarget := createdSecondInstaller.JSON201
+	secondInstallerUpload := directPackageInstallerUpload(t, secondInstallerTarget)
+	secondInstallerRequest, err := http.NewRequestWithContext(
+		t.Context(),
+		string(secondInstallerUpload.Method),
+		secondInstallerUpload.Url,
+		bytes.NewReader(secondInstallerBytes),
+	)
+	if err != nil {
+		t.Fatal("create second installer upload capability request")
+	}
+	if secondInstallerUpload.Headers != nil {
+		for name, value := range *secondInstallerUpload.Headers {
+			secondInstallerRequest.Header.Set(name, value)
+		}
+	}
+	secondInstallerUploadResponse, err := transferClient.Do(secondInstallerRequest)
+	if err != nil {
+		t.Fatal("upload second installer through returned capability")
+	}
+	drainAndClose(t, secondInstallerUploadResponse)
+	if secondInstallerUploadResponse.StatusCode != http.StatusNoContent {
+		t.Fatalf("second installer upload status = %d, want %d", secondInstallerUploadResponse.StatusCode, http.StatusNoContent)
+	}
+	finalizedSecondInstaller, err := server.Admin.CompleteMunkiPackageInstallerUploadWithResponse(
+		t.Context(),
+		secondInstallerTarget.ObjectId,
+	)
+	finalizedSecondInstaller = requireAPIResponse(
+		t,
+		"finalize second package installer",
+		http.StatusOK,
+		finalizedSecondInstaller,
+		err,
+	)
+	if finalizedSecondInstaller.JSON200 == nil {
+		t.Fatal("finalize second package installer returned no JSON body")
+	}
+	secondInstaller := *finalizedSecondInstaller.JSON200
+	createdSecondSoftware, err := server.Admin.CreateMunkiSoftwareWithResponse(
+		t.Context(),
+		adminapi.MunkiCreateMutation{
+			Name:        secondSoftwareName,
+			DisplayName: new("Woodstar Second Integration App"),
+			Targets: adminapi.MunkiTargets{
+				Include: []adminapi.MunkiInclude{{
+					LabelId: secondHostLabelID,
+					Package: adminapi.MunkiPackageSelector{Strategy: "latest"},
+					Actions: []adminapi.MunkiIncludeActions{"managed_installs"},
+				}},
+				Exclude: []adminapi.LabelRef{},
+			},
+		},
+	)
+	createdSecondSoftware = requireAPIResponse(
+		t,
+		"create second-host software",
+		http.StatusCreated,
+		createdSecondSoftware,
+		err,
+	)
+	if createdSecondSoftware.JSON201 == nil || createdSecondSoftware.JSON201.Id <= 0 {
+		t.Fatal("create second-host software returned no software")
+	}
+	secondSoftware := *createdSecondSoftware.JSON201
+	secondIconBytes := append([]byte(nil), firstIconBytes...)
+	secondIcon := attachMunkiIcon(
+		t,
+		server,
+		transferClient,
+		secondSoftware.Id,
+		"WoodstarSecondIntegrationApp.png",
+		secondIconBytes,
+	)
+	secondIconName := strconv.FormatInt(secondIcon.Id, 10) + "-" + secondIcon.Filename
 
 	createdPackage, err := server.Admin.CreateMunkiPackageWithResponse(
 		t.Context(),
@@ -326,6 +460,27 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 			bannerUploadAction.Strategy,
 		)
 	}
+	createdSecondPackage, err := server.Admin.CreateMunkiPackageWithResponse(
+		t.Context(),
+		adminapi.MunkiPackageCreateMutation{
+			SoftwareId:        secondSoftware.Id,
+			Version:           "2.0",
+			InstallerType:     new(adminapi.MunkiPackageCreateMutationInstallerType("pkg")),
+			InstallerObjectId: new(secondInstaller.Id),
+		},
+	)
+	createdSecondPackage = requireAPIResponse(
+		t,
+		"create second-host package",
+		http.StatusCreated,
+		createdSecondPackage,
+		err,
+	)
+	if createdSecondPackage.JSON201 == nil || createdSecondPackage.JSON201.InstallerFile == nil {
+		t.Fatal("create second-host package returned no finalized installer")
+	}
+	secondPackage := *createdSecondPackage.JSON201
+	secondInstallerItemLocation := secondPackage.InstallerFile.InstallerItemLocation
 	bannerUpload, err := http.NewRequestWithContext(
 		t.Context(),
 		string(bannerUploadAction.Method),
@@ -471,16 +626,12 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 	munkiClient.CheckRedirect = func(_ *http.Request, _ []*http.Request) error {
 		return http.ErrUseLastResponse
 	}
-	manifestRequest, err := http.NewRequestWithContext(
+	manifestRequest := newMunkiRequest(
+		t,
 		t.Context(),
-		http.MethodGet,
 		server.BaseURL+"/munki/manifests/"+serial,
-		nil,
+		serial,
 	)
-	if err != nil {
-		t.Fatalf("create manifest request: %v", err)
-	}
-	manifestRequest.Header.Set("Authorization", "Bearer "+munkiSecret)
 	manifestResponse, err := munkiClient.Do(manifestRequest)
 	if err != nil {
 		t.Fatalf("fetch Munki manifest: %v", err)
@@ -507,17 +658,73 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 		len(manifest.ManagedInstalls) != 1 || manifest.ManagedInstalls[0] != softwareName {
 		t.Fatalf("manifest = %+v, want woodstar catalog and %s install", manifest, softwareName)
 	}
-
-	cachedManifestRequest, err := http.NewRequestWithContext(
+	secondManifestRequest := newMunkiRequest(
+		t,
 		t.Context(),
-		http.MethodGet,
-		server.BaseURL+"/munki/manifests/"+serial,
-		nil,
+		server.BaseURL+"/munki/manifests/"+secondSerial,
+		secondSerial,
 	)
+	secondManifestRequest.Header.Set("If-None-Match", manifestETag)
+	secondManifestResponse, err := munkiClient.Do(secondManifestRequest)
 	if err != nil {
-		t.Fatalf("create cached manifest request: %v", err)
+		t.Fatalf("fetch second-host Munki manifest with first-host ETag: %v", err)
 	}
-	cachedManifestRequest.Header.Set("Authorization", "Bearer "+munkiSecret)
+	secondManifestBody := readAndClose(t, secondManifestResponse)
+	if secondManifestResponse.StatusCode != http.StatusOK || secondManifestResponse.Header.Get("ETag") == manifestETag {
+		t.Fatalf(
+			"second-host manifest status/etag = %d/%q, want 200 and an ETag distinct from %q",
+			secondManifestResponse.StatusCode,
+			secondManifestResponse.Header.Get("ETag"),
+			manifestETag,
+		)
+	}
+	var secondManifest struct {
+		Catalogs        []string `plist:"catalogs"`
+		ManagedInstalls []string `plist:"managed_installs"`
+	}
+	if _, err := plist.Unmarshal(secondManifestBody, &secondManifest); err != nil {
+		t.Fatalf("decode second-host Munki manifest plist: %v", err)
+	}
+	if len(secondManifest.Catalogs) != 1 || secondManifest.Catalogs[0] != "woodstar" ||
+		len(secondManifest.ManagedInstalls) != 1 || secondManifest.ManagedInstalls[0] != secondSoftwareName {
+		t.Fatalf("second-host manifest = %+v, want woodstar catalog and %s install", secondManifest, secondSoftwareName)
+	}
+	missingSerialRequest := newMunkiRequest(
+		t,
+		t.Context(),
+		server.BaseURL+"/munki/manifests/"+serial,
+		serial,
+	)
+	missingSerialRequest.Header.Del("X-Woodstar-Serial-Number")
+	missingSerialResponse, err := munkiClient.Do(missingSerialRequest)
+	if err != nil {
+		t.Fatalf("fetch Munki manifest without serial: %v", err)
+	}
+	drainAndClose(t, missingSerialResponse)
+	if missingSerialResponse.StatusCode != http.StatusNotFound {
+		t.Fatalf("manifest without serial status = %d, want 404", missingSerialResponse.StatusCode)
+	}
+	unknownSerialRequest := newMunkiRequest(
+		t,
+		t.Context(),
+		server.BaseURL+"/munki/manifests/"+serial,
+		"C02WOODSTARUNKNOWN",
+	)
+	unknownSerialResponse, err := munkiClient.Do(unknownSerialRequest)
+	if err != nil {
+		t.Fatalf("fetch Munki manifest with unknown serial: %v", err)
+	}
+	drainAndClose(t, unknownSerialResponse)
+	if unknownSerialResponse.StatusCode != http.StatusNotFound {
+		t.Fatalf("manifest with unknown serial status = %d, want 404", unknownSerialResponse.StatusCode)
+	}
+
+	cachedManifestRequest := newMunkiRequest(
+		t,
+		t.Context(),
+		server.BaseURL+"/munki/manifests/"+serial,
+		serial,
+	)
 	cachedManifestRequest.Header.Set("If-None-Match", manifestETag)
 	cachedManifestResponse, err := munkiClient.Do(cachedManifestRequest)
 	if err != nil {
@@ -535,16 +742,12 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 		)
 	}
 
-	catalogRequest, err := http.NewRequestWithContext(
+	catalogRequest := newMunkiRequest(
+		t,
 		t.Context(),
-		http.MethodGet,
 		server.BaseURL+"/munki/catalogs/woodstar",
-		nil,
+		serial,
 	)
-	if err != nil {
-		t.Fatalf("create catalog request: %v", err)
-	}
-	catalogRequest.Header.Set("Authorization", "Bearer "+munkiSecret)
 	catalogResponse, err := munkiClient.Do(catalogRequest)
 	if err != nil {
 		t.Fatalf("fetch Munki catalog: %v", err)
@@ -559,6 +762,7 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 		InstallerItemLocation string `plist:"installer_item_location"`
 		InstallerItemHash     string `plist:"installer_item_hash"`
 		InstallerItemSize     int64  `plist:"installer_item_size"`
+		IconName              string `plist:"icon_name"`
 	}
 	if _, err := plist.Unmarshal(catalogBody, &catalog); err != nil {
 		t.Fatalf("decode Munki catalog plist: %v", err)
@@ -567,29 +771,24 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 	if len(catalog) != 1 || catalog[0].Name != softwareName || catalog[0].Version != "1.0" ||
 		catalog[0].InstallerItemLocation != installerItemLocation ||
 		catalog[0].InstallerItemHash != installerSHA256 ||
-		catalog[0].InstallerItemSize != wantInstallerKiB {
+		catalog[0].InstallerItemSize != wantInstallerKiB || catalog[0].IconName != firstIconName {
 		t.Fatalf("catalog = %+v, want package %s at %s", catalog, softwareName, installerItemLocation)
 	}
 
-	packageRequest, err := http.NewRequestWithContext(
+	packageRequest := newMunkiRequest(
+		t,
 		t.Context(),
-		http.MethodGet,
 		server.BaseURL+"/munki/pkgs/"+installerItemLocation,
-		nil,
+		serial,
 	)
-	if err != nil {
-		t.Fatalf("create package request: %v", err)
-	}
-	packageRequest.Header.Set("Authorization", "Bearer "+munkiSecret)
-	sessionOnlyPackageRequest, err := http.NewRequestWithContext(
+	sessionOnlyPackageRequest := newMunkiRequest(
+		t,
 		t.Context(),
-		http.MethodGet,
 		server.BaseURL+"/munki/pkgs/"+installerItemLocation,
-		nil,
+		serial,
 	)
-	if err != nil {
-		t.Fatal("create session-only package request")
-	}
+	sessionOnlyPackageRequest.Header.Del("Authorization")
+	sessionOnlyPackageRequest.Header.Del("X-Woodstar-Serial-Number")
 	sessionOnlyPackageResponse, err := server.Client.Do(sessionOnlyPackageRequest)
 	if err != nil {
 		t.Fatalf("request agent package with admin session: %v", err)
@@ -617,16 +816,193 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 		)
 	}
 
-	resourcesRequest, err := http.NewRequestWithContext(
+	iconHashesRequest := newMunkiRequest(
+		t,
 		t.Context(),
-		http.MethodGet,
-		server.BaseURL+"/munki/client_resources/"+serial+".zip",
-		nil,
+		server.BaseURL+"/munki/icons/_icon_hashes.plist",
+		serial,
 	)
+	iconHashesResponse, err := munkiClient.Do(iconHashesRequest)
 	if err != nil {
-		t.Fatalf("create client resources request: %v", err)
+		t.Fatalf("fetch first-host Munki icon hashes: %v", err)
 	}
-	resourcesRequest.Header.Set("Authorization", "Bearer "+munkiSecret)
+	iconHashesBody := readAndClose(t, iconHashesResponse)
+	if iconHashesResponse.StatusCode != http.StatusOK {
+		t.Fatalf("first-host icon hashes status = %d, want 200", iconHashesResponse.StatusCode)
+	}
+	var iconHashes map[string]string
+	if _, err := plist.Unmarshal(iconHashesBody, &iconHashes); err != nil {
+		t.Fatalf("decode first-host Munki icon hashes plist: %v", err)
+	}
+	if iconHashes[firstIconName] == "" || iconHashes[secondIconName] != "" || len(iconHashes) != 1 {
+		t.Fatalf("first-host icon hashes = %+v, want only %q", iconHashes, firstIconName)
+	}
+	firstIconRequest := newMunkiRequest(
+		t,
+		t.Context(),
+		server.BaseURL+"/munki/icons/"+firstIconName,
+		serial,
+	)
+	firstIconResponse, err := munkiClient.Do(firstIconRequest)
+	if err != nil {
+		t.Fatalf("fetch first-host Munki icon: %v", err)
+	}
+	if got := readAndClose(t, firstIconResponse); firstIconResponse.StatusCode != http.StatusOK ||
+		!bytes.Equal(got, firstIconBytes) {
+		t.Fatalf("first-host icon status/body = %d/%d, want 200/exact", firstIconResponse.StatusCode, len(got))
+	}
+	workerRoot := t.TempDir()
+	workerDataDir := filepath.Join(workerRoot, "mirror")
+	workerTLS := createTestTLS(t, workerRoot)
+	workerPort := allocatePort(t)
+	workerBaseURL := "https://localhost:" + strconv.Itoa(workerPort)
+	point := createMDPDistributionPoint(t, server, workerBaseURL)
+	if point.Key == "" {
+		t.Fatal("created distribution point did not reveal its worker key")
+	}
+	server.redact(point.Key)
+	workerLogPath := filepath.Join(workerRoot, "worker.log")
+	workerLog, err := os.OpenFile(workerLogPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600) //nolint:gosec // Test-owned temporary path.
+	if err != nil {
+		t.Fatalf("create MDP worker log: %v", err)
+	}
+	t.Cleanup(func() { _ = workerLog.Close() })
+	workerCommand := exec.Command(testBinary(t), "mdp") //nolint:gosec,noctx // E2E harness selects the binary; stopProcess owns shutdown and forced kill.
+	workerCommand.Env = append(
+		withoutWoodstarEnvironment(os.Environ()),
+		"WOODSTAR_MDP_SERVER_URL="+server.BaseURL,
+		"WOODSTAR_MDP_SERVER_CA_FILE="+server.CACertificatePath,
+		"WOODSTAR_MDP_KEY="+point.Key,
+		"WOODSTAR_MDP_DATA_DIR="+workerDataDir,
+		"WOODSTAR_MDP_LISTEN_ADDR=127.0.0.1:"+strconv.Itoa(workerPort),
+		"WOODSTAR_MDP_TLS_CERT_FILE="+workerTLS.certificatePath,
+		"WOODSTAR_MDP_TLS_KEY_FILE="+workerTLS.privateKeyPath,
+		"WOODSTAR_MDP_LOG_LEVEL=info",
+		"WOODSTAR_MDP_DOWNLOAD_CONCURRENCY=1",
+	)
+	workerCommand.Stdout = workerLog
+	workerCommand.Stderr = workerLog
+	workerProcess, err := startProcess(workerCommand)
+	if err != nil {
+		t.Fatalf("start MDP worker: %v", err)
+	}
+	t.Cleanup(func() {
+		stopProcess(t, "MDP worker", workerProcess)
+		if t.Failed() {
+			t.Logf("MDP worker logs (tail):\n%s", safeLogTail(workerLogPath, []string{point.Key}))
+		}
+	})
+	if _, err := waitForMDPCurrent(t.Context(), server, point.Id, pkg.Id, workerProcess); err != nil {
+		t.Fatalf("wait for MDP package mirror: %v\n%s", err, safeLogTail(workerLogPath, []string{point.Key}))
+	}
+	secondPackageForFirstHostRequest := newMunkiRequest(
+		t,
+		t.Context(),
+		server.BaseURL+"/munki/pkgs/"+secondInstallerItemLocation,
+		serial,
+	)
+	secondPackageForFirstHostResponse, err := munkiClient.Do(secondPackageForFirstHostRequest)
+	if err != nil {
+		t.Fatalf("fetch second-host package as first host: %v", err)
+	}
+	drainAndClose(t, secondPackageForFirstHostResponse)
+	if secondPackageForFirstHostResponse.StatusCode != http.StatusNotFound {
+		t.Fatalf("second-host package as first host status = %d, want 404", secondPackageForFirstHostResponse.StatusCode)
+	}
+	redirectRequest := newMunkiRequest(
+		t,
+		t.Context(),
+		server.BaseURL+"/munki/pkgs/"+installerItemLocation,
+		serial,
+	)
+	redirectResponse, err := munkiClient.Do(redirectRequest)
+	if err != nil {
+		t.Fatalf("request first-host package through MDP: %v", err)
+	}
+	drainAndClose(t, redirectResponse)
+	requireMDPRedirect(t, redirectResponse, workerBaseURL, installerItemLocation)
+	secondIconForFirstHostRequest := newMunkiRequest(
+		t,
+		t.Context(),
+		server.BaseURL+"/munki/icons/"+secondIconName,
+		serial,
+	)
+	secondIconForFirstHostResponse, err := munkiClient.Do(secondIconForFirstHostRequest)
+	if err != nil {
+		t.Fatalf("fetch second-host icon as first host: %v", err)
+	}
+	drainAndClose(t, secondIconForFirstHostResponse)
+	if secondIconForFirstHostResponse.StatusCode != http.StatusNotFound {
+		t.Fatalf("second-host icon as first host status = %d, want 404", secondIconForFirstHostResponse.StatusCode)
+	}
+	secondCatalogRequest := newMunkiRequest(
+		t,
+		t.Context(),
+		server.BaseURL+"/munki/catalogs/woodstar",
+		secondSerial,
+	)
+	secondCatalogResponse, err := munkiClient.Do(secondCatalogRequest)
+	if err != nil {
+		t.Fatalf("fetch second-host Munki catalog: %v", err)
+	}
+	secondCatalogBody := readAndClose(t, secondCatalogResponse)
+	if secondCatalogResponse.StatusCode != http.StatusOK {
+		t.Fatalf("second-host catalog status = %d, want 200", secondCatalogResponse.StatusCode)
+	}
+	var secondCatalog []struct {
+		Name string `plist:"name"`
+	}
+	if _, err := plist.Unmarshal(secondCatalogBody, &secondCatalog); err != nil {
+		t.Fatalf("decode second-host Munki catalog plist: %v", err)
+	}
+	if len(secondCatalog) != 1 || secondCatalog[0].Name != secondSoftwareName {
+		t.Fatalf("second-host catalog = %+v, want only %q", secondCatalog, secondSoftwareName)
+	}
+	secondPackageRequest := newMunkiRequest(
+		t,
+		t.Context(),
+		server.BaseURL+"/munki/pkgs/"+secondInstallerItemLocation,
+		secondSerial,
+	)
+	secondPackageResponse, err := munkiClient.Do(secondPackageRequest)
+	if err != nil {
+		t.Fatalf("fetch second-host Munki package: %v", err)
+	}
+	drainAndClose(t, secondPackageResponse)
+	secondRedirectURL := requireMDPRedirect(t, secondPackageResponse, workerBaseURL, secondInstallerItemLocation)
+	secondWorkerRequest, err := http.NewRequestWithContext(t.Context(), http.MethodGet, secondRedirectURL, nil)
+	if err != nil {
+		t.Fatalf("create second-host MDP package request: %v", redactedRequestError(err))
+	}
+	secondWorkerResponse, err := verifyingClient(t, workerTLS.caCertificate).Do(secondWorkerRequest)
+	if err != nil {
+		t.Fatalf("fetch second-host package from MDP: %v", redactedRequestError(err))
+	}
+	if got := readAndClose(t, secondWorkerResponse); secondWorkerResponse.StatusCode != http.StatusOK ||
+		!bytes.Equal(got, secondInstallerBytes) {
+		t.Fatalf("second-host MDP package status/body = %d/%d, want 200/exact", secondWorkerResponse.StatusCode, len(got))
+	}
+	secondIconRequest := newMunkiRequest(
+		t,
+		t.Context(),
+		server.BaseURL+"/munki/icons/"+secondIconName,
+		secondSerial,
+	)
+	secondIconResponse, err := munkiClient.Do(secondIconRequest)
+	if err != nil {
+		t.Fatalf("fetch second-host Munki icon: %v", err)
+	}
+	if got := readAndClose(t, secondIconResponse); secondIconResponse.StatusCode != http.StatusOK ||
+		!bytes.Equal(got, secondIconBytes) {
+		t.Fatalf("second-host icon status/body = %d/%d, want 200/exact", secondIconResponse.StatusCode, len(got))
+	}
+
+	resourcesRequest := newMunkiRequest(
+		t,
+		t.Context(),
+		server.BaseURL+"/munki/client_resources/"+serial+".zip",
+		serial,
+	)
 	resourcesResponse, err := munkiClient.Do(resourcesRequest)
 	if err != nil {
 		t.Fatalf("fetch client resources: %v", err)
@@ -767,16 +1143,12 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 		)
 	}
 
-	uploadedResourcesRequest, err := http.NewRequestWithContext(
+	uploadedResourcesRequest := newMunkiRequest(
+		t,
 		t.Context(),
-		http.MethodGet,
 		server.BaseURL+"/munki/client_resources/"+serial+".zip",
-		nil,
+		serial,
 	)
-	if err != nil {
-		t.Fatal("create uploaded client resources request")
-	}
-	uploadedResourcesRequest.Header.Set("Authorization", "Bearer "+munkiSecret)
 	uploadedResourcesResponse, err := munkiClient.Do(uploadedResourcesRequest)
 	if err != nil {
 		t.Fatalf("fetch uploaded client resources: %v", err)
@@ -853,16 +1225,12 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 		)
 	}
 
-	undeployedRequest, err := http.NewRequestWithContext(
+	undeployedRequest := newMunkiRequest(
+		t,
 		t.Context(),
-		http.MethodGet,
 		server.BaseURL+"/munki/client_resources/"+serial+".zip",
-		nil,
+		serial,
 	)
-	if err != nil {
-		t.Fatal("create undeployed client resources request")
-	}
-	undeployedRequest.Header.Set("Authorization", "Bearer "+munkiSecret)
 	undeployedResponse, err := munkiClient.Do(undeployedRequest)
 	if err != nil {
 		t.Fatalf("fetch undeployed client resources: %v", err)
@@ -871,6 +1239,122 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 	if undeployedResponse.StatusCode != http.StatusNotFound {
 		t.Fatalf("undeployed client resources status = %d, want 404", undeployedResponse.StatusCode)
 	}
+}
+
+func newMunkiRequest(
+	t *testing.T,
+	ctx context.Context,
+	url string,
+	serial string,
+) *http.Request {
+	t.Helper()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		t.Fatalf("create Munki request: %v", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+munkiSecret)
+	req.Header.Set("X-Woodstar-Serial-Number", serial)
+	return req
+}
+
+func attachMunkiIcon(
+	t *testing.T,
+	server *testServer,
+	transferClient *http.Client,
+	softwareID int64,
+	filename string,
+	contents []byte,
+) adminapi.MunkiObjectView {
+	t.Helper()
+	payload, err := json.Marshal(adminapi.MunkiUploadRequest{Filename: filename})
+	if err != nil {
+		t.Fatalf("encode icon upload request: %v", err)
+	}
+	createRequest, err := http.NewRequestWithContext(
+		t.Context(),
+		http.MethodPost,
+		server.BaseURL+"/api/munki/icons",
+		bytes.NewReader(payload),
+	)
+	if err != nil {
+		t.Fatalf("create icon upload request: %v", err)
+	}
+	createRequest.Header.Set("Content-Type", "application/json")
+	createResponse, err := server.AdminHTTP.Do(createRequest)
+	if err != nil {
+		t.Fatalf("create icon upload: %v", err)
+	}
+	createBody := readAndClose(t, createResponse)
+	if createResponse.StatusCode != http.StatusCreated {
+		t.Fatalf("create icon upload status = %d, want 201: %s", createResponse.StatusCode, createBody)
+	}
+	var target adminapi.MunkiDirectUploadTarget
+	if err := json.Unmarshal(createBody, &target); err != nil {
+		t.Fatalf("decode icon upload target: %v", err)
+	}
+	if target.ObjectId <= 0 || target.Upload.Method != http.MethodPut || target.Upload.Strategy != "direct-put" {
+		t.Fatalf(
+			"icon upload target id/method/strategy = %d/%q/%q, want positive/PUT/direct-put",
+			target.ObjectId,
+			target.Upload.Method,
+			target.Upload.Strategy,
+		)
+	}
+	uploadRequest, err := http.NewRequestWithContext(
+		t.Context(),
+		string(target.Upload.Method),
+		target.Upload.Url,
+		bytes.NewReader(contents),
+	)
+	if err != nil {
+		t.Fatalf("create icon upload capability request: %v", err)
+	}
+	if target.Upload.Headers != nil {
+		for name, value := range *target.Upload.Headers {
+			uploadRequest.Header.Set(name, value)
+		}
+	}
+	uploadResponse, err := transferClient.Do(uploadRequest)
+	if err != nil {
+		t.Fatalf("upload icon through returned capability: %v", err)
+	}
+	drainAndClose(t, uploadResponse)
+	if uploadResponse.StatusCode != http.StatusNoContent {
+		t.Fatalf("icon upload status = %d, want 204", uploadResponse.StatusCode)
+	}
+	attachPayload, err := json.Marshal(struct {
+		ObjectID int64 `json:"object_id"`
+	}{ObjectID: target.ObjectId})
+	if err != nil {
+		t.Fatalf("encode attach icon request: %v", err)
+	}
+	attachRequest, err := http.NewRequestWithContext(
+		t.Context(),
+		http.MethodPut,
+		server.BaseURL+"/api/munki/software/"+strconv.FormatInt(softwareID, 10)+"/icon",
+		bytes.NewReader(attachPayload),
+	)
+	if err != nil {
+		t.Fatalf("create attach icon request: %v", err)
+	}
+	attachRequest.Header.Set("Content-Type", "application/json")
+	attachResponse, err := server.AdminHTTP.Do(attachRequest)
+	if err != nil {
+		t.Fatalf("attach icon: %v", err)
+	}
+	attachBody := readAndClose(t, attachResponse)
+	if attachResponse.StatusCode != http.StatusOK {
+		t.Fatalf("attach icon status = %d, want 200: %s", attachResponse.StatusCode, attachBody)
+	}
+	var icon adminapi.MunkiObjectView
+	if err := json.Unmarshal(attachBody, &icon); err != nil {
+		t.Fatalf("decode attached icon: %v", err)
+	}
+	if icon.Id != target.ObjectId || icon.Filename != filename || icon.ContentType != "image/png" ||
+		icon.SizeBytes == nil || *icon.SizeBytes != int64(len(contents)) || icon.Sha256 == nil || *icon.Sha256 == "" {
+		t.Fatalf("attached icon = %+v, want finalized %s", icon, filename)
+	}
+	return icon
 }
 
 func assertStorageCapabilityTTL(
