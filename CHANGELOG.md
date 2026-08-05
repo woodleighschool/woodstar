@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.8.0](https://github.com/woodleighschool/woodstar/compare/0.7.9...0.8.0) (2026-08-05)
+
+
+### ⚠ BREAKING CHANGES
+
+* **deps:** Update dependency @tanstack/react-table (8.21.3 → 9.0.0)
+
+### Features
+
+* **deps:** update dependency @base-ui/react (1.6.0 → 1.7.0) ([#126](https://github.com/woodleighschool/woodstar/issues/126)) ([1621589](https://github.com/woodleighschool/woodstar/commit/1621589efa9f1da86aba9e269ac7982a58128ed1))
+* **deps:** Update dependency @tanstack/react-table (8.21.3 → 9.0.0) ([1f9fd01](https://github.com/woodleighschool/woodstar/commit/1f9fd01ce89d4064cf3e19a3aa7195c95177001d))
+
+
+### Bug Fixes
+
+* **deps:** update dependency @codemirror/view (6.43.7 → 6.43.8) ([#127](https://github.com/woodleighschool/woodstar/issues/127)) ([f804dd3](https://github.com/woodleighschool/woodstar/commit/f804dd30d40dfa43d767e079fd9f27c545968962))
+* **deps:** update tanstack-router monorepo ([#128](https://github.com/woodleighschool/woodstar/issues/128)) ([64de2c2](https://github.com/woodleighschool/woodstar/commit/64de2c226ff80a583c36737122bcce997d01e8ab))
+* **hosts:** simplify table status and times ([c409fdd](https://github.com/woodleighschool/woodstar/commit/c409fdd15ee82ba1242ddb23a045771975596e09))
+
+
+### Code Refactoring
+
+* **web:** migrate tables to TanStack v9 ([33d852d](https://github.com/woodleighschool/woodstar/commit/33d852d08e747d227ea8efa01971fe9f13022783))
+
 ## [0.7.9](https://github.com/woodleighschool/woodstar/compare/0.7.8...0.7.9) (2026-08-04)
 
 
