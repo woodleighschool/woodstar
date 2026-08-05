@@ -120,11 +120,10 @@ export function LabelListPage() {
     },
     { refetchInterval: 30000 },
   );
-  const labels = query.data?.items ?? [];
-  const tableRows: LabelTableRow[] = labels.map((label) => ({
-    label,
-    onDelete: setDeleting,
-  }));
+  const tableRows = React.useMemo<LabelTableRow[]>(
+    () => query.data?.items.map((label) => ({ label, onDelete: setDeleting })) ?? [],
+    [query.data?.items],
+  );
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
   const table = useDataTable({
@@ -161,6 +160,7 @@ export function LabelListPage() {
       ) : (
         <DataTable
           table={table}
+          pending={query.isPlaceholderData}
           empty={
             <DataTableEmpty
               icon={<Tags />}
@@ -172,6 +172,7 @@ export function LabelListPage() {
           }
         >
           <DataTableSearchInput
+            loading={query.isPlaceholderData}
             value={tableSearch.q ?? ""}
             onValueChange={tableSearch.onQueryChange}
           />

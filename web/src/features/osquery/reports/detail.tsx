@@ -233,6 +233,7 @@ export function ReportDetailPage() {
           ) : (
             <DataTable
               table={table}
+              pending={snapshots.isPlaceholderData}
               exportOptions={exportOptions}
               renderSubRow={(row) => (
                 <SnapshotResultRows rows={row.original.rows} columnNames={columnNames} />
@@ -244,6 +245,7 @@ export function ReportDetailPage() {
               }
             >
               <DataTableSearchInput
+                loading={snapshots.isPlaceholderData}
                 value={tableSearch.q ?? ""}
                 onValueChange={tableSearch.onQueryChange}
                 placeholder="Search hosts and results"

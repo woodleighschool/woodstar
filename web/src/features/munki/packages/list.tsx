@@ -138,7 +138,7 @@ export function MunkiPackageListPage() {
     sort: tableSearch.sort,
     type: packageTypes,
   });
-  const packages = query.data?.items ?? [];
+  const packages = React.useMemo(() => query.data?.items ?? [], [query.data?.items]);
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
   const columns = React.useMemo(() => packageColumns(isAdmin, setDeleting), [isAdmin]);
@@ -176,6 +176,7 @@ export function MunkiPackageListPage() {
       ) : (
         <DataTable
           table={table}
+          pending={query.isPlaceholderData}
           actionBar={
             isAdmin ? (
               <BulkDeleteActionBar
@@ -198,6 +199,7 @@ export function MunkiPackageListPage() {
           }
         >
           <DataTableSearchInput
+            loading={query.isPlaceholderData}
             value={tableSearch.q ?? ""}
             onValueChange={tableSearch.onQueryChange}
           />

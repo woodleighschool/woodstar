@@ -348,10 +348,11 @@ function SelectorTable<TData extends DataTableRowData>({
   const rowSelection = Object.fromEntries(
     selectedRowIds.map((id) => [id, true]),
   ) satisfies RowSelectionState;
+  const tableData = useMemo(() => (isLoading ? [] : data), [data, isLoading]);
   const selectorColumns = useMemo(() => [selectColumn<TData>(), ...columns], [columns]);
   const table = useTable({
     features: dataTableFeatures,
-    data: isLoading ? [] : data,
+    data: tableData,
     columns: selectorColumns,
     getRowId: (row) => getRowId(row),
     manualPagination: true,

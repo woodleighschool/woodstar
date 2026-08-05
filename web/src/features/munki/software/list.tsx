@@ -125,7 +125,7 @@ export function MunkiSoftwareListPage() {
     per_page: tableSearch.per_page,
     sort: tableSearch.sort,
   });
-  const software = query.data?.items ?? [];
+  const software = React.useMemo(() => query.data?.items ?? [], [query.data?.items]);
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
   const columns = React.useMemo(() => softwareColumns(isAdmin, setDeleting), [isAdmin]);
@@ -164,6 +164,7 @@ export function MunkiSoftwareListPage() {
       ) : (
         <DataTable
           table={table}
+          pending={query.isPlaceholderData}
           actionBar={
             isAdmin ? (
               <BulkDeleteActionBar
@@ -187,6 +188,7 @@ export function MunkiSoftwareListPage() {
           }
         >
           <DataTableSearchInput
+            loading={query.isPlaceholderData}
             value={tableSearch.q ?? ""}
             onValueChange={tableSearch.onQueryChange}
           />

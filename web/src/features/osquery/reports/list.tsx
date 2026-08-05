@@ -1,6 +1,6 @@
 import { getRouteApi } from "@tanstack/react-router";
 import { FileBarChart2, MoreHorizontal, Plus } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { BulkDeleteActionBar } from "@components/bulk-delete-action-bar";
 import { DataTable } from "@components/data-table/data-table";
@@ -52,11 +52,10 @@ export function ReportListPage() {
     per_page: tableSearch.per_page,
     sort: tableSearch.sort,
   });
-  const reports = query.data?.items ?? [];
-  const tableRows: ReportTableRow[] = reports.map((report) => ({
-    ...report,
-    onDelete: setDeleting,
-  }));
+  const tableRows = useMemo<ReportTableRow[]>(
+    () => query.data?.items.map((report) => ({ ...report, onDelete: setDeleting })) ?? [],
+    [query.data?.items],
+  );
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
   const table = useDataTable({
@@ -93,6 +92,7 @@ export function ReportListPage() {
       ) : (
         <DataTable
           table={table}
+          pending={query.isPlaceholderData}
           actionBar={
             isAdmin ? (
               <BulkDeleteActionBar
@@ -113,6 +113,7 @@ export function ReportListPage() {
           }
         >
           <DataTableSearchInput
+            loading={query.isPlaceholderData}
             value={tableSearch.q ?? ""}
             onValueChange={tableSearch.onQueryChange}
           />

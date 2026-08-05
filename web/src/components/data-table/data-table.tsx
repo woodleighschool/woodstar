@@ -35,6 +35,7 @@ interface DataTableProps<TData extends DataTableRowData> extends React.Component
   exportOptions?: DataTableExportOptions<TData>;
   heading?: React.ReactNode;
   pageSizeOptions?: readonly number[];
+  pending?: boolean;
   renderSubRow?: (row: DataTableRow<TData>) => React.ReactNode;
   toolbarActions?: React.ReactNode;
 }
@@ -46,6 +47,7 @@ export function DataTable<TData extends DataTableRowData>({
   exportOptions,
   heading,
   pageSizeOptions,
+  pending = false,
   renderSubRow,
   toolbarActions,
   children,
@@ -66,7 +68,7 @@ export function DataTable<TData extends DataTableRowData>({
     ) : null;
 
   return (
-    <div className={cn("min-w-0", className)} {...props}>
+    <div className={cn("min-w-0", className)} {...props} aria-busy={pending || undefined}>
       <TableSurface
         heading={heading}
         toolbar={toolbar}
@@ -78,7 +80,13 @@ export function DataTable<TData extends DataTableRowData>({
           />
         }
       >
-        <Table className="block" style={{ width: `max(100%, ${table.getTotalSize()}px)` }}>
+        <Table
+          className={cn(
+            "block transition-opacity duration-150",
+            pending ? "opacity-60 delay-150" : "opacity-100 delay-0",
+          )}
+          style={{ width: `max(100%, ${table.getTotalSize()}px)` }}
+        >
           <TableHeader className="block">
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id} className="flex w-full">

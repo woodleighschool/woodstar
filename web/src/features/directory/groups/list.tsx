@@ -1,5 +1,6 @@
 import { getRouteApi } from "@tanstack/react-router";
 import { UsersRound } from "lucide-react";
+import { useMemo } from "react";
 
 import { DataTable } from "@components/data-table/data-table";
 import { DataTableEmpty } from "@components/data-table/data-table-empty";
@@ -71,7 +72,7 @@ export function GroupListPage() {
     sort: tableSearch.sort,
   });
 
-  const groups = query.data?.items ?? [];
+  const groups = useMemo(() => query.data?.items ?? [], [query.data?.items]);
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
   const table = useDataTable({
@@ -99,6 +100,7 @@ export function GroupListPage() {
       ) : (
         <DataTable
           table={table}
+          pending={query.isPlaceholderData}
           empty={
             <DataTableEmpty
               icon={<UsersRound />}
@@ -110,6 +112,7 @@ export function GroupListPage() {
           }
         >
           <DataTableSearchInput
+            loading={query.isPlaceholderData}
             value={tableSearch.q ?? ""}
             onValueChange={tableSearch.onQueryChange}
           />

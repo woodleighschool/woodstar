@@ -155,13 +155,16 @@ export function UserListPage() {
     source,
     group_id: groupID,
   });
-  const users = query.data?.items ?? [];
-  const tableRows: UserTableRow[] = users.map((user) => ({
-    user,
-    currentUserId: currentUser?.id ?? null,
-    isAdmin,
-    onDelete: setDeleting,
-  }));
+  const tableRows = React.useMemo<UserTableRow[]>(
+    () =>
+      query.data?.items.map((user) => ({
+        user,
+        currentUserId: currentUser?.id ?? null,
+        isAdmin,
+        onDelete: setDeleting,
+      })) ?? [],
+    [currentUser?.id, isAdmin, query.data?.items],
+  );
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
   const groupLabel =
@@ -210,6 +213,7 @@ export function UserListPage() {
       ) : (
         <DataTable
           table={table}
+          pending={query.isPlaceholderData}
           empty={
             <DataTableEmpty
               icon={<Users />}
@@ -221,6 +225,7 @@ export function UserListPage() {
           }
         >
           <DataTableSearchInput
+            loading={query.isPlaceholderData}
             value={tableSearch.q ?? ""}
             onValueChange={tableSearch.onQueryChange}
           />

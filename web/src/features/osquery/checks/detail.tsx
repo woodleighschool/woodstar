@@ -237,6 +237,7 @@ export function CheckDetailPage() {
           ) : (
             <DataTable
               table={table}
+              pending={results.isPlaceholderData}
               exportOptions={exportOptions}
               empty={
                 <PanelEmptyState>
@@ -245,6 +246,7 @@ export function CheckDetailPage() {
               }
             >
               <DataTableSearchInput
+                loading={results.isPlaceholderData}
                 value={tableSearch.q ?? ""}
                 onValueChange={tableSearch.onQueryChange}
                 placeholder="Search check results"

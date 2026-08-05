@@ -162,6 +162,7 @@ export function ConfigurationListPage() {
       ) : (
         <DataTable
           table={table}
+          pending={query.isPlaceholderData}
           actionBar={
             isAdmin ? (
               <BulkDeleteActionBar
@@ -175,6 +176,7 @@ export function ConfigurationListPage() {
           empty={emptyState}
         >
           <DataTableSearchInput
+            loading={query.isPlaceholderData}
             value={tableSearch.q ?? ""}
             onValueChange={tableSearch.onQueryChange}
           />
