@@ -1,5 +1,4 @@
 import { getRouteApi } from "@tanstack/react-router";
-import type { CellContext, ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontal, Plus, Tags } from "lucide-react";
 import * as React from "react";
 
@@ -8,6 +7,7 @@ import { DataTableEmpty } from "@components/data-table/data-table-empty";
 import { DataTableFacetedFilter } from "@components/data-table/data-table-faceted-filter";
 import { DataTableSearchInput } from "@components/data-table/data-table-search-input";
 import { DataTableSkeleton } from "@components/data-table/data-table-skeleton";
+import type { DataTableCellContext, DataTableColumnDef } from "@components/data-table/types";
 import { useDataTable } from "@components/data-table/use-data-table";
 import { useDataTableSearch } from "@components/data-table/use-data-table-search";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
@@ -38,7 +38,7 @@ interface LabelTableRow {
   onDelete: (label: Label) => void;
 }
 
-function LabelNameCell({ row }: CellContext<LabelTableRow, unknown>) {
+function LabelNameCell({ row }: DataTableCellContext<LabelTableRow>) {
   return (
     <Link to="/labels/$id" params={{ id: String(row.original.label.id) }} className="font-medium">
       {row.original.label.name}
@@ -46,11 +46,11 @@ function LabelNameCell({ row }: CellContext<LabelTableRow, unknown>) {
   );
 }
 
-function LabelActionsCell({ row }: CellContext<LabelTableRow, unknown>) {
+function LabelActionsCell({ row }: DataTableCellContext<LabelTableRow>) {
   return <LabelRowActions label={row.original.label} onDelete={row.original.onDelete} />;
 }
 
-const labelColumns: ColumnDef<LabelTableRow>[] = [
+const labelColumns: DataTableColumnDef<LabelTableRow>[] = [
   {
     id: "name",
     accessorFn: (row) => row.label.name,

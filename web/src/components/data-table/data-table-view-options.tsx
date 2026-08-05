@@ -1,7 +1,7 @@
-import type { Table } from "@tanstack/react-table";
 import { Settings2 } from "lucide-react";
 import * as React from "react";
 
+import type { DataTableInstance, DataTableRowData } from "@components/data-table/types";
 import { Button } from "@components/ui/button";
 import {
   DropdownMenu,
@@ -12,14 +12,14 @@ import {
   DropdownMenuTrigger,
 } from "@components/ui/dropdown-menu";
 
-interface DataTableViewOptionsProps<TData> extends React.ComponentProps<
+interface DataTableViewOptionsProps<TData extends DataTableRowData> extends React.ComponentProps<
   typeof DropdownMenuContent
 > {
-  table: Table<TData>;
+  table: DataTableInstance<TData>;
   disabled?: boolean;
 }
 
-export function DataTableViewOptions<TData>({
+export function DataTableViewOptions<TData extends DataTableRowData>({
   table,
   disabled,
   ...props

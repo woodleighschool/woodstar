@@ -1,11 +1,11 @@
 import { getRouteApi } from "@tanstack/react-router";
-import type { ColumnDef } from "@tanstack/react-table";
 import { UsersRound } from "lucide-react";
 
 import { DataTable } from "@components/data-table/data-table";
 import { DataTableEmpty } from "@components/data-table/data-table-empty";
 import { DataTableSearchInput } from "@components/data-table/data-table-search-input";
 import { DataTableSkeleton } from "@components/data-table/data-table-skeleton";
+import type { DataTableColumnDef } from "@components/data-table/types";
 import { useDataTable } from "@components/data-table/use-data-table";
 import { useDataTableSearch } from "@components/data-table/use-data-table-search";
 import { EnumBadge } from "@components/enum-badge";
@@ -20,7 +20,7 @@ import { nonEmpty } from "@lib/utils";
 
 const routeApi = getRouteApi("/_authenticated/directory/groups/");
 
-const groupColumns: ColumnDef<Group>[] = [
+const groupColumns: DataTableColumnDef<Group>[] = [
   {
     id: "display_name",
     accessorKey: "display_name",

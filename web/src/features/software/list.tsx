@@ -1,5 +1,4 @@
 import { getRouteApi } from "@tanstack/react-router";
-import type { ColumnDef } from "@tanstack/react-table";
 import { Package } from "lucide-react";
 import * as React from "react";
 
@@ -8,6 +7,7 @@ import { DataTableEmpty } from "@components/data-table/data-table-empty";
 import { DataTableFacetedFilter } from "@components/data-table/data-table-faceted-filter";
 import { DataTableSearchInput } from "@components/data-table/data-table-search-input";
 import { DataTableSkeleton } from "@components/data-table/data-table-skeleton";
+import type { DataTableColumnDef } from "@components/data-table/types";
 import { useDataTable } from "@components/data-table/use-data-table";
 import { useDataTableSearch } from "@components/data-table/use-data-table-search";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
@@ -52,7 +52,7 @@ export function SoftwareListPage() {
   const software = query.data?.items ?? [];
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
-  const columns = React.useMemo<ColumnDef<SoftwareTitle>[]>(() => softwareColumns, []);
+  const columns = React.useMemo<DataTableColumnDef<SoftwareTitle>[]>(() => softwareColumns, []);
 
   const table = useDataTable({
     tableState: tableSearch,
@@ -107,7 +107,7 @@ export function SoftwareListPage() {
   );
 }
 
-const softwareColumns: ColumnDef<SoftwareTitle>[] = [
+const softwareColumns: DataTableColumnDef<SoftwareTitle>[] = [
   {
     id: "name",
     accessorKey: "name",

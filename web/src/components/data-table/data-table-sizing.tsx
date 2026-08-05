@@ -1,6 +1,10 @@
-import type { Column, Header, RowData } from "@tanstack/react-table";
 import type { CSSProperties, ReactNode } from "react";
 
+import type {
+  DataTableColumn,
+  DataTableHeader,
+  DataTableRowData,
+} from "@components/data-table/types";
 import { cn } from "@lib/utils";
 
 // `size` is the preferred flex basis. Columns grow into spare room, preserve
@@ -18,8 +22,8 @@ export const DATA_TABLE_CONTROL_COLUMN = {
   enableResizing: false,
 } as const;
 
-export function getDataTableColumnStyle<TData extends RowData, TValue>(
-  column: Column<TData, TValue>,
+export function getDataTableColumnStyle<TData extends DataTableRowData, TValue>(
+  column: DataTableColumn<TData, TValue>,
 ): CSSProperties {
   const size = column.getSize();
   const minSize = column.columnDef.minSize ?? DATA_TABLE_DEFAULT_COLUMN.minSize;
@@ -45,10 +49,10 @@ export function DataTableCellContent({ children }: { children: ReactNode }) {
   );
 }
 
-export function DataTableResizeHandle<TData extends RowData, TValue>({
+export function DataTableResizeHandle<TData extends DataTableRowData, TValue>({
   header,
 }: {
-  header: Header<TData, TValue>;
+  header: DataTableHeader<TData, TValue>;
 }) {
   if (!header.column.getCanResize()) return null;
 

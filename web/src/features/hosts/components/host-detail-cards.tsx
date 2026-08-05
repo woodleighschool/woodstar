@@ -1,5 +1,4 @@
 import { revalidateLogic, useForm } from "@tanstack/react-form";
-import type { ColumnDef } from "@tanstack/react-table";
 import { filesize } from "filesize";
 import { Pencil, Trash2, UserPlus } from "lucide-react";
 import { type ReactNode, useMemo, useState } from "react";
@@ -7,6 +6,7 @@ import { z } from "zod";
 
 import { AsyncButton } from "@components/async-button";
 import { DataTableStatic } from "@components/data-table/data-table-static";
+import type { DataTableColumnDef } from "@components/data-table/types";
 import { KeyValueRow, KeyValueRows, KeyValueSection } from "@components/key-value";
 import { Badge } from "@components/ui/badge";
 import { Button } from "@components/ui/button";
@@ -147,7 +147,7 @@ export function HostUsersCard({ host }: { host: HostDetail }) {
   return <DataTableStatic heading="Local User Accounts" columns={userColumns} data={users} />;
 }
 
-const userColumns: ColumnDef<NonNullable<HostDetail["users"]>[number]>[] = [
+const userColumns: DataTableColumnDef<NonNullable<HostDetail["users"]>[number]>[] = [
   {
     accessorKey: "username",
     header: () => "Username",
@@ -313,7 +313,7 @@ export function HostCertificatesCard({ host }: { host: HostDetail }) {
       ),
     [host.certificates],
   );
-  const columns = useMemo<ColumnDef<HostCertificate>[]>(
+  const columns = useMemo<DataTableColumnDef<HostCertificate>[]>(
     () => certificateColumns(setSelectedCertificate),
     [],
   );
@@ -330,7 +330,7 @@ export function HostCertificatesCard({ host }: { host: HostDetail }) {
 }
 function certificateColumns(
   onSelect: (certificate: HostCertificate) => void,
-): ColumnDef<HostCertificate>[] {
+): DataTableColumnDef<HostCertificate>[] {
   return [
     {
       id: "common_name",

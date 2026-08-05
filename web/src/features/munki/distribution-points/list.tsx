@@ -1,5 +1,4 @@
 import { getRouteApi } from "@tanstack/react-router";
-import type { ColumnDef } from "@tanstack/react-table";
 import { GripVertical, HardDrive, MoreHorizontal, Plus } from "lucide-react";
 import * as React from "react";
 
@@ -15,6 +14,7 @@ import {
   DraggableTableRows,
 } from "@components/data-table/draggable-table-rows";
 import { TableSurface } from "@components/data-table/table-surface";
+import type { DataTableColumnDef } from "@components/data-table/types";
 import { useDataTable } from "@components/data-table/use-data-table";
 import { encodeSort, useDataTableSearch } from "@components/data-table/use-data-table-search";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
@@ -75,7 +75,7 @@ export function DistributionPointListPage() {
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
   const reorderTruncated = reorderEnabled && totalCount > MAX_PAGE_SIZE;
   const canEnableReorder = isAdmin && !tableSearch.isFiltered && totalCount > 1 && !query.isLoading;
-  const columns = React.useMemo<ColumnDef<MunkiDistributionPoint>[]>(
+  const columns = React.useMemo<DataTableColumnDef<MunkiDistributionPoint>[]>(
     () => distributionPointColumns(isAdmin, setDeleting),
     [isAdmin],
   );
@@ -180,8 +180,8 @@ export function DistributionPointListPage() {
 function distributionPointColumns(
   isAdmin: boolean,
   onDelete: (point: MunkiDistributionPoint) => void,
-): ColumnDef<MunkiDistributionPoint>[] {
-  const columns: ColumnDef<MunkiDistributionPoint>[] = [
+): DataTableColumnDef<MunkiDistributionPoint>[] {
+  const columns: DataTableColumnDef<MunkiDistributionPoint>[] = [
     {
       id: "position",
       accessorKey: "position",

@@ -1,5 +1,4 @@
 import { getRouteApi } from "@tanstack/react-router";
-import type { CellContext, ColumnDef } from "@tanstack/react-table";
 import { FileBarChart2, MoreHorizontal, Plus } from "lucide-react";
 import { useState } from "react";
 
@@ -9,6 +8,7 @@ import { DataTableEmpty } from "@components/data-table/data-table-empty";
 import { DataTableSearchInput } from "@components/data-table/data-table-search-input";
 import { DataTableSkeleton } from "@components/data-table/data-table-skeleton";
 import { selectColumn } from "@components/data-table/select-column";
+import type { DataTableCellContext, DataTableColumnDef } from "@components/data-table/types";
 import { useDataTable } from "@components/data-table/use-data-table";
 import { useDataTableSearch } from "@components/data-table/use-data-table-search";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
@@ -132,7 +132,7 @@ export function ReportListPage() {
   );
 }
 
-const reportColumns: ColumnDef<ReportTableRow>[] = [
+const reportColumns: DataTableColumnDef<ReportTableRow>[] = [
   {
     id: "name",
     accessorKey: "name",
@@ -168,7 +168,7 @@ const reportColumns: ColumnDef<ReportTableRow>[] = [
   },
 ];
 
-function ReportActionsCell({ row }: CellContext<ReportTableRow, unknown>) {
+function ReportActionsCell({ row }: DataTableCellContext<ReportTableRow>) {
   const report = row.original;
   return (
     <DropdownMenu>
@@ -192,7 +192,7 @@ function ReportActionsCell({ row }: CellContext<ReportTableRow, unknown>) {
   );
 }
 
-const reportAdminColumns: ColumnDef<ReportTableRow>[] = [
+const reportAdminColumns: DataTableColumnDef<ReportTableRow>[] = [
   selectColumn<ReportTableRow>(),
   ...reportColumns,
   {

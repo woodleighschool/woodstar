@@ -1,8 +1,8 @@
-import type { Table as TanStackTable } from "@tanstack/react-table";
 import { Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { BulkDeleteDialog } from "@components/bulk-delete-dialog";
+import type { DataTableInstance } from "@components/data-table/types";
 import {
   ActionBar,
   ActionBarGroup,
@@ -25,7 +25,7 @@ export function BulkDeleteActionBar<TRow extends { id: number }>({
   pluralNoun,
   description,
 }: {
-  table: TanStackTable<TRow>;
+  table: DataTableInstance<TRow>;
   useBulkDelete: () => BulkDeleteMutation;
   noun: string;
   pluralNoun?: string;

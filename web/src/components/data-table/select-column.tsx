@@ -1,10 +1,9 @@
-import type { ColumnDef } from "@tanstack/react-table";
-
 import { DATA_TABLE_CONTROL_COLUMN } from "@components/data-table/data-table-sizing";
+import type { DataTableColumnDef, DataTableRowData } from "@components/data-table/types";
 import { Checkbox } from "@components/ui/checkbox";
 
 // Row-selection column shared by resource lists that support bulk actions.
-export function selectColumn<TData>(): ColumnDef<TData> {
+export function selectColumn<TData extends DataTableRowData>(): DataTableColumnDef<TData> {
   return {
     ...DATA_TABLE_CONTROL_COLUMN,
     id: "select",

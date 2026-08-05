@@ -1,8 +1,7 @@
-import type { Column } from "@tanstack/react-table";
 import { PlusCircle, X } from "lucide-react";
 import * as React from "react";
 
-import type { Option } from "@components/data-table/types";
+import type { DataTableColumn, DataTableRowData, Option } from "@components/data-table/types";
 import { Badge } from "@components/ui/badge";
 import { Button } from "@components/ui/button";
 import { ButtonGroup } from "@components/ui/button-group";
@@ -17,13 +16,13 @@ import {
 } from "@components/ui/combobox";
 import { Separator } from "@components/ui/separator";
 
-interface DataTableFacetedFilterProps<TData, TValue> {
-  column?: Column<TData, TValue>;
+interface DataTableFacetedFilterProps<TData extends DataTableRowData, TValue> {
+  column?: DataTableColumn<TData, TValue>;
   title?: string;
   options: Option[];
 }
 
-export function DataTableFacetedFilter<TData, TValue>({
+export function DataTableFacetedFilter<TData extends DataTableRowData, TValue>({
   column,
   title,
   options,

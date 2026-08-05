@@ -1,10 +1,10 @@
 import { useNavigate, useParams } from "@tanstack/react-router";
-import type { ColumnDef } from "@tanstack/react-table";
 import { AppWindow, Pencil, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { DataTableStatic } from "@components/data-table/data-table-static";
 import { TableSurface } from "@components/data-table/table-surface";
+import type { DataTableColumnDef } from "@components/data-table/types";
 import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link } from "@components/link";
@@ -32,7 +32,7 @@ import { MUNKI_SOFTWARE_ACTIONS } from "./actions";
 import { MunkiSoftwareDeleteDialog } from "./delete-dialog";
 import { useMunkiSoftwareDetail } from "./queries";
 
-const packageColumns: ColumnDef<MunkiPackage>[] = [
+const packageColumns: DataTableColumnDef<MunkiPackage>[] = [
   {
     id: "version",
     accessorKey: "version",

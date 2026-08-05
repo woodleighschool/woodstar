@@ -1,5 +1,4 @@
 import { getRouteApi, useParams } from "@tanstack/react-router";
-import type { Table } from "@tanstack/react-table";
 import { Pencil, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 
@@ -8,6 +7,7 @@ import type { DataTableExportOptions } from "@components/data-table/data-table-e
 import { DataTableFacetedFilter } from "@components/data-table/data-table-faceted-filter";
 import { DataTableSearchInput } from "@components/data-table/data-table-search-input";
 import { DataTableSkeleton } from "@components/data-table/data-table-skeleton";
+import type { DataTableInstance } from "@components/data-table/types";
 import { useDataTable } from "@components/data-table/use-data-table";
 import { useDataTableSearch } from "@components/data-table/use-data-table-search";
 import { KeyValueRow, KeyValueSection } from "@components/key-value";
@@ -47,7 +47,7 @@ const resultExportColumns: DataTableExportOptions<CheckResultRow>["columns"] = [
 const STATUS_FILTER_KEYS = [{ id: "status", multiple: true }] as const;
 const routeApi = getRouteApi("/_authenticated/osquery/checks/$id/");
 
-function CheckResultsToolbar({ table }: { table: Table<CheckResultRow> }) {
+function CheckResultsToolbar({ table }: { table: DataTableInstance<CheckResultRow> }) {
   return (
     <DataTableFacetedFilter
       column={table.getColumn("status")}

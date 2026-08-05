@@ -1,7 +1,7 @@
-import type { ColumnDef } from "@tanstack/react-table";
 import { Activity, FolderLock } from "lucide-react";
 
 import { DataTableStatic } from "@components/data-table/data-table-static";
+import type { DataTableColumnDef } from "@components/data-table/types";
 import { EnumBadge } from "@components/enum-badge";
 import { EnumStatusIndicator } from "@components/enum-status-indicator";
 import { KeyValueRow, KeyValueSection } from "@components/key-value";
@@ -22,7 +22,7 @@ const RULE_APPLICATION_STATUSES = {
   pending: { name: "Pending", variant: "warning" },
 } as const;
 
-const santaRuleColumns: ColumnDef<SantaRuleStatus>[] = [
+const santaRuleColumns: DataTableColumnDef<SantaRuleStatus>[] = [
   {
     accessorKey: "name",
     header: () => "Name",

@@ -1,10 +1,10 @@
 import { getRouteApi } from "@tanstack/react-router";
-import type { ColumnDef, Table } from "@tanstack/react-table";
 
 import { DataTable } from "@components/data-table/data-table";
 import { DataTableFacetedFilter } from "@components/data-table/data-table-faceted-filter";
 import { DataTableSearchInput } from "@components/data-table/data-table-search-input";
 import { DataTableSkeleton } from "@components/data-table/data-table-skeleton";
+import type { DataTableColumnDef, DataTableInstance } from "@components/data-table/types";
 import { useDataTable } from "@components/data-table/use-data-table";
 import { useDataTableSearch } from "@components/data-table/use-data-table-search";
 import { EnumStatusIndicator } from "@components/enum-status-indicator";
@@ -16,7 +16,7 @@ import { CHECK_RESULT_STATUSES, CHECK_RESULT_STATUS_OPTIONS } from "@features/os
 import type { OsqueryCheckHostStatus } from "@lib/api";
 import { formatRelative } from "@lib/utils";
 
-const checkColumns: ColumnDef<OsqueryCheckHostStatus>[] = [
+const checkColumns: DataTableColumnDef<OsqueryCheckHostStatus>[] = [
   {
     accessorKey: "check_name",
     header: () => "Check",
@@ -44,7 +44,7 @@ const checkColumns: ColumnDef<OsqueryCheckHostStatus>[] = [
 const STATUS_FILTER_KEYS = [{ id: "status", multiple: true }] as const;
 const routeApi = getRouteApi("/_authenticated/hosts/$id/checks");
 
-function HostChecksToolbar({ table }: { table: Table<OsqueryCheckHostStatus> }) {
+function HostChecksToolbar({ table }: { table: DataTableInstance<OsqueryCheckHostStatus> }) {
   return (
     <DataTableFacetedFilter
       column={table.getColumn("status")}

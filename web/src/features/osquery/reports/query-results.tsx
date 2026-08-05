@@ -1,10 +1,9 @@
-import type { ColumnDef } from "@tanstack/react-table";
-
 import type {
   DataTableExportColumn,
   DataTableExportData,
 } from "@components/data-table/data-table-export";
 import { DataTableRowExpander } from "@components/data-table/data-table-row-expander";
+import type { DataTableColumnDef } from "@components/data-table/types";
 import { Link } from "@components/link";
 import { Badge } from "@components/ui/badge";
 import {
@@ -58,8 +57,8 @@ export function createReportResultColumns({
 }: {
   timestamp: "collected" | "reported";
   includeError?: boolean;
-}): ColumnDef<ReportResultRow>[] {
-  const timestampColumn: ColumnDef<ReportResultRow> =
+}): DataTableColumnDef<ReportResultRow>[] {
+  const timestampColumn: DataTableColumnDef<ReportResultRow> =
     timestamp === "collected"
       ? {
           id: "collected_at",
@@ -76,7 +75,7 @@ export function createReportResultColumns({
             row.original.updated_at ? formatRelative(row.original.updated_at) : "-",
         };
 
-  const columns: ColumnDef<ReportResultRow>[] = [
+  const columns: DataTableColumnDef<ReportResultRow>[] = [
     {
       id: "expand",
       header: () => <span className="sr-only">Expand</span>,

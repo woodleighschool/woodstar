@@ -1,5 +1,4 @@
 import { getRouteApi } from "@tanstack/react-router";
-import { getExpandedRowModel, type ColumnDef, type Table } from "@tanstack/react-table";
 import { useMemo } from "react";
 
 import { DataTable } from "@components/data-table/data-table";
@@ -8,6 +7,7 @@ import { DataTableFacetedFilter } from "@components/data-table/data-table-facete
 import { DataTableRowExpander } from "@components/data-table/data-table-row-expander";
 import { DataTableSearchInput } from "@components/data-table/data-table-search-input";
 import { DataTableSkeleton } from "@components/data-table/data-table-skeleton";
+import type { DataTableColumnDef, DataTableInstance } from "@components/data-table/types";
 import { useDataTable } from "@components/data-table/use-data-table";
 import { useDataTableSearch } from "@components/data-table/use-data-table-search";
 import { Link } from "@components/link";
@@ -28,7 +28,7 @@ import { formatRelative } from "@lib/utils";
 
 const EMPTY_REPORT_SNAPSHOTS: OsqueryReportSnapshot[] = [];
 
-const hostReportColumns: ColumnDef<OsqueryReportSnapshot>[] = [
+const hostReportColumns: DataTableColumnDef<OsqueryReportSnapshot>[] = [
   {
     id: "expand",
     header: () => <span className="sr-only">Expand</span>,
@@ -85,7 +85,7 @@ const hostReportColumns: ColumnDef<OsqueryReportSnapshot>[] = [
 const STATUS_FILTER_KEYS = [{ id: "status" }] as const;
 const routeApi = getRouteApi("/_authenticated/hosts/$id/reports");
 
-function HostReportsToolbar({ table }: { table: Table<OsqueryReportSnapshot> }) {
+function HostReportsToolbar({ table }: { table: DataTableInstance<OsqueryReportSnapshot> }) {
   return (
     <DataTableFacetedFilter
       column={table.getColumn("status")}
@@ -123,7 +123,6 @@ export function HostOsqueryReportsTab({ hostId }: { hostId: number | null }) {
     rowCount: totalCount,
     getRowId: (row) => `${row.report_id}-${row.host_id}`,
     getRowCanExpand: (row) => row.original.rows.length > 0,
-    getExpandedRowModel: getExpandedRowModel(),
     paginateExpandedRows: false,
   });
 

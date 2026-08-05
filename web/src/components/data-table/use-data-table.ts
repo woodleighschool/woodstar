@@ -1,32 +1,35 @@
 import {
   type ExpandedState,
-  getCoreRowModel,
+  type ColumnVisibilityState,
   type RowSelectionState,
   type SortingState,
-  type TableOptions,
-  type TableState,
-  useReactTable,
-  type VisibilityState,
+  useTable,
 } from "@tanstack/react-table";
 import * as React from "react";
 
 import { DATA_TABLE_DEFAULT_COLUMN } from "@components/data-table/data-table-sizing";
+import {
+  dataTableFeatures,
+  type DataTableOptions,
+  type DataTableRowData,
+  type DataTableState,
+} from "@components/data-table/types";
 import type { DataTableQuery } from "@components/data-table/use-data-table-search";
 
-interface UseDataTableProps<TData>
+interface UseDataTableProps<TData extends DataTableRowData>
   extends
     Omit<
-      TableOptions<TData>,
+      DataTableOptions<TData>,
       | "state"
+      | "features"
       | "pageCount"
       | "rowCount"
-      | "getCoreRowModel"
       | "manualFiltering"
       | "manualPagination"
       | "manualSorting"
     >,
-    Required<Pick<TableOptions<TData>, "pageCount" | "rowCount">> {
-  initialState?: Omit<Partial<TableState>, "sorting"> & {
+    Required<Pick<DataTableOptions<TData>, "pageCount" | "rowCount">> {
+  initialState?: Omit<Partial<DataTableState>, "sorting"> & {
     sorting?: SortingState;
   };
   tableState: Pick<
@@ -40,7 +43,7 @@ interface UseDataTableProps<TData>
   >;
 }
 
-export function useDataTable<TData>(props: UseDataTableProps<TData>) {
+export function useDataTable<TData extends DataTableRowData>(props: UseDataTableProps<TData>) {
   const {
     columns,
     pageCount,
@@ -54,7 +57,7 @@ export function useDataTable<TData>(props: UseDataTableProps<TData>) {
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>(
     initialState?.rowSelection ?? {},
   );
-  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>(
+  const [columnVisibility, setColumnVisibility] = React.useState<ColumnVisibilityState>(
     initialState?.columnVisibility ?? {},
   );
   const [expanded, setExpanded] = React.useState<ExpandedState>(initialState?.expanded ?? {});
@@ -74,7 +77,8 @@ export function useDataTable<TData>(props: UseDataTableProps<TData>) {
     });
   }, [normalizedPageCount, onPaginationChange, pagination]);
 
-  return useReactTable({
+  return useTable({
+    features: dataTableFeatures,
     ...tableProps,
     columns,
     initialState,
@@ -103,7 +107,6 @@ export function useDataTable<TData>(props: UseDataTableProps<TData>) {
     onColumnVisibilityChange: setColumnVisibility,
     onExpandedChange: setExpanded,
     enableMultiSort: false,
-    getCoreRowModel: getCoreRowModel(),
     manualPagination: true,
     manualSorting: true,
     manualFiltering: true,
