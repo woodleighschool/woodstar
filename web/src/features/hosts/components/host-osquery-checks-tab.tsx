@@ -1,4 +1,5 @@
 import { getRouteApi } from "@tanstack/react-router";
+import { useMemo } from "react";
 
 import { DataTable } from "@components/data-table/data-table";
 import { DataTableFacetedFilter } from "@components/data-table/data-table-faceted-filter";
@@ -70,7 +71,7 @@ export function HostOsqueryChecksTab({ hostId }: { hostId: number | null }) {
     sort: tableSearch.sort,
     status,
   });
-  const rows = query.data?.items ?? [];
+  const rows = useMemo(() => query.data?.items ?? [], [query.data?.items]);
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
   const table = useDataTable({
@@ -104,6 +105,7 @@ export function HostOsqueryChecksTab({ hostId }: { hostId: number | null }) {
   return (
     <DataTable
       table={table}
+      pending={query.isFetching}
       heading="Checks"
       empty={
         <PanelEmptyState>
@@ -112,6 +114,7 @@ export function HostOsqueryChecksTab({ hostId }: { hostId: number | null }) {
       }
     >
       <DataTableSearchInput
+        loading={query.isFetching}
         value={tableSearch.q ?? ""}
         onValueChange={tableSearch.onQueryChange}
         placeholder="Search checks"

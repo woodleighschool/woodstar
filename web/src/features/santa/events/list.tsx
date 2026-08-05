@@ -1,5 +1,6 @@
 import { getRouteApi } from "@tanstack/react-router";
 import { Activity } from "lucide-react";
+import { useMemo } from "react";
 
 import { DataTable } from "@components/data-table/data-table";
 import { DataTableEmpty } from "@components/data-table/data-table-empty";
@@ -301,11 +302,14 @@ function ExecutionEventsTable({ hostId, user }: { hostId?: number; user?: string
     user,
     decisions,
   });
-  const events = query.data?.items ?? [];
-  const tableRows: ExecutionEventTableRow[] = events.map((event) => ({
-    event,
-    hostFilterID: hostId,
-  }));
+  const tableRows = useMemo<ExecutionEventTableRow[]>(
+    () =>
+      query.data?.items.map((event) => ({
+        event,
+        hostFilterID: hostId,
+      })) ?? [],
+    [hostId, query.data?.items],
+  );
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
   const table = useDataTable({
@@ -332,9 +336,11 @@ function ExecutionEventsTable({ hostId, user }: { hostId?: number; user?: string
   return (
     <DataTable
       table={table}
+      pending={query.isFetching}
       empty={<EventsEmptyState hasFilters={tableSearch.isFiltered} noun="execution events" />}
     >
       <DataTableSearchInput
+        loading={query.isFetching}
         placeholder="Search executable, path, host, user"
         value={tableSearch.q ?? ""}
         onValueChange={tableSearch.onQueryChange}
@@ -365,7 +371,7 @@ function FileAccessEventsTable({ hostId }: { hostId?: number }) {
     host_id: hostId,
     decisions,
   });
-  const events = query.data?.items ?? [];
+  const events = useMemo(() => query.data?.items ?? [], [query.data?.items]);
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
   const table = useDataTable({
@@ -392,9 +398,11 @@ function FileAccessEventsTable({ hostId }: { hostId?: number }) {
   return (
     <DataTable
       table={table}
+      pending={query.isFetching}
       empty={<EventsEmptyState hasFilters={tableSearch.isFiltered} noun="file access events" />}
     >
       <DataTableSearchInput
+        loading={query.isFetching}
         placeholder="Search target, process, host, signer"
         value={tableSearch.q ?? ""}
         onValueChange={tableSearch.onQueryChange}

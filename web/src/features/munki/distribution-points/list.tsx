@@ -147,8 +147,9 @@ export function DistributionPointListPage() {
       ) : query.isLoading ? (
         <DataTableSkeleton columnCount={isAdmin ? 7 : 6} />
       ) : (
-        <DataTable table={table} empty={emptyState}>
+        <DataTable table={table} pending={query.isFetching} empty={emptyState}>
           <DataTableSearchInput
+            loading={query.isFetching}
             value={tableSearch.q ?? ""}
             onValueChange={tableSearch.onQueryChange}
           />

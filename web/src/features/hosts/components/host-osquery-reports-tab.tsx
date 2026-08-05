@@ -166,6 +166,7 @@ export function HostOsqueryReportsTab({ hostId }: { hostId: number | null }) {
   return (
     <DataTable
       table={table}
+      pending={reports.isFetching}
       heading="Reports"
       exportOptions={exportOptions}
       renderSubRow={(row) => (
@@ -178,6 +179,7 @@ export function HostOsqueryReportsTab({ hostId }: { hostId: number | null }) {
       }
     >
       <DataTableSearchInput
+        loading={reports.isFetching}
         value={tableSearch.q ?? ""}
         onValueChange={tableSearch.onQueryChange}
         placeholder="Search reports and results"

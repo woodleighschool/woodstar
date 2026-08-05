@@ -128,12 +128,15 @@ export function RuleListPage() {
     sort: tableSearch.sort,
     rule_type: ruleType,
   });
-  const rules = query.data?.items ?? [];
-  const tableRows: RuleTableRow[] = rules.map((rule) => ({
-    id: rule.id,
-    rule,
-    onDelete: setDeleting,
-  }));
+  const tableRows = useMemo<RuleTableRow[]>(
+    () =>
+      query.data?.items.map((rule) => ({
+        id: rule.id,
+        rule,
+        onDelete: setDeleting,
+      })) ?? [],
+    [query.data?.items],
+  );
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
   const columns = useMemo(() => ruleColumns(isAdmin), [isAdmin]);
@@ -172,6 +175,7 @@ export function RuleListPage() {
       ) : (
         <DataTable
           table={table}
+          pending={query.isFetching}
           actionBar={
             isAdmin ? (
               <BulkDeleteActionBar
@@ -193,6 +197,7 @@ export function RuleListPage() {
           }
         >
           <DataTableSearchInput
+            loading={query.isFetching}
             value={tableSearch.q ?? ""}
             onValueChange={tableSearch.onQueryChange}
           />

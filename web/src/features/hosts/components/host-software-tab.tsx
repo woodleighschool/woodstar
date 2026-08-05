@@ -1,4 +1,5 @@
 import { getRouteApi } from "@tanstack/react-router";
+import { useMemo } from "react";
 
 import { DataTable } from "@components/data-table/data-table";
 import { DataTableFacetedFilter } from "@components/data-table/data-table-faceted-filter";
@@ -123,7 +124,7 @@ export function HostSoftwareTab({ hostId }: { hostId: number | null }) {
     per_page: tableSearch.per_page,
     sort: tableSearch.sort,
   });
-  const data = query.data?.items ?? [];
+  const data = useMemo(() => query.data?.items ?? [], [query.data?.items]);
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
   const table = useDataTable({
@@ -147,6 +148,7 @@ export function HostSoftwareTab({ hostId }: { hostId: number | null }) {
   return (
     <DataTable
       table={table}
+      pending={query.isFetching}
       empty={
         <PanelEmptyState>
           {tableSearch.isFiltered ? "No matching software" : "No software yet"}
@@ -154,6 +156,7 @@ export function HostSoftwareTab({ hostId }: { hostId: number | null }) {
       }
     >
       <DataTableSearchInput
+        loading={query.isFetching}
         value={tableSearch.q ?? ""}
         onValueChange={tableSearch.onQueryChange}
         placeholder="Search software"

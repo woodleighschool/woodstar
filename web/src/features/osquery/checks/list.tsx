@@ -1,6 +1,6 @@
 import { getRouteApi } from "@tanstack/react-router";
 import { CircleAlert, CircleCheck, MoreHorizontal, Plus, ShieldCheck } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { BulkDeleteActionBar } from "@components/bulk-delete-action-bar";
 import { DataTable } from "@components/data-table/data-table";
@@ -53,11 +53,10 @@ export function CheckListPage() {
     per_page: tableSearch.per_page,
     sort: tableSearch.sort,
   });
-  const checks = query.data?.items ?? [];
-  const tableRows: CheckTableRow[] = checks.map((check) => ({
-    ...check,
-    onDelete: setDeleting,
-  }));
+  const tableRows = useMemo<CheckTableRow[]>(
+    () => query.data?.items.map((check) => ({ ...check, onDelete: setDeleting })) ?? [],
+    [query.data?.items],
+  );
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
   const table = useDataTable({
@@ -94,6 +93,7 @@ export function CheckListPage() {
       ) : (
         <DataTable
           table={table}
+          pending={query.isFetching}
           actionBar={
             isAdmin ? (
               <BulkDeleteActionBar table={table} useBulkDelete={useBulkDeleteChecks} noun="check" />
@@ -110,6 +110,7 @@ export function CheckListPage() {
           }
         >
           <DataTableSearchInput
+            loading={query.isFetching}
             value={tableSearch.q ?? ""}
             onValueChange={tableSearch.onQueryChange}
           />

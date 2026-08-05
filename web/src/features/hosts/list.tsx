@@ -70,7 +70,7 @@ export function HostListPage() {
     { refetchInterval: 30_000 },
   );
 
-  const hosts = query.data?.items ?? [];
+  const hosts = React.useMemo(() => query.data?.items ?? [], [query.data?.items]);
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
   const columns = React.useMemo<DataTableColumnDef<Host>[]>(
@@ -141,6 +141,7 @@ export function HostListPage() {
       ) : (
         <DataTable
           table={table}
+          pending={query.isFetching}
           exportOptions={exportOptions}
           toolbarActions={<DataTableViewOptions table={table} align="end" />}
           actionBar={
@@ -164,6 +165,7 @@ export function HostListPage() {
           }
         >
           <DataTableSearchInput
+            loading={query.isFetching}
             value={tableSearch.q ?? ""}
             onValueChange={tableSearch.onQueryChange}
           />

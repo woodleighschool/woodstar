@@ -49,7 +49,7 @@ export function SoftwareListPage() {
     { refetchInterval: 30_000 },
   );
 
-  const software = query.data?.items ?? [];
+  const software = React.useMemo(() => query.data?.items ?? [], [query.data?.items]);
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
   const columns = React.useMemo<DataTableColumnDef<SoftwareTitle>[]>(() => softwareColumns, []);
@@ -82,6 +82,7 @@ export function SoftwareListPage() {
       ) : (
         <DataTable
           table={table}
+          pending={query.isFetching}
           empty={
             <DataTableEmpty
               icon={<Package />}
@@ -93,6 +94,7 @@ export function SoftwareListPage() {
           }
         >
           <DataTableSearchInput
+            loading={query.isFetching}
             value={tableSearch.q ?? ""}
             onValueChange={tableSearch.onQueryChange}
           />

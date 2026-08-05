@@ -237,6 +237,7 @@ export function CheckDetailPage() {
           ) : (
             <DataTable
               table={table}
+              pending={results.isFetching}
               exportOptions={exportOptions}
               empty={
                 <PanelEmptyState>
@@ -245,6 +246,7 @@ export function CheckDetailPage() {
               }
             >
               <DataTableSearchInput
+                loading={results.isFetching}
                 value={tableSearch.q ?? ""}
                 onValueChange={tableSearch.onQueryChange}
                 placeholder="Search check results"
