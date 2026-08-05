@@ -1,5 +1,4 @@
 import { getRouteApi } from "@tanstack/react-router";
-import type { CellContext, ColumnDef } from "@tanstack/react-table";
 import { CircleAlert, CircleCheck, MoreHorizontal, Plus, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 
@@ -9,6 +8,7 @@ import { DataTableEmpty } from "@components/data-table/data-table-empty";
 import { DataTableSearchInput } from "@components/data-table/data-table-search-input";
 import { DataTableSkeleton } from "@components/data-table/data-table-skeleton";
 import { selectColumn } from "@components/data-table/select-column";
+import type { DataTableCellContext, DataTableColumnDef } from "@components/data-table/types";
 import { useDataTable } from "@components/data-table/use-data-table";
 import { useDataTableSearch } from "@components/data-table/use-data-table-search";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
@@ -129,7 +129,7 @@ export function CheckListPage() {
   );
 }
 
-const checkColumns: ColumnDef<CheckTableRow>[] = [
+const checkColumns: DataTableColumnDef<CheckTableRow>[] = [
   {
     id: "name",
     accessorKey: "name",
@@ -193,7 +193,7 @@ const checkColumns: ColumnDef<CheckTableRow>[] = [
   },
 ];
 
-function CheckActionsCell({ row }: CellContext<CheckTableRow, unknown>) {
+function CheckActionsCell({ row }: DataTableCellContext<CheckTableRow>) {
   const check = row.original;
   return (
     <DropdownMenu>
@@ -217,7 +217,7 @@ function CheckActionsCell({ row }: CellContext<CheckTableRow, unknown>) {
   );
 }
 
-const checkAdminColumns: ColumnDef<CheckTableRow>[] = [
+const checkAdminColumns: DataTableColumnDef<CheckTableRow>[] = [
   selectColumn<CheckTableRow>(),
   ...checkColumns,
   {

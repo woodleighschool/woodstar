@@ -1,7 +1,7 @@
-import type { Table } from "@tanstack/react-table";
 import { DownloadIcon } from "lucide-react";
 import * as React from "react";
 
+import type { DataTableInstance, DataTableRowData } from "@components/data-table/types";
 import { Button } from "@components/ui/button";
 import { Spinner } from "@components/ui/spinner";
 import { toast } from "@components/ui/toast";
@@ -13,23 +13,23 @@ export interface DataTableExportData {
   data: CSVValue[][];
 }
 
-export interface DataTableExportColumn<TData> {
+export interface DataTableExportColumn<TData extends DataTableRowData> {
   header: string;
   value: (row: TData) => CSVValue;
 }
 
-export interface DataTableExportOptions<TData> {
+export interface DataTableExportOptions<TData extends DataTableRowData> {
   filename: string;
   columns: DataTableExportColumn<TData>[];
   loadRows?: () => Promise<TData[]>;
   serializeRows?: (rows: TData[]) => DataTableExportData;
 }
 
-export function DataTableExport<TData>({
+export function DataTableExport<TData extends DataTableRowData>({
   table,
   options,
 }: {
-  table: Table<TData>;
+  table: DataTableInstance<TData>;
   options: DataTableExportOptions<TData>;
 }) {
   const [isExporting, setIsExporting] = React.useState(false);

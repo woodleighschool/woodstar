@@ -1,5 +1,4 @@
 import { getRouteApi } from "@tanstack/react-router";
-import type { CellContext, ColumnDef } from "@tanstack/react-table";
 import { ListChecks, MoreHorizontal, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 
@@ -10,6 +9,7 @@ import { DataTableFacetedFilter } from "@components/data-table/data-table-facete
 import { DataTableSearchInput } from "@components/data-table/data-table-search-input";
 import { DataTableSkeleton } from "@components/data-table/data-table-skeleton";
 import { selectColumn } from "@components/data-table/select-column";
+import type { DataTableCellContext, DataTableColumnDef } from "@components/data-table/types";
 import { useDataTable } from "@components/data-table/use-data-table";
 import { useDataTableSearch } from "@components/data-table/use-data-table-search";
 import { EnumBadge } from "@components/enum-badge";
@@ -42,7 +42,7 @@ interface RuleTableRow {
   onDelete: (rule: SantaRule) => void;
 }
 
-function RuleNameCell({ row }: CellContext<RuleTableRow, unknown>) {
+function RuleNameCell({ row }: DataTableCellContext<RuleTableRow>) {
   return (
     <Link
       to="/santa/rules/$id"
@@ -54,11 +54,11 @@ function RuleNameCell({ row }: CellContext<RuleTableRow, unknown>) {
   );
 }
 
-function RuleActionsCell({ row }: CellContext<RuleTableRow, unknown>) {
+function RuleActionsCell({ row }: DataTableCellContext<RuleTableRow>) {
   return <RuleRowActions rule={row.original.rule} onDelete={row.original.onDelete} />;
 }
 
-function ruleColumns(isAdmin: boolean): ColumnDef<RuleTableRow>[] {
+function ruleColumns(isAdmin: boolean): DataTableColumnDef<RuleTableRow>[] {
   return [
     ...(isAdmin ? [selectColumn<RuleTableRow>()] : []),
     {
@@ -103,7 +103,7 @@ function ruleColumns(isAdmin: boolean): ColumnDef<RuleTableRow>[] {
             maxSize: 44,
             enableResizing: false,
             cell: RuleActionsCell,
-          } satisfies ColumnDef<RuleTableRow>,
+          } satisfies DataTableColumnDef<RuleTableRow>,
         ]
       : []),
   ];

@@ -1,12 +1,4 @@
-import {
-  type ColumnDef,
-  flexRender,
-  getCoreRowModel,
-  getExpandedRowModel,
-  type Row,
-  type TableOptions,
-  useReactTable,
-} from "@tanstack/react-table";
+import { useTable } from "@tanstack/react-table";
 import * as React from "react";
 
 import {
@@ -17,6 +9,13 @@ import {
 } from "@components/data-table/data-table-sizing";
 import { TableSurface } from "@components/data-table/table-surface";
 import {
+  dataTableFeatures,
+  type DataTableColumnDef,
+  type DataTableOptions,
+  type DataTableRow,
+  type DataTableRowData,
+} from "@components/data-table/types";
+import {
   Table,
   TableBody,
   TableCell,
@@ -26,20 +25,22 @@ import {
 } from "@components/ui/table";
 import { cn } from "@lib/utils";
 
-interface DataTableStaticProps<TData> extends React.ComponentProps<"section"> {
-  columns: ColumnDef<TData>[];
+interface DataTableStaticProps<
+  TData extends DataTableRowData,
+> extends React.ComponentProps<"section"> {
+  columns: DataTableColumnDef<TData>[];
   data: TData[];
   empty?: React.ReactNode;
   heading?: React.ReactNode;
-  getRowCanExpand?: TableOptions<TData>["getRowCanExpand"];
-  getRowId?: TableOptions<TData>["getRowId"];
-  renderSubRow?: (row: Row<TData>) => React.ReactNode;
+  getRowCanExpand?: DataTableOptions<TData>["getRowCanExpand"];
+  getRowId?: DataTableOptions<TData>["getRowId"];
+  renderSubRow?: (row: DataTableRow<TData>) => React.ReactNode;
 }
 
 // Presentational table for nested/local row sets (no pagination, no URL state).
 // Use this for detail-page tables and pickers; the server DataTable is only for
 // top-level paginated lists.
-export function DataTableStatic<TData>({
+export function DataTableStatic<TData extends DataTableRowData>({
   columns,
   data,
   empty,
@@ -50,11 +51,10 @@ export function DataTableStatic<TData>({
   className,
   ...props
 }: DataTableStaticProps<TData>) {
-  const table = useReactTable({
+  const table = useTable({
+    features: dataTableFeatures,
     data,
     columns,
-    getCoreRowModel: getCoreRowModel(),
-    getExpandedRowModel: getExpandedRowModel(),
     getRowCanExpand,
     getRowId,
     defaultColumn: DATA_TABLE_DEFAULT_COLUMN,
@@ -77,7 +77,7 @@ export function DataTableStatic<TData>({
                 >
                   {header.isPlaceholder ? null : (
                     <div className="w-full min-w-0 truncate">
-                      {flexRender(header.column.columnDef.header, header.getContext())}
+                      <table.FlexRender header={header} />
                     </div>
                   )}
                   <DataTableResizeHandle header={header} />
@@ -98,7 +98,7 @@ export function DataTableStatic<TData>({
                       className="flex min-w-0 items-center overflow-hidden"
                     >
                       <DataTableCellContent>
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        <table.FlexRender cell={cell} />
                       </DataTableCellContent>
                     </TableCell>
                   ))}

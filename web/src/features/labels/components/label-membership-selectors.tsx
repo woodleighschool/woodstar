@@ -1,12 +1,10 @@
 import {
   type ColumnFiltersState,
-  type ColumnDef,
-  getCoreRowModel,
   type PaginationState,
   type RowSelectionState,
   type SortingState,
   type Updater,
-  useReactTable,
+  useTable,
 } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
 
@@ -14,6 +12,11 @@ import { DataTable } from "@components/data-table/data-table";
 import { DataTableFacetedFilter } from "@components/data-table/data-table-faceted-filter";
 import { DATA_TABLE_DEFAULT_COLUMN } from "@components/data-table/data-table-sizing";
 import { selectColumn } from "@components/data-table/select-column";
+import {
+  dataTableFeatures,
+  type DataTableColumnDef,
+  type DataTableRowData,
+} from "@components/data-table/types";
 import { encodeSort } from "@components/data-table/use-data-table-search";
 import { PanelEmptyState } from "@components/panel-empty-state";
 import { QueryError } from "@components/query-error";
@@ -44,7 +47,7 @@ export function HostSelector({
   });
   const rows = showSelected && value.length === 0 ? [] : (hosts.data?.items ?? []);
   const count = showSelected && value.length === 0 ? 0 : (hosts.data?.count ?? 0);
-  const columns = useMemo<ColumnDef<Host>[]>(
+  const columns = useMemo<DataTableColumnDef<Host>[]>(
     () => [
       {
         id: "display_name",
@@ -126,7 +129,7 @@ function DepartmentSelector({
   });
   const rows = showSelected && value.length === 0 ? [] : (departments.data?.items ?? []);
   const count = showSelected && value.length === 0 ? 0 : (departments.data?.count ?? 0);
-  const columns = useMemo<ColumnDef<Department>[]>(
+  const columns = useMemo<DataTableColumnDef<Department>[]>(
     () => [
       {
         accessorKey: "value",
@@ -173,7 +176,7 @@ function GroupSelector({
   });
   const rows = showSelected && value.length === 0 ? [] : (groups.data?.items ?? []);
   const count = showSelected && value.length === 0 ? 0 : (groups.data?.count ?? 0);
-  const columns = useMemo<ColumnDef<Group>[]>(
+  const columns = useMemo<DataTableColumnDef<Group>[]>(
     () => [
       {
         accessorKey: "display_name",
@@ -225,7 +228,7 @@ function UserSelector({
   });
   const rows = showSelected && value.length === 0 ? [] : (users.data?.items ?? []);
   const count = showSelected && value.length === 0 ? 0 : (users.data?.count ?? 0);
-  const columns = useMemo<ColumnDef<User>[]>(
+  const columns = useMemo<DataTableColumnDef<User>[]>(
     () => [
       {
         accessorKey: "name",
@@ -311,8 +314,8 @@ function useSelectorControls(defaultSorting: SortingState): SelectorControls {
   };
 }
 
-interface SelectorTableProps<TData> {
-  columns: ColumnDef<TData>[];
+interface SelectorTableProps<TData extends DataTableRowData> {
+  columns: DataTableColumnDef<TData>[];
   data: TData[];
   totalCount: number;
   controls: SelectorControls;
@@ -328,7 +331,7 @@ interface SelectorTableProps<TData> {
 
 // Server-paginated multi-select picker with local (non-URL) state. Selection
 // remains externally owned so it survives paging and selected-only filtering.
-function SelectorTable<TData>({
+function SelectorTable<TData extends DataTableRowData>({
   columns,
   data,
   totalCount,
@@ -346,10 +349,10 @@ function SelectorTable<TData>({
     selectedRowIds.map((id) => [id, true]),
   ) satisfies RowSelectionState;
   const selectorColumns = useMemo(() => [selectColumn<TData>(), ...columns], [columns]);
-  const table = useReactTable({
+  const table = useTable({
+    features: dataTableFeatures,
     data: isLoading ? [] : data,
     columns: selectorColumns,
-    getCoreRowModel: getCoreRowModel(),
     getRowId: (row) => getRowId(row),
     manualPagination: true,
     manualSorting: true,

@@ -1,6 +1,5 @@
-import type { ColumnDef } from "@tanstack/react-table";
-
 import { DataTableStatic } from "@components/data-table/data-table-static";
+import type { DataTableColumnDef } from "@components/data-table/types";
 import { PanelEmptyState } from "@components/panel-empty-state";
 import { RelativeTime } from "@components/relative-time";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@components/ui/hover-card";
@@ -20,7 +19,7 @@ const heartbeatSourceRanks: Record<string, number> = {
   santa: 3,
 };
 
-const heartbeatColumns: ColumnDef<Heartbeat>[] = [
+const heartbeatColumns: DataTableColumnDef<Heartbeat>[] = [
   {
     accessorKey: "source",
     header: () => "Agent",

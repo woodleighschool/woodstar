@@ -1,5 +1,4 @@
 import { getRouteApi } from "@tanstack/react-router";
-import type { CellContext, ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontal, PackageSearch, Plus } from "lucide-react";
 import * as React from "react";
 
@@ -9,6 +8,7 @@ import { DataTableEmpty } from "@components/data-table/data-table-empty";
 import { DataTableSearchInput } from "@components/data-table/data-table-search-input";
 import { DataTableSkeleton } from "@components/data-table/data-table-skeleton";
 import { selectColumn } from "@components/data-table/select-column";
+import type { DataTableCellContext, DataTableColumnDef } from "@components/data-table/types";
 import { useDataTable } from "@components/data-table/use-data-table";
 import { useDataTableSearch } from "@components/data-table/use-data-table-search";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
@@ -33,7 +33,7 @@ import { useBulkDeleteMunkiSoftware, useMunkiSoftware } from "./queries";
 
 const routeApi = getRouteApi("/_authenticated/munki/software/");
 
-function SoftwareNameCell({ row }: CellContext<MunkiSoftware, unknown>) {
+function SoftwareNameCell({ row }: DataTableCellContext<MunkiSoftware>) {
   return (
     <div className="flex min-w-0 items-center gap-2">
       <SoftwareArtwork src={row.original.icon_url} />
@@ -52,8 +52,8 @@ function SoftwareNameCell({ row }: CellContext<MunkiSoftware, unknown>) {
 function softwareColumns(
   isAdmin: boolean,
   onDelete: (software: MunkiSoftware) => void,
-): ColumnDef<MunkiSoftware>[] {
-  const columns: ColumnDef<MunkiSoftware>[] = [
+): DataTableColumnDef<MunkiSoftware>[] {
+  const columns: DataTableColumnDef<MunkiSoftware>[] = [
     {
       id: "name",
       accessorKey: "name",

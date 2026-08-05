@@ -1,4 +1,3 @@
-import { flexRender, type Row, type Table as TanstackTable } from "@tanstack/react-table";
 import { ArrowDownIcon, ArrowUpDownIcon, ArrowUpIcon } from "lucide-react";
 import * as React from "react";
 
@@ -13,6 +12,11 @@ import {
   getDataTableColumnStyle,
 } from "@components/data-table/data-table-sizing";
 import { TableSurface } from "@components/data-table/table-surface";
+import type {
+  DataTableInstance,
+  DataTableRow,
+  DataTableRowData,
+} from "@components/data-table/types";
 import { Button } from "@components/ui/button";
 import {
   Table,
@@ -24,18 +28,18 @@ import {
 } from "@components/ui/table";
 import { cn } from "@lib/utils";
 
-interface DataTableProps<TData> extends React.ComponentProps<"div"> {
-  table: TanstackTable<TData>;
+interface DataTableProps<TData extends DataTableRowData> extends React.ComponentProps<"div"> {
+  table: DataTableInstance<TData>;
   actionBar?: React.ReactNode;
   empty?: React.ReactNode;
   exportOptions?: DataTableExportOptions<TData>;
   heading?: React.ReactNode;
   pageSizeOptions?: readonly number[];
-  renderSubRow?: (row: Row<TData>) => React.ReactNode;
+  renderSubRow?: (row: DataTableRow<TData>) => React.ReactNode;
   toolbarActions?: React.ReactNode;
 }
 
-export function DataTable<TData>({
+export function DataTable<TData extends DataTableRowData>({
   table,
   actionBar,
   empty,
@@ -80,7 +84,6 @@ export function DataTable<TData>({
               <TableRow key={headerGroup.id} className="flex w-full">
                 {headerGroup.headers.map((header) => {
                   const direction = header.column.getIsSorted();
-                  const label = flexRender(header.column.columnDef.header, header.getContext());
                   const SortIcon =
                     direction === "asc"
                       ? ArrowUpIcon
@@ -110,14 +113,18 @@ export function DataTable<TData>({
                           className="-ml-2 h-8 max-w-full justify-start overflow-hidden font-medium text-ellipsis"
                           onClick={header.column.getToggleSortingHandler()}
                         >
-                          <span className="min-w-0 truncate">{label}</span>
+                          <span className="min-w-0 truncate">
+                            <table.FlexRender header={header} />
+                          </span>
                           <SortIcon
                             data-icon="inline-end"
                             className={cn(!direction && "text-muted-foreground")}
                           />
                         </Button>
                       ) : (
-                        <div className="w-full min-w-0 truncate">{label}</div>
+                        <div className="w-full min-w-0 truncate">
+                          <table.FlexRender header={header} />
+                        </div>
                       )}
                       <DataTableResizeHandle header={header} />
                     </TableHead>
@@ -141,7 +148,7 @@ export function DataTable<TData>({
                         className="flex min-w-0 items-center overflow-hidden"
                       >
                         <DataTableCellContent>
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          <table.FlexRender cell={cell} />
                         </DataTableCellContent>
                       </TableCell>
                     ))}

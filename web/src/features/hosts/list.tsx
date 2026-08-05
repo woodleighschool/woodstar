@@ -1,5 +1,4 @@
 import { getRouteApi } from "@tanstack/react-router";
-import type { ColumnDef } from "@tanstack/react-table";
 import { filesize } from "filesize";
 import { ServerCog } from "lucide-react";
 import * as React from "react";
@@ -13,6 +12,7 @@ import { DataTableSearchInput } from "@components/data-table/data-table-search-i
 import { DataTableSkeleton } from "@components/data-table/data-table-skeleton";
 import { DataTableViewOptions } from "@components/data-table/data-table-view-options";
 import { selectColumn } from "@components/data-table/select-column";
+import type { DataTableColumnDef } from "@components/data-table/types";
 import { useDataTable } from "@components/data-table/use-data-table";
 import { useDataTableSearch } from "@components/data-table/use-data-table-search";
 import { FilterChip } from "@components/filter-controls";
@@ -73,7 +73,7 @@ export function HostListPage() {
   const hosts = query.data?.items ?? [];
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
-  const columns = React.useMemo<ColumnDef<Host>[]>(
+  const columns = React.useMemo<DataTableColumnDef<Host>[]>(
     () => (isAdmin ? hostColumns : hostViewerColumns),
     [isAdmin],
   );
@@ -178,7 +178,7 @@ export function HostListPage() {
   );
 }
 
-const hostColumns: ColumnDef<Host>[] = [
+const hostColumns: DataTableColumnDef<Host>[] = [
   selectColumn<Host>(),
   {
     id: "display_name",

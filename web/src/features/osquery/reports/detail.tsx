@@ -1,5 +1,4 @@
 import { getRouteApi, useParams } from "@tanstack/react-router";
-import { getExpandedRowModel, type Table } from "@tanstack/react-table";
 import { Pencil, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 
@@ -8,6 +7,7 @@ import type { DataTableExportOptions } from "@components/data-table/data-table-e
 import { DataTableFacetedFilter } from "@components/data-table/data-table-faceted-filter";
 import { DataTableSearchInput } from "@components/data-table/data-table-search-input";
 import { DataTableSkeleton } from "@components/data-table/data-table-skeleton";
+import type { DataTableInstance } from "@components/data-table/types";
 import { useDataTable } from "@components/data-table/use-data-table";
 import { useDataTableSearch } from "@components/data-table/use-data-table-search";
 import { KeyValueRow, KeyValueSection } from "@components/key-value";
@@ -45,7 +45,7 @@ const reportSnapshotColumns = createReportResultColumns({ timestamp: "collected"
 const STATUS_FILTER_KEYS = [{ id: "status" }] as const;
 const routeApi = getRouteApi("/_authenticated/osquery/reports/$id/");
 
-function ReportResultsToolbar({ table }: { table: Table<ReportResultRow> }) {
+function ReportResultsToolbar({ table }: { table: DataTableInstance<ReportResultRow> }) {
   return (
     <DataTableFacetedFilter
       column={table.getColumn("status")}
@@ -95,7 +95,6 @@ export function ReportDetailPage() {
     rowCount: totalCount,
     getRowId: (row) => String(row.host_id),
     getRowCanExpand: (row) => row.original.rows.length > 0,
-    getExpandedRowModel: getExpandedRowModel(),
     paginateExpandedRows: false,
   });
 

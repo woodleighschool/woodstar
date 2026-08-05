@@ -1,5 +1,4 @@
-import type { ColumnDef } from "@tanstack/react-table";
-
+import type { DataTableColumnDef } from "@components/data-table/types";
 import { EnumStatusIndicator } from "@components/enum-status-indicator";
 import { Link } from "@components/link";
 import type { OsqueryCheckHostStatus } from "@lib/api";
@@ -30,8 +29,8 @@ export function createCheckResultColumns({
 }: {
   timestampHeader: "Last Evaluated";
   includeError?: boolean;
-}): ColumnDef<CheckResultRow>[] {
-  const columns: ColumnDef<CheckResultRow>[] = [
+}): DataTableColumnDef<CheckResultRow>[] {
+  const columns: DataTableColumnDef<CheckResultRow>[] = [
     {
       accessorKey: "host_name",
       header: () => "Host",

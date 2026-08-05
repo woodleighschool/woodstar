@@ -1,5 +1,4 @@
 import { getRouteApi } from "@tanstack/react-router";
-import type { CellContext, ColumnDef } from "@tanstack/react-table";
 import { Activity } from "lucide-react";
 
 import { DataTable } from "@components/data-table/data-table";
@@ -7,6 +6,7 @@ import { DataTableEmpty } from "@components/data-table/data-table-empty";
 import { DataTableFacetedFilter } from "@components/data-table/data-table-faceted-filter";
 import { DataTableSearchInput } from "@components/data-table/data-table-search-input";
 import { DataTableSkeleton } from "@components/data-table/data-table-skeleton";
+import type { DataTableCellContext, DataTableColumnDef } from "@components/data-table/types";
 import { useDataTable } from "@components/data-table/use-data-table";
 import { useDataTableSearch } from "@components/data-table/use-data-table-search";
 import { FilterChip } from "@components/filter-controls";
@@ -31,13 +31,13 @@ interface ExecutionEventTableRow {
   hostFilterID: number | undefined;
 }
 
-function ExecutionUserCell({ row }: CellContext<ExecutionEventTableRow, unknown>) {
+function ExecutionUserCell({ row }: DataTableCellContext<ExecutionEventTableRow>) {
   return (
     <EventUserLink user={row.original.event.executing_user} hostId={row.original.hostFilterID} />
   );
 }
 
-const executionEventColumns: ColumnDef<ExecutionEventTableRow>[] = [
+const executionEventColumns: DataTableColumnDef<ExecutionEventTableRow>[] = [
   {
     id: "occurred_at",
     accessorFn: (row) => row.event.occurred_at,
@@ -102,7 +102,7 @@ const executionEventColumns: ColumnDef<ExecutionEventTableRow>[] = [
   },
 ];
 
-const fileAccessEventColumns: ColumnDef<SantaFileAccessEvent>[] = [
+const fileAccessEventColumns: DataTableColumnDef<SantaFileAccessEvent>[] = [
   {
     id: "occurred_at",
     accessorKey: "occurred_at",

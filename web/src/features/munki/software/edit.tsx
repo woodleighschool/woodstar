@@ -1,9 +1,9 @@
 import { getRouteApi, useParams } from "@tanstack/react-router";
-import type { ColumnDef } from "@tanstack/react-table";
 import { Plus } from "lucide-react";
 import { useMemo } from "react";
 
 import { DataTableStatic } from "@components/data-table/data-table-static";
+import type { DataTableColumnDef } from "@components/data-table/types";
 import { encodeSort } from "@components/data-table/use-data-table-search";
 import { FormActions } from "@components/form-actions";
 import {
@@ -49,7 +49,7 @@ const softwareFormTabs = [
   { value: "targets", fields: ["targets"] },
 ] as const satisfies readonly FormTabDefinition[];
 
-const packageColumns: ColumnDef<MunkiPackage>[] = [
+const packageColumns: DataTableColumnDef<MunkiPackage>[] = [
   {
     id: "version",
     accessorKey: "version",

@@ -1,10 +1,10 @@
 import { getRouteApi } from "@tanstack/react-router";
-import type { ColumnDef } from "@tanstack/react-table";
 
 import { DataTable } from "@components/data-table/data-table";
 import { DataTableFacetedFilter } from "@components/data-table/data-table-faceted-filter";
 import { DataTableSearchInput } from "@components/data-table/data-table-search-input";
 import { DataTableSkeleton } from "@components/data-table/data-table-skeleton";
+import type { DataTableColumnDef } from "@components/data-table/types";
 import { useDataTable } from "@components/data-table/use-data-table";
 import { useDataTableSearch } from "@components/data-table/use-data-table-search";
 import { Link } from "@components/link";
@@ -41,7 +41,7 @@ import { formatRelative } from "@lib/utils";
 const SOURCE_FILTER_KEYS = [{ id: "source", multiple: true }] as const;
 const routeApi = getRouteApi("/_authenticated/hosts/$id/software");
 
-const softwareColumns: ColumnDef<HostSoftware>[] = [
+const softwareColumns: DataTableColumnDef<HostSoftware>[] = [
   {
     id: "name",
     accessorKey: "name",

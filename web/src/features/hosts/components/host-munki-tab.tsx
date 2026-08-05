@@ -1,4 +1,3 @@
-import type { ColumnDef } from "@tanstack/react-table";
 import {
   CircleCheck,
   Clock3,
@@ -9,6 +8,7 @@ import {
 } from "lucide-react";
 
 import { DataTableStatic } from "@components/data-table/data-table-static";
+import type { DataTableColumnDef } from "@components/data-table/types";
 import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { Link } from "@components/link";
 import { PanelEmptyState } from "@components/panel-empty-state";
@@ -23,7 +23,7 @@ import type { ApiError, MunkiHostManifestSoftware, MunkiHostState } from "@lib/a
 import { MAX_PAGE_SIZE } from "@lib/pagination";
 import { formatRelative } from "@lib/utils";
 
-const softwareColumns: ColumnDef<MunkiHostManifestSoftware>[] = [
+const softwareColumns: DataTableColumnDef<MunkiHostManifestSoftware>[] = [
   {
     id: "software",
     accessorFn: (row) => row.software.name,
@@ -58,7 +58,7 @@ interface ProblemRow {
   value: string;
 }
 
-const problemColumns: ColumnDef<ProblemRow>[] = [
+const problemColumns: DataTableColumnDef<ProblemRow>[] = [
   {
     accessorKey: "kind",
     header: () => "Type",

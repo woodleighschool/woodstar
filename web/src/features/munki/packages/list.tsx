@@ -1,5 +1,4 @@
 import { getRouteApi } from "@tanstack/react-router";
-import type { CellContext, ColumnDef } from "@tanstack/react-table";
 import { filesize } from "filesize";
 import { MoreHorizontal, PackageCheck, Plus } from "lucide-react";
 import * as React from "react";
@@ -11,6 +10,7 @@ import { DataTableFacetedFilter } from "@components/data-table/data-table-facete
 import { DataTableSearchInput } from "@components/data-table/data-table-search-input";
 import { DataTableSkeleton } from "@components/data-table/data-table-skeleton";
 import { selectColumn } from "@components/data-table/select-column";
+import type { DataTableCellContext, DataTableColumnDef } from "@components/data-table/types";
 import { useDataTable } from "@components/data-table/use-data-table";
 import { useDataTableSearch } from "@components/data-table/use-data-table-search";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
@@ -37,7 +37,7 @@ import { useBulkDeleteMunkiPackages, useMunkiPackages } from "./queries";
 const routeApi = getRouteApi("/_authenticated/munki/packages/");
 const PACKAGE_TYPE_FILTER_KEYS = [{ id: "type", multiple: true }] as const;
 
-function PackageSoftwareCell({ row }: CellContext<MunkiPackage, unknown>) {
+function PackageSoftwareCell({ row }: DataTableCellContext<MunkiPackage>) {
   return (
     <div className="flex min-w-0 items-center gap-2">
       <SoftwareArtwork src={row.original.software.icon_url} />
@@ -56,8 +56,8 @@ function PackageSoftwareCell({ row }: CellContext<MunkiPackage, unknown>) {
 function packageColumns(
   isAdmin: boolean,
   onDelete: (pkg: MunkiPackage) => void,
-): ColumnDef<MunkiPackage>[] {
-  const columns: ColumnDef<MunkiPackage>[] = [
+): DataTableColumnDef<MunkiPackage>[] {
+  const columns: DataTableColumnDef<MunkiPackage>[] = [
     {
       id: "software_name",
       accessorFn: (row) => row.software.name,

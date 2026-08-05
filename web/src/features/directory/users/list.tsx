@@ -1,5 +1,4 @@
 import { getRouteApi } from "@tanstack/react-router";
-import type { CellContext, ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontal, UserPlus, Users } from "lucide-react";
 import * as React from "react";
 
@@ -8,6 +7,7 @@ import { DataTableEmpty } from "@components/data-table/data-table-empty";
 import { DataTableFacetedFilter } from "@components/data-table/data-table-faceted-filter";
 import { DataTableSearchInput } from "@components/data-table/data-table-search-input";
 import { DataTableSkeleton } from "@components/data-table/data-table-skeleton";
+import type { DataTableCellContext, DataTableColumnDef } from "@components/data-table/types";
 import { useDataTable } from "@components/data-table/use-data-table";
 import { useDataTableSearch } from "@components/data-table/use-data-table-search";
 import { EnumBadge } from "@components/enum-badge";
@@ -47,7 +47,7 @@ interface UserTableRow {
   onDelete: (user: User) => void;
 }
 
-function UserNameCell({ row }: CellContext<UserTableRow, unknown>) {
+function UserNameCell({ row }: DataTableCellContext<UserTableRow>) {
   const label = nonEmpty(row.original.user.name) ?? row.original.user.email;
   return (
     <Link
@@ -60,11 +60,11 @@ function UserNameCell({ row }: CellContext<UserTableRow, unknown>) {
   );
 }
 
-function UserEmailCell({ row }: CellContext<UserTableRow, unknown>) {
+function UserEmailCell({ row }: DataTableCellContext<UserTableRow>) {
   return `${row.original.user.email}${row.original.user.id === row.original.currentUserId ? " (you)" : ""}`;
 }
 
-function UserActionsCell({ row }: CellContext<UserTableRow, unknown>) {
+function UserActionsCell({ row }: DataTableCellContext<UserTableRow>) {
   return (
     <UserRowActions
       user={row.original.user}
@@ -74,7 +74,7 @@ function UserActionsCell({ row }: CellContext<UserTableRow, unknown>) {
   );
 }
 
-const userColumns: ColumnDef<UserTableRow>[] = [
+const userColumns: DataTableColumnDef<UserTableRow>[] = [
   {
     id: "name",
     accessorFn: (row) => row.user.name,

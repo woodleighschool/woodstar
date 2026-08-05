@@ -1,10 +1,10 @@
 import { useNavigate, useParams } from "@tanstack/react-router";
-import type { ColumnDef } from "@tanstack/react-table";
 import { KeyRound, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import { AsyncButton } from "@components/async-button";
 import { DataTableStatic } from "@components/data-table/data-table-static";
+import type { DataTableColumnDef } from "@components/data-table/types";
 import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link } from "@components/link";
@@ -153,7 +153,7 @@ function PackageStateTable({ packages }: { packages: MunkiPackageState[] }) {
   );
 }
 
-const packageStateColumns: ColumnDef<MunkiPackageState>[] = [
+const packageStateColumns: DataTableColumnDef<MunkiPackageState>[] = [
   {
     id: "package",
     header: () => "Package",

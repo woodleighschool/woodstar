@@ -1,5 +1,4 @@
 import { getRouteApi } from "@tanstack/react-router";
-import type { ColumnDef } from "@tanstack/react-table";
 import { FileSliders, GripVertical, MoreHorizontal, Plus } from "lucide-react";
 import * as React from "react";
 
@@ -17,6 +16,7 @@ import {
 } from "@components/data-table/draggable-table-rows";
 import { selectColumn } from "@components/data-table/select-column";
 import { TableSurface } from "@components/data-table/table-surface";
+import type { DataTableColumnDef } from "@components/data-table/types";
 import { useDataTable } from "@components/data-table/use-data-table";
 import { encodeSort, useDataTableSearch } from "@components/data-table/use-data-table-search";
 import { EnumStatusIndicator } from "@components/enum-status-indicator";
@@ -87,7 +87,7 @@ export function ConfigurationListPage() {
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
   const reorderTruncated = reorderEnabled && totalCount > MAX_PAGE_SIZE;
   const canEnableReorder = isAdmin && !tableSearch.isFiltered && totalCount > 1 && !query.isLoading;
-  const columns = React.useMemo<ColumnDef<SantaConfiguration>[]>(
+  const columns = React.useMemo<DataTableColumnDef<SantaConfiguration>[]>(
     () => configurationColumns(isAdmin, setDeleting),
     [isAdmin],
   );
@@ -206,8 +206,8 @@ export function ConfigurationListPage() {
 function configurationColumns(
   isAdmin: boolean,
   onDelete: (configuration: SantaConfiguration) => void,
-): ColumnDef<SantaConfiguration>[] {
-  const columns: ColumnDef<SantaConfiguration>[] = [
+): DataTableColumnDef<SantaConfiguration>[] {
+  const columns: DataTableColumnDef<SantaConfiguration>[] = [
     ...(isAdmin ? [selectColumn<SantaConfiguration>()] : []),
     {
       id: "position",
@@ -264,7 +264,7 @@ function configurationColumns(
             cell: ({ row }) => (
               <ConfigurationRowActions configuration={row.original} onDelete={onDelete} />
             ),
-          } satisfies ColumnDef<SantaConfiguration>,
+          } satisfies DataTableColumnDef<SantaConfiguration>,
         ]
       : []),
   ];
