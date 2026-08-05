@@ -20,7 +20,8 @@ import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link } from "@components/link";
 import { QueryError } from "@components/query-error";
 import { useAuth } from "@features/auth/queries";
-import { HostStatus } from "@features/hosts/components/host-status";
+import { HostLastContact } from "@features/hosts/components/host-heartbeats";
+import { HostOnlineDot } from "@features/hosts/components/host-online-dot";
 import { listAllHosts, useBulkDeleteHosts, useHosts } from "@features/hosts/queries";
 import { useLabel } from "@features/labels/queries";
 import { useSoftwareTitle } from "@features/software/queries";
@@ -85,7 +86,7 @@ export function HostListPage() {
     rowCount: totalCount,
     initialState: {
       pagination: { pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE },
-      columnVisibility: { "hardware.uuid": false },
+      columnVisibility: { status: false, "hardware.uuid": false },
     },
     getRowId: (row) => String(row.id),
     enableRowSelection: isAdmin,
@@ -184,9 +185,12 @@ const hostColumns: ColumnDef<Host>[] = [
     accessorFn: (row) => row.display_name,
     header: "Name",
     cell: ({ row }) => (
-      <Link to="/hosts/$id" params={{ id: String(row.original.id) }} className="font-medium">
-        {row.original.display_name}
-      </Link>
+      <div className="flex items-center gap-2">
+        <HostOnlineDot status={row.original.status} />
+        <Link to="/hosts/$id" params={{ id: String(row.original.id) }} className="font-medium">
+          {row.original.display_name}
+        </Link>
+      </div>
     ),
     enableHiding: false,
     size: 220,
@@ -196,12 +200,9 @@ const hostColumns: ColumnDef<Host>[] = [
   {
     id: "status",
     accessorFn: (row) => row.status,
-    header: () => "Status",
+    enableHiding: false,
     enableSorting: false,
-    size: 104,
-    minSize: 96,
-    cell: ({ row }) => <HostStatus status={row.original.status} />,
-    meta: { label: "Status", options: STATUS_OPTIONS },
+    meta: { options: STATUS_OPTIONS },
     enableColumnFilter: true,
   },
   {
@@ -248,12 +249,12 @@ const hostColumns: ColumnDef<Host>[] = [
     meta: { label: "User Email" },
   },
   {
-    id: "timestamps.last_seen_at",
-    accessorFn: (row) => row.timestamps.last_seen_at,
-    header: "Last Seen",
-    cell: ({ row }) => formatRelative(row.original.timestamps.last_seen_at),
+    id: "last_contact",
+    accessorFn: (row) => row.last_contact,
+    header: "Last Contact",
+    cell: ({ row }) => <HostLastContact host={row.original} />,
     size: 144,
-    meta: { label: "Last Seen" },
+    meta: { label: "Last Contact" },
   },
   {
     id: "hardware.uuid",
@@ -272,10 +273,10 @@ const hostColumns: ColumnDef<Host>[] = [
     meta: { label: "Private IP" },
   },
   {
-    id: "network.last_remote_ip",
-    accessorFn: (row) => row.network.last_remote_ip,
+    id: "public_ip",
+    accessorFn: (row) => row.public_ip,
     header: "Public IP",
-    cell: ({ row }) => row.original.network.last_remote_ip ?? "-",
+    cell: ({ row }) => row.original.public_ip ?? "-",
     size: 208,
     meta: { label: "Public IP" },
   },
@@ -297,13 +298,11 @@ const hostColumns: ColumnDef<Host>[] = [
     meta: { label: "Osquery Version" },
   },
   {
-    id: "timestamps.last_restarted_at",
-    accessorFn: (row) => row.timestamps.last_restarted_at,
+    id: "last_restarted_at",
+    accessorFn: (row) => row.last_restarted_at,
     header: "Last Restarted",
     cell: ({ row }) =>
-      row.original.timestamps.last_restarted_at
-        ? formatRelative(row.original.timestamps.last_restarted_at)
-        : "-",
+      row.original.last_restarted_at ? formatRelative(row.original.last_restarted_at) : "-",
     size: 152,
     meta: { label: "Last Restarted" },
   },
@@ -313,7 +312,6 @@ const hostViewerColumns = hostColumns.filter((column) => column.id !== "select")
 
 const hostExportColumns: DataTableExportOptions<Host>["columns"] = [
   { header: "Name", value: (host) => host.display_name },
-  { header: "Status", value: (host) => host.status },
   { header: "OS", value: (host) => host.os.version },
   { header: "Model", value: (host) => host.hardware.model_identifier },
   { header: "Serial", value: (host) => host.hardware.serial },
@@ -325,10 +323,10 @@ const hostExportColumns: DataTableExportOptions<Host>["columns"] = [
         : "",
   },
   { header: "User Email", value: (host) => host.primary_user?.email },
-  { header: "Last Seen", value: (host) => host.timestamps.last_seen_at },
+  { header: "Last Contact", value: (host) => host.last_contact },
   { header: "UUID", value: (host) => host.hardware.uuid },
   { header: "Private IP", value: (host) => host.network.primary_ip },
-  { header: "Public IP", value: (host) => host.network.last_remote_ip },
+  { header: "Public IP", value: (host) => host.public_ip },
   {
     header: "Memory",
     value: (host) => (host.hardware.memory_bytes > 0 ? filesize(host.hardware.memory_bytes) : ""),
@@ -336,7 +334,7 @@ const hostExportColumns: DataTableExportOptions<Host>["columns"] = [
   { header: "Osquery Version", value: (host) => host.agents.osquery.version },
   {
     header: "Last Restarted",
-    value: (host) => host.timestamps.last_restarted_at,
+    value: (host) => host.last_restarted_at,
   },
 ];
 

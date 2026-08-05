@@ -7,6 +7,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/woodleighschool/woodstar/internal/database"
+	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/labels"
 )
 
@@ -31,8 +32,7 @@ INSERT INTO hosts (
 	hardware_model_identifier,
 	orbit_node_key,
 	enrollment_agent,
-	enrolled_at,
-	last_seen_at
+	enrolled_at
 )
 VALUES (
 	@hardware_uuid,
@@ -43,7 +43,6 @@ VALUES (
 	@hardware_model_identifier,
 	@orbit_node_key,
 	'orbit',
-	now(),
 	now()
 )
 ON CONFLICT (hardware_uuid) DO UPDATE SET
@@ -56,9 +55,8 @@ ON CONFLICT (hardware_uuid) DO UPDATE SET
 	orbit_device_auth_token = '',
 	enrollment_agent = EXCLUDED.enrollment_agent,
 	enrolled_at = now(),
-	last_seen_at = now(),
 	updated_at = now()
-RETURNING`+hostColumnsSQL(), write)
+RETURNING id`, write)
 }
 
 // UpsertOnOsqueryEnroll creates or refreshes a host from osquery enroll.
@@ -110,7 +108,6 @@ INSERT INTO hosts (
 	memory_bytes,
 	hardware_vendor,
 	os_kernel_version,
-	last_seen_at,
 	inventory_updated_at
 )
 VALUES (
@@ -136,7 +133,6 @@ VALUES (
 	@memory_bytes,
 	@hardware_vendor,
 	@os_kernel_version,
-	now(),
 	NULL
 )
 ON CONFLICT (hardware_uuid) DO UPDATE SET
@@ -163,20 +159,19 @@ ON CONFLICT (hardware_uuid) DO UPDATE SET
 	os_kernel_version = EXCLUDED.os_kernel_version,
 	inventory_updated_at = NULL,
 	inventory_query_hash = '',
-	last_seen_at = now(),
 	updated_at = now()
-RETURNING`+hostColumnsSQL(), write)
+RETURNING id`, write)
 }
 
 func upsertOnEnroll[W any](ctx context.Context, db *database.DB, sql string, write W) (*Host, error) {
 	now := time.Now()
 	var host Host
 	err := db.WithTx(ctx, func(tx pgx.Tx) error {
-		rows, err := tx.Query(ctx, sql, pgx.StructArgs(write))
-		if err != nil {
+		var hostID int64
+		if err := tx.QueryRow(ctx, sql, pgx.StructArgs(write)).Scan(&hostID); err != nil {
 			return err
 		}
-		row, err := pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[hostRow])
+		row, err := dbutil.GetOne[hostRow](ctx, tx, hostSelectSQL()+"\nWHERE hosts.id = $1", hostID)
 		if err != nil {
 			return err
 		}

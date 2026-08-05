@@ -7,9 +7,11 @@ import (
 
 	syncv1 "buf.build/gen/go/northpolesec/protos/protocolbuffers/go/sync"
 	"github.com/go-chi/chi/v5"
+	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/woodleighschool/woodstar/internal/agentauth"
+	"github.com/woodleighschool/woodstar/internal/heartbeats"
 	"github.com/woodleighschool/woodstar/internal/santa"
 )
 
@@ -20,14 +22,15 @@ type machineIDProtoMessage interface {
 
 // SyncService handles decoded Santa sync requests.
 type SyncService interface {
-	Preflight(ctx context.Context, machineID string, req santa.PreflightRequest) (santa.PreflightResponse, error)
-	EventUpload(ctx context.Context, machineID string, req santa.EventUploadRequest) (santa.EventUploadResponse, error)
+	Preflight(ctx context.Context, machineID string, contact heartbeats.Contact, req santa.PreflightRequest) (santa.PreflightResponse, error)
+	EventUpload(ctx context.Context, machineID string, contact heartbeats.Contact, req santa.EventUploadRequest) (santa.EventUploadResponse, error)
 	RuleDownload(
 		ctx context.Context,
 		machineID string,
+		contact heartbeats.Contact,
 		req santa.RuleDownloadRequest,
 	) (santa.RuleDownloadResponse, error)
-	Postflight(ctx context.Context, machineID string, req santa.PostflightRequest) (santa.PostflightResponse, error)
+	Postflight(ctx context.Context, machineID string, contact heartbeats.Contact, req santa.PostflightRequest) (santa.PostflightResponse, error)
 }
 
 type handler struct {
@@ -115,7 +118,7 @@ func handleSyncRequest[ProtoReq machineIDProtoMessage, DomainReq any, DomainResp
 	r *http.Request,
 	req ProtoReq,
 	fromProto func(ProtoReq) (DomainReq, error),
-	handle func(context.Context, string, DomainReq) (DomainResp, error),
+	handle func(context.Context, string, heartbeats.Contact, DomainReq) (DomainResp, error),
 	toProto func(DomainResp) (ProtoResp, error),
 ) {
 	if err := h.authorize(r); err != nil {
@@ -141,7 +144,10 @@ func handleSyncRequest[ProtoReq machineIDProtoMessage, DomainReq any, DomainResp
 		return
 	}
 
-	resp, err := handle(r.Context(), machineID, domainReq)
+	resp, err := handle(r.Context(), machineID, heartbeats.Contact{
+		RemoteIP:  chimiddleware.GetClientIP(r.Context()),
+		UserAgent: r.UserAgent(),
+	}, domainReq)
 	if err != nil {
 		h.writeError(w, r, err)
 		return

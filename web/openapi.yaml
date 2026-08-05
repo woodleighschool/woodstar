@@ -198,6 +198,24 @@ components:
         - created_at
         - updated_at
       type: object
+    Heartbeat:
+      additionalProperties: false
+      properties:
+        last_seen_at:
+          format: date-time
+          type: string
+        remote_ip:
+          format: ip
+          type: string
+        source:
+          type: string
+        user_agent:
+          type: string
+      required:
+        - source
+        - last_seen_at
+        - user_agent
+      type: object
     Host:
       additionalProperties: false
       properties:
@@ -205,17 +223,33 @@ components:
           $ref: "#/components/schemas/HostAgents"
         computer_name:
           type: string
+        created_at:
+          format: date-time
+          type: string
         display_name:
           type: string
         enrollment:
           $ref: "#/components/schemas/HostEnrollment"
         hardware:
           $ref: "#/components/schemas/HostHardware"
+        heartbeats:
+          items:
+            $ref: "#/components/schemas/Heartbeat"
+          type: array
         hostname:
           type: string
         id:
           format: int64
           type: integer
+        inventory_updated_at:
+          format: date-time
+          type: string
+        last_contact:
+          format: date-time
+          type: string
+        last_restarted_at:
+          format: date-time
+          type: string
         network:
           $ref: "#/components/schemas/HostNetwork"
         os:
@@ -226,6 +260,9 @@ components:
           items:
             $ref: "#/components/schemas/HostPrimaryUserSource"
           type: array
+        public_ip:
+          format: ip
+          type: string
         status:
           enum:
             - online
@@ -233,8 +270,9 @@ components:
           type: string
         storage:
           $ref: "#/components/schemas/HostStorage"
-        timestamps:
-          $ref: "#/components/schemas/HostTimestamps"
+        updated_at:
+          format: date-time
+          type: string
       required:
         - id
         - display_name
@@ -247,19 +285,27 @@ components:
         - storage
         - network
         - agents
+        - heartbeats
         - primary_user_sources
-        - timestamps
+        - created_at
+        - updated_at
       type: object
     HostAgents:
       additionalProperties: false
       properties:
+        munki:
+          $ref: "#/components/schemas/HostMunkiAgent"
         orbit:
           $ref: "#/components/schemas/HostOrbitAgent"
         osquery:
           $ref: "#/components/schemas/HostOsqueryAgent"
+        santa:
+          $ref: "#/components/schemas/HostSantaAgent"
       required:
         - osquery
         - orbit
+        - munki
+        - santa
       type: object
     HostBattery:
       additionalProperties: false
@@ -391,21 +437,37 @@ components:
           type: array
         computer_name:
           type: string
+        created_at:
+          format: date-time
+          type: string
         display_name:
           type: string
         enrollment:
           $ref: "#/components/schemas/HostEnrollment"
         hardware:
           $ref: "#/components/schemas/HostHardware"
+        heartbeats:
+          items:
+            $ref: "#/components/schemas/Heartbeat"
+          type: array
         hostname:
           type: string
         id:
           format: int64
           type: integer
+        inventory_updated_at:
+          format: date-time
+          type: string
         labels:
           items:
             $ref: "#/components/schemas/Label"
           type: array
+        last_contact:
+          format: date-time
+          type: string
+        last_restarted_at:
+          format: date-time
+          type: string
         network:
           $ref: "#/components/schemas/HostNetwork"
         os:
@@ -416,6 +478,9 @@ components:
           items:
             $ref: "#/components/schemas/HostPrimaryUserSource"
           type: array
+        public_ip:
+          format: ip
+          type: string
         status:
           enum:
             - online
@@ -423,8 +488,9 @@ components:
           type: string
         storage:
           $ref: "#/components/schemas/HostStorage"
-        timestamps:
-          $ref: "#/components/schemas/HostTimestamps"
+        updated_at:
+          format: date-time
+          type: string
         users:
           items:
             $ref: "#/components/schemas/HostUser"
@@ -445,8 +511,10 @@ components:
         - storage
         - network
         - agents
+        - heartbeats
         - primary_user_sources
-        - timestamps
+        - created_at
+        - updated_at
       type: object
     HostEnrollment:
       additionalProperties: false
@@ -483,12 +551,17 @@ components:
         - memory_bytes
         - cpu
       type: object
+    HostMunkiAgent:
+      additionalProperties: false
+      properties:
+        version:
+          type: string
+      required:
+        - version
+      type: object
     HostNetwork:
       additionalProperties: false
       properties:
-        last_remote_ip:
-          format: ip
-          type: string
         primary_ip:
           format: ip
           type: string
@@ -591,6 +664,14 @@ components:
         - email
         - source
       type: object
+    HostSantaAgent:
+      additionalProperties: false
+      properties:
+        version:
+          type: string
+      required:
+        - version
+      type: object
     HostSoftware:
       additionalProperties: false
       properties:
@@ -645,28 +726,6 @@ components:
           $ref: "#/components/schemas/HostBootVolume"
       required:
         - boot_volume
-      type: object
-    HostTimestamps:
-      additionalProperties: false
-      properties:
-        created_at:
-          format: date-time
-          type: string
-        inventory_updated_at:
-          format: date-time
-          type: string
-        last_restarted_at:
-          format: date-time
-          type: string
-        last_seen_at:
-          format: date-time
-          type: string
-        updated_at:
-          format: date-time
-          type: string
-      required:
-        - created_at
-        - updated_at
       type: object
     HostUser:
       additionalProperties: false
@@ -3354,9 +3413,6 @@ components:
           type: string
         configuration:
           $ref: "#/components/schemas/SantaConfigurationMatch"
-        last_seen_at:
-          format: date-time
-          type: string
         rule_sync:
           $ref: "#/components/schemas/SantaRuleSyncSummary"
         version:

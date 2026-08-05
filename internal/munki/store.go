@@ -18,6 +18,33 @@ func NewStore(db *database.DB) *Store {
 	return &Store{db: db}
 }
 
+// AgentVersions returns Munki versions keyed by host ID for the requested hosts.
+func (s *Store) AgentVersions(ctx context.Context, hostIDs []int64) (map[int64]string, error) {
+	versions := make(map[int64]string, len(hostIDs))
+	if len(hostIDs) == 0 {
+		return versions, nil
+	}
+	rows, err := s.db.Pool().Query(ctx, `
+SELECT host_id, version
+FROM munki_host_status
+WHERE host_id = ANY($1::bigint[])`, hostIDs)
+	if err != nil {
+		return nil, err
+	}
+	type agentVersionRow struct {
+		HostID  int64  `db:"host_id"`
+		Version string `db:"version"`
+	}
+	records, err := pgx.CollectRows(rows, pgx.RowToStructByName[agentVersionRow])
+	if err != nil {
+		return nil, err
+	}
+	for _, record := range records {
+		versions[record.HostID] = record.Version
+	}
+	return versions, nil
+}
+
 func (s *Store) UpsertHostObservation(ctx context.Context, observation HostObservation) error {
 	_, err := s.db.Pool().Exec(ctx, `
 INSERT INTO munki_host_status (

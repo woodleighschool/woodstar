@@ -7,10 +7,12 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	chimiddleware "github.com/go-chi/chi/v5/middleware"
 
 	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/enrollment"
+	"github.com/woodleighschool/woodstar/internal/heartbeats"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/httpx"
 	"github.com/woodleighschool/woodstar/internal/orbit"
@@ -29,11 +31,11 @@ type Server struct {
 }
 
 type enrollmentService interface {
-	Enroll(context.Context, orbit.EnrollRequest) (*hosts.Host, string, error)
-	Config(context.Context, string) (orbit.ConfigResponse, error)
-	SetPrimaryUser(context.Context, string, string) error
-	SetDeviceAuthToken(context.Context, string, string) error
-	ValidateDeviceAuthToken(context.Context, string) error
+	Enroll(context.Context, orbit.EnrollRequest, heartbeats.Contact) (*hosts.Host, string, error)
+	Config(context.Context, string, heartbeats.Contact) (orbit.ConfigResponse, error)
+	SetPrimaryUser(context.Context, string, string, heartbeats.Contact) error
+	SetDeviceAuthToken(context.Context, string, string, heartbeats.Contact) error
+	ValidateDeviceAuthToken(context.Context, string, heartbeats.Contact) error
 }
 
 // NewServer returns an Orbit protocol server.
@@ -62,7 +64,7 @@ func orbitEnrollHandler(svc enrollmentService, logger *slog.Logger) http.Handler
 			return
 		}
 
-		host, nodeKey, err := svc.Enroll(r.Context(), req)
+		host, nodeKey, err := svc.Enroll(r.Context(), req, requestContact(r))
 		switch {
 		case errors.Is(err, enrollment.ErrMissingHardwareUUID):
 			httpx.WriteError(w, http.StatusBadRequest, "hardware_uuid is required")
@@ -105,14 +107,22 @@ func orbitConfigHandler(svc enrollmentService, logger *slog.Logger) http.Handler
 			httpx.WriteDecodeError(w, err)
 			return
 		}
-		resp, err := svc.Config(r.Context(), req.OrbitNodeKey)
-		if err != nil {
+		resp, err := svc.Config(r.Context(), req.OrbitNodeKey, requestContact(r))
+		switch {
+		case errors.Is(err, dbutil.ErrNotFound):
 			logger.DebugContext(
 				r.Context(),
 				"orbit config rejected", "operation", "config",
 				"reason", "invalid_node_key",
 			)
 			httpx.WriteError(w, http.StatusUnauthorized, "invalid orbit node key")
+			return
+		case err != nil:
+			logger.ErrorContext(
+				r.Context(), "orbit config failed",
+				"operation", "config", "err", err,
+			)
+			httpx.WriteError(w, http.StatusInternalServerError, "config request failed")
 			return
 		}
 		httpx.Write(w, http.StatusOK, resp)
@@ -126,7 +136,7 @@ func orbitDeviceMappingHandler(svc enrollmentService, logger *slog.Logger) http.
 			httpx.WriteDecodeError(w, err)
 			return
 		}
-		err = svc.SetPrimaryUser(r.Context(), req.OrbitNodeKey, req.Email)
+		err = svc.SetPrimaryUser(r.Context(), req.OrbitNodeKey, req.Email, requestContact(r))
 		switch {
 		case errors.Is(err, dbutil.ErrInvalidInput):
 			httpx.WriteError(w, http.StatusBadRequest, "invalid primary user email")
@@ -162,7 +172,7 @@ func orbitDeviceTokenHandler(svc enrollmentService, logger *slog.Logger) http.Ha
 			httpx.WriteDecodeError(w, err)
 			return
 		}
-		err = svc.SetDeviceAuthToken(r.Context(), req.OrbitNodeKey, req.DeviceAuthToken)
+		err = svc.SetDeviceAuthToken(r.Context(), req.OrbitNodeKey, req.DeviceAuthToken, requestContact(r))
 		switch {
 		case errors.Is(err, orbit.ErrInvalidDeviceAuthToken):
 			httpx.WriteError(w, http.StatusBadRequest, "invalid device auth token")
@@ -184,7 +194,7 @@ func orbitDeviceTokenHandler(svc enrollmentService, logger *slog.Logger) http.Ha
 
 func orbitDevicePingHandler(svc enrollmentService, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		err := svc.ValidateDeviceAuthToken(r.Context(), chi.URLParam(r, "token"))
+		err := svc.ValidateDeviceAuthToken(r.Context(), chi.URLParam(r, "token"), requestContact(r))
 		switch {
 		case errors.Is(err, dbutil.ErrNotFound):
 			httpx.WriteError(w, http.StatusUnauthorized, "invalid device auth token")
@@ -197,6 +207,13 @@ func orbitDevicePingHandler(svc enrollmentService, logger *slog.Logger) http.Han
 		default:
 			w.WriteHeader(http.StatusOK)
 		}
+	}
+}
+
+func requestContact(r *http.Request) heartbeats.Contact {
+	return heartbeats.Contact{
+		RemoteIP:  chimiddleware.GetClientIP(r.Context()),
+		UserAgent: r.UserAgent(),
 	}
 }
 

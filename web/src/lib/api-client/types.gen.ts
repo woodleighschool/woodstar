@@ -100,26 +100,41 @@ export type Group = {
     updated_at: string;
 };
 
+export type Heartbeat = {
+    last_seen_at: string;
+    remote_ip?: string;
+    source: string;
+    user_agent: string;
+};
+
 export type Host = {
     agents: HostAgents;
     computer_name: string;
+    created_at: string;
     display_name: string;
     enrollment: HostEnrollment;
     hardware: HostHardware;
+    heartbeats: Array<Heartbeat>;
     hostname: string;
     id: number;
+    inventory_updated_at?: string;
+    last_contact?: string;
+    last_restarted_at?: string;
     network: HostNetwork;
     os: HostOs;
     primary_user?: HostPrimaryUser;
     primary_user_sources: Array<HostPrimaryUserSource>;
+    public_ip?: string;
     status: 'online' | 'offline';
     storage: HostStorage;
-    timestamps: HostTimestamps;
+    updated_at: string;
 };
 
 export type HostAgents = {
+    munki: HostMunkiAgent;
     orbit: HostOrbitAgent;
     osquery: HostOsqueryAgent;
+    santa: HostSantaAgent;
 };
 
 export type HostBattery = {
@@ -170,19 +185,25 @@ export type HostDetail = {
     batteries: Array<HostBattery>;
     certificates: Array<HostCertificate>;
     computer_name: string;
+    created_at: string;
     display_name: string;
     enrollment: HostEnrollment;
     hardware: HostHardware;
+    heartbeats: Array<Heartbeat>;
     hostname: string;
     id: number;
+    inventory_updated_at?: string;
     labels: Array<Label>;
+    last_contact?: string;
+    last_restarted_at?: string;
     network: HostNetwork;
     os: HostOs;
     primary_user?: HostPrimaryUser;
     primary_user_sources: Array<HostPrimaryUserSource>;
+    public_ip?: string;
     status: 'online' | 'offline';
     storage: HostStorage;
-    timestamps: HostTimestamps;
+    updated_at: string;
     users: Array<HostUser>;
 };
 
@@ -200,8 +221,11 @@ export type HostHardware = {
     vendor: string;
 };
 
+export type HostMunkiAgent = {
+    version: string;
+};
+
 export type HostNetwork = {
-    last_remote_ip?: string;
     primary_ip?: string;
     primary_mac: string;
 };
@@ -242,6 +266,10 @@ export type HostPrimaryUserSource = {
     source: 'manual' | 'orbit_profile';
 };
 
+export type HostSantaAgent = {
+    version: string;
+};
+
 export type HostSoftware = {
     extension_for: string;
     id: number;
@@ -260,14 +288,6 @@ export type HostSoftwareInstalledVersion = {
 
 export type HostStorage = {
     boot_volume: HostBootVolume;
-};
-
-export type HostTimestamps = {
-    created_at: string;
-    inventory_updated_at?: string;
-    last_restarted_at?: string;
-    last_seen_at?: string;
-    updated_at: string;
 };
 
 export type HostUser = {
@@ -1192,7 +1212,6 @@ export type SantaFileAccessEvent = {
 export type SantaHostState = {
     client_mode_reported: 'unknown' | 'monitor' | 'lockdown' | 'standalone';
     configuration?: SantaConfigurationMatch;
-    last_seen_at?: string;
     rule_sync: SantaRuleSyncSummary;
     version: string;
 };
@@ -1385,19 +1404,25 @@ export type HostDetailWritable = {
     batteries: Array<HostBattery>;
     certificates: Array<HostCertificate>;
     computer_name: string;
+    created_at: string;
     display_name: string;
     enrollment: HostEnrollment;
     hardware: HostHardware;
+    heartbeats: Array<Heartbeat>;
     hostname: string;
     id: number;
+    inventory_updated_at?: string;
     labels: Array<LabelWritable>;
+    last_contact?: string;
+    last_restarted_at?: string;
     network: HostNetwork;
     os: HostOs;
     primary_user?: HostPrimaryUser;
     primary_user_sources: Array<HostPrimaryUserSource>;
+    public_ip?: string;
     status: 'online' | 'offline';
     storage: HostStorage;
-    timestamps: HostTimestamps;
+    updated_at: string;
     users: Array<HostUser>;
 };
 

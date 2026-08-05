@@ -16,7 +16,6 @@ import { CLIENT_MODES } from "@features/santa/configurations/metadata";
 import { POLICIES, RULE_TYPES } from "@features/santa/rules/metadata";
 import type { ApiError, SantaHostState, SantaRuleStatus } from "@lib/api";
 import { MAX_PAGE_SIZE } from "@lib/pagination";
-import { formatRelative } from "@lib/utils";
 
 const RULE_APPLICATION_STATUSES = {
   applied: { name: "Applied", variant: "success" },
@@ -118,7 +117,6 @@ export function HostSantaTab({ hostId, santa, stateError, onStateRetry }: HostSa
             label="Configuration"
             value={configuration ? <SantaConfigurationLink configuration={configuration} /> : null}
           />
-          <KeyValueRow label="Last Sync" value={formatRelative(santa.last_seen_at)} />
           <KeyValueRow
             label="Rule Sync"
             value={`${santa.rule_sync.applied_count} applied / ${santa.rule_sync.desired_count} desired`}

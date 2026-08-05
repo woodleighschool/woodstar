@@ -24,6 +24,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/directory"
 	"github.com/woodleighschool/woodstar/internal/directory/entra"
+	"github.com/woodleighschool/woodstar/internal/heartbeats"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/inventory"
 	"github.com/woodleighschool/woodstar/internal/labels"
@@ -198,7 +199,7 @@ func buildDependencies(
 	// Core stores.
 	labelStore := labels.NewStore(db)
 	directoryStore := directory.NewStore(db)
-	hostStore := hosts.NewStore(db)
+	hostStore, heartbeatStore := newHostStores(db)
 	secretStore := agentauth.NewStore(db)
 	inventoryStore := inventory.NewStore(db)
 	primaryUsers := hosts.NewPrimaryUserStore(db)
@@ -238,7 +239,7 @@ func buildDependencies(
 	if err != nil {
 		return nil, nil, err
 	}
-	orbitAgent := orbit.NewEnrollmentService(hostStore, secretStore, primaryUsers)
+	orbitAgent := orbit.NewEnrollmentService(hostStore, secretStore, primaryUsers, heartbeatStore)
 
 	inventoryProjector := ingest.NewProjector(
 		hostStore,
@@ -257,6 +258,7 @@ func buildDependencies(
 		CheckStore:         checkStore,
 		LiveQueries:        liveQueries,
 		SecretStore:        secretStore,
+		Heartbeats:         heartbeatStore,
 		Logger:             logger.With("component", "osquery"),
 	})
 
@@ -293,6 +295,7 @@ func buildDependencies(
 		Events:         eventStore,
 		Rules:          ruleStore,
 		Sync:           syncStore,
+		Heartbeats:     heartbeatStore,
 	})
 	santaState := santa.NewHostStateService(santaHostStore, configurationStore)
 
@@ -345,6 +348,7 @@ func buildDependencies(
 			Osquery:   osqueryAgent,
 			Munki: api.MunkiProtocolDependencies{
 				Hosts:                hostStore,
+				Heartbeats:           heartbeatStore,
 				Repository:           munkiRepository,
 				Distribution:         munkiDistribution,
 				DistributionProtocol: munkiDistributionProtocol,
@@ -364,6 +368,10 @@ func buildDependencies(
 	}
 
 	return deps, starters, nil
+}
+
+func newHostStores(db *database.DB) (*hosts.Store, *heartbeats.Store) {
+	return hosts.NewStore(db), heartbeats.NewStore(db)
 }
 
 func storageUploadCleanupStarter(

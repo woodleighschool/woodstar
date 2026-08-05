@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -11,9 +12,11 @@ import (
 	"testing"
 
 	"github.com/go-chi/chi/v5"
+	chimiddleware "github.com/go-chi/chi/v5/middleware"
 
 	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/heartbeats"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/orbit"
 )
@@ -109,6 +112,55 @@ func TestOrbitEnrollRejectsInvalidSecret(t *testing.T) {
 		}, http.StatusUnauthorized)
 }
 
+func TestOrbitConfigPassesRequestContact(t *testing.T) {
+	t.Parallel()
+
+	service := &stubEnrollmentService{}
+	router := chi.NewRouter()
+	router.Use(chimiddleware.ClientIPFromRemoteAddr)
+	NewServer(service, slog.New(slog.DiscardHandler)).RegisterRoutes(router)
+
+	body, err := json.Marshal(orbit.ConfigRequest{OrbitNodeKey: "node-key"})
+	if err != nil {
+		t.Fatalf("marshal config request: %v", err)
+	}
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/fleet/orbit/config", bytes.NewReader(body))
+	req.RemoteAddr = "203.0.113.42:1234"
+	req.Header.Set("User-Agent", "Orbit/1.2.3")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body: %s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	want := heartbeats.Contact{RemoteIP: "203.0.113.42", UserAgent: "Orbit/1.2.3"}
+	if service.configContact != want {
+		t.Fatalf("contact = %#v, want %#v", service.configContact, want)
+	}
+}
+
+func TestOrbitConfigMapsServiceErrors(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		err        error
+		wantStatus int
+	}{
+		{name: "unknown node key", err: dbutil.ErrNotFound, wantStatus: http.StatusUnauthorized},
+		{name: "heartbeat recorder failure", err: errors.New("heartbeat unavailable"), wantStatus: http.StatusInternalServerError},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			service := &stubEnrollmentService{configErr: tt.err}
+			doOrbitJSON(t, newOrbitRouter(service), http.MethodPost, "/api/fleet/orbit/config", orbit.ConfigRequest{
+				OrbitNodeKey: "node-key",
+			}, tt.wantStatus)
+		})
+	}
+}
+
 func TestOrbitRoutesRejectMalformedAndOversizedJSON(t *testing.T) {
 	router := chi.NewRouter()
 	NewServer(nil, slog.New(slog.DiscardHandler)).RegisterRoutes(router)
@@ -147,28 +199,31 @@ type stubEnrollmentService struct {
 	setPrimaryUserErr          error
 	setDeviceAuthTokenErr      error
 	validateDeviceAuthTokenErr error
+	configContact              heartbeats.Contact
 }
 
 func (s *stubEnrollmentService) Enroll(
 	context.Context,
 	orbit.EnrollRequest,
+	heartbeats.Contact,
 ) (*hosts.Host, string, error) {
 	return &hosts.Host{}, "node-key", s.enrollErr
 }
 
-func (s *stubEnrollmentService) Config(context.Context, string) (orbit.ConfigResponse, error) {
+func (s *stubEnrollmentService) Config(_ context.Context, _ string, contact heartbeats.Contact) (orbit.ConfigResponse, error) {
+	s.configContact = contact
 	return orbit.ConfigResponse{}, s.configErr
 }
 
-func (s *stubEnrollmentService) SetPrimaryUser(context.Context, string, string) error {
+func (s *stubEnrollmentService) SetPrimaryUser(context.Context, string, string, heartbeats.Contact) error {
 	return s.setPrimaryUserErr
 }
 
-func (s *stubEnrollmentService) SetDeviceAuthToken(context.Context, string, string) error {
+func (s *stubEnrollmentService) SetDeviceAuthToken(context.Context, string, string, heartbeats.Contact) error {
 	return s.setDeviceAuthTokenErr
 }
 
-func (s *stubEnrollmentService) ValidateDeviceAuthToken(context.Context, string) error {
+func (s *stubEnrollmentService) ValidateDeviceAuthToken(context.Context, string, heartbeats.Contact) error {
 	return s.validateDeviceAuthTokenErr
 }
 
