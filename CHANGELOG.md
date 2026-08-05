@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.8.1](https://github.com/woodleighschool/woodstar/compare/0.8.0...0.8.1) (2026-08-05)
+
+
+### Features
+
+* **deps:** update module github.com/microsoftgraph/msgraph-sdk-go (v1.100.0 → v1.101.0) ([#134](https://github.com/woodleighschool/woodstar/issues/134)) ([29a9190](https://github.com/woodleighschool/woodstar/commit/29a919062432c9bacaa9b78952f6fdadfa80c57a))
+* **mise:** Update Node toolchain ([#132](https://github.com/woodleighschool/woodstar/issues/132)) ([56e4e62](https://github.com/woodleighschool/woodstar/commit/56e4e6226ab257e46357afa91804100b78ea4508))
+
+
+### Bug Fixes
+
+* **deps:** update aws-sdk-go-v2 monorepo ([#133](https://github.com/woodleighschool/woodstar/issues/133)) ([3423ab9](https://github.com/woodleighschool/woodstar/commit/3423ab93200c3c85d2f490ee55d5a828991b20f0))
+* **web:** stabilise table refreshes ([f2cccd4](https://github.com/woodleighschool/woodstar/commit/f2cccd4eef75beb2f597a00ab8239c2c33395f21))
+
 ## [0.8.0](https://github.com/woodleighschool/woodstar/compare/0.7.9...0.8.0) (2026-08-05)
 
 
