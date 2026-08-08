@@ -18,7 +18,8 @@ const (
 type santaRuleListInput struct {
 	ListQueryInput
 
-	RuleType []rules.RuleType `query:"rule_type,omitempty"`
+	ConfigurationID []int64          `query:"configuration_id,omitempty"`
+	RuleType        []rules.RuleType `query:"rule_type,omitempty"`
 }
 
 type santaRuleGetInput struct {
@@ -48,8 +49,9 @@ type santaRuleOutput struct {
 
 func (input santaRuleListInput) params() rules.RuleListParams {
 	return rules.RuleListParams{
-		ListParams: input.ListQueryInput.params(),
-		RuleTypes:  input.RuleType,
+		ListParams:       input.ListQueryInput.params(),
+		ConfigurationIDs: input.ConfigurationID,
+		RuleTypes:        input.RuleType,
 	}
 }
 

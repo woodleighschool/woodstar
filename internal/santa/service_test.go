@@ -129,6 +129,77 @@ func TestSyncServicePropagatesRecorderErrorsBeforeStageWork(t *testing.T) {
 	}
 }
 
+func TestSyncServiceResolvesRulesInsideSelectedConfiguration(t *testing.T) {
+	ruleStore := &recordingRuleStore{rules: []santarules.HostRule{{
+		RuleID:     1,
+		RuleType:   santarules.RuleTypeSigningID,
+		Identifier: "ABCDE12345:com.example.app",
+		Policy:     santarules.PolicyBlocklist,
+	}}}
+	syncStore := &recordingSyncStore{}
+	service := NewSyncService(Dependencies{
+		HostStore: &testHostStore{hostID: 7},
+		Configurations: staticConfigurationResolver{match: &configurations.ConfigurationMatch{
+			Configuration: configurations.Configuration{ID: 42},
+		}},
+		Events:     &testEventStore{},
+		Rules:      ruleStore,
+		Sync:       syncStore,
+		Heartbeats: &heartbeatRecorder{},
+	})
+
+	if _, err := service.Preflight(t.Context(), "machine-1", heartbeats.Contact{}, PreflightRequest{}); err != nil {
+		t.Fatalf("Preflight: %v", err)
+	}
+	if ruleStore.hostID != 7 || ruleStore.configurationID != 42 {
+		t.Fatalf(
+			"rule resolution = host %d configuration %d, want host 7 configuration 42",
+			ruleStore.hostID,
+			ruleStore.configurationID,
+		)
+	}
+	if syncStore.calls != 1 || len(syncStore.targets) != 1 ||
+		syncStore.targets[0].Identifier != "ABCDE12345:com.example.app" {
+		t.Fatalf("prepared targets = %+v after %d calls, want selected configuration rule", syncStore.targets, syncStore.calls)
+	}
+}
+
+func TestSyncServiceRejectsConflictingExpandedRulesBeforePreparingSync(t *testing.T) {
+	ruleStore := &recordingRuleStore{rules: []santarules.HostRule{
+		{
+			RuleID:     1,
+			RuleType:   santarules.RuleTypeBinary,
+			Identifier: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+			Policy:     santarules.PolicyAllowlist,
+		},
+		{
+			RuleID:     2,
+			RuleType:   santarules.RuleTypeBinary,
+			Identifier: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+			Policy:     santarules.PolicyBlocklist,
+		},
+	}}
+	syncStore := &recordingSyncStore{}
+	service := NewSyncService(Dependencies{
+		HostStore: &testHostStore{hostID: 7},
+		Configurations: staticConfigurationResolver{match: &configurations.ConfigurationMatch{
+			Configuration: configurations.Configuration{ID: 42},
+		}},
+		Events:     &testEventStore{},
+		Rules:      ruleStore,
+		Sync:       syncStore,
+		Heartbeats: &heartbeatRecorder{},
+	})
+
+	_, err := service.Preflight(t.Context(), "machine-1", heartbeats.Contact{}, PreflightRequest{})
+	if !errors.Is(err, dbutil.ErrConflict) {
+		t.Fatalf("Preflight conflict error = %v, want ErrConflict", err)
+	}
+	if syncStore.calls != 0 {
+		t.Fatalf("PreparePending calls = %d, want 0", syncStore.calls)
+	}
+}
+
 func newTestSyncService(hostID int64, hostErr error, recorder contactRecorder) (*SyncService, *testEventStore) {
 	eventStore := &testEventStore{}
 	service := NewSyncService(Dependencies{
@@ -159,6 +230,17 @@ func (testConfigurationResolver) ResolveConfigurationForHost(context.Context, in
 	return nil, nil
 }
 
+type staticConfigurationResolver struct {
+	match *configurations.ConfigurationMatch
+}
+
+func (r staticConfigurationResolver) ResolveConfigurationForHost(
+	context.Context,
+	int64,
+) (*configurations.ConfigurationMatch, error) {
+	return r.match, nil
+}
+
 type testEventStore struct{ calls int }
 
 func (s *testEventStore) IngestEvents(
@@ -174,8 +256,24 @@ func (s *testEventStore) IngestEvents(
 
 type testRuleStore struct{}
 
-func (testRuleStore) ResolveRulesForHost(context.Context, int64) ([]santarules.HostRule, error) {
+func (testRuleStore) ResolveRulesForHost(context.Context, int64, int64) ([]santarules.HostRule, error) {
 	return nil, nil
+}
+
+type recordingRuleStore struct {
+	hostID          int64
+	configurationID int64
+	rules           []santarules.HostRule
+}
+
+func (s *recordingRuleStore) ResolveRulesForHost(
+	_ context.Context,
+	hostID int64,
+	configurationID int64,
+) ([]santarules.HostRule, error) {
+	s.hostID = hostID
+	s.configurationID = configurationID
+	return s.rules, nil
 }
 
 type testSyncStore struct{}
@@ -188,6 +286,26 @@ func (testSyncStore) PreparePending(
 	bool,
 	string,
 ) (syncstate.SyncType, error) {
+	return syncstate.SyncTypeNormal, nil
+}
+
+type recordingSyncStore struct {
+	testSyncStore
+
+	calls   int
+	targets []syncstate.Target
+}
+
+func (s *recordingSyncStore) PreparePending(
+	_ context.Context,
+	_ int64,
+	targets []syncstate.Target,
+	_ syncstate.RuleCounts,
+	_ bool,
+	_ string,
+) (syncstate.SyncType, error) {
+	s.calls++
+	s.targets = targets
 	return syncstate.SyncTypeNormal, nil
 }
 

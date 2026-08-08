@@ -39,15 +39,17 @@ export function santaRuleQueryOptions(id: number | null) {
   });
 }
 
-export function useSantaRules(params: SantaRuleListParams = {}) {
+export function useSantaRules(params: SantaRuleListParams = {}, enabled = true) {
   const queryParams = {
     ...baseListParams(params),
+    configuration_id: params.configuration_id,
     rule_type: params.rule_type,
   };
 
   return useQuery<PageRule, ApiError>({
     queryKey: ruleKeys.list(queryParams),
     queryFn: ({ signal }) => unwrap(listSantaRules({ query: queryParams, signal })),
+    enabled,
     placeholderData: keepPreviousData,
   });
 }

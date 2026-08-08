@@ -10,15 +10,15 @@ Woodstar provides the sync server for [Santa](https://github.com/northpolesec/sa
 
 ## Configurations
 
-A configuration contains Santa client settings and targets one or more labels. Configurations are ordered, and a label can belong to only one configuration.
+A configuration contains Santa client settings and targets one or more labels. Configurations are ordered; the first configuration matching a Mac is its complete Santa policy domain.
 
 Settings include client mode, sync timing, event upload, bundle handling, path regular expressions, and removable-media policy.
 
 ## Rules
 
-Rules allow or block binaries, certificates, team IDs, signing IDs, code-directory hashes, or bundles. Each rule includes one label and can exclude other labels.
+Rules belong to one configuration and allow or block binaries, certificates, team IDs, signing IDs, code-directory hashes, or bundles. A rule owns one complete decision, including any CEL expression and custom notification fields. Include and exclude labels only control whether that rule applies within its configuration.
 
-The rule form can search observed execution events for known targets. A host page shows the rules that apply to that Mac.
+Open a configuration to manage its rules. The rule form can search observed execution events for known targets. A host page shows the rules that apply to that Mac.
 
 ## Events
 

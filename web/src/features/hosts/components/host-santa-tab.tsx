@@ -1,4 +1,5 @@
 import { Activity, FolderLock } from "lucide-react";
+import { useMemo } from "react";
 
 import { DataTableStatic } from "@components/data-table/data-table-static";
 import type { DataTableColumnDef } from "@components/data-table/types";
@@ -22,46 +23,53 @@ const RULE_APPLICATION_STATUSES = {
   pending: { name: "Pending", variant: "warning" },
 } as const;
 
-const santaRuleColumns: DataTableColumnDef<SantaRuleStatus>[] = [
-  {
-    accessorKey: "name",
-    header: () => "Name",
-    cell: ({ row }) => (
-      <Link
-        to="/santa/rules/$id"
-        params={{ id: String(row.original.rule_id) }}
-        className="font-medium"
-      >
-        {row.original.name}
-      </Link>
-    ),
-  },
-  {
-    accessorKey: "rule_type",
-    header: () => "Rule Type",
-    cell: ({ row }) => <EnumBadge value={row.original.rule_type} metadata={RULE_TYPES} />,
-  },
-  {
-    accessorKey: "identifier",
-    header: () => "Identifier",
-    cell: ({ row }) => row.original.identifier || "-",
-  },
-  {
-    accessorKey: "policy",
-    header: () => "Policy",
-    cell: ({ row }) => <EnumBadge value={row.original.policy} metadata={POLICIES} />,
-  },
-  {
-    accessorKey: "applied",
-    header: () => "Status",
-    cell: ({ row }) => (
-      <EnumStatusIndicator
-        value={row.original.applied ? "applied" : "pending"}
-        metadata={RULE_APPLICATION_STATUSES}
-      />
-    ),
-  },
-];
+function santaRuleColumns(
+  configurationID: number | undefined,
+): DataTableColumnDef<SantaRuleStatus>[] {
+  return [
+    {
+      accessorKey: "name",
+      header: () => "Name",
+      cell: ({ row }) =>
+        configurationID === undefined ? (
+          row.original.name
+        ) : (
+          <Link
+            to="/santa/configurations/$id/rules/$ruleId"
+            params={{ id: String(configurationID), ruleId: String(row.original.rule_id) }}
+            className="font-medium"
+          >
+            {row.original.name}
+          </Link>
+        ),
+    },
+    {
+      accessorKey: "rule_type",
+      header: () => "Rule Type",
+      cell: ({ row }) => <EnumBadge value={row.original.rule_type} metadata={RULE_TYPES} />,
+    },
+    {
+      accessorKey: "identifier",
+      header: () => "Identifier",
+      cell: ({ row }) => row.original.identifier || "-",
+    },
+    {
+      accessorKey: "policy",
+      header: () => "Policy",
+      cell: ({ row }) => <EnumBadge value={row.original.policy} metadata={POLICIES} />,
+    },
+    {
+      accessorKey: "applied",
+      header: () => "Status",
+      cell: ({ row }) => (
+        <EnumStatusIndicator
+          value={row.original.applied ? "applied" : "pending"}
+          metadata={RULE_APPLICATION_STATUSES}
+        />
+      ),
+    },
+  ];
+}
 
 interface HostSantaTabProps {
   hostId: number;
@@ -74,6 +82,7 @@ export function HostSantaTab({ hostId, santa, stateError, onStateRetry }: HostSa
   const rules = useHostSantaRules(hostId, { per_page: MAX_PAGE_SIZE });
   const items = rules.data?.items ?? [];
   const configuration = santa?.configuration;
+  const ruleColumns = useMemo(() => santaRuleColumns(configuration?.id), [configuration?.id]);
   return (
     <div className="flex flex-col gap-4">
       {stateError ? (
@@ -140,7 +149,7 @@ export function HostSantaTab({ hostId, santa, stateError, onStateRetry }: HostSa
       ) : rules.isLoading ? null : (
         <DataTableStatic
           heading="Rules"
-          columns={santaRuleColumns}
+          columns={ruleColumns}
           data={items}
           empty={<PanelEmptyState>No matching rules</PanelEmptyState>}
         />

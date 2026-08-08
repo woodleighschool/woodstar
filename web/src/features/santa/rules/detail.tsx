@@ -2,24 +2,13 @@ import { useNavigate, useParams } from "@tanstack/react-router";
 import { Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 
-import { TableSurface } from "@components/data-table/table-surface";
 import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link } from "@components/link";
 import { QueryGate } from "@components/query-gate";
-import { TargetDetails } from "@components/targeting/target-details";
+import { LabelTargetDetails } from "@components/targeting/target-details";
 import { Button } from "@components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@components/ui/table";
 import { useAuth } from "@features/auth/queries";
-import { useLabelNameMap } from "@features/labels/components/label-ref-list";
-import type { SantaRule } from "@lib/api";
 import { parseRouteID } from "@lib/route-params";
 import { formatRelative } from "@lib/utils";
 
@@ -28,13 +17,13 @@ import { POLICIES, ruleTypeLabel } from "./metadata";
 import { useSantaRule } from "./queries";
 
 export function RuleDetailPage() {
-  const { id: ruleID } = useParams({
-    from: "/_authenticated/santa/rules/$id",
+  const { id: configurationID, ruleId } = useParams({
+    from: "/_authenticated/santa/configurations/$id/rules/$ruleId",
   });
   const navigate = useNavigate();
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
-  const id = parseRouteID(ruleID);
+  const id = parseRouteID(ruleId);
   const query = useSantaRule(id);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
@@ -64,7 +53,12 @@ export function RuleDetailPage() {
             <>
               <Button
                 size="sm"
-                render={<Link to="/santa/rules/$id/edit" params={{ id: String(rule.id) }} />}
+                render={
+                  <Link
+                    to="/santa/configurations/$id/rules/$ruleId/edit"
+                    params={{ id: configurationID, ruleId: String(rule.id) }}
+                  />
+                }
                 nativeButton={false}
               >
                 <Pencil data-icon="inline-start" />
@@ -89,62 +83,27 @@ export function RuleDetailPage() {
         <KeyValueRow label="Description" value={rule.description} />
         <KeyValueRow label="Rule Type" value={ruleTypeLabel(rule.rule_type)} />
         <KeyValueRow label="Identifier" value={rule.identifier || "-"} />
+        <KeyValueRow label="Policy" value={POLICIES[rule.policy].name} />
+        {rule.policy === "cel" ? (
+          <KeyValueRow label="CEL Expression" value={rule.cel_expression} />
+        ) : null}
         <KeyValueRow label="Custom URL" value={rule.custom_url} />
         <KeyValueRow label="Custom Message" value={rule.custom_message} />
       </KeyValueSection>
 
-      <RuleTargets rule={rule} />
+      <LabelTargetDetails targets={rule.targets} />
 
       <RuleDeleteDialog
         rule={rule}
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
-        onDeleted={() => void navigate({ to: "/santa/rules" })}
+        onDeleted={() =>
+          void navigate({
+            to: "/santa/configurations/$id/rules",
+            params: { id: configurationID },
+          })
+        }
       />
     </PageShell>
-  );
-}
-
-function RuleTargets({ rule }: { rule: SantaRule }) {
-  const labelsByID = useLabelNameMap();
-
-  return (
-    <TargetDetails
-      include={
-        rule.targets.include.length > 0 ? (
-          <TableSurface variant="embedded">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Label</TableHead>
-                  <TableHead>Policy</TableHead>
-                  <TableHead>CEL Expression</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rule.targets.include.map((target) => (
-                  <TableRow key={`${target.label_id}:${target.policy}`}>
-                    <TableCell>
-                      <Link
-                        to="/labels/$id"
-                        params={{ id: String(target.label_id) }}
-                        className="font-medium"
-                      >
-                        {labelsByID.get(target.label_id) ?? `Label ${target.label_id}`}
-                      </Link>
-                    </TableCell>
-                    <TableCell>{POLICIES[target.policy].name}</TableCell>
-                    <TableCell>{target.cel_expression || "-"}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableSurface>
-        ) : (
-          "-"
-        )
-      }
-      excludeLabelIDs={rule.targets.exclude.map((target) => target.label_id)}
-    />
   );
 }

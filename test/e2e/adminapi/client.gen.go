@@ -907,6 +907,39 @@ func (e SantaRemovableMediaPolicyAction) Valid() bool {
 	}
 }
 
+// Defines values for SantaRulePolicy.
+const (
+	SantaRulePolicyAllowlist          SantaRulePolicy = "allowlist"
+	SantaRulePolicyAllowlistCompiler  SantaRulePolicy = "allowlist_compiler"
+	SantaRulePolicyBlocklist          SantaRulePolicy = "blocklist"
+	SantaRulePolicyCel                SantaRulePolicy = "cel"
+	SantaRulePolicySilentBlocklist    SantaRulePolicy = "silent_blocklist"
+	SantaRulePolicySilentGuiBlocklist SantaRulePolicy = "silent_gui_blocklist"
+	SantaRulePolicySilentTtyBlocklist SantaRulePolicy = "silent_tty_blocklist"
+)
+
+// Valid indicates whether the value is a known member of the SantaRulePolicy enum.
+func (e SantaRulePolicy) Valid() bool {
+	switch e {
+	case SantaRulePolicyAllowlist:
+		return true
+	case SantaRulePolicyAllowlistCompiler:
+		return true
+	case SantaRulePolicyBlocklist:
+		return true
+	case SantaRulePolicyCel:
+		return true
+	case SantaRulePolicySilentBlocklist:
+		return true
+	case SantaRulePolicySilentGuiBlocklist:
+		return true
+	case SantaRulePolicySilentTtyBlocklist:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for SantaRuleRuleType.
 const (
 	SantaRuleRuleTypeBinary      SantaRuleRuleType = "binary"
@@ -937,33 +970,33 @@ func (e SantaRuleRuleType) Valid() bool {
 	}
 }
 
-// Defines values for SantaRuleIncludePolicy.
+// Defines values for SantaRuleMutationPolicy.
 const (
-	SantaRuleIncludePolicyAllowlist          SantaRuleIncludePolicy = "allowlist"
-	SantaRuleIncludePolicyAllowlistCompiler  SantaRuleIncludePolicy = "allowlist_compiler"
-	SantaRuleIncludePolicyBlocklist          SantaRuleIncludePolicy = "blocklist"
-	SantaRuleIncludePolicyCel                SantaRuleIncludePolicy = "cel"
-	SantaRuleIncludePolicySilentBlocklist    SantaRuleIncludePolicy = "silent_blocklist"
-	SantaRuleIncludePolicySilentGuiBlocklist SantaRuleIncludePolicy = "silent_gui_blocklist"
-	SantaRuleIncludePolicySilentTtyBlocklist SantaRuleIncludePolicy = "silent_tty_blocklist"
+	SantaRuleMutationPolicyAllowlist          SantaRuleMutationPolicy = "allowlist"
+	SantaRuleMutationPolicyAllowlistCompiler  SantaRuleMutationPolicy = "allowlist_compiler"
+	SantaRuleMutationPolicyBlocklist          SantaRuleMutationPolicy = "blocklist"
+	SantaRuleMutationPolicyCel                SantaRuleMutationPolicy = "cel"
+	SantaRuleMutationPolicySilentBlocklist    SantaRuleMutationPolicy = "silent_blocklist"
+	SantaRuleMutationPolicySilentGuiBlocklist SantaRuleMutationPolicy = "silent_gui_blocklist"
+	SantaRuleMutationPolicySilentTtyBlocklist SantaRuleMutationPolicy = "silent_tty_blocklist"
 )
 
-// Valid indicates whether the value is a known member of the SantaRuleIncludePolicy enum.
-func (e SantaRuleIncludePolicy) Valid() bool {
+// Valid indicates whether the value is a known member of the SantaRuleMutationPolicy enum.
+func (e SantaRuleMutationPolicy) Valid() bool {
 	switch e {
-	case SantaRuleIncludePolicyAllowlist:
+	case SantaRuleMutationPolicyAllowlist:
 		return true
-	case SantaRuleIncludePolicyAllowlistCompiler:
+	case SantaRuleMutationPolicyAllowlistCompiler:
 		return true
-	case SantaRuleIncludePolicyBlocklist:
+	case SantaRuleMutationPolicyBlocklist:
 		return true
-	case SantaRuleIncludePolicyCel:
+	case SantaRuleMutationPolicyCel:
 		return true
-	case SantaRuleIncludePolicySilentBlocklist:
+	case SantaRuleMutationPolicySilentBlocklist:
 		return true
-	case SantaRuleIncludePolicySilentGuiBlocklist:
+	case SantaRuleMutationPolicySilentGuiBlocklist:
 		return true
-	case SantaRuleIncludePolicySilentTtyBlocklist:
+	case SantaRuleMutationPolicySilentTtyBlocklist:
 		return true
 	default:
 		return false
@@ -2436,41 +2469,43 @@ type SantaRemovableMediaPolicyAction string
 
 // SantaRule defines model for SantaRule.
 type SantaRule struct {
-	CreatedAt     time.Time         `json:"created_at"`
-	CustomMessage string            `json:"custom_message"`
-	CustomUrl     string            `json:"custom_url"`
-	Description   string            `json:"description"`
-	Id            int64             `json:"id"`
-	Identifier    string            `json:"identifier"`
-	Name          string            `json:"name"`
-	RuleType      SantaRuleRuleType `json:"rule_type"`
-	Targets       SantaRuleTargets  `json:"targets"`
-	UpdatedAt     time.Time         `json:"updated_at"`
+	CelExpression   *string           `json:"cel_expression,omitempty"`
+	ConfigurationId int64             `json:"configuration_id"`
+	CreatedAt       time.Time         `json:"created_at"`
+	CustomMessage   string            `json:"custom_message"`
+	CustomUrl       string            `json:"custom_url"`
+	Description     string            `json:"description"`
+	Id              int64             `json:"id"`
+	Identifier      string            `json:"identifier"`
+	Name            string            `json:"name"`
+	Policy          SantaRulePolicy   `json:"policy"`
+	RuleType        SantaRuleRuleType `json:"rule_type"`
+	Targets         SantaRuleTargets  `json:"targets"`
+	UpdatedAt       time.Time         `json:"updated_at"`
 }
+
+// SantaRulePolicy defines model for SantaRule.Policy.
+type SantaRulePolicy string
 
 // SantaRuleRuleType defines model for SantaRule.RuleType.
 type SantaRuleRuleType string
 
-// SantaRuleInclude defines model for SantaRuleInclude.
-type SantaRuleInclude struct {
-	CelExpression *string                `json:"cel_expression,omitempty"`
-	LabelId       int64                  `json:"label_id"`
-	Policy        SantaRuleIncludePolicy `json:"policy"`
-}
-
-// SantaRuleIncludePolicy defines model for SantaRuleInclude.Policy.
-type SantaRuleIncludePolicy string
-
 // SantaRuleMutation defines model for SantaRuleMutation.
 type SantaRuleMutation struct {
-	CustomMessage *string                   `json:"custom_message,omitempty"`
-	CustomUrl     *string                   `json:"custom_url,omitempty"`
-	Description   *string                   `json:"description,omitempty"`
-	Identifier    string                    `json:"identifier"`
-	Name          string                    `json:"name"`
-	RuleType      SantaRuleMutationRuleType `json:"rule_type"`
-	Targets       SantaRuleTargets          `json:"targets"`
+	CelExpression   *string                   `json:"cel_expression,omitempty"`
+	ConfigurationId int64                     `json:"configuration_id"`
+	CustomMessage   *string                   `json:"custom_message,omitempty"`
+	CustomUrl       *string                   `json:"custom_url,omitempty"`
+	Description     *string                   `json:"description,omitempty"`
+	Identifier      string                    `json:"identifier"`
+	Name            string                    `json:"name"`
+	Policy          SantaRuleMutationPolicy   `json:"policy"`
+	RuleType        SantaRuleMutationRuleType `json:"rule_type"`
+	Targets         SantaRuleTargets          `json:"targets"`
 }
+
+// SantaRuleMutationPolicy defines model for SantaRuleMutation.Policy.
+type SantaRuleMutationPolicy string
 
 // SantaRuleMutationRuleType defines model for SantaRuleMutation.RuleType.
 type SantaRuleMutationRuleType string
@@ -2506,8 +2541,8 @@ type SantaRuleSyncSummary struct {
 
 // SantaRuleTargets defines model for SantaRuleTargets.
 type SantaRuleTargets struct {
-	Exclude []LabelRef         `json:"exclude"`
-	Include []SantaRuleInclude `json:"include"`
+	Exclude []LabelRef `json:"exclude"`
+	Include []LabelRef `json:"include"`
 }
 
 // SantaSigningChainEntry defines model for SantaSigningChainEntry.

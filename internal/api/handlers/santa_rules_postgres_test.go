@@ -13,6 +13,7 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	"github.com/go-chi/chi/v5"
 
+	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 	"github.com/woodleighschool/woodstar/internal/santa/rules"
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
 )
@@ -21,7 +22,7 @@ func TestHostSantaRulesEndpointReturnsNotFoundForMissingHost(t *testing.T) {
 	db, _ := testdb.Open(t)
 	ruleStore := rules.NewStore(db)
 	router := santaRulesAPI(t, func(api huma.API) {
-		registerHostSantaRules(api, ruleStore, discardLogger())
+		registerHostSantaRules(api, configurations.NewStore(db), ruleStore, discardLogger())
 	})
 
 	rec := santaRulesRequest(t, router, http.MethodGet, "/api/hosts/999999/santa/rules", "")
