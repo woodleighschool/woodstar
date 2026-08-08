@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.8.2](https://github.com/woodleighschool/woodstar/compare/0.8.1...0.8.2) (2026-08-08)
+
+
+### Features
+
+* **deps:** update dependency @tanstack/react-table (9.0.0 → 9.1.0) ([#144](https://github.com/woodleighschool/woodstar/issues/144)) ([b36c2ca](https://github.com/woodleighschool/woodstar/commit/b36c2ca652fd50d6e6280d85da94422d5b7f8f96))
+* **deps:** update dependency lucide-react (1.28.0 → 1.30.0) ([#140](https://github.com/woodleighschool/woodstar/issues/140)) ([60632fc](https://github.com/woodleighschool/woodstar/commit/60632fc22e653fddcaf3d20c5647560d4958eb17))
+* **deps:** update module github.com/aws/aws-sdk-go-v2/service/s3 (v1.106.5 → v1.107.0) ([#139](https://github.com/woodleighschool/woodstar/issues/139)) ([125af52](https://github.com/woodleighschool/woodstar/commit/125af52bb512bbad1ef6031292b9c008c11a6ad6))
+* **deps:** update module github.com/google/cel-go (v0.30.0 → v0.31.0) ([#143](https://github.com/woodleighschool/woodstar/issues/143)) ([8d7c90d](https://github.com/woodleighschool/woodstar/commit/8d7c90d13b6f40529fc2f56cad8924808c163e95))
+* **deps:** update module github.com/testcontainers/testcontainers-go (v0.43.0 → v0.44.0) ([#142](https://github.com/woodleighschool/woodstar/issues/142)) ([68737a2](https://github.com/woodleighschool/woodstar/commit/68737a2af4ff9d6159eacc03564b32a5e4130e56))
+* **hosts:** add MDP and GeoIP context ([451517c](https://github.com/woodleighschool/woodstar/commit/451517cad5894fa0d146c846b11403eacf75930f))
+* **mise:** Update Node toolchain ([#135](https://github.com/woodleighschool/woodstar/issues/135)) ([a7a5c2d](https://github.com/woodleighschool/woodstar/commit/a7a5c2d0cb0d3a5e46a1988aa50c27553d95951c))
+
+
+### Bug Fixes
+
+* **deps:** update dependency @tanstack/react-store (0.11.0 → 0.11.1) ([#136](https://github.com/woodleighschool/woodstar/issues/136)) ([c398f57](https://github.com/woodleighschool/woodstar/commit/c398f57d49f083e707fe5d5625a65c477f885d54))
+* **deps:** update dependency shadcn (4.16.1 → 4.16.2) ([#138](https://github.com/woodleighschool/woodstar/issues/138)) ([46da072](https://github.com/woodleighschool/woodstar/commit/46da072eeb49177c088352352b901abe7ba6bc0f))
+* **deps:** update dependency vite (8.2.0 → 8.2.1) ([#141](https://github.com/woodleighschool/woodstar/issues/141)) ([922ad8f](https://github.com/woodleighschool/woodstar/commit/922ad8f487fb5f2ba039178e03e8b570ab6623dc))
+* **deps:** update module github.com/aws/smithy-go (v1.27.6 → v1.27.7) ([#78](https://github.com/woodleighschool/woodstar/issues/78)) ([d7bace2](https://github.com/woodleighschool/woodstar/commit/d7bace29e4f1e5c07d2e0ac9a11014925640b015))
+* **deps:** update tanstack-router monorepo ([#137](https://github.com/woodleighschool/woodstar/issues/137)) ([682c64d](https://github.com/woodleighschool/woodstar/commit/682c64d940b6742dd9bef185433ec36acf1daeff))
+* **hosts:** expand persisted host search ([82d5033](https://github.com/woodleighschool/woodstar/commit/82d5033ac20e645653906530e2c0cecc98d4f5fd))
+* **renovate:** wait for complete toolchain groups ([abfa2a4](https://github.com/woodleighschool/woodstar/commit/abfa2a4d6e0a1de133715f2c5b196b8017882405))
+
 ## [0.8.1](https://github.com/woodleighschool/woodstar/compare/0.8.0...0.8.1) (2026-08-05)
 
 
