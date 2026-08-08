@@ -101,15 +101,56 @@ func hostListWhere(params HostListParams) (string, []any) {
 		where.Add(`(
 			display_name ILIKE ` + search + `
 			OR hostname ILIKE ` + search + `
-				OR computer_name ILIKE ` + search + `
-				OR hardware_serial ILIKE ` + search + `
-				OR hardware_uuid ILIKE ` + search + `
-				OR hardware_model_identifier ILIKE ` + search + `
-				OR os_version ILIKE ` + search + `
-				OR EXISTS (
-					SELECT 1 FROM host_primary_user_sources s
-					WHERE s.host_id = hosts.id AND s.email ILIKE ` + search + `
-				)
+			OR computer_name ILIKE ` + search + `
+			OR hardware_serial ILIKE ` + search + `
+			OR hardware_uuid ILIKE ` + search + `
+			OR hardware_vendor ILIKE ` + search + `
+			OR hardware_model_identifier ILIKE ` + search + `
+			OR cpu_type ILIKE ` + search + `
+			OR cpu_subtype ILIKE ` + search + `
+			OR cpu_brand ILIKE ` + search + `
+			OR os_platform ILIKE ` + search + `
+			OR os_name ILIKE ` + search + `
+			OR os_version ILIKE ` + search + `
+			OR os_build ILIKE ` + search + `
+			OR os_kernel_version ILIKE ` + search + `
+			OR enrollment_agent ILIKE ` + search + `
+			OR osquery_version ILIKE ` + search + `
+			OR orbit_version ILIKE ` + search + `
+			OR primary_ip::text ILIKE ` + search + `
+			OR primary_mac ILIKE ` + search + `
+			OR EXISTS (
+				SELECT 1
+				FROM host_heartbeats hh
+				WHERE hh.host_id = hosts.id
+				  AND hh.source = 'osquery'
+				  AND hh.remote_ip::text ILIKE ` + search + `
+			)
+			OR EXISTS (
+				SELECT 1
+				FROM LATERAL (
+					SELECT s.email
+					FROM host_primary_user_sources s
+					WHERE s.host_id = hosts.id
+					ORDER BY ` + primaryUserSourceOrderSQL + `, source
+					LIMIT 1
+				) preferred
+				LEFT JOIN LATERAL (
+					SELECT u.mail_nickname, u.name, u.department
+					FROM users u
+					WHERE u.deleted_at IS NULL
+					  AND (
+						u.email = preferred.email
+						OR u.user_principal_name = preferred.email
+					  )
+					ORDER BY CASE WHEN u.email = preferred.email THEN 0 ELSE 1 END, u.id
+					LIMIT 1
+				) resolved ON true
+				WHERE preferred.email ILIKE ` + search + `
+				   OR resolved.mail_nickname ILIKE ` + search + `
+				   OR resolved.name ILIKE ` + search + `
+				   OR resolved.department ILIKE ` + search + `
+			)
 			)`)
 	}
 	if len(params.IDs) > 0 {

@@ -8,6 +8,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/munki/mdp"
 )
 
 const hostResource = "host"
@@ -61,14 +62,20 @@ func RegisterHosts(
 	primaryUsers *hosts.PrimaryUserStore,
 	munkiVersions agentVersionLoader,
 	santaVersions agentVersionLoader,
+	distribution *mdp.Store,
+	geo geoIPLookup,
 	logger *slog.Logger,
 ) {
-	registerListHosts(api, hostStore, munkiVersions, santaVersions, logger)
-	registerGetHost(api, hostStore, munkiVersions, santaVersions, logger)
+	registerListHosts(api, hostStore, munkiVersions, santaVersions, distribution, geo, logger)
+	registerGetHost(api, hostStore, munkiVersions, santaVersions, distribution, geo, logger)
 	registerDeleteHost(api, hostStore, logger)
 	registerBulkDeleteHosts(api, hostStore, logger)
-	registerSetHostPrimaryUser(api, hostStore, primaryUsers, munkiVersions, santaVersions, logger)
-	registerClearHostPrimaryUser(api, hostStore, primaryUsers, munkiVersions, santaVersions, logger)
+	registerSetHostPrimaryUser(
+		api, hostStore, primaryUsers, munkiVersions, santaVersions, distribution, geo, logger,
+	)
+	registerClearHostPrimaryUser(
+		api, hostStore, primaryUsers, munkiVersions, santaVersions, distribution, geo, logger,
+	)
 }
 
 func registerListHosts(
@@ -76,6 +83,8 @@ func registerListHosts(
 	hostStore *hosts.Store,
 	munkiVersions agentVersionLoader,
 	santaVersions agentVersionLoader,
+	distribution *mdp.Store,
+	geo geoIPLookup,
 	logger *slog.Logger,
 ) {
 	huma.Register(api, huma.Operation{
@@ -93,6 +102,7 @@ func registerListHosts(
 		if err := enrichHostAgents(ctx, rows, munkiVersions, santaVersions); err != nil {
 			return nil, handlerError(ctx, logger, "list-hosts", err)
 		}
+		enrichHostPublicIPs(ctx, rows, distribution, geo, logger)
 		return &hostListOutput{Body: Page[hosts.Host]{Items: rows, Count: count}}, nil
 	})
 }
@@ -102,6 +112,8 @@ func registerGetHost(
 	hostStore *hosts.Store,
 	munkiVersions agentVersionLoader,
 	santaVersions agentVersionLoader,
+	distribution *mdp.Store,
+	geo geoIPLookup,
 	logger *slog.Logger,
 ) {
 	huma.Register(api, huma.Operation{
@@ -118,6 +130,8 @@ func registerGetHost(
 			input.ID,
 			munkiVersions,
 			santaVersions,
+			distribution,
+			geo,
 			logger,
 			"get-host",
 		)
@@ -134,6 +148,8 @@ func registerSetHostPrimaryUser(
 	primaryUsers *hosts.PrimaryUserStore,
 	munkiVersions agentVersionLoader,
 	santaVersions agentVersionLoader,
+	distribution *mdp.Store,
+	geo geoIPLookup,
 	logger *slog.Logger,
 ) {
 	huma.Register(api, huma.Operation{
@@ -156,6 +172,8 @@ func registerSetHostPrimaryUser(
 			input.ID,
 			munkiVersions,
 			santaVersions,
+			distribution,
+			geo,
 			logger,
 			"set-host-primary-user",
 		)
@@ -172,6 +190,8 @@ func registerClearHostPrimaryUser(
 	primaryUsers *hosts.PrimaryUserStore,
 	munkiVersions agentVersionLoader,
 	santaVersions agentVersionLoader,
+	distribution *mdp.Store,
+	geo geoIPLookup,
 	logger *slog.Logger,
 ) {
 	huma.Register(api, huma.Operation{
@@ -191,6 +211,8 @@ func registerClearHostPrimaryUser(
 			input.ID,
 			munkiVersions,
 			santaVersions,
+			distribution,
+			geo,
 			logger,
 			"clear-host-primary-user",
 		)
@@ -207,6 +229,8 @@ func loadHostDetailBody(
 	hostID int64,
 	munkiVersions agentVersionLoader,
 	santaVersions agentVersionLoader,
+	distribution *mdp.Store,
+	geo geoIPLookup,
 	logger *slog.Logger,
 	operation string,
 ) (*hosts.HostDetail, error) {
@@ -222,6 +246,7 @@ func loadHostDetailBody(
 	if err := enrichHostAgents(ctx, rows, munkiVersions, santaVersions); err != nil {
 		return nil, handlerError(ctx, logger, operation, err, "host_id", hostID)
 	}
+	enrichHostPublicIPs(ctx, rows, distribution, geo, logger)
 	detail.Host = rows[0]
 	return detail, nil
 }

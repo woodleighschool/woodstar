@@ -4,6 +4,13 @@
 # alongside the matching Mise, module, and package pins.
 ARG NODE_VERSION=26.5.1
 ARG GO_VERSION=1.26.5
+ARG DBIP_RELEASE=2026-08
+
+# ---- GeoIP databases -----------------------------------------------------
+FROM --platform=$BUILDPLATFORM golang:${GO_VERSION}-alpine AS geoip
+ARG DBIP_RELEASE
+COPY tools/geoipdb/main.go /geoipdb.go
+RUN go run /geoipdb.go -release "${DBIP_RELEASE}" -output /geoip
 
 # ---- Web build ------------------------------------------------------------
 # Build the frontend bundle so the Go stage can embed it. The runtime image
@@ -50,6 +57,8 @@ FROM gcr.io/distroless/static:nonroot
 
 WORKDIR /
 COPY --from=builder /workspace/woodstar /woodstar
+COPY --from=geoip /geoip/dbip-city-lite.mmdb /share/geoip/dbip-city-lite.mmdb
+COPY --from=geoip /geoip/dbip-asn-lite.mmdb /share/geoip/dbip-asn-lite.mmdb
 COPY --from=builder --chown=65532:65532 /data /data
 EXPOSE 8080
 USER 65532:65532

@@ -187,6 +187,52 @@ func TestListIncludesLiveWorkerMetadata(t *testing.T) {
 	}
 }
 
+func TestCandidatesForClientsReturnsOrderedEnabledCIDRMatches(t *testing.T) {
+	db, ctx := testdb.Open(t)
+	store, _ := newStore(db)
+
+	broad, err := store.Create(ctx, pointMutation("Broad", []string{"10.0.0.0/8"}), "key-broad")
+	if err != nil {
+		t.Fatalf("create broad point: %v", err)
+	}
+	specific, err := store.Create(ctx, pointMutation("Specific", []string{"10.1.0.0/16"}), "key-specific")
+	if err != nil {
+		t.Fatalf("create specific point: %v", err)
+	}
+	disabled, err := store.Create(ctx, pointMutation("Disabled", []string{"10.1.2.0/24"}), "key-disabled")
+	if err != nil {
+		t.Fatalf("create disabled point: %v", err)
+	}
+	if _, err := store.Update(ctx, disabled.ID, mdp.DistributionPointMutation{
+		Name:          disabled.Name,
+		Enabled:       false,
+		ClientCIDRs:   disabled.ClientCIDRs,
+		ClientBaseURL: disabled.ClientBaseURL,
+	}); err != nil {
+		t.Fatalf("disable point: %v", err)
+	}
+	if err := store.Reorder(ctx, []int64{specific.ID, broad.ID, disabled.ID}); err != nil {
+		t.Fatalf("reorder points: %v", err)
+	}
+
+	inside := mustAddr(t, "::ffff:10.1.2.3")
+	outside := mustAddr(t, "192.0.2.10")
+	byAddress, err := store.CandidatesForClients(ctx, []netip.Addr{inside, outside, inside})
+	if err != nil {
+		t.Fatalf("CandidatesForClients: %v", err)
+	}
+	matches := byAddress[inside.Unmap()]
+	if len(matches) != 2 || matches[0].ID != specific.ID || matches[1].ID != broad.ID {
+		t.Fatalf("matches = %+v, want Specific then Broad", matches)
+	}
+	if matches[0].Name != "Specific" || matches[1].Name != "Broad" {
+		t.Fatalf("match names = %q, %q", matches[0].Name, matches[1].Name)
+	}
+	if matches := byAddress[outside]; len(matches) != 0 {
+		t.Fatalf("outside matches = %+v, want none", matches)
+	}
+}
+
 func TestResolveForClientHonorsEveryGate(t *testing.T) {
 	db, ctx := testdb.Open(t)
 	store, presence := newStore(db)
@@ -280,6 +326,31 @@ func TestResolveForClientSkipsEmptyClientBaseURL(t *testing.T) {
 
 	if got := resolveOrNil(t, ctx, store, mustAddr(t, "10.1.2.3"), pkg); got != nil {
 		t.Fatalf("point with empty client_base_url resolved %+v, want nil", got)
+	}
+}
+
+func TestResolveForClientContinuesThroughOrderedCandidates(t *testing.T) {
+	db, ctx := testdb.Open(t)
+	store, presence := newStore(db)
+	sha := strings.Repeat("a", 64)
+	pkg := seedAvailablePackage(t, ctx, db, "Chrome", sha, 4096)
+
+	first, err := store.Create(ctx, pointMutation("First", []string{"10.0.0.0/8"}), "key-first")
+	if err != nil {
+		t.Fatalf("create first point: %v", err)
+	}
+	second, err := store.Create(ctx, pointMutation("Second", []string{"10.0.0.0/8"}), "key-second")
+	if err != nil {
+		t.Fatalf("create second point: %v", err)
+	}
+	recordCurrent(t, ctx, store, first.ID, pkg, sha)
+	recordCurrent(t, ctx, store, second.ID, pkg, sha)
+	presence.Reject(first.ID, mdp.DistributionPointWorker{})
+	presence.Connect(second.ID, testWorker())
+
+	resolved := resolveOrNil(t, ctx, store, mustAddr(t, "10.1.2.3"), pkg)
+	if resolved == nil || resolved.ID != second.ID || resolved.Key != "key-second" {
+		t.Fatalf("resolved = %+v, want eligible second candidate", resolved)
 	}
 }
 

@@ -24,6 +24,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/directory"
 	"github.com/woodleighschool/woodstar/internal/directory/entra"
+	"github.com/woodleighschool/woodstar/internal/geoip"
 	"github.com/woodleighschool/woodstar/internal/heartbeats"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/inventory"
@@ -108,6 +109,16 @@ func run(parent context.Context, cfg config.Config) error {
 		return fmt.Errorf("parse log level: %w", err)
 	}
 	logger := logging.New(os.Stderr, logLevel)
+	geoReader, geoErr := geoip.OpenDefault()
+	if geoErr != nil {
+		logger.WarnContext(parent, "load GeoIP databases", "err", geoErr)
+	} else {
+		defer func() {
+			if err := geoReader.Close(); err != nil {
+				logger.WarnContext(parent, "close GeoIP databases", "err", err)
+			}
+		}()
+	}
 
 	db, err := database.Open(ctx, cfg.DatabaseURL)
 	if err != nil {
@@ -132,6 +143,7 @@ func run(parent context.Context, cfg config.Config) error {
 		sessions,
 		logger,
 		storageBackend,
+		geoReader,
 	)
 	if err != nil {
 		return fmt.Errorf("build services: %w", err)
@@ -193,6 +205,7 @@ func buildDependencies(
 	sessions *scs.SessionManager,
 	logger *slog.Logger,
 	storageBackend storage.Backend,
+	geoReader *geoip.Reader,
 ) (*api.Dependencies, []starter, error) {
 	storageDelivery := storage.NewDelivery(storageBackend)
 
@@ -320,6 +333,7 @@ func buildDependencies(
 			Secrets:     secretStore,
 			Software:    inventoryStore,
 			Labels:      labelStore,
+			GeoIP:       geoReader,
 
 			Reports:     reportStore,
 			Checks:      checkStore,

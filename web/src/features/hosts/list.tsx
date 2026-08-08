@@ -23,6 +23,7 @@ import { RelativeTime } from "@components/relative-time";
 import { useAuth } from "@features/auth/queries";
 import { HostLastContact } from "@features/hosts/components/host-heartbeats";
 import { HostOnlineDot } from "@features/hosts/components/host-online-dot";
+import { HostPublicIP } from "@features/hosts/components/host-public-ip";
 import { listAllHosts, useBulkDeleteHosts, useHosts } from "@features/hosts/queries";
 import { useLabel } from "@features/labels/queries";
 import { useSoftwareTitle } from "@features/software/queries";
@@ -278,7 +279,7 @@ const hostColumns: DataTableColumnDef<Host>[] = [
     id: "public_ip",
     accessorFn: (row) => row.public_ip,
     header: "Public IP",
-    cell: ({ row }) => row.original.public_ip ?? "-",
+    cell: ({ row }) => <HostPublicIP host={row.original} />,
     size: 208,
     meta: { label: "Public IP" },
   },

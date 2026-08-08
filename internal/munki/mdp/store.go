@@ -320,48 +320,146 @@ func (s *Store) AuthenticateWorker(ctx context.Context, key string) (*Distributi
 	return &point, nil
 }
 
-// ResolveForClient returns the first matching, online distribution point for a
-// client IP and package, or nil when Woodstar should serve the file itself.
-// Package state is a database filter; liveness is the in-memory presence set, so a
-// just-disconnected point is skipped before its stored state reflects the drop.
+// CandidatesForClients returns enabled distribution points whose client CIDRs
+// contain each address. Every candidate slice is ordered by position and ID.
+func (s *Store) CandidatesForClients(
+	ctx context.Context,
+	clientIPs []netip.Addr,
+) (map[netip.Addr][]ClientCandidate, error) {
+	addresses := make([]string, 0, len(clientIPs))
+	candidates := make(map[netip.Addr][]ClientCandidate, len(clientIPs))
+	seen := make(map[netip.Addr]struct{}, len(clientIPs))
+	for _, clientIP := range clientIPs {
+		clientIP = clientIP.Unmap()
+		if !clientIP.IsValid() {
+			continue
+		}
+		if _, ok := seen[clientIP]; ok {
+			continue
+		}
+		seen[clientIP] = struct{}{}
+		addresses = append(addresses, clientIP.String())
+		candidates[clientIP] = []ClientCandidate{}
+	}
+	if len(addresses) == 0 {
+		return candidates, nil
+	}
+
+	qrows, err := s.db.Pool().Query(ctx, `
+SELECT
+	input.client_ip,
+	c.id,
+	c.name,
+	c."key",
+	c.client_base_url
+FROM unnest($1::text[]) WITH ORDINALITY AS input(client_ip, input_order)
+JOIN munki_distribution_points c
+	ON input.client_ip::inet <<= ANY (c.client_cidrs::inet[])
+WHERE c.enabled
+ORDER BY input.input_order, c.position, c.id`, addresses)
+	if err != nil {
+		return nil, err
+	}
+	defer qrows.Close()
+	for qrows.Next() {
+		var address string
+		var candidate ClientCandidate
+		if err := qrows.Scan(
+			&address,
+			&candidate.ID,
+			&candidate.Name,
+			&candidate.key,
+			&candidate.clientBaseURL,
+		); err != nil {
+			return nil, err
+		}
+		clientIP, err := netip.ParseAddr(address)
+		if err != nil {
+			return nil, fmt.Errorf("parse distribution point candidate address %q: %w", address, err)
+		}
+		clientIP = clientIP.Unmap()
+		candidates[clientIP] = append(candidates[clientIP], candidate)
+	}
+	if err := qrows.Err(); err != nil {
+		return nil, err
+	}
+	return candidates, nil
+}
+
+// CandidatesForClient returns ordered enabled CIDR matches for one address.
+func (s *Store) CandidatesForClient(
+	ctx context.Context,
+	clientIP netip.Addr,
+) ([]ClientCandidate, error) {
+	clientIP = clientIP.Unmap()
+	byAddress, err := s.CandidatesForClients(ctx, []netip.Addr{clientIP})
+	if err != nil {
+		return nil, err
+	}
+	return byAddress[clientIP], nil
+}
+
+// ResolveForClient returns the first matching candidate eligible to serve the
+// requested package, or nil when Woodstar should serve the file itself.
 func (s *Store) ResolveForClient(
 	ctx context.Context,
 	clientIP netip.Addr,
 	packageID int64,
 ) (*ResolvedPoint, error) {
+	candidates, err := s.CandidatesForClient(ctx, clientIP)
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]int64, 0, len(candidates))
+	for _, candidate := range candidates {
+		if candidate.clientBaseURL != "" {
+			ids = append(ids, candidate.ID)
+		}
+	}
+	if len(ids) == 0 {
+		return nil, nil
+	}
+
 	qrows, err := s.db.Pool().Query(ctx, `
-SELECT
-	c.id,
-	c."key",
-	c.client_base_url
-FROM munki_distribution_points c
-WHERE c.enabled
-  AND c.client_base_url <> ''
-  AND $1::inet <<= ANY (c.client_cidrs::inet[])
-  AND EXISTS (
-      SELECT 1
-      FROM munki_distribution_package_states s
-      JOIN munki_packages p ON p.id = s.package_id
-      JOIN storage_objects o ON o.id = p.installer_object_id
-      WHERE s.distribution_point_id = c.id
-        AND s.package_id = $2
-        AND s.status = 'current'
-		AND o.sha256 = s.reported_sha256
-  )
-ORDER BY c.position, c.id`,
-		clientIP,
-		packageID,
-	)
+SELECT s.distribution_point_id
+FROM munki_distribution_package_states s
+JOIN munki_packages p ON p.id = s.package_id
+JOIN storage_objects o ON o.id = p.installer_object_id
+WHERE s.distribution_point_id = ANY($1::bigint[])
+  AND s.package_id = $2
+  AND s.status = 'current'
+  AND o.sha256 = s.reported_sha256`, ids, packageID)
 	if err != nil {
 		return nil, err
 	}
-	rows, err := pgx.CollectRows(qrows, pgx.RowToStructByName[resolvedPointRow])
-	if err != nil {
+	current := make(map[int64]struct{}, len(ids))
+	for qrows.Next() {
+		var id int64
+		if err := qrows.Scan(&id); err != nil {
+			qrows.Close()
+			return nil, err
+		}
+		current[id] = struct{}{}
+	}
+	if err := qrows.Err(); err != nil {
+		qrows.Close()
 		return nil, err
 	}
-	for _, row := range rows {
-		if worker, ok := s.presence.Worker(row.ID); ok && worker.Compatible {
-			return &ResolvedPoint{ID: row.ID, Key: row.Key, ClientBaseURL: row.ClientBaseURL}, nil
+	qrows.Close()
+
+	for _, candidate := range candidates {
+		if candidate.clientBaseURL == "" {
+			continue
+		}
+		if _, ok := current[candidate.ID]; !ok {
+			continue
+		}
+		if worker, ok := s.presence.Worker(candidate.ID); ok && worker.Compatible {
+			return &ResolvedPoint{
+				ID:            candidate.ID,
+				Key:           candidate.key,
+				ClientBaseURL: candidate.clientBaseURL,
+			}, nil
 		}
 	}
 	return nil, nil
@@ -553,13 +651,6 @@ type packageStateRow struct {
 	Status               string `db:"status"`
 	Error                string `db:"error"`
 	InstallerFinalized   bool   `db:"installer_finalized"`
-}
-
-// resolvedPointRow is the minimal scan target for the client-resolution query.
-type resolvedPointRow struct {
-	ID            int64  `db:"id"`
-	Key           string `db:"key"`
-	ClientBaseURL string `db:"client_base_url"`
 }
 
 // desiredPackageRow is the scan target for the desired-packages query.
