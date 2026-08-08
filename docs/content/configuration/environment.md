@@ -43,6 +43,16 @@ Each non-default mode requires its matching setting. Use `xff_trusted_cidrs` for
 
 Only trust forwarded addresses when the Woodstar origin is restricted to that proxy path and the proxy replaces or sanitizes the selected header. If clients can reach the origin directly, they can otherwise supply a false source address and affect distribution-point selection.
 
+## Public IP enrichment
+
+| Variable             | Default        | Description                                                     |
+| -------------------- | -------------- | --------------------------------------------------------------- |
+| `WOODSTAR_GEOIP_DIR` | `/share/geoip` | Directory containing the DB-IP City Lite and ASN Lite databases |
+
+Woodstar reads `dbip-city-lite.mmdb` and `dbip-asn-lite.mmdb` when the server starts. If either file is missing or invalid, the server continues without public IP location and network enrichment.
+
+Container builds package both databases at the default path. For a raw binary, run `mise run geoip` and set `WOODSTAR_GEOIP_DIR` to the resulting `.cache/geoip` directory. The databases are build and development inputs; Woodstar does not update them at runtime.
+
 ## Santa event retention
 
 | Variable                              | Default | Description                         |
