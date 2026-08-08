@@ -2231,7 +2231,6 @@ type PublicIPDetails struct {
 	Longitude         *float64                   `json:"longitude,omitempty"`
 	Organization      *string                    `json:"organization,omitempty"`
 	Region            *string                    `json:"region,omitempty"`
-	RegionCode        *string                    `json:"region_code,omitempty"`
 }
 
 // PublicIPDistributionPoint defines model for PublicIPDistributionPoint.

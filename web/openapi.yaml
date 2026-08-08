@@ -2978,8 +2978,6 @@ components:
           type: string
         region:
           type: string
-        region_code:
-          type: string
       type: object
     PublicIPDistributionPoint:
       additionalProperties: false

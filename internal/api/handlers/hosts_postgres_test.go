@@ -274,7 +274,6 @@ VALUES ($1, 'osquery', now(), '198.51.100.40', 'osquery/5.14')`, host.ID); err !
 	geo := &testGeoIPLookup{result: &geoip.Result{
 		CountryCode:  "AU",
 		Country:      "Australia",
-		RegionCode:   "VIC",
 		Region:       "Victoria",
 		City:         "Langwarrin",
 		Latitude:     -38.15,

@@ -26,7 +26,6 @@ const (
 type Result struct {
 	CountryCode  string
 	Country      string
-	RegionCode   string
 	Region       string
 	City         string
 	Latitude     float64
@@ -108,7 +107,7 @@ func completeResult(city *geoip2.City, asn *geoip2.ASN) *Result {
 	}
 	subdivision := city.Subdivisions[0]
 	if city.City.Names.English == "" ||
-		subdivision.ISOCode == "" || subdivision.Names.English == "" ||
+		subdivision.Names.English == "" ||
 		city.Country.ISOCode == "" || city.Country.Names.English == "" ||
 		asn.AutonomousSystemNumber == 0 ||
 		uint64(asn.AutonomousSystemNumber) > math.MaxUint32 ||
@@ -118,7 +117,6 @@ func completeResult(city *geoip2.City, asn *geoip2.ASN) *Result {
 	return &Result{
 		CountryCode:  city.Country.ISOCode,
 		Country:      city.Country.Names.English,
-		RegionCode:   subdivision.ISOCode,
 		Region:       subdivision.Names.English,
 		City:         city.City.Names.English,
 		Latitude:     *city.Location.Latitude,

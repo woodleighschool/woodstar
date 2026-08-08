@@ -4,7 +4,13 @@ import { Link } from "@components/link";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@components/ui/hover-card";
 import type { Host, HostDetail, PublicIpDetails } from "@lib/api";
 
-export function HostPublicIP({ host }: { host: Host | HostDetail }) {
+export function HostPublicIP({
+  host,
+  showAddress = false,
+}: {
+  host: Host | HostDetail;
+  showAddress?: boolean;
+}) {
   const address = host.public_ip;
   const details = host.public_ip_details;
   const distributionPoint = details?.distribution_point;
@@ -23,7 +29,7 @@ export function HostPublicIP({ host }: { host: Host | HostDetail }) {
             type="button"
             className="block max-w-full cursor-default truncate underline decoration-dotted underline-offset-4"
           >
-            {distributionPoint?.name ?? address}
+            {showAddress ? address : (distributionPoint?.name ?? address)}
           </button>
         }
       />
@@ -47,10 +53,7 @@ export function HostPublicIP({ host }: { host: Host | HostDetail }) {
           {hasGeoIP ? (
             <>
               <PublicIPCardRow label="City" value={details.city} />
-              <PublicIPCardRow
-                label="Region"
-                value={`${details.region} (${details.region_code})`}
-              />
+              <PublicIPCardRow label="Region" value={details.region} />
               <PublicIPCardRow
                 label="Country"
                 value={`${details.country} (${details.country_code})`}
@@ -72,7 +75,6 @@ export function hasGeoIPDetails(
   return Boolean(
     details?.city &&
     details.region &&
-    details.region_code &&
     details.country &&
     details.country_code &&
     details.latitude !== undefined &&

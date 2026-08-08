@@ -107,7 +107,6 @@ type Host struct {
 type PublicIPDetails struct {
 	DistributionPoint *PublicIPDistributionPoint `json:"distribution_point,omitempty"`
 	City              string                     `json:"city,omitempty"`
-	RegionCode        string                     `json:"region_code,omitempty"`
 	Region            string                     `json:"region,omitempty"`
 	CountryCode       string                     `json:"country_code,omitempty"`
 	Country           string                     `json:"country,omitempty"`

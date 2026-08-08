@@ -1087,7 +1087,6 @@ export type PublicIpDetails = {
     longitude?: number;
     organization?: string;
     region?: string;
-    region_code?: string;
 };
 
 export type PublicIpDistributionPoint = {

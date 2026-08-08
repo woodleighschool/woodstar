@@ -50,8 +50,7 @@ func TestCompleteResultRequiresEveryPublicField(t *testing.T) {
 	city := &geoip2.City{
 		City: geoip2.CityRecord{Names: geoip2.Names{English: "Langwarrin"}},
 		Subdivisions: []geoip2.CitySubdivision{{
-			ISOCode: "VIC",
-			Names:   geoip2.Names{English: "Victoria"},
+			Names: geoip2.Names{English: "Victoria"},
 		}},
 		Country: geoip2.CountryRecord{
 			ISOCode: "AU",

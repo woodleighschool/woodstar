@@ -75,7 +75,6 @@ func enrichHostPublicIPs(
 		}
 		if location != nil {
 			details.City = location.City
-			details.RegionCode = location.RegionCode
 			details.Region = location.Region
 			details.CountryCode = location.CountryCode
 			details.Country = location.Country

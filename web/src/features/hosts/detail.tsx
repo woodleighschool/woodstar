@@ -10,7 +10,6 @@ import {
   HostIdentityCard,
   HostInfoCard,
   HostLabelsCard,
-  HostNetworkCard,
   HostUsersCard,
 } from "@features/hosts/components/host-detail-cards";
 import { HostHeader } from "@features/hosts/components/host-header";
@@ -83,7 +82,6 @@ export function HostDetailsPage() {
   return (
     <div className="flex flex-col gap-5">
       <HostInfoCard host={host} />
-      <HostNetworkCard host={host} />
       <HostHeartbeatTable heartbeats={host.heartbeats} />
       <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,28rem),1fr))] items-start gap-5">
         <HostIdentityCard host={host} />

@@ -8,7 +8,6 @@ import { AsyncButton } from "@components/async-button";
 import { DataTableStatic } from "@components/data-table/data-table-static";
 import type { DataTableColumnDef } from "@components/data-table/types";
 import { KeyValueRow, KeyValueRows, KeyValueSection } from "@components/key-value";
-import { Link } from "@components/link";
 import { Badge } from "@components/ui/badge";
 import { Button } from "@components/ui/button";
 import {
@@ -24,11 +23,7 @@ import { Input } from "@components/ui/input";
 import { Separator } from "@components/ui/separator";
 import { ValidatedFormField } from "@components/validated-form-field";
 import { useAuth } from "@features/auth/queries";
-import {
-  DBIPAttribution,
-  formatCoordinates,
-  hasGeoIPDetails,
-} from "@features/hosts/components/host-public-ip";
+import { HostPublicIP } from "@features/hosts/components/host-public-ip";
 import { manualPrimaryUserSource } from "@features/hosts/primary-user";
 import { primaryUserSourceLabel } from "@features/hosts/primary-user-source-labels";
 import { useClearHostPrimaryUser, useSetHostPrimaryUser } from "@features/hosts/queries";
@@ -77,53 +72,20 @@ export function HostInfoCard({ host }: { host: HostDetail }) {
           }
         />
       ) : null}
+      <KeyValueRow label="MAC Address" value={host.network.primary_mac} />
       {host.hardware.memory_bytes > 0 ? (
         <KeyValueRow label="Memory" value={filesize(host.hardware.memory_bytes)} />
       ) : null}
       <KeyValueRow label="Operating System" value={osDisplayName(host)} />
+      <KeyValueRow label="Private IP Address" value={host.network.primary_ip} />
       {host.hardware.cpu.brand ? (
         <KeyValueRow label="Processor" value={host.hardware.cpu.brand} />
       ) : null}
       {host.hardware.cpu.architecture ? (
         <KeyValueRow label="Architecture" value={host.hardware.cpu.architecture} />
       ) : null}
+      <KeyValueRow label="Public IP Address" value={<HostPublicIP host={host} showAddress />} />
       <KeyValueRow label="Serial Number" value={host.hardware.serial} />
-    </KeyValueSection>
-  );
-}
-export function HostNetworkCard({ host }: { host: HostDetail }) {
-  const details = host.public_ip_details;
-  const distributionPoint = details?.distribution_point;
-  const hasGeoIP = hasGeoIPDetails(details);
-  return (
-    <KeyValueSection title="Network">
-      <KeyValueRow label="MAC Address" value={host.network.primary_mac} />
-      <KeyValueRow label="Private IP Address" value={host.network.primary_ip} />
-      <KeyValueRow label="Public IP Address" value={host.public_ip} />
-      {distributionPoint ? (
-        <KeyValueRow
-          label="Distribution Point"
-          value={
-            <Link
-              to="/munki/distribution-points/$id"
-              params={{ id: String(distributionPoint.id) }}
-              className="font-medium"
-            >
-              {distributionPoint.name}
-            </Link>
-          }
-        />
-      ) : null}
-      {hasGeoIP ? (
-        <>
-          <KeyValueRow label="City" value={details.city} />
-          <KeyValueRow label="Region" value={`${details.region} (${details.region_code})`} />
-          <KeyValueRow label="Country" value={`${details.country} (${details.country_code})`} />
-          <KeyValueRow label="Coordinates" value={formatCoordinates(details)} />
-          <KeyValueRow label="ASN" value={`AS${details.asn} ${details.organization}`} />
-          <KeyValueRow label="GeoIP Data" value={<DBIPAttribution />} />
-        </>
-      ) : null}
     </KeyValueSection>
   );
 }
