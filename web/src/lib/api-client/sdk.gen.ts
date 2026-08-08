@@ -1459,7 +1459,7 @@ export const bulkDeleteSantaRules = <ThrowOnError extends boolean = false>(optio
  * List rules
  */
 export const listSantaRules = <ThrowOnError extends boolean = false>(options?: Options<ListSantaRulesData, ThrowOnError>): RequestResult<ListSantaRulesResponses, ListSantaRulesErrors, ThrowOnError> => (options?.client ?? client).get<ListSantaRulesResponses, ListSantaRulesErrors, ThrowOnError>({
-    querySerializer: { parameters: { rule_type: { array: { explode: false } } } },
+    querySerializer: { parameters: { configuration_id: { array: { explode: false } }, rule_type: { array: { explode: false } } } },
     security: [{
             in: 'cookie',
             name: 'woodstar_session',

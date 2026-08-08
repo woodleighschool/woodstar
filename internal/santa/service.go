@@ -50,7 +50,7 @@ type eventStore interface {
 }
 
 type ruleStore interface {
-	ResolveRulesForHost(ctx context.Context, hostID int64) ([]santarules.HostRule, error)
+	ResolveRulesForHost(ctx context.Context, hostID, configurationID int64) ([]santarules.HostRule, error)
 }
 
 type syncStore interface {
@@ -114,11 +114,17 @@ func (s *SyncService) Preflight(
 		return PreflightResponse{}, err
 	}
 
-	rules, err := s.deps.Rules.ResolveRulesForHost(ctx, hostID)
+	var rules []santarules.HostRule
+	if configuration != nil {
+		rules, err = s.deps.Rules.ResolveRulesForHost(ctx, hostID, configuration.ID)
+		if err != nil {
+			return PreflightResponse{}, err
+		}
+	}
+	targets, err := santarules.SyncTargetsFromRules(rules)
 	if err != nil {
 		return PreflightResponse{}, err
 	}
-	targets := santarules.SyncTargetsFromRules(rules)
 	syncType, err := s.deps.Sync.PreparePending(
 		ctx,
 		hostID,

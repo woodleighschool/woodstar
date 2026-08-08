@@ -1,4 +1,5 @@
 import { Activity } from "lucide-react";
+import { useMemo } from "react";
 
 import { BooleanIndicator } from "@components/boolean-indicator";
 import { DataTableStatic } from "@components/data-table/data-table-static";
@@ -16,64 +17,74 @@ import { POLICIES, ruleTypeLabel } from "@features/santa/rules/metadata";
 import type { ApiError, SantaHostState, SantaRuleStatus } from "@lib/api";
 import { MAX_PAGE_SIZE } from "@lib/pagination";
 
-const santaRuleColumns: DataTableColumnDef<SantaRuleStatus>[] = [
-  {
-    accessorKey: "name",
-    header: () => "Name",
-    cell: ({ row }) => (
-      <TextLink
-        to="/santa/rules/$id"
-        params={{ id: String(row.original.rule_id) }}
-        className="font-medium"
-      >
-        {row.original.name}
-      </TextLink>
-    ),
-    size: 240,
-    minSize: 160,
-  },
-  {
-    accessorKey: "rule_type",
-    header: () => "Rule Type",
-    cell: ({ row }) => ruleTypeLabel(row.original.rule_type),
-    size: 112,
-    minSize: 112,
-    maxSize: 112,
-    enableResizing: false,
-  },
-  {
-    accessorKey: "identifier",
-    header: () => "Identifier",
-    cell: ({ row }) => row.original.identifier || "-",
-    size: 320,
-    minSize: 200,
-  },
-  {
-    accessorKey: "policy",
-    header: () => "Policy",
-    cell: ({ row }) => POLICIES[row.original.policy].name,
-    size: 104,
-    minSize: 104,
-    maxSize: 104,
-    enableResizing: false,
-  },
-  {
-    accessorKey: "applied",
-    header: () => "Applied",
-    cell: ({ row }) => (
-      <BooleanIndicator
-        value={row.original.applied}
-        trueLabel="Applied"
-        falseLabel="Pending"
-        tone="positive"
-      />
-    ),
-    size: 80,
-    minSize: 80,
-    maxSize: 80,
-    enableResizing: false,
-  },
-];
+function santaRuleColumns(
+  configurationID: number | undefined,
+): DataTableColumnDef<SantaRuleStatus>[] {
+  return [
+    {
+      accessorKey: "name",
+      header: () => "Name",
+      cell: ({ row }) =>
+        configurationID === undefined ? (
+          row.original.name
+        ) : (
+          <TextLink
+            to="/santa/configurations/$id/rules/$ruleId"
+            params={{
+              id: String(configurationID),
+              ruleId: String(row.original.rule_id),
+            }}
+            className="font-medium"
+          >
+            {row.original.name}
+          </TextLink>
+        ),
+      size: 240,
+      minSize: 160,
+    },
+    {
+      accessorKey: "rule_type",
+      header: () => "Rule Type",
+      cell: ({ row }) => ruleTypeLabel(row.original.rule_type),
+      size: 112,
+      minSize: 112,
+      maxSize: 112,
+      enableResizing: false,
+    },
+    {
+      accessorKey: "identifier",
+      header: () => "Identifier",
+      cell: ({ row }) => row.original.identifier || "-",
+      size: 320,
+      minSize: 200,
+    },
+    {
+      accessorKey: "policy",
+      header: () => "Policy",
+      cell: ({ row }) => POLICIES[row.original.policy].name,
+      size: 104,
+      minSize: 104,
+      maxSize: 104,
+      enableResizing: false,
+    },
+    {
+      accessorKey: "applied",
+      header: () => "Applied",
+      cell: ({ row }) => (
+        <BooleanIndicator
+          value={row.original.applied}
+          trueLabel="Applied"
+          falseLabel="Pending"
+          tone="positive"
+        />
+      ),
+      size: 80,
+      minSize: 80,
+      maxSize: 80,
+      enableResizing: false,
+    },
+  ];
+}
 
 interface HostSantaTabProps {
   hostId: number;
@@ -86,6 +97,7 @@ export function HostSantaTab({ hostId, santa, stateError, onStateRetry }: HostSa
   const rules = useHostSantaRules(hostId, { per_page: MAX_PAGE_SIZE });
   const items = rules.data?.items ?? [];
   const configuration = santa?.configuration;
+  const ruleColumns = useMemo(() => santaRuleColumns(configuration?.id), [configuration?.id]);
   return (
     <div className="flex flex-col gap-4">
       {stateError ? (
@@ -135,7 +147,7 @@ export function HostSantaTab({ hostId, santa, stateError, onStateRetry }: HostSa
       ) : rules.isLoading ? null : (
         <DataTableStatic
           heading="Rules"
-          columns={santaRuleColumns}
+          columns={ruleColumns}
           data={items}
           empty={<PanelEmptyState>No matching rules</PanelEmptyState>}
         />

@@ -14,6 +14,7 @@ import (
 	santaevents "github.com/woodleighschool/woodstar/internal/santa/events"
 	santarules "github.com/woodleighschool/woodstar/internal/santa/rules"
 	"github.com/woodleighschool/woodstar/internal/santa/syncstate"
+	"github.com/woodleighschool/woodstar/internal/targeting"
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
 )
 
@@ -27,9 +28,10 @@ func TestSyncServiceRuleDownloadUsesPreflightSnapshot(t *testing.T) {
 	labelStore := labels.NewStore(db)
 	hostStore := hosts.NewStore(db, labelStore)
 	ruleStore := santarules.NewStore(db)
+	configurationStore := configurations.NewStore(db)
 	service := santa.NewSyncService(santa.Dependencies{
 		HostStore:      santa.NewStore(db),
-		Configurations: configurations.NewStore(db),
+		Configurations: configurationStore,
 		Events:         santaevents.NewStore(db),
 		Rules:          ruleStore,
 		Sync:           syncstate.NewStore(db),
@@ -50,15 +52,27 @@ func TestSyncServiceRuleDownloadUsesPreflightSnapshot(t *testing.T) {
 	if err := labelStore.SetMembership(ctx, labelID, host.ID, true); err != nil {
 		t.Fatalf("set label membership: %v", err)
 	}
+	configuration, err := configurationStore.Create(ctx, configurations.ConfigurationMutation{
+		Name:                     "Santa Sync",
+		ClientMode:               configurations.ClientModeMonitor,
+		OverrideFileAccessAction: configurations.FileAccessActionNone,
+		FullSyncIntervalSeconds:  600,
+		BatchSize:                50,
+		Targets: configurations.ConfigurationTargets{
+			Include: []targeting.LabelRef{{LabelID: labelID}},
+		},
+	})
+	if err != nil {
+		t.Fatalf("create configuration: %v", err)
+	}
 	if _, err := ruleStore.Create(ctx, santarules.RuleMutation{
-		RuleType:   santarules.RuleTypeBinary,
-		Identifier: binaryIdentifier,
-		Name:       "Blocked binary",
+		ConfigurationID: configuration.ID,
+		RuleType:        santarules.RuleTypeBinary,
+		Identifier:      binaryIdentifier,
+		Name:            "Blocked binary",
+		Policy:          santarules.PolicyBlocklist,
 		Targets: santarules.RuleTargets{
-			Include: []santarules.RuleInclude{{
-				Policy:  santarules.PolicyBlocklist,
-				LabelID: labelID,
-			}},
+			Include: []targeting.LabelRef{{LabelID: labelID}},
 		},
 	}); err != nil {
 		t.Fatalf("create initial rule: %v", err)
@@ -72,14 +86,13 @@ func TestSyncServiceRuleDownloadUsesPreflightSnapshot(t *testing.T) {
 		t.Fatalf("freeze desired rules at preflight: %v", err)
 	}
 	if _, err := ruleStore.Create(ctx, santarules.RuleMutation{
-		RuleType:   santarules.RuleTypeCertificate,
-		Identifier: certificateIdentifier,
-		Name:       "Blocked certificate",
+		ConfigurationID: configuration.ID,
+		RuleType:        santarules.RuleTypeCertificate,
+		Identifier:      certificateIdentifier,
+		Name:            "Blocked certificate",
+		Policy:          santarules.PolicyBlocklist,
 		Targets: santarules.RuleTargets{
-			Include: []santarules.RuleInclude{{
-				Policy:  santarules.PolicyBlocklist,
-				LabelID: labelID,
-			}},
+			Include: []targeting.LabelRef{{LabelID: labelID}},
 		},
 	}); err != nil {
 		t.Fatalf("create rule after preflight: %v", err)

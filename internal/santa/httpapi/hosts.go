@@ -9,6 +9,7 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/api"
 	"github.com/woodleighschool/woodstar/internal/santa"
+	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 	"github.com/woodleighschool/woodstar/internal/santa/rules"
 )
 
@@ -60,7 +61,12 @@ type hostSantaRulesOutput struct {
 	Body api.Page[rules.RuleStatus]
 }
 
-func registerHostSantaRules(humaAPI huma.API, ruleStore *rules.Store, logger *slog.Logger) {
+func registerHostSantaRules(
+	humaAPI huma.API,
+	configurationStore *configurations.Store,
+	ruleStore *rules.Store,
+	logger *slog.Logger,
+) {
 	huma.Register(humaAPI, huma.Operation{
 		OperationID: "list-host-santa-rules",
 		Method:      http.MethodGet,
@@ -69,7 +75,22 @@ func registerHostSantaRules(humaAPI huma.API, ruleStore *rules.Store, logger *sl
 		Summary:     "List Santa rules for a host",
 		Errors:      []int{http.StatusBadRequest, http.StatusNotFound},
 	}, func(ctx context.Context, input *hostSantaRulesInput) (*hostSantaRulesOutput, error) {
-		rows, count, err := ruleStore.ListRuleStatusesForHost(ctx, input.ID, rules.RuleStatusListParams{
+		configuration, err := configurationStore.ResolveConfigurationForHost(ctx, input.ID)
+		if err != nil {
+			return nil, api.ResourceError(
+				ctx,
+				logger,
+				"list-host-santa-rules",
+				"host",
+				err,
+				"host_id", input.ID,
+			)
+		}
+		var configurationID int64
+		if configuration != nil {
+			configurationID = configuration.ID
+		}
+		rows, count, err := ruleStore.ListRuleStatusesForHost(ctx, input.ID, configurationID, rules.RuleStatusListParams{
 			ListParams: input.Params(),
 		})
 		if err != nil {

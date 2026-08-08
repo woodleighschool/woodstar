@@ -1,5 +1,7 @@
 import { revalidateLogic, useForm } from "@tanstack/react-form";
+import { ExternalLink } from "lucide-react";
 
+import { CodeEditor } from "@components/editor/code-editor";
 import { FormActions } from "@components/form-actions";
 import {
   type FormTabDefinition,
@@ -31,15 +33,29 @@ import {
   ruleFormSchema,
   type RuleFormState,
   ruleIdentifierPlaceholder,
-  selectedIncludeLabelIDs,
 } from "./form-state";
-import { SantaIncludeTargets } from "./include-targets";
-import { RULE_TYPES, RULE_TYPE_OPTIONS, RULE_TYPE_VALUES } from "./metadata";
+import {
+  POLICIES,
+  POLICY_OPTIONS,
+  POLICY_VALUES,
+  RULE_TYPES,
+  RULE_TYPE_OPTIONS,
+  RULE_TYPE_VALUES,
+} from "./metadata";
 import { RuleNameCombobox } from "./rule-name-combobox";
 const ruleFormTabs = [
   {
     value: "options",
-    fields: ["name", "description", "rule_type", "identifier", "custom_url", "custom_message"],
+    fields: [
+      "name",
+      "description",
+      "rule_type",
+      "identifier",
+      "policy",
+      "cel_expression",
+      "custom_url",
+      "custom_message",
+    ],
   },
   { value: "targets", fields: ["targets"] },
 ] as const satisfies readonly FormTabDefinition[];
@@ -197,6 +213,71 @@ export function RuleForm({
                       </ValidatedFormField>
                     )}
                   </form.Field>
+                  <form.Field name="policy">
+                    {(field) => (
+                      <ValidatedFormField
+                        field={field}
+                        label="Policy"
+                        htmlFor="santa-rule-policy"
+                        required
+                        description={POLICIES[field.state.value].description}
+                      >
+                        {(control) => (
+                          <Select
+                            items={POLICY_OPTIONS}
+                            value={field.state.value}
+                            onValueChange={(policy) => {
+                              if (isOneOf(policy, POLICY_VALUES)) field.handleChange(policy);
+                            }}
+                          >
+                            <SelectTrigger {...control} id="santa-rule-policy" className="w-full">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectGroup>
+                                {POLICY_OPTIONS.map((policy) => (
+                                  <SelectItem key={policy.value} value={policy.value}>
+                                    {policy.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectGroup>
+                            </SelectContent>
+                          </Select>
+                        )}
+                      </ValidatedFormField>
+                    )}
+                  </form.Field>
+                  {values.policy === "cel" ? (
+                    <form.Field name="cel_expression">
+                      {(field) => (
+                        <ValidatedFormField field={field} label="CEL Expression" required>
+                          {(control) => (
+                            <>
+                              <CodeEditor
+                                value={field.state.value}
+                                onChange={field.handleChange}
+                                placeholder="target.signing_time >= timestamp('2025-05-31T00:00:00Z')"
+                                lineNumbers={false}
+                                highlightActiveLine={false}
+                                invalid={control["aria-invalid"]}
+                                minHeight="7rem"
+                                maxHeight="12rem"
+                              />
+                              <a
+                                href="https://northpole.dev/features/binary-authorization/#cel"
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-1 text-xs text-muted-foreground underline-offset-4 hover:text-primary hover:underline"
+                              >
+                                <ExternalLink className="size-3" />
+                                CEL Handbook
+                              </a>
+                            </>
+                          )}
+                        </ValidatedFormField>
+                      )}
+                    </form.Field>
+                  ) : null}
                   <form.Field name="custom_url">
                     {(field) => (
                       <ValidatedFormField
@@ -247,9 +328,12 @@ export function RuleForm({
                     <ValidatedFormField field={field}>
                       {(control) => (
                         <FieldGroup {...control} tabIndex={-1}>
-                          <SantaIncludeTargets
-                            include={field.state.value.include}
-                            excludeLabelIDs={field.state.value.exclude.map((ref) => ref.label_id)}
+                          <LabelAssignmentList
+                            title="Include"
+                            addLabel="Add Include"
+                            emptyText="No includes yet"
+                            rows={field.state.value.include}
+                            crossListLabelIDs={field.state.value.exclude.map((ref) => ref.label_id)}
                             onChange={(include) =>
                               field.handleChange({
                                 ...field.state.value,
@@ -262,7 +346,7 @@ export function RuleForm({
                             addLabel="Add Exclude"
                             emptyText="No excludes yet"
                             rows={field.state.value.exclude}
-                            crossListLabelIDs={selectedIncludeLabelIDs(field.state.value.include)}
+                            crossListLabelIDs={field.state.value.include.map((ref) => ref.label_id)}
                             includeBuiltins={false}
                             onChange={(exclude) =>
                               field.handleChange({

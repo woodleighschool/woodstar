@@ -15,6 +15,7 @@ import { useDataTableSearch } from "@components/data-table/use-data-table-search
 import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link, TextLink } from "@components/link";
 import { QueryError } from "@components/query-error";
+import { QueryGate } from "@components/query-gate";
 import { Button } from "@components/ui/button";
 import {
   DropdownMenu,
@@ -26,14 +27,15 @@ import {
 import { useAuth } from "@features/auth/queries";
 import type { SantaRule } from "@lib/api";
 import { DEFAULT_PAGE_SIZE } from "@lib/pagination";
+import { parseRouteID } from "@lib/route-params";
 import { formatRelative } from "@lib/utils";
 
 import { RuleDeleteDialog } from "./delete-dialog";
-import { ruleTypeLabel, RULE_TYPE_OPTIONS } from "./metadata";
+import { POLICIES, ruleTypeLabel, RULE_TYPE_OPTIONS } from "./metadata";
 import { useBulkDeleteSantaRules, useSantaRules } from "./queries";
 
-const routeApi = getRouteApi("/_authenticated/santa/rules/");
-const RULE_TYPE_FILTER_KEYS = [{ id: "rule_type", multiple: true }] as const;
+const routeApi = getRouteApi("/_authenticated/santa/configurations/$id/rules/");
+const RULE_FILTER_KEYS = [{ id: "rule_type", multiple: true }] as const;
 
 interface RuleTableRow {
   id: number;
@@ -44,8 +46,11 @@ interface RuleTableRow {
 function RuleNameCell({ row }: DataTableCellContext<RuleTableRow>) {
   return (
     <TextLink
-      to="/santa/rules/$id"
-      params={{ id: String(row.original.rule.id) }}
+      to="/santa/configurations/$id/rules/$ruleId"
+      params={{
+        id: String(row.original.rule.configuration_id),
+        ruleId: String(row.original.rule.id),
+      }}
       className="font-medium"
     >
       {row.original.rule.name}
@@ -80,6 +85,17 @@ function ruleColumns(isAdmin: boolean): DataTableColumnDef<RuleTableRow>[] {
       size: 120,
       minSize: 120,
       maxSize: 120,
+      enableResizing: false,
+    },
+    {
+      id: "policy",
+      accessorFn: (row) => row.rule.policy,
+      header: "Policy",
+      cell: ({ row }) => POLICIES[row.original.rule.policy].name,
+      meta: { label: "Policy" },
+      size: 104,
+      minSize: 104,
+      maxSize: 104,
       enableResizing: false,
     },
     {
@@ -123,22 +139,28 @@ function ruleColumns(isAdmin: boolean): DataTableColumnDef<RuleTableRow>[] {
 export function RuleListPage() {
   const search = routeApi.useSearch();
   const navigate = routeApi.useNavigate();
+  const { id } = routeApi.useParams();
+  const configurationID = parseRouteID(id);
   const tableSearch = useDataTableSearch({
     search,
     onSearchChange: (updater) => void navigate({ search: updater, replace: true }),
-    filterKeys: RULE_TYPE_FILTER_KEYS,
+    filterKeys: RULE_FILTER_KEYS,
   });
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
   const [deleting, setDeleting] = useState<SantaRule | null>(null);
   const ruleType = search.rule_type;
-  const query = useSantaRules({
-    q: tableSearch.q,
-    page: tableSearch.page,
-    per_page: tableSearch.per_page,
-    sort: tableSearch.sort,
-    rule_type: ruleType,
-  });
+  const query = useSantaRules(
+    {
+      q: tableSearch.q,
+      page: tableSearch.page,
+      per_page: tableSearch.per_page,
+      sort: tableSearch.sort,
+      configuration_id: configurationID === null ? undefined : [configurationID],
+      rule_type: ruleType,
+    },
+    configurationID !== null,
+  );
   const tableRows = useMemo<RuleTableRow[]>(
     () =>
       query.data?.items.map((rule) => ({
@@ -161,13 +183,30 @@ export function RuleListPage() {
     getRowId: (row) => String(row.id),
     enableRowSelection: isAdmin,
   });
+  if (configurationID === null) {
+    return (
+      <QueryGate
+        title="Failed to load rules"
+        error={{ message: "Configuration route is invalid." }}
+      />
+    );
+  }
   return (
     <PageShell>
       <PageHeader
         title="Rules"
         actions={
           isAdmin ? (
-            <Button size="sm" render={<Link to="/santa/rules/new" />} nativeButton={false}>
+            <Button
+              size="sm"
+              render={
+                <Link
+                  to="/santa/configurations/$id/rules/new"
+                  params={{ id: String(configurationID) }}
+                />
+              }
+              nativeButton={false}
+            >
               <Plus data-icon="inline-start" />
               Create
             </Button>
@@ -182,7 +221,7 @@ export function RuleListPage() {
           onRetry={() => void query.refetch()}
         />
       ) : query.isLoading ? (
-        <DataTableSkeleton columnCount={isAdmin ? 6 : 4} filterCount={1} />
+        <DataTableSkeleton columnCount={isAdmin ? 7 : 5} filterCount={1} />
       ) : (
         <DataTable
           table={table}
@@ -248,7 +287,12 @@ function RuleRowActions({
       <DropdownMenuContent align="end">
         <DropdownMenuGroup>
           <DropdownMenuItem
-            render={<Link to="/santa/rules/$id/edit" params={{ id: String(rule.id) }} />}
+            render={
+              <Link
+                to="/santa/configurations/$id/rules/$ruleId/edit"
+                params={{ id: String(rule.configuration_id), ruleId: String(rule.id) }}
+              />
+            }
           >
             Edit
           </DropdownMenuItem>
