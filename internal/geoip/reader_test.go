@@ -8,13 +8,15 @@ import (
 	geoip2 "github.com/oschwald/geoip2-golang/v2"
 )
 
-func TestOpenDefaultDatabases(t *testing.T) {
-	if os.Getenv(DirectoryEnvironment) == "" {
-		t.Skip(DirectoryEnvironment + " is not set")
+func TestOpenDatabases(t *testing.T) {
+	cityFile := os.Getenv("WOODSTAR_GEOIP_CITY_FILE")
+	asnFile := os.Getenv("WOODSTAR_GEOIP_ASN_FILE")
+	if cityFile == "" || asnFile == "" {
+		t.Skip("GeoIP database files are not configured")
 	}
-	reader, err := OpenDefault()
+	reader, err := Open(cityFile, asnFile)
 	if err != nil {
-		t.Fatalf("OpenDefault: %v", err)
+		t.Fatalf("Open: %v", err)
 	}
 	if err := reader.Close(); err != nil {
 		t.Fatalf("Close: %v", err)

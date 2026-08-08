@@ -282,7 +282,7 @@ VALUES ($1, 'osquery', now(), '198.51.100.40', 'osquery/5.14')`, host.ID); err !
 		Organization: "Telstra",
 	}}
 	router := hostTestRouter(t, func(api huma.API) {
-		RegisterHosts(api, hostStore, nil, nil, nil, distribution, geo, discardLogger())
+		RegisterHosts(api, hostStore, nil, nil, nil, distribution, geo.Lookup, discardLogger())
 	})
 
 	listRec := hostAPIRequest(t, router, http.MethodGet, "/api/hosts", "")

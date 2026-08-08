@@ -60,6 +60,8 @@ COPY --from=builder /workspace/woodstar /woodstar
 COPY --from=geoip /geoip/dbip-city-lite.mmdb /share/geoip/dbip-city-lite.mmdb
 COPY --from=geoip /geoip/dbip-asn-lite.mmdb /share/geoip/dbip-asn-lite.mmdb
 COPY --from=builder --chown=65532:65532 /data /data
+ENV WOODSTAR_GEOIP_CITY_FILE=/share/geoip/dbip-city-lite.mmdb \
+    WOODSTAR_GEOIP_ASN_FILE=/share/geoip/dbip-asn-lite.mmdb
 EXPOSE 8080
 USER 65532:65532
 ENTRYPOINT ["/woodstar"]

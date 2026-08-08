@@ -10,9 +10,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/munki/mdp"
 )
 
-type geoIPLookup interface {
-	Lookup(netip.Addr) (*geoip.Result, error)
-}
+type geoIPLookup func(netip.Addr) (*geoip.Result, error)
 
 func enrichHostPublicIPs(
 	ctx context.Context,
@@ -51,7 +49,7 @@ func enrichHostPublicIPs(
 	locations := make(map[netip.Addr]*geoip.Result, len(addresses))
 	if geo != nil {
 		for _, address := range addresses {
-			location, err := geo.Lookup(address)
+			location, err := geo(address)
 			if err != nil {
 				logger.DebugContext(ctx, "look up host public IP", "err", err)
 				continue

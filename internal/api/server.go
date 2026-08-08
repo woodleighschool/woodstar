@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/netip"
 	"time"
 
 	"github.com/CAFxX/httpcompression"
@@ -88,7 +89,7 @@ type AppDependencies struct {
 	Secrets     *agentauth.Store
 	Software    *inventory.Store
 	Labels      *labels.Store
-	GeoIP       *geoip.Reader
+	GeoIP       func(netip.Addr) (*geoip.Result, error)
 
 	Reports     *reports.Store
 	Checks      *checks.Store

@@ -1,4 +1,4 @@
-// Package geoip enriches public IP addresses from bundled DB-IP databases.
+// Package geoip enriches public IP addresses from configured DB-IP databases.
 package geoip
 
 import (
@@ -6,20 +6,8 @@ import (
 	"fmt"
 	"math"
 	"net/netip"
-	"os"
-	"path/filepath"
-	"strings"
 
 	geoip2 "github.com/oschwald/geoip2-golang/v2"
-)
-
-const (
-	// DirectoryEnvironment overrides the packaged GeoIP directory for local development.
-	DirectoryEnvironment = "WOODSTAR_GEOIP_DIR"
-	// CityFilename is the packaged DB-IP City Lite database filename.
-	CityFilename = "dbip-city-lite.mmdb"
-	// ASNFilename is the packaged DB-IP ASN Lite database filename.
-	ASNFilename = "dbip-asn-lite.mmdb"
 )
 
 // Result is a complete location and network description for a public IP.
@@ -40,16 +28,16 @@ type Reader struct {
 	asn  *geoip2.Reader
 }
 
-// Open opens and validates both databases in dir.
-func Open(dir string) (*Reader, error) {
-	city, err := geoip2.Open(filepath.Join(dir, CityFilename))
+// Open opens and validates both databases.
+func Open(cityFile, asnFile string) (*Reader, error) {
+	city, err := geoip2.Open(cityFile)
 	if err != nil {
 		if city != nil {
 			_ = city.Close()
 		}
 		return nil, fmt.Errorf("open DB-IP City Lite: %w", err)
 	}
-	asn, err := geoip2.Open(filepath.Join(dir, ASNFilename))
+	asn, err := geoip2.Open(asnFile)
 	if err != nil {
 		_ = city.Close()
 		if asn != nil {
@@ -58,16 +46,6 @@ func Open(dir string) (*Reader, error) {
 		return nil, fmt.Errorf("open DB-IP ASN Lite: %w", err)
 	}
 	return &Reader{city: city, asn: asn}, nil
-}
-
-// OpenDefault opens the packaged databases, or the directory selected by Mise
-// for local development and tests.
-func OpenDefault() (*Reader, error) {
-	dir := strings.TrimSpace(os.Getenv(DirectoryEnvironment))
-	if dir == "" {
-		dir = "/share/geoip"
-	}
-	return Open(dir)
 }
 
 // Lookup returns data only when both databases provide every field exposed by

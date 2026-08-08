@@ -57,7 +57,6 @@ run = """
 set -a
 [ ! -f .env ] || . ./.env
 set +a
-export WOODSTAR_GEOIP_DIR="$PWD/.cache/geoip"
 air -c .air.toml
 """
 
@@ -86,8 +85,8 @@ run = "go mod tidy -diff"
 description = "Run Go checks"
 depends = ["geoip"]
 run = [
-  "WOODSTAR_GEOIP_DIR=$PWD/.cache/geoip go vet ./...",
-  "WOODSTAR_GEOIP_DIR=$PWD/.cache/geoip go test -race -count=1 ./...",
+  "WOODSTAR_GEOIP_CITY_FILE=$PWD/.cache/geoip/dbip-city-lite.mmdb WOODSTAR_GEOIP_ASN_FILE=$PWD/.cache/geoip/dbip-asn-lite.mmdb go vet ./...",
+  "WOODSTAR_GEOIP_CITY_FILE=$PWD/.cache/geoip/dbip-city-lite.mmdb WOODSTAR_GEOIP_ASN_FILE=$PWD/.cache/geoip/dbip-asn-lite.mmdb go test -race -count=1 ./...",
 ]
 
 [tasks.test-postgres]

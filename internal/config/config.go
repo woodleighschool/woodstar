@@ -35,6 +35,8 @@ type Config struct {
 	DatabaseURL         string   `env:"DATABASE_URL"                               validate:"required"`
 	LogLevel            string   `env:"LOG_LEVEL"             envDefault:"info"    validate:"required,oneof=debug info warn error"`
 	CORSAllowedOrigins  []string `env:"CORS_ALLOWED_ORIGINS"                       validate:"dive,web_origin"`
+	GeoIPCityFile       string   `env:"GEOIP_CITY_FILE"                            validate:"required_with=GeoIPASNFile"`
+	GeoIPASNFile        string   `env:"GEOIP_ASN_FILE"                             validate:"required_with=GeoIPCityFile"`
 
 	SantaEventRetentionDays int           `env:"SANTA_EVENT_RETENTION_DAYS" envDefault:"90" validate:"gte=1"`
 	SantaEventSweepInterval time.Duration `env:"SANTA_EVENT_SWEEP_INTERVAL" envDefault:"1h" validate:"gt=0"`
@@ -99,6 +101,11 @@ func (cfg *Config) EntraEnabled() bool {
 	return cfg.EntraTenantID != "" && cfg.EntraClientID != "" && cfg.EntraClientSecret != ""
 }
 
+// GeoIPEnabled reports whether both DB-IP databases are configured.
+func (cfg *Config) GeoIPEnabled() bool {
+	return cfg.GeoIPCityFile != "" && cfg.GeoIPASNFile != ""
+}
+
 // ApplyEnvironment fills unset config fields from environment variables and defaults.
 func ApplyEnvironment(cfg *Config) error {
 	return env.ParseWithOptions(cfg, env.Options{
@@ -118,6 +125,8 @@ func (cfg *Config) Normalize() {
 	cfg.TLSCertFile = strings.TrimSpace(cfg.TLSCertFile)
 	cfg.TLSKeyFile = strings.TrimSpace(cfg.TLSKeyFile)
 	cfg.LogLevel = strings.ToLower(strings.TrimSpace(cfg.LogLevel))
+	cfg.GeoIPCityFile = strings.TrimSpace(cfg.GeoIPCityFile)
+	cfg.GeoIPASNFile = strings.TrimSpace(cfg.GeoIPASNFile)
 	cfg.OIDCIssuerURL = strings.TrimSpace(cfg.OIDCIssuerURL)
 	cfg.OIDCClientID = strings.TrimSpace(cfg.OIDCClientID)
 	cfg.OIDCScopes = normalizeStrings(cfg.OIDCScopes)
