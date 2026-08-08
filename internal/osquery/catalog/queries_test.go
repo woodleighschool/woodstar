@@ -166,6 +166,15 @@ func TestSoftwareQueriesProjectIngestShape(t *testing.T) {
 	}
 }
 
+func TestSoftwareMacOSQueryProjectsRawAppVersionsForEveryUnionBranch(t *testing.T) {
+	sql := DetailQueries()[QuerySoftwareMacOS].SQL
+	for _, column := range []string{"bundle_short_version", "bundle_version"} {
+		if got := strings.Count(sql, "AS "+column); got != 7 {
+			t.Fatalf("software_macos %s projections = %d, want one for each of 7 union branches", column, got)
+		}
+	}
+}
+
 func TestSoftwareEnrichmentQueriesProjectIngestShape(t *testing.T) {
 	codesignSQL := DetailQueries()[QuerySoftwareMacOSCodesign].SQL
 	for _, want := range []string{"path", "team_identifier", "cdhash_sha256"} {

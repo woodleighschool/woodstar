@@ -22,9 +22,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@components/ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@components/ui/tooltip";
 import { useAuth } from "@features/auth/queries";
 import { SoftwareArtwork } from "@features/software/software-icon";
-import type { MunkiSoftware } from "@lib/api";
+import type { MunkiSoftwareWithDeployment } from "@lib/api";
 import { DEFAULT_PAGE_SIZE } from "@lib/pagination";
 import { formatRelative } from "@lib/utils";
 
@@ -33,7 +34,7 @@ import { useBulkDeleteMunkiSoftware, useMunkiSoftware } from "./queries";
 
 const routeApi = getRouteApi("/_authenticated/munki/software/");
 
-function SoftwareNameCell({ row }: DataTableCellContext<MunkiSoftware>) {
+function SoftwareNameCell({ row }: DataTableCellContext<MunkiSoftwareWithDeployment>) {
   return (
     <div className="flex min-w-0 items-center gap-2">
       <SoftwareArtwork src={row.original.icon_url} />
@@ -51,9 +52,9 @@ function SoftwareNameCell({ row }: DataTableCellContext<MunkiSoftware>) {
 
 function softwareColumns(
   isAdmin: boolean,
-  onDelete: (software: MunkiSoftware) => void,
-): DataTableColumnDef<MunkiSoftware>[] {
-  const columns: DataTableColumnDef<MunkiSoftware>[] = [
+  onDelete: (software: MunkiSoftwareWithDeployment) => void,
+): DataTableColumnDef<MunkiSoftwareWithDeployment>[] {
+  const columns: DataTableColumnDef<MunkiSoftwareWithDeployment>[] = [
     {
       id: "name",
       accessorKey: "name",
@@ -81,6 +82,13 @@ function softwareColumns(
       meta: { label: "Developer" },
     },
     {
+      id: "installed",
+      header: "Installed",
+      enableSorting: false,
+      cell: ({ row }) => <InstallationCount deployment={row.original.deployment} />,
+      meta: { label: "Installed" },
+    },
+    {
       id: "updated_at",
       accessorKey: "updated_at",
       header: "Updated",
@@ -91,7 +99,7 @@ function softwareColumns(
   ];
   if (!isAdmin) return columns;
   return [
-    selectColumn<MunkiSoftware>(),
+    selectColumn<MunkiSoftwareWithDeployment>(),
     ...columns,
     {
       id: "actions",
@@ -118,7 +126,7 @@ export function MunkiSoftwareListPage() {
   });
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
-  const [deleting, setDeleting] = React.useState<MunkiSoftware | null>(null);
+  const [deleting, setDeleting] = React.useState<MunkiSoftwareWithDeployment | null>(null);
   const query = useMunkiSoftware({
     q: tableSearch.q,
     page: tableSearch.page,
@@ -139,6 +147,7 @@ export function MunkiSoftwareListPage() {
     getRowId: (row) => String(row.id),
     enableRowSelection: isAdmin,
   });
+
   return (
     <PageShell>
       <PageHeader
@@ -160,7 +169,7 @@ export function MunkiSoftwareListPage() {
           onRetry={() => void query.refetch()}
         />
       ) : query.isLoading ? (
-        <DataTableSkeleton columnCount={isAdmin ? 6 : 4} />
+        <DataTableSkeleton columnCount={isAdmin ? 7 : 5} />
       ) : (
         <DataTable
           table={table}
@@ -208,11 +217,42 @@ export function MunkiSoftwareListPage() {
   );
 }
 
+function InstallationCount({
+  deployment,
+}: {
+  deployment: MunkiSoftwareWithDeployment["deployment"];
+}) {
+  if (deployment.assigned_count === 0 || deployment.observed_count === 0) {
+    return <span className="text-muted-foreground">-</span>;
+  }
+  const value = (
+    <span className="whitespace-nowrap tabular-nums">
+      {deployment.installed_count} / {deployment.assigned_count}
+    </span>
+  );
+  return (
+    <Tooltip>
+      <TooltipTrigger render={value} />
+      <TooltipContent className="max-w-72 text-left">
+        <p>
+          Based on the configured application detector and the last successful software inventory.
+        </p>
+        {deployment.observed_count < deployment.assigned_count ? (
+          <p>
+            Observed installation available for {deployment.observed_count} of{" "}
+            {deployment.assigned_count} assigned hosts.
+          </p>
+        ) : null}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
 function SoftwareRowActions({
   software,
   onDelete,
 }: {
-  software: MunkiSoftware;
+  software: MunkiSoftwareWithDeployment;
   onDelete: () => void;
 }) {
   return (

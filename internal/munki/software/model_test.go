@@ -38,6 +38,11 @@ func TestCreateMutationNormalizesMunkiMetadata(t *testing.T) {
 	mutation := CreateMutation{
 		Name:        " Cafe\u0301 ",
 		DisplayName: "Caf\u00e9",
+		InstallationDetector: &InstallationDetector{
+			BundleIdentifier: " com.example.cafe ",
+			ExpectedPath:     " /Applications/Cafe.app ",
+			VersionSource:    " bundle_short_version ",
+		},
 	}
 
 	mutation.normalize()
@@ -47,5 +52,37 @@ func TestCreateMutationNormalizesMunkiMetadata(t *testing.T) {
 	}
 	if mutation.DisplayName != "" {
 		t.Fatalf("display name = %q, want redundant value removed", mutation.DisplayName)
+	}
+	if detector := mutation.InstallationDetector; detector == nil ||
+		detector.BundleIdentifier != "com.example.cafe" ||
+		detector.ExpectedPath != "/Applications/Cafe.app" ||
+		detector.VersionSource != InstallationVersionSourceBundleShortVersion {
+		t.Fatalf("installation detector = %#v, want normalized detector", detector)
+	}
+}
+
+func TestCreateMutationRejectsInvalidInstallationDetector(t *testing.T) {
+	tests := map[string]*InstallationDetector{
+		"blank bundle identifier": {
+			BundleIdentifier: "  ",
+			VersionSource:    InstallationVersionSourceBundleVersion,
+		},
+		"missing version source": {
+			BundleIdentifier: "com.example.app",
+		},
+		"unsupported version source": {
+			BundleIdentifier: "com.example.app",
+			VersionSource:    "file_version",
+		},
+	}
+
+	for name, detector := range tests {
+		t.Run(name, func(t *testing.T) {
+			mutation := CreateMutation{Name: "Example", InstallationDetector: detector}
+			mutation.normalize()
+			if err := mutation.validate(); !errors.Is(err, dbutil.ErrInvalidInput) {
+				t.Fatalf("validate() error = %v, want invalid input", err)
+			}
+		})
 	}
 }

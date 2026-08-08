@@ -8,12 +8,14 @@ import (
 func TestParseSoftwareRows(t *testing.T) {
 	rows := []map[string]string{
 		{
-			"name":              "Safari",
-			"version":           "26.0",
-			"source":            "apps",
-			"bundle_identifier": "com.apple.Safari",
-			"installed_path":    "/Applications/Safari.app",
-			"last_opened_at":    "1745999192.82046",
+			"name":                 "Safari",
+			"version":              "26.0",
+			"source":               "apps",
+			"bundle_identifier":    "com.apple.Safari",
+			"bundle_short_version": "26.0",
+			"bundle_version":       "20619.1.12.11.3",
+			"installed_path":       "/Applications/Safari.app",
+			"last_opened_at":       "1745999192.82046",
 		},
 		{
 			"name":              "node",
@@ -31,6 +33,9 @@ func TestParseSoftwareRows(t *testing.T) {
 	}
 	if got[0].Name != "Safari" || got[0].Source != "apps" || got[0].InstalledPath != "/Applications/Safari.app" {
 		t.Fatalf("first row parsed incorrectly: %#v", got[0])
+	}
+	if got[0].BundleShortVersion != "26.0" || got[0].BundleVersion != "20619.1.12.11.3" {
+		t.Fatalf("first row app versions = %q/%q, want parsed short/build versions", got[0].BundleShortVersion, got[0].BundleVersion)
 	}
 	wantOpened := time.Unix(1745999192, 820460000).UTC()
 	if got[0].LastOpenedAt == nil || !got[0].LastOpenedAt.Equal(wantOpened) {

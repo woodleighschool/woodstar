@@ -685,6 +685,74 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 			manifestHeartbeat,
 		)
 	}
+	hostMunkiResponse, err := server.Admin.GetHostMunkiStateWithResponse(t.Context(), hostID)
+	requireAPIResponse(
+		t,
+		"get host Munki state after contact before collection",
+		http.StatusNotFound,
+		hostMunkiResponse,
+		err,
+	)
+
+	softwarePageResponse, err := server.Admin.ListMunkiSoftwareWithResponse(t.Context(), nil)
+	softwarePageResponse = requireAPIResponse(
+		t,
+		"list software deployments",
+		http.StatusOK,
+		softwarePageResponse,
+		err,
+	)
+	if softwarePageResponse.JSON200 == nil {
+		t.Fatal("software deployment page returned no JSON body")
+	}
+	softwareIndex := -1
+	for i := range softwarePageResponse.JSON200.Items {
+		if softwarePageResponse.JSON200.Items[i].Id == software.Id {
+			softwareIndex = i
+			break
+		}
+	}
+	if softwareIndex < 0 ||
+		softwarePageResponse.JSON200.Items[softwareIndex].Deployment.AssignedCount != 1 ||
+		softwarePageResponse.JSON200.Items[softwareIndex].Deployment.ObservedCount != 0 ||
+		softwarePageResponse.JSON200.Items[softwareIndex].Deployment.InstalledCount != 0 {
+		t.Fatalf("software deployment page = %+v, want one assignment without observed installation", softwarePageResponse.JSON200)
+	}
+
+	assignedHostsResponse, err := server.Admin.ListMunkiSoftwareHostsWithResponse(
+		t.Context(),
+		software.Id,
+		nil,
+	)
+	assignedHostsResponse = requireAPIResponse(
+		t,
+		"list assigned software hosts",
+		http.StatusOK,
+		assignedHostsResponse,
+		err,
+	)
+	if assignedHostsResponse.JSON200 == nil || assignedHostsResponse.JSON200.Count != 1 ||
+		len(assignedHostsResponse.JSON200.Items) != 1 ||
+		assignedHostsResponse.JSON200.Items[0].Status != adminapi.MunkiDeploymentHostStatusUnknown ||
+		assignedHostsResponse.JSON200.Items[0].MunkiResult != adminapi.MunkiDeploymentHostMunkiResultNotReported {
+		t.Fatalf("assigned software hosts = %+v, want unknown installation and no Munki report", assignedHostsResponse.JSON200)
+	}
+
+	hostSoftwareResponse, err := server.Admin.ListHostMunkiSoftwareWithResponse(t.Context(), hostID, nil)
+	hostSoftwareResponse = requireAPIResponse(
+		t,
+		"list host Munki software status",
+		http.StatusOK,
+		hostSoftwareResponse,
+		err,
+	)
+	if hostSoftwareResponse.JSON200 == nil || hostSoftwareResponse.JSON200.Count != 1 ||
+		len(hostSoftwareResponse.JSON200.Items) != 1 ||
+		hostSoftwareResponse.JSON200.Items[0].Status != adminapi.MunkiHostManifestSoftwareStatusUnknown ||
+		hostSoftwareResponse.JSON200.Items[0].MunkiResult != adminapi.MunkiHostManifestSoftwareMunkiResultNotReported {
+		t.Fatalf("host Munki software = %+v, want unknown installation and no Munki report", hostSoftwareResponse.JSON200)
+	}
+
 	secondManifestRequest := newMunkiRequest(
 		t,
 		t.Context(),

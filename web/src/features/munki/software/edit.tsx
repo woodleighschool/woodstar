@@ -139,6 +139,7 @@ function MunkiSoftwareDetailForm({
           description: data.description,
           category: data.category,
           developer: data.developer,
+          installation_detector: software.installation_detector,
           icon_object_id:
             value.icon.kind === "stored"
               ? value.icon.objectID

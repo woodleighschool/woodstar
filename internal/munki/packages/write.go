@@ -21,6 +21,9 @@ func (s *Store) Create(ctx context.Context, in PackageCreateMutation) (*Package,
 		if err := validateAndLockInstallerObject(ctx, tx, params.InstallerObjectID, 0); err != nil {
 			return err
 		}
+		if err := lockSoftwareForInstallationDetector(ctx, tx, in.SoftwareID); err != nil {
+			return err
+		}
 		if err := tx.QueryRow(ctx, `
 INSERT INTO munki_packages (
 	software_id,
@@ -129,7 +132,10 @@ VALUES (
 RETURNING id`, pgx.StructArgs(write)).Scan(&id); err != nil {
 			return dbutil.MutationError(err)
 		}
-		return writePackageRelations(ctx, tx, id, params)
+		if err := writePackageRelations(ctx, tx, id, params); err != nil {
+			return err
+		}
+		return reconcileInstallationDetector(ctx, tx, in.SoftwareID)
 	})
 	if err != nil {
 		return nil, err
@@ -150,10 +156,19 @@ func (s *Store) Update(ctx context.Context, id int64, params PackageMutation) (*
 		}
 		var softwareID int64
 		if err := tx.QueryRow(ctx, `
-SELECT software_id, installer_object_id
+SELECT software_id
 FROM munki_packages
-WHERE id = $1
-FOR UPDATE`, id).Scan(&softwareID, &oldObjectID); err != nil {
+WHERE id = $1`, id).Scan(&softwareID); err != nil {
+			return dbutil.GetError(err)
+		}
+		if err := lockSoftwareForInstallationDetector(ctx, tx, softwareID); err != nil {
+			return err
+		}
+		if err := tx.QueryRow(ctx, `
+SELECT installer_object_id
+FROM munki_packages
+WHERE id = $1 AND software_id = $2
+FOR UPDATE`, id, softwareID).Scan(&oldObjectID); err != nil {
 			return dbutil.GetError(err)
 		}
 		write := newPackageWrite(softwareID, params)
@@ -219,7 +234,7 @@ RETURNING id`, pgx.StructArgs(write)).Scan(&updatedID); err != nil {
 		if err := writePackageRelations(ctx, tx, id, params); err != nil {
 			return err
 		}
-		return nil
+		return reconcileInstallationDetector(ctx, tx, softwareID)
 	})
 	if err != nil {
 		return nil, err
@@ -240,7 +255,23 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 	var deleted int
 	var objectIDs []int64
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		var err error
+		rows, err := tx.Query(ctx, `
+SELECT DISTINCT software_id
+FROM munki_packages
+WHERE id = ANY($1::bigint[])
+ORDER BY software_id`, ids)
+		if err != nil {
+			return err
+		}
+		softwareIDs, err := pgx.CollectRows(rows, pgx.RowTo[int64])
+		if err != nil {
+			return err
+		}
+		for _, softwareID := range softwareIDs {
+			if err := lockSoftwareForInstallationDetector(ctx, tx, softwareID); err != nil {
+				return err
+			}
+		}
 		objectIDs, err = s.packageObjectIDs(ctx, tx, ids)
 		if err != nil {
 			return err
@@ -252,7 +283,7 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 		); err != nil {
 			return err
 		}
-		rows, err := tx.Query(ctx, `DELETE FROM munki_packages WHERE id = ANY($1::bigint[]) RETURNING id`, ids)
+		rows, err = tx.Query(ctx, `DELETE FROM munki_packages WHERE id = ANY($1::bigint[]) RETURNING id`, ids)
 		if err != nil {
 			return dbutil.DeleteConflict(err, "Munki package is still referenced")
 		}
@@ -261,6 +292,11 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 			return dbutil.DeleteConflict(err, "Munki package is still referenced")
 		}
 		deleted = len(deletedIDs)
+		for _, softwareID := range softwareIDs {
+			if err := reconcileInstallationDetector(ctx, tx, softwareID); err != nil {
+				return err
+			}
+		}
 		return nil
 	})
 	if err != nil {

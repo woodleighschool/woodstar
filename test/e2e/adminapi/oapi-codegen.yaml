@@ -32,6 +32,8 @@ output-options:
     - create-munki-package
     - create-munki-software
     - get-munki-software
+    - list-munki-software
+    - list-munki-software-hosts
     - create-osquery-report
     - list-osquery-report-snapshots
     - create-santa-configuration

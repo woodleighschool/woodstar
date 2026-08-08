@@ -962,6 +962,8 @@ components:
           format: int64
           minimum: 1
           type: integer
+        installation_detector:
+          $ref: "#/components/schemas/MunkiInstallationDetector"
         name:
           minLength: 1
           type: string
@@ -970,6 +972,87 @@ components:
       required:
         - name
         - targets
+      type: object
+    MunkiDeploymentHost:
+      additionalProperties: false
+      properties:
+        actions:
+          items:
+            enum:
+              - managed_installs
+              - managed_uninstalls
+              - managed_updates
+              - optional_installs
+              - featured_items
+              - default_installs
+            type: string
+          type: array
+        display_name:
+          type: string
+        hardware_serial:
+          type: string
+        host_id:
+          format: int64
+          type: integer
+        installed_version:
+          type: string
+        last_collected_at:
+          format: date-time
+          type: string
+        munki_result:
+          enum:
+            - no_install_needed
+            - install_indicated
+            - unresolved
+            - not_reported
+          type: string
+        package:
+          discriminator:
+            mapping:
+              latest: "#/components/schemas/MunkiHostManifestLatestPackage"
+              specific: "#/components/schemas/MunkiHostManifestSpecificPackage"
+            propertyName: strategy
+          oneOf:
+            - $ref: "#/components/schemas/MunkiHostManifestLatestPackage"
+            - $ref: "#/components/schemas/MunkiHostManifestSpecificPackage"
+        status:
+          enum:
+            - installed
+            - not_installed
+            - unknown
+          type: string
+        target_version:
+          type: string
+      required:
+        - host_id
+        - display_name
+        - hardware_serial
+        - actions
+        - package
+        - status
+        - munki_result
+      type: object
+    MunkiDeploymentSummary:
+      additionalProperties: false
+      properties:
+        assigned_count:
+          format: int64
+          type: integer
+        installed_count:
+          format: int64
+          type: integer
+        observed_count:
+          format: int64
+          type: integer
+        packages:
+          items:
+            $ref: "#/components/schemas/MunkiPackageDeployment"
+          type: array
+      required:
+        - assigned_count
+        - observed_count
+        - installed_count
+        - packages
       type: object
     MunkiDirectUploadAction:
       additionalProperties: false
@@ -1161,8 +1244,18 @@ components:
               - default_installs
             type: string
           type: array
-        observation:
-          $ref: "#/components/schemas/MunkiHostManifestSoftwareObservation"
+        installed_version:
+          type: string
+        last_collected_at:
+          format: date-time
+          type: string
+        munki_result:
+          enum:
+            - no_install_needed
+            - install_indicated
+            - unresolved
+            - not_reported
+          type: string
         package:
           discriminator:
             mapping:
@@ -1174,27 +1267,20 @@ components:
             - $ref: "#/components/schemas/MunkiHostManifestSpecificPackage"
         software:
           $ref: "#/components/schemas/MunkiPackageSoftware"
-      required:
-        - software
-        - package
-        - actions
-      type: object
-    MunkiHostManifestSoftwareObservation:
-      additionalProperties: false
-      properties:
-        display_name:
-          type: string
-        installed:
-          type: boolean
-        installed_version:
+        status:
+          enum:
+            - installed
+            - not_installed
+            - unknown
           type: string
         target_version:
           type: string
       required:
-        - display_name
-        - installed
-        - installed_version
-        - target_version
+        - software
+        - package
+        - actions
+        - status
+        - munki_result
       type: object
     MunkiHostManifestSpecificPackage:
       additionalProperties: false
@@ -1218,16 +1304,26 @@ components:
     MunkiHostState:
       additionalProperties: false
       properties:
+        collection_error:
+          type: string
         errors:
           items:
             type: string
           type: array
+        last_attempt_at:
+          format: date-time
+          type: string
+        last_successful_at:
+          format: date-time
+          type: string
         manifest_name:
           type: string
         problem_installs:
           items:
             type: string
           type: array
+        report_state:
+          type: string
         run_ended_at:
           format: date-time
           type: string
@@ -1241,6 +1337,7 @@ components:
             type: string
           type: array
       required:
+        - report_state
         - version
         - manifest_name
         - errors
@@ -1287,6 +1384,23 @@ components:
         - label_id
         - package
         - actions
+      type: object
+    MunkiInstallationDetector:
+      additionalProperties: false
+      properties:
+        bundle_identifier:
+          minLength: 1
+          type: string
+        expected_path:
+          type: string
+        version_source:
+          enum:
+            - bundle_short_version
+            - bundle_version
+          type: string
+      required:
+        - bundle_identifier
+        - version_source
       type: object
     MunkiInstallerFile:
       additionalProperties: false
@@ -1750,6 +1864,26 @@ components:
         - software_id
         - version
       type: object
+    MunkiPackageDeployment:
+      additionalProperties: false
+      properties:
+        assigned_count:
+          format: int64
+          type: integer
+        installed_count:
+          format: int64
+          type: integer
+        observed_count:
+          format: int64
+          type: integer
+        version:
+          type: string
+      required:
+        - version
+        - assigned_count
+        - observed_count
+        - installed_count
+      type: object
     MunkiPackageInstallItem:
       additionalProperties: false
       properties:
@@ -2143,44 +2277,6 @@ components:
         - created_at
         - updated_at
       type: object
-    MunkiSoftware:
-      additionalProperties: false
-      properties:
-        category:
-          type: string
-        created_at:
-          format: date-time
-          type: string
-        description:
-          type: string
-        developer:
-          type: string
-        display_name:
-          type: string
-        icon_file:
-          $ref: "#/components/schemas/MunkiIconFile"
-        icon_object_id:
-          format: int64
-          type: integer
-        icon_url:
-          type: string
-        id:
-          format: int64
-          type: integer
-        name:
-          type: string
-        updated_at:
-          format: date-time
-          type: string
-      required:
-        - id
-        - name
-        - description
-        - category
-        - developer
-        - created_at
-        - updated_at
-      type: object
     MunkiSoftwareDetail:
       additionalProperties: false
       properties:
@@ -2189,6 +2285,8 @@ components:
         created_at:
           format: date-time
           type: string
+        deployment:
+          $ref: "#/components/schemas/MunkiDeploymentSummary"
         description:
           type: string
         developer:
@@ -2205,6 +2303,8 @@ components:
         id:
           format: int64
           type: integer
+        installation_detector:
+          $ref: "#/components/schemas/MunkiInstallationDetector"
         name:
           type: string
         packages:
@@ -2219,6 +2319,50 @@ components:
       required:
         - packages
         - targets
+        - deployment
+        - id
+        - name
+        - description
+        - category
+        - developer
+        - created_at
+        - updated_at
+      type: object
+    MunkiSoftwareWithDeployment:
+      additionalProperties: false
+      properties:
+        category:
+          type: string
+        created_at:
+          format: date-time
+          type: string
+        deployment:
+          $ref: "#/components/schemas/MunkiDeploymentSummary"
+        description:
+          type: string
+        developer:
+          type: string
+        display_name:
+          type: string
+        icon_file:
+          $ref: "#/components/schemas/MunkiIconFile"
+        icon_object_id:
+          format: int64
+          type: integer
+        icon_url:
+          type: string
+        id:
+          format: int64
+          type: integer
+        installation_detector:
+          $ref: "#/components/schemas/MunkiInstallationDetector"
+        name:
+          type: string
+        updated_at:
+          format: date-time
+          type: string
+      required:
+        - deployment
         - id
         - name
         - description
@@ -2257,6 +2401,8 @@ components:
           format: int64
           minimum: 1
           type: integer
+        installation_detector:
+          $ref: "#/components/schemas/MunkiInstallationDetector"
         targets:
           $ref: "#/components/schemas/MunkiTargets"
       required:
@@ -2675,6 +2821,20 @@ components:
         - items
         - count
       type: object
+    PageDeploymentHost:
+      additionalProperties: false
+      properties:
+        count:
+          format: int64
+          type: integer
+        items:
+          items:
+            $ref: "#/components/schemas/MunkiDeploymentHost"
+          type: array
+      required:
+        - items
+        - count
+      type: object
     PageDistributionPoint:
       additionalProperties: false
       properties:
@@ -2885,20 +3045,6 @@ components:
         - items
         - count
       type: object
-    PageSoftware:
-      additionalProperties: false
-      properties:
-        count:
-          format: int64
-          type: integer
-        items:
-          items:
-            $ref: "#/components/schemas/MunkiSoftware"
-          type: array
-      required:
-        - items
-        - count
-      type: object
     PageSoftwareTitle:
       additionalProperties: false
       properties:
@@ -2908,6 +3054,20 @@ components:
         items:
           items:
             $ref: "#/components/schemas/SoftwareTitle"
+          type: array
+      required:
+        - items
+        - count
+      type: object
+    PageSoftwareWithDeployment:
+      additionalProperties: false
+      properties:
+        count:
+          format: int64
+          type: integer
+        items:
+          items:
+            $ref: "#/components/schemas/MunkiSoftwareWithDeployment"
           type: array
       required:
         - items
@@ -7361,7 +7521,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PageSoftware"
+                $ref: "#/components/schemas/PageSoftwareWithDeployment"
           description: OK
         "401":
           content:
@@ -7607,6 +7767,109 @@ paths:
         - cookieAuth: []
         - bearerAuth: []
       summary: Update a software title
+      tags:
+        - Munki software
+  /api/munki/software/{id}/hosts:
+    get:
+      operationId: list-munki-software-hosts
+      parameters:
+        - explode: false
+          in: query
+          name: q
+          schema:
+            type: string
+        - explode: false
+          in: query
+          name: page
+          schema:
+            format: int32
+            minimum: 1
+            type: integer
+        - explode: false
+          in: query
+          name: per_page
+          schema:
+            format: int32
+            maximum: 1000
+            minimum: 1
+            type: integer
+        - explode: false
+          in: query
+          name: sort
+          schema:
+            type: string
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+        - explode: false
+          in: query
+          name: status
+          schema:
+            enum:
+              - installed
+              - not_installed
+              - unknown
+            type: string
+        - explode: false
+          in: query
+          name: munki_result
+          schema:
+            enum:
+              - no_install_needed
+              - install_indicated
+              - unresolved
+              - not_reported
+            type: string
+        - explode: false
+          in: query
+          name: action
+          schema:
+            enum:
+              - managed_installs
+              - managed_uninstalls
+              - managed_updates
+              - optional_installs
+              - featured_items
+              - default_installs
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageDeploymentHost"
+          description: OK
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      summary: List assigned hosts for a software title
       tags:
         - Munki software
   /api/munki/software/{id}/icon:

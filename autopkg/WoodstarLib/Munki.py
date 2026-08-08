@@ -130,6 +130,8 @@ class SoftwareManager:
         body = self.software_metadata(pkginfo, resolved_name, metadata)
         if existing and existing.get("icon_object_id") is not None:
             body["icon_object_id"] = existing["icon_object_id"]
+        if existing and existing.get("installation_detector") is not None:
+            body["installation_detector"] = existing["installation_detector"]
         body["targets"] = self.target_body(targets, existing)
         return resolved_name, existing, body
 

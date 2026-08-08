@@ -15,23 +15,25 @@ const (
 
 // HostSoftwareEntry is ingest-only installed software.
 type HostSoftwareEntry struct {
-	Name             string
-	Version          string
-	Source           string
-	BundleIdentifier string
-	ExtensionID      string
-	ExtensionFor     string
-	Vendor           string
-	Arch             string
-	Release          string
-	InstalledPath    string
-	Identifier       string
-	SigningAuthority string
-	TeamIdentifier   string
-	CDHashSHA256     string
-	ExecutableSHA256 string
-	ExecutablePath   string
-	LastOpenedAt     *time.Time
+	Name               string
+	Version            string
+	Source             string
+	BundleIdentifier   string
+	BundleShortVersion string
+	BundleVersion      string
+	ExtensionID        string
+	ExtensionFor       string
+	Vendor             string
+	Arch               string
+	Release            string
+	InstalledPath      string
+	Identifier         string
+	SigningAuthority   string
+	TeamIdentifier     string
+	CDHashSHA256       string
+	ExecutableSHA256   string
+	ExecutablePath     string
+	LastOpenedAt       *time.Time
 }
 
 // SoftwareVersion is one observed version under a software title.

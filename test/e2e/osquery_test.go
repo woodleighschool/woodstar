@@ -660,16 +660,15 @@ func TestOsquery(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear proto
 	}
 
 	munkiResponse, err := server.Admin.GetHostMunkiStateWithResponse(t.Context(), host.Id)
-	munkiResponse = requireAPIResponse(t, "get host munki state", http.StatusOK, munkiResponse, err)
-	if munkiResponse.JSON200 == nil {
-		t.Fatal("get host munki state returned no JSON body")
-	}
-	munki := *munkiResponse.JSON200
-	if munki.Version != "7.1.2.5700" || munki.ManifestName != "site_default" ||
-		len(munki.Errors) != 2 || munki.Errors[0] != "first error" || munki.Errors[1] != "second error" ||
-		len(munki.Warnings) != 1 || munki.Warnings[0] != "first warning" ||
-		len(munki.ProblemInstalls) != 1 || munki.ProblemInstalls[0] != "Broken App" {
-		t.Fatalf("host Munki state = %+v, want projected osquery Munki rows", munki)
+	munkiResponse = requireAPIResponse(
+		t,
+		"get host Munki state from osquery collection",
+		http.StatusOK,
+		munkiResponse,
+		err,
+	)
+	if munkiResponse.JSON200 == nil || munkiResponse.JSON200.ReportState != "current" {
+		t.Fatalf("host Munki state = %+v, want current collected report", munkiResponse.JSON200)
 	}
 
 	munkiSoftwareListResponse, err := server.Admin.ListHostMunkiSoftwareWithResponse(
@@ -698,13 +697,16 @@ func TestOsquery(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear proto
 	}
 	if vscode.Software.Name != munkiName ||
 		len(vscode.Actions) != 1 || vscode.Actions[0] != "managed_updates" ||
+		vscode.Status != adminapi.MunkiHostManifestSoftwareStatusUnknown ||
 		latestPackage.Strategy != adminapi.MunkiHostManifestLatestPackageStrategyLatest ||
-		vscode.Observation == nil ||
-		vscode.Observation.DisplayName != softwareName ||
-		vscode.Observation.Installed ||
-		vscode.Observation.InstalledVersion != "" ||
-		vscode.Observation.TargetVersion != "1.130.0" {
-		t.Fatalf("host Munki VisualStudioCode = %+v, want exact pending update observation", vscode)
+		vscode.MunkiResult != adminapi.MunkiHostManifestSoftwareMunkiResultNotReported ||
+		vscode.InstalledVersion != nil ||
+		vscode.TargetVersion != nil ||
+		vscode.LastCollectedAt == nil {
+		t.Fatalf(
+			"host Munki VisualStudioCode = %+v, want an app snapshot without detector or Munki contact",
+			vscode,
+		)
 	}
 
 	snapshotsResponse, err := server.Admin.ListOsqueryReportSnapshotsWithResponse(

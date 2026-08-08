@@ -50,14 +50,20 @@ INSERT INTO munki_software (
 	description,
 	category,
 	developer,
-	icon_object_id
+	icon_object_id,
+	installation_detector_bundle_identifier,
+	installation_detector_expected_path,
+	installation_detector_version_source
 ) VALUES (
 	@name,
 	@display_name,
 	@description,
 	@category,
 	@developer,
-	@icon_object_id
+	@icon_object_id,
+	@installation_detector_bundle_identifier,
+	@installation_detector_expected_path,
+	@installation_detector_version_source
 )
 RETURNING id`, pgx.StructArgs(write)).Scan(&id); err != nil {
 			return dbutil.MutationError(err)
@@ -71,6 +77,7 @@ RETURNING id`, pgx.StructArgs(write)).Scan(&id); err != nil {
 }
 
 func (s *Store) Update(ctx context.Context, id int64, params UpdateMutation) (*Software, error) {
+	params.InstallationDetector.normalize()
 	if err := params.validate(); err != nil {
 		return nil, err
 	}
@@ -87,6 +94,8 @@ func (s *Store) Update(ctx context.Context, id int64, params UpdateMutation) (*S
 		oldIconObjectID = existing.IconObjectID
 		write := newSoftwareUpdateWrite(params)
 		write.ID = id
+		write.InstallationDetectorAutomatic = existing.InstallationDetectorAutomatic &&
+			installationDetectorsEqual(existing.InstallationDetector, params.InstallationDetector)
 		var updatedID int64
 		if err := tx.QueryRow(ctx, `
 UPDATE munki_software
@@ -96,6 +105,10 @@ SET
 	category = @category,
 	developer = @developer,
 	icon_object_id = @icon_object_id,
+	installation_detector_bundle_identifier = @installation_detector_bundle_identifier,
+	installation_detector_expected_path = @installation_detector_expected_path,
+	installation_detector_version_source = @installation_detector_version_source,
+	installation_detector_automatic = @installation_detector_automatic,
 	updated_at = now()
 WHERE id = @id
 RETURNING id`, pgx.StructArgs(write)).Scan(&updatedID); err != nil {
@@ -318,34 +331,73 @@ func softwareObjectIDs(ctx context.Context, q dbutil.Queryer, ids []int64) ([]in
 }
 
 type softwareWrite struct {
-	ID           int64   `db:"id"`
-	Name         string  `db:"name"`
-	DisplayName  *string `db:"display_name"`
-	Description  string  `db:"description"`
-	Category     string  `db:"category"`
-	Developer    string  `db:"developer"`
-	IconObjectID *int64  `db:"icon_object_id"`
+	ID                                   int64   `db:"id"`
+	Name                                 string  `db:"name"`
+	DisplayName                          *string `db:"display_name"`
+	Description                          string  `db:"description"`
+	Category                             string  `db:"category"`
+	Developer                            string  `db:"developer"`
+	IconObjectID                         *int64  `db:"icon_object_id"`
+	InstallationDetectorBundleIdentifier *string `db:"installation_detector_bundle_identifier"`
+	InstallationDetectorExpectedPath     *string `db:"installation_detector_expected_path"`
+	InstallationDetectorVersionSource    *string `db:"installation_detector_version_source"`
+	InstallationDetectorAutomatic        bool    `db:"installation_detector_automatic"`
 }
 
 func newSoftwareWrite(params CreateMutation) softwareWrite {
 	return softwareWrite{
-		Name:         params.Name,
-		DisplayName:  dbutil.NullString(params.DisplayName),
-		Description:  params.Description,
-		Category:     params.Category,
-		Developer:    params.Developer,
-		IconObjectID: params.IconObjectID,
+		Name:                                 params.Name,
+		DisplayName:                          dbutil.NullString(params.DisplayName),
+		Description:                          params.Description,
+		Category:                             params.Category,
+		Developer:                            params.Developer,
+		IconObjectID:                         params.IconObjectID,
+		InstallationDetectorBundleIdentifier: detectorBundleIdentifier(params.InstallationDetector),
+		InstallationDetectorExpectedPath:     detectorExpectedPath(params.InstallationDetector),
+		InstallationDetectorVersionSource:    detectorVersionSource(params.InstallationDetector),
 	}
 }
 
 func newSoftwareUpdateWrite(params UpdateMutation) softwareWrite {
 	return softwareWrite{
-		DisplayName:  dbutil.NullString(params.DisplayName),
-		Description:  params.Description,
-		Category:     params.Category,
-		Developer:    params.Developer,
-		IconObjectID: params.IconObjectID,
+		DisplayName:                          dbutil.NullString(params.DisplayName),
+		Description:                          params.Description,
+		Category:                             params.Category,
+		Developer:                            params.Developer,
+		IconObjectID:                         params.IconObjectID,
+		InstallationDetectorBundleIdentifier: detectorBundleIdentifier(params.InstallationDetector),
+		InstallationDetectorExpectedPath:     detectorExpectedPath(params.InstallationDetector),
+		InstallationDetectorVersionSource:    detectorVersionSource(params.InstallationDetector),
 	}
+}
+
+func detectorBundleIdentifier(detector *InstallationDetector) *string {
+	if detector == nil {
+		return nil
+	}
+	return &detector.BundleIdentifier
+}
+
+func detectorExpectedPath(detector *InstallationDetector) *string {
+	if detector == nil || detector.ExpectedPath == "" {
+		return nil
+	}
+	return &detector.ExpectedPath
+}
+
+func detectorVersionSource(detector *InstallationDetector) *string {
+	if detector == nil {
+		return nil
+	}
+	value := string(detector.VersionSource)
+	return &value
+}
+
+func installationDetectorsEqual(left, right *InstallationDetector) bool {
+	if left == nil || right == nil {
+		return left == right
+	}
+	return *left == *right
 }
 
 func softwareSelectSQL() string {
@@ -358,6 +410,10 @@ SELECT
 	st.category,
 	st.developer,
 	st.icon_object_id,
+	st.installation_detector_bundle_identifier,
+	st.installation_detector_expected_path,
+	st.installation_detector_version_source,
+	st.installation_detector_automatic,
 	icon_obj.filename AS icon_filename,
 	icon_obj.size_bytes AS icon_size_bytes,
 	icon_obj.sha256 AS icon_sha256,
@@ -368,18 +424,22 @@ LEFT JOIN storage_objects icon_obj ON icon_obj.id = st.icon_object_id`
 }
 
 type softwareRow struct {
-	ID            int64     `db:"id"`
-	Name          string    `db:"name"`
-	DisplayName   *string   `db:"display_name"`
-	Description   string    `db:"description"`
-	Category      string    `db:"category"`
-	Developer     string    `db:"developer"`
-	IconObjectID  *int64    `db:"icon_object_id"`
-	IconFilename  *string   `db:"icon_filename"`
-	IconSizeBytes *int64    `db:"icon_size_bytes"`
-	IconSHA256    *string   `db:"icon_sha256"`
-	CreatedAt     time.Time `db:"created_at"`
-	UpdatedAt     time.Time `db:"updated_at"`
+	ID                                   int64     `db:"id"`
+	Name                                 string    `db:"name"`
+	DisplayName                          *string   `db:"display_name"`
+	Description                          string    `db:"description"`
+	Category                             string    `db:"category"`
+	Developer                            string    `db:"developer"`
+	IconObjectID                         *int64    `db:"icon_object_id"`
+	InstallationDetectorBundleIdentifier *string   `db:"installation_detector_bundle_identifier"`
+	InstallationDetectorExpectedPath     *string   `db:"installation_detector_expected_path"`
+	InstallationDetectorVersionSource    *string   `db:"installation_detector_version_source"`
+	InstallationDetectorAutomatic        bool      `db:"installation_detector_automatic"`
+	IconFilename                         *string   `db:"icon_filename"`
+	IconSizeBytes                        *int64    `db:"icon_size_bytes"`
+	IconSHA256                           *string   `db:"icon_sha256"`
+	CreatedAt                            time.Time `db:"created_at"`
+	UpdatedAt                            time.Time `db:"updated_at"`
 }
 
 func getSoftwareByID(ctx context.Context, q dbutil.Queryer, id int64) (*Software, error) {
@@ -393,16 +453,18 @@ func getSoftwareByID(ctx context.Context, q dbutil.Queryer, id int64) (*Software
 
 func softwareFromRow(row softwareRow) Software {
 	software := Software{
-		ID:           row.ID,
-		Name:         row.Name,
-		DisplayName:  row.DisplayName,
-		Description:  row.Description,
-		Category:     row.Category,
-		Developer:    row.Developer,
-		IconObjectID: row.IconObjectID,
-		IconURL:      IconURL(row.IconObjectID),
-		CreatedAt:    row.CreatedAt,
-		UpdatedAt:    row.UpdatedAt,
+		ID:                            row.ID,
+		Name:                          row.Name,
+		DisplayName:                   row.DisplayName,
+		Description:                   row.Description,
+		Category:                      row.Category,
+		Developer:                     row.Developer,
+		IconObjectID:                  row.IconObjectID,
+		IconURL:                       IconURL(row.IconObjectID),
+		InstallationDetector:          installationDetectorFromRow(row),
+		InstallationDetectorAutomatic: row.InstallationDetectorAutomatic,
+		CreatedAt:                     row.CreatedAt,
+		UpdatedAt:                     row.UpdatedAt,
 	}
 	if row.IconObjectID != nil && row.IconFilename != nil {
 		software.IconFile = &IconFile{
@@ -412,6 +474,17 @@ func softwareFromRow(row softwareRow) Software {
 		}
 	}
 	return software
+}
+
+func installationDetectorFromRow(row softwareRow) *InstallationDetector {
+	if row.InstallationDetectorBundleIdentifier == nil || row.InstallationDetectorVersionSource == nil {
+		return nil
+	}
+	return &InstallationDetector{
+		BundleIdentifier: *row.InstallationDetectorBundleIdentifier,
+		ExpectedPath:     stringOrEmpty(row.InstallationDetectorExpectedPath),
+		VersionSource:    InstallationDetectorVersionSource(*row.InstallationDetectorVersionSource),
+	}
 }
 
 func valueOrZero(value *int64) int64 {

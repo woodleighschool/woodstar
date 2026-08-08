@@ -16,8 +16,9 @@ import type {
   MunkiObjectView,
   MunkiSoftwareDetail,
   MunkiUpdateMutation,
+  PageDeploymentHost,
   PageMunkiObjectView,
-  PageSoftware,
+  PageSoftwareWithDeployment,
 } from "@lib/api";
 import {
   bulkDeleteMunkiSoftware,
@@ -27,17 +28,19 @@ import {
   getMunkiSoftware,
   listMunkiIcons,
   listMunkiSoftware,
+  listMunkiSoftwareHosts,
   setMunkiSoftwareIcon,
   unwrap,
   updateMunkiSoftware,
 } from "@lib/api";
-import type { ListMunkiSoftwareData } from "@lib/api-client/types.gen";
+import type { ListMunkiSoftwareData, ListMunkiSoftwareHostsData } from "@lib/api-client/types.gen";
 import { baseListParams, MAX_PAGE_SIZE } from "@lib/pagination";
 import { detailPath } from "@lib/route-params";
 
 import { uploadRequestFromTarget } from "../upload";
 
 type MunkiListParams = NonNullable<ListMunkiSoftwareData["query"]>;
+type MunkiSoftwareHostListParams = NonNullable<ListMunkiSoftwareHostsData["query"]>;
 type IconUploadVariables = { softwareId: number; file: File };
 type QueryParams = Record<string, unknown>;
 
@@ -47,6 +50,8 @@ const munkiSoftwareKeys = {
   root: [...munkiRoot, "software"] as const,
   list: (params: QueryParams) => [...munkiRoot, "software", "list", params] as const,
   detail: (id: number | null) => [...munkiRoot, "software", "detail", id] as const,
+  hosts: (id: number | null, params: QueryParams) =>
+    [...munkiRoot, "software", "detail", id, "hosts", "list", params] as const,
   iconList: (params: QueryParams) => [...munkiRoot, "icons", "list", params] as const,
 };
 
@@ -64,7 +69,7 @@ export function munkiSoftwareQueryOptions(id: number | null) {
 
 export function useMunkiSoftware(params: MunkiListParams = {}) {
   const query = baseListParams(params);
-  return useQuery<PageSoftware, ApiError>({
+  return useQuery<PageSoftwareWithDeployment, ApiError>({
     queryKey: munkiSoftwareKeys.list(query),
     queryFn: ({ signal }) => unwrap(listMunkiSoftware({ query, signal })),
     placeholderData: keepPreviousData,
@@ -73,6 +78,22 @@ export function useMunkiSoftware(params: MunkiListParams = {}) {
 
 export function useMunkiSoftwareDetail(id: number | null) {
   return useQuery(munkiSoftwareQueryOptions(id));
+}
+
+export function useMunkiSoftwareHosts(id: number | null, params: MunkiSoftwareHostListParams = {}) {
+  const query = {
+    ...baseListParams(params),
+    status: params.status,
+    munki_result: params.munki_result,
+    action: params.action,
+  };
+  return useQuery<PageDeploymentHost, ApiError>({
+    queryKey: munkiSoftwareKeys.hosts(id, query),
+    queryFn: ({ signal }) =>
+      unwrap(listMunkiSoftwareHosts({ path: detailPath(id), query, signal })),
+    enabled: id !== null,
+    placeholderData: keepPreviousData,
+  });
 }
 
 export function useCreateMunkiSoftware() {

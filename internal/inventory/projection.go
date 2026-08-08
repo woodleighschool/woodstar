@@ -4,6 +4,8 @@ import (
 	"context"
 
 	"github.com/jackc/pgx/v5"
+
+	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
 // ReplaceHostSoftware replaces a host's software snapshot in one transaction.
@@ -16,6 +18,16 @@ func (s *Store) ReplaceHostSoftware(ctx context.Context, hostID int64, entries [
 			if err := replaceHostSoftwareEntry(ctx, tx, hostID, entry); err != nil {
 				return err
 			}
+		}
+		tag, err := tx.Exec(ctx, `
+UPDATE hosts
+SET software_inventory_updated_at = now()
+WHERE id = $1`, hostID)
+		if err != nil {
+			return err
+		}
+		if tag.RowsAffected() == 0 {
+			return dbutil.ErrNotFound
 		}
 		return nil
 	})
@@ -41,7 +53,7 @@ func replaceHostSoftwareEntry(ctx context.Context, tx pgx.Tx, hostID int64, entr
 INSERT INTO host_software (host_id, software_id, last_opened_at)
 VALUES ($1, $2, $3)
 ON CONFLICT (host_id, software_id) DO UPDATE SET
-    last_opened_at = EXCLUDED.last_opened_at`,
+	last_opened_at = EXCLUDED.last_opened_at`,
 		hostID, softwareID, entry.LastOpenedAt,
 	); err != nil {
 		return err
@@ -52,15 +64,19 @@ ON CONFLICT (host_id, software_id) DO UPDATE SET
 	_, err = tx.Exec(ctx, `
 INSERT INTO host_software_installed_paths (
     host_id, software_id, installed_path,
+    bundle_short_version, bundle_version,
     identifier, signing_authority, team_identifier,
     cdhash_sha256, executable_sha256, executable_path
 )
 VALUES (
     $1, $2, $3,
-    $4, $5, $6,
-    NULLIF($7::text, ''), NULLIF($8::text, ''), NULLIF($9::text, '')
+    $4, $5,
+    $6, $7, $8,
+    NULLIF($9::text, ''), NULLIF($10::text, ''), NULLIF($11::text, '')
 )
 ON CONFLICT (host_id, software_id, installed_path) DO UPDATE SET
+    bundle_short_version = EXCLUDED.bundle_short_version,
+    bundle_version = EXCLUDED.bundle_version,
     identifier = EXCLUDED.identifier,
     signing_authority = EXCLUDED.signing_authority,
     team_identifier = EXCLUDED.team_identifier,
@@ -69,6 +85,7 @@ ON CONFLICT (host_id, software_id, installed_path) DO UPDATE SET
     executable_path = EXCLUDED.executable_path`,
 		hostID, softwareID,
 		entry.InstalledPath,
+		entry.BundleShortVersion, entry.BundleVersion,
 		entry.Identifier, entry.SigningAuthority, entry.TeamIdentifier,
 		entry.CDHashSHA256, entry.ExecutableSHA256, entry.ExecutablePath,
 	)

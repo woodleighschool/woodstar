@@ -3,6 +3,7 @@ package software
 import (
 	"fmt"
 	"reflect"
+	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 
@@ -76,10 +77,14 @@ type EffectivePackage struct {
 
 // HostManifestSoftware is one Woodstar software item resolved into a host's manifest.
 type HostManifestSoftware struct {
-	Software    packages.PackageSoftware         `json:"software"`
-	Package     HostManifestPackage              `json:"package"`
-	Actions     []Action                         `json:"actions" nullable:"false"`
-	Observation *HostManifestSoftwareObservation `json:"observation,omitempty"`
+	Software         packages.PackageSoftware `json:"software"`
+	Package          HostManifestPackage      `json:"package"`
+	Actions          []Action                 `json:"actions" nullable:"false"`
+	Status           InstallationStatus       `json:"status"`
+	InstalledVersion string                   `json:"installed_version,omitempty"`
+	MunkiResult      MunkiResult              `json:"munki_result"`
+	TargetVersion    string                   `json:"target_version,omitempty"`
+	LastCollectedAt  *time.Time               `json:"last_collected_at,omitempty"`
 }
 
 // HostManifestPackage describes the package selection served for host software.
@@ -99,14 +104,6 @@ type HostManifestSpecificPackage struct {
 	Strategy string `json:"strategy" enum:"specific"`
 	ID       int64  `json:"id"                 minimum:"1"`
 	Version  string `json:"version"            minLength:"1"`
-}
-
-// HostManifestSoftwareObservation is the exact-name Munki report for desired software.
-type HostManifestSoftwareObservation struct {
-	DisplayName      string `json:"display_name"`
-	Installed        bool   `json:"installed"`
-	InstalledVersion string `json:"installed_version"`
-	TargetVersion    string `json:"target_version"`
 }
 
 // HostManifestSoftwareListParams controls the desired software page for one host.
@@ -165,7 +162,44 @@ func (targets Targets) validate() error {
 	if err := targeting.ValidateTargets(targets.Include, targets.Exclude, includeLabelID); err != nil {
 		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
 	}
+	for _, include := range targets.Include {
+		if !validActions(include.Actions) {
+			return fmt.Errorf("%w: invalid action combination", dbutil.ErrInvalidInput)
+		}
+	}
 	return nil
+}
+
+func validActions(actions []Action) bool {
+	if len(actions) == 0 {
+		return false
+	}
+	seen := make(map[Action]struct{}, len(actions))
+	for _, action := range actions {
+		if _, ok := seen[action]; ok {
+			return false
+		}
+		seen[action] = struct{}{}
+	}
+	if (containsAction(seen, ActionFeaturedItems) || containsAction(seen, ActionDefaultInstalls)) &&
+		!containsAction(seen, ActionOptionalInstalls) {
+		return false
+	}
+	if len(actions) == 1 {
+		return true
+	}
+	if containsAction(seen, ActionManagedInstalls) || containsAction(seen, ActionManagedUninstalls) {
+		return false
+	}
+	if !containsAction(seen, ActionOptionalInstalls) {
+		return false
+	}
+	return true
+}
+
+func containsAction(actions map[Action]struct{}, action Action) bool {
+	_, ok := actions[action]
+	return ok
 }
 
 func includeLabelID(include Include) int64 {
