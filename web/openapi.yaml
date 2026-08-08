@@ -263,6 +263,8 @@ components:
         public_ip:
           format: ip
           type: string
+        public_ip_details:
+          $ref: "#/components/schemas/PublicIPDetails"
         status:
           enum:
             - online
@@ -481,6 +483,8 @@ components:
         public_ip:
           format: ip
           type: string
+        public_ip_details:
+          $ref: "#/components/schemas/PublicIPDetails"
         status:
           enum:
             - online
@@ -2948,6 +2952,44 @@ components:
         - hash_sha256
         - executable_sha256
         - executable_path
+      type: object
+    PublicIPDetails:
+      additionalProperties: false
+      properties:
+        asn:
+          format: int32
+          minimum: 0
+          type: integer
+        city:
+          type: string
+        country:
+          type: string
+        country_code:
+          type: string
+        distribution_point:
+          $ref: "#/components/schemas/PublicIPDistributionPoint"
+        latitude:
+          format: double
+          type: number
+        longitude:
+          format: double
+          type: number
+        organization:
+          type: string
+        region:
+          type: string
+      type: object
+    PublicIPDistributionPoint:
+      additionalProperties: false
+      properties:
+        id:
+          format: int64
+          type: integer
+        name:
+          type: string
+      required:
+        - id
+        - name
       type: object
     SantaConfiguration:
       additionalProperties: false

@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
@@ -21,8 +23,11 @@ import (
 	"github.com/woodleighschool/woodstar/internal/api/ctxkeys"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/directory"
+	"github.com/woodleighschool/woodstar/internal/geoip"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
+	"github.com/woodleighschool/woodstar/internal/munki/mdp"
+	"github.com/woodleighschool/woodstar/internal/storage"
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
 )
 
@@ -42,7 +47,7 @@ func TestDeleteHostsDecodesCollectionIDs(t *testing.T) {
 	}
 
 	router := hostTestRouter(t, func(api huma.API) {
-		RegisterHosts(api, store, nil, nil, nil, discardLogger())
+		RegisterHosts(api, store, nil, nil, nil, nil, nil, discardLogger())
 	})
 	for _, path := range []string{"/api/hosts", "/api/hosts?ids="} {
 		rec := hostAPIRequest(t, router, http.MethodDelete, path, "")
@@ -119,7 +124,7 @@ RETURNING id`).Scan(&manualUserID); err != nil {
 	}
 
 	router := hostTestRouter(t, func(api huma.API) {
-		RegisterHosts(api, hostStore, primaryUsers, nil, nil, discardLogger())
+		RegisterHosts(api, hostStore, primaryUsers, nil, nil, nil, nil, discardLogger())
 	})
 	rec := hostAPIRequest(
 		t,
@@ -187,7 +192,9 @@ VALUES ($1, 'osquery', $2, '198.51.100.40', 'osquery/5.14')`, host.ID, now); err
 	munkiVersions := &testAgentVersionLoader{versions: map[int64]string{host.ID: "6.6.0"}}
 	santaVersions := &testAgentVersionLoader{versions: map[int64]string{host.ID: "2026.4"}}
 	router := hostTestRouter(t, func(api huma.API) {
-		RegisterHosts(api, hostStore, nil, munkiVersions, santaVersions, discardLogger())
+		RegisterHosts(
+			api, hostStore, nil, munkiVersions, santaVersions, nil, nil, discardLogger(),
+		)
 	})
 
 	listRec := hostAPIRequest(t, router, http.MethodGet, "/api/hosts", "")
@@ -233,6 +240,89 @@ VALUES ($1, 'osquery', $2, '198.51.100.40', 'osquery/5.14')`, host.ID, now); err
 			}
 		}
 	}
+}
+
+func TestHostResponsesEnrichPublicIP(t *testing.T) {
+	db, ctx := testdb.Open(t)
+	hostStore := hosts.NewStore(db)
+	host, err := hostStore.UpsertOnOsqueryEnroll(ctx, hosts.InventoryUpdate{
+		Hardware:       hosts.HostHardware{UUID: "host-public-ip-enrichment"},
+		OsqueryNodeKey: "host-public-ip-enrichment-osquery",
+	})
+	if err != nil {
+		t.Fatalf("enroll host: %v", err)
+	}
+	if _, err := db.Pool().Exec(ctx, `
+INSERT INTO host_heartbeats (host_id, source, last_seen_at, remote_ip, user_agent)
+VALUES ($1, 'osquery', now(), '198.51.100.40', 'osquery/5.14')`, host.ID); err != nil {
+		t.Fatalf("insert heartbeat: %v", err)
+	}
+	distribution := mdp.NewStore(
+		db,
+		storage.NewObjectStore(db, nil, discardLogger()),
+		discardLogger(),
+	)
+	point, err := distribution.Create(ctx, mdp.DistributionPointMutation{
+		Name:          "Senior Campus",
+		Enabled:       true,
+		ClientCIDRs:   []string{"198.51.100.0/24"},
+		ClientBaseURL: "https://mdp.example",
+	}, "test-host-enrichment-key")
+	if err != nil {
+		t.Fatalf("create distribution point: %v", err)
+	}
+	geo := &testGeoIPLookup{result: &geoip.Result{
+		CountryCode:  "AU",
+		Country:      "Australia",
+		Region:       "Victoria",
+		City:         "Langwarrin",
+		Latitude:     -38.15,
+		Longitude:    145.12,
+		ASN:          1221,
+		Organization: "Telstra",
+	}}
+	router := hostTestRouter(t, func(api huma.API) {
+		RegisterHosts(api, hostStore, nil, nil, nil, distribution, geo.Lookup, discardLogger())
+	})
+
+	listRec := hostAPIRequest(t, router, http.MethodGet, "/api/hosts", "")
+	var list Page[hosts.Host]
+	if listRec.Code != http.StatusOK {
+		t.Fatalf("list status = %d; body = %q", listRec.Code, listRec.Body.String())
+	}
+	if err := json.Unmarshal(listRec.Body.Bytes(), &list); err != nil {
+		t.Fatalf("decode host list: %v", err)
+	}
+	detailRec := hostAPIRequest(t, router, http.MethodGet, fmt.Sprintf("/api/hosts/%d", host.ID), "")
+	var detail hosts.HostDetail
+	if detailRec.Code != http.StatusOK {
+		t.Fatalf("detail status = %d; body = %q", detailRec.Code, detailRec.Body.String())
+	}
+	if err := json.Unmarshal(detailRec.Body.Bytes(), &detail); err != nil {
+		t.Fatalf("decode host detail: %v", err)
+	}
+
+	listDetails := list.Items[0].PublicIPDetails
+	if listDetails == nil || listDetails.DistributionPoint == nil {
+		t.Fatalf("list public IP details = %+v", listDetails)
+	}
+	if listDetails.DistributionPoint.ID != point.ID ||
+		listDetails.DistributionPoint.Name != "Senior Campus" ||
+		listDetails.City != "Langwarrin" ||
+		listDetails.ASN != 1221 {
+		t.Fatalf("list public IP details = %+v", listDetails)
+	}
+	if !reflect.DeepEqual(detail.PublicIPDetails, listDetails) {
+		t.Fatalf("detail public IP details = %+v, want %+v", detail.PublicIPDetails, listDetails)
+	}
+}
+
+type testGeoIPLookup struct {
+	result *geoip.Result
+}
+
+func (l *testGeoIPLookup) Lookup(_ netip.Addr) (*geoip.Result, error) {
+	return l.result, nil
 }
 
 type testAgentVersionLoader struct {

@@ -9,6 +9,7 @@
 /bin/
 /woodstar
 /tmp/
+/.cache/
 /.gocache/
 __pycache__/
 build-errors.log

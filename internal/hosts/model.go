@@ -88,6 +88,7 @@ type Host struct {
 	Network            HostNetwork             `json:"network"`
 	Agents             HostAgents              `json:"agents"`
 	PublicIP           *netip.Addr             `json:"public_ip,omitempty"`
+	PublicIPDetails    *PublicIPDetails        `json:"public_ip_details,omitempty"`
 	LastContact        *time.Time              `json:"last_contact,omitempty"`
 	Heartbeats         []heartbeats.Heartbeat  `json:"heartbeats"`
 	PrimaryUser        *HostPrimaryUser        `json:"primary_user,omitempty"`
@@ -100,6 +101,25 @@ type Host struct {
 	OrbitNodeKey       string `json:"-"`
 	OsqueryNodeKey     string `json:"-"`
 	InventoryQueryHash string `json:"-"`
+}
+
+// PublicIPDetails is optional meaning attached to a host's observed public IP.
+type PublicIPDetails struct {
+	DistributionPoint *PublicIPDistributionPoint `json:"distribution_point,omitempty"`
+	City              string                     `json:"city,omitempty"`
+	Region            string                     `json:"region,omitempty"`
+	CountryCode       string                     `json:"country_code,omitempty"`
+	Country           string                     `json:"country,omitempty"`
+	Latitude          *float64                   `json:"latitude,omitempty"`
+	Longitude         *float64                   `json:"longitude,omitempty"`
+	ASN               uint32                     `json:"asn,omitempty"`
+	Organization      string                     `json:"organization,omitempty"`
+}
+
+// PublicIPDistributionPoint identifies the first ordered MDP matching a host.
+type PublicIPDistributionPoint struct {
+	ID   int64  `json:"id"`
+	Name string `json:"name"`
 }
 
 type HostEnrollment struct {

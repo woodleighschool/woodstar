@@ -125,6 +125,7 @@ export type Host = {
     primary_user?: HostPrimaryUser;
     primary_user_sources: Array<HostPrimaryUserSource>;
     public_ip?: string;
+    public_ip_details?: PublicIpDetails;
     status: 'online' | 'offline';
     storage: HostStorage;
     updated_at: string;
@@ -201,6 +202,7 @@ export type HostDetail = {
     primary_user?: HostPrimaryUser;
     primary_user_sources: Array<HostPrimaryUserSource>;
     public_ip?: string;
+    public_ip_details?: PublicIpDetails;
     status: 'online' | 'offline';
     storage: HostStorage;
     updated_at: string;
@@ -1075,6 +1077,23 @@ export type PathSignatureInformation = {
     team_identifier: string;
 };
 
+export type PublicIpDetails = {
+    asn?: number;
+    city?: string;
+    country?: string;
+    country_code?: string;
+    distribution_point?: PublicIpDistributionPoint;
+    latitude?: number;
+    longitude?: number;
+    organization?: string;
+    region?: string;
+};
+
+export type PublicIpDistributionPoint = {
+    id: number;
+    name: string;
+};
+
 export type SantaConfiguration = {
     allowed_path_regex?: string;
     batch_size: number;
@@ -1420,6 +1439,7 @@ export type HostDetailWritable = {
     primary_user?: HostPrimaryUser;
     primary_user_sources: Array<HostPrimaryUserSource>;
     public_ip?: string;
+    public_ip_details?: PublicIpDetails;
     status: 'online' | 'offline';
     storage: HostStorage;
     updated_at: string;

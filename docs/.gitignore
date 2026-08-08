@@ -7,3 +7,7 @@
 # Generated files
 .docusaurus
 .cache-loader
+/content/api/*.mdx
+/content/api/*.json
+/content/api/sidebar.ts
+

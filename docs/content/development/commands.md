@@ -25,10 +25,13 @@ mise run dev-backend
 mise run //web:dev
 mise run build
 mise run backend
+mise run geoip
 mise run //web:build
 ```
 
 `mise run build` builds the frontend and embeds the result in the `woodstar` binary.
+
+`mise run geoip` downloads the current DB-IP City Lite and ASN Lite databases into the gitignored `.cache/geoip` directory. `dev-backend` and the default Go test task run it automatically and reuse the current month's files.
 
 ## Tests
 

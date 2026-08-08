@@ -23,6 +23,7 @@ import { Input } from "@components/ui/input";
 import { Separator } from "@components/ui/separator";
 import { ValidatedFormField } from "@components/validated-form-field";
 import { useAuth } from "@features/auth/queries";
+import { HostPublicIP } from "@features/hosts/components/host-public-ip";
 import { manualPrimaryUserSource } from "@features/hosts/primary-user";
 import { primaryUserSourceLabel } from "@features/hosts/primary-user-source-labels";
 import { useClearHostPrimaryUser, useSetHostPrimaryUser } from "@features/hosts/queries";
@@ -83,7 +84,7 @@ export function HostInfoCard({ host }: { host: HostDetail }) {
       {host.hardware.cpu.architecture ? (
         <KeyValueRow label="Architecture" value={host.hardware.cpu.architecture} />
       ) : null}
-      <KeyValueRow label="Public IP Address" value={host.public_ip} />
+      <KeyValueRow label="Public IP Address" value={<HostPublicIP host={host} showAddress />} />
       <KeyValueRow label="Serial Number" value={host.hardware.serial} />
     </KeyValueSection>
   );

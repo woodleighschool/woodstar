@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/netip"
 	"time"
 
 	"github.com/CAFxX/httpcompression"
@@ -24,6 +25,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/config"
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/directory"
+	"github.com/woodleighschool/woodstar/internal/geoip"
 	"github.com/woodleighschool/woodstar/internal/heartbeats"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/inventory"
@@ -87,6 +89,7 @@ type AppDependencies struct {
 	Secrets     *agentauth.Store
 	Software    *inventory.Store
 	Labels      *labels.Store
+	GeoIP       func(netip.Addr) (*geoip.Result, error)
 
 	Reports     *reports.Store
 	Checks      *checks.Store
@@ -381,6 +384,8 @@ func registerAppRoutes(
 		deps.App.PrimaryUser,
 		deps.App.MunkiHostState,
 		deps.App.SantaState,
+		deps.App.MunkiDistribution,
+		deps.App.GeoIP,
 		apiLogger,
 	)
 	handlers.RegisterInventory(ordinary, deps.App.Software, apiLogger)
