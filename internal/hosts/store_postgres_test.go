@@ -274,6 +274,68 @@ func TestEnrollAddsHostToAllHosts(t *testing.T) {
 	}
 }
 
+func TestReenrollRotatesHostID(t *testing.T) {
+	store, ctx := newPostgresHostStore(t)
+
+	const hardwareUUID = "test-reenroll-rotates-host-id"
+	host, err := store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
+		Hardware:     HostHardware{UUID: hardwareUUID},
+		OrbitNodeKey: "orbit-key-initial",
+	})
+	if err != nil {
+		t.Fatalf("enroll host with Orbit: %v", err)
+	}
+	attached, err := store.UpsertOnOsqueryEnroll(ctx, InventoryUpdate{
+		Hardware:       HostHardware{UUID: hardwareUUID},
+		OsqueryNodeKey: "osquery-key-initial",
+	})
+	if err != nil {
+		t.Fatalf("enroll host with osquery: %v", err)
+	}
+	if attached.ID != host.ID {
+		t.Fatalf("first osquery enrollment host ID = %d, want Orbit host ID %d", attached.ID, host.ID)
+	}
+
+	assertRotatedID := func(previousID int64, reenrolled *Host) {
+		t.Helper()
+		if reenrolled.ID == previousID {
+			t.Fatalf("re-enrolled host ID = %d, want a new ID", reenrolled.ID)
+		}
+		if _, err := store.GetByID(ctx, previousID); !errors.Is(err, dbutil.ErrNotFound) {
+			t.Fatalf("get previous host %d error = %v, want ErrNotFound", previousID, err)
+		}
+	}
+
+	orbitReplacement, err := store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
+		Hardware:     HostHardware{UUID: hardwareUUID},
+		OrbitNodeKey: "orbit-key-reenrolled",
+	})
+	if err != nil {
+		t.Fatalf("re-enroll host with Orbit: %v", err)
+	}
+	assertRotatedID(host.ID, orbitReplacement)
+
+	osqueryAttached, err := store.UpsertOnOsqueryEnroll(ctx, InventoryUpdate{
+		Hardware:       HostHardware{UUID: hardwareUUID},
+		OsqueryNodeKey: "osquery-key-attached",
+	})
+	if err != nil {
+		t.Fatalf("attach osquery to replacement host: %v", err)
+	}
+	if osqueryAttached.ID != orbitReplacement.ID {
+		t.Fatalf("first osquery enrollment host ID = %d, want replacement ID %d", osqueryAttached.ID, orbitReplacement.ID)
+	}
+
+	osqueryReplacement, err := store.UpsertOnOsqueryEnroll(ctx, InventoryUpdate{
+		Hardware:       HostHardware{UUID: hardwareUUID},
+		OsqueryNodeKey: "osquery-key-reenrolled",
+	})
+	if err != nil {
+		t.Fatalf("re-enroll host with osquery: %v", err)
+	}
+	assertRotatedID(orbitReplacement.ID, osqueryReplacement)
+}
+
 func TestGetByHardwareSerialRequiresUniqueRealSerial(t *testing.T) {
 	store, ctx := newPostgresHostStore(t)
 

@@ -57,9 +57,9 @@ func NewEnrollmentService(
 	}
 }
 
-// Enroll validates the request, upserts the host, and returns a fresh node key.
-// Re-enrollment of the same hardware UUID overwrites the existing key, so prior
-// keys stop authenticating immediately.
+// Enroll validates the request, enrolls the host, and returns a fresh node key.
+// Re-enrollment of existing Orbit hardware replaces the host, so all prior
+// host state and keys stop applying immediately.
 func (s *EnrollmentService) Enroll(ctx context.Context, req EnrollRequest, contact heartbeats.Contact) (*hosts.Host, string, error) {
 	if req.HardwareUUID == "" {
 		return nil, "", enrollment.ErrMissingHardwareUUID

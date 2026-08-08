@@ -2,6 +2,7 @@ package hosts
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -11,7 +12,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/labels"
 )
 
-// UpsertOnOrbitEnroll creates or refreshes a host from Orbit enroll.
+// UpsertOnOrbitEnroll attaches Orbit to a host or replaces one that already has Orbit enrollment state.
 func (s *Store) UpsertOnOrbitEnroll(ctx context.Context, update InventoryUpdate) (*Host, error) {
 	write := orbitEnrollWrite{
 		HardwareUUID:            update.Hardware.UUID,
@@ -22,7 +23,9 @@ func (s *Store) UpsertOnOrbitEnroll(ctx context.Context, update InventoryUpdate)
 		HardwareModelIdentifier: update.Hardware.ModelIdentifier,
 		OrbitNodeKey:            update.OrbitNodeKey,
 	}
-	return upsertOnEnroll(ctx, s.db, `
+	return enrollHost(ctx, s.db, `
+DELETE FROM hosts
+WHERE hardware_uuid = @hardware_uuid AND orbit_node_key <> ''`, `
 INSERT INTO hosts (
 	hardware_uuid,
 	display_name,
@@ -59,7 +62,7 @@ ON CONFLICT (hardware_uuid) DO UPDATE SET
 RETURNING id`, write)
 }
 
-// UpsertOnOsqueryEnroll creates or refreshes a host from osquery enroll.
+// UpsertOnOsqueryEnroll attaches osquery to a host or replaces one that already has osquery enrollment state.
 func (s *Store) UpsertOnOsqueryEnroll(ctx context.Context, update InventoryUpdate) (*Host, error) {
 	write := osqueryEnrollWrite{
 		HardwareUUID:            update.Hardware.UUID,
@@ -84,7 +87,9 @@ func (s *Store) UpsertOnOsqueryEnroll(ctx context.Context, update InventoryUpdat
 		HardwareVendor:          update.Hardware.Vendor,
 		OSKernelVersion:         update.OS.KernelVersion,
 	}
-	return upsertOnEnroll(ctx, s.db, `
+	return enrollHost(ctx, s.db, `
+DELETE FROM hosts
+WHERE hardware_uuid = @hardware_uuid AND osquery_node_key <> ''`, `
 INSERT INTO hosts (
 	hardware_uuid,
 	display_name,
@@ -163,12 +168,21 @@ ON CONFLICT (hardware_uuid) DO UPDATE SET
 RETURNING id`, write)
 }
 
-func upsertOnEnroll[W any](ctx context.Context, db *database.DB, sql string, write W) (*Host, error) {
+func enrollHost[W any](
+	ctx context.Context,
+	db *database.DB,
+	deleteReenrolledHostSQL string,
+	upsertSQL string,
+	write W,
+) (*Host, error) {
 	now := time.Now()
 	var host Host
 	err := db.WithTx(ctx, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, deleteReenrolledHostSQL, pgx.StructArgs(write)); err != nil {
+			return fmt.Errorf("replace host on re-enrollment: %w", err)
+		}
 		var hostID int64
-		if err := tx.QueryRow(ctx, sql, pgx.StructArgs(write)).Scan(&hostID); err != nil {
+		if err := tx.QueryRow(ctx, upsertSQL, pgx.StructArgs(write)).Scan(&hostID); err != nil {
 			return err
 		}
 		row, err := dbutil.GetOne[hostRow](ctx, tx, hostSelectSQL()+"\nWHERE hosts.id = $1", hostID)
@@ -176,7 +190,7 @@ func upsertOnEnroll[W any](ctx context.Context, db *database.DB, sql string, wri
 			return err
 		}
 		host = hostFromRow(row, now)
-		_, err = tx.Exec(ctx, `
+		if _, err := tx.Exec(ctx, `
 INSERT INTO label_membership (label_id, host_id)
 SELECT id, @host_id
 FROM labels
@@ -185,8 +199,10 @@ ON CONFLICT (label_id, host_id) DO NOTHING`,
 			pgx.NamedArgs{
 				"host_id":     host.ID,
 				"builtin_key": string(labels.BuiltinKeyAllHosts),
-			})
-		return err
+			}); err != nil {
+			return fmt.Errorf("restore All Hosts membership: %w", err)
+		}
+		return nil
 	})
 	if err != nil {
 		return nil, err
