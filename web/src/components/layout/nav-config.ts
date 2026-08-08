@@ -93,11 +93,6 @@ const navSections: NavMenu[] = [
             permission: { resource: "santa.configurations", access: "view" },
           },
           {
-            label: "Rules",
-            to: "/santa/rules",
-            permission: { resource: "santa.rules", access: "view" },
-          },
-          {
             label: "Events",
             to: "/santa/events",
             permission: { resource: "santa.events", access: "view" },

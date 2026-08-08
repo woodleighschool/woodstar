@@ -1,5 +1,5 @@
 import { useNavigate, useParams } from "@tanstack/react-router";
-import { Pencil, Trash2 } from "lucide-react";
+import { ListChecks, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import { BooleanIndicator } from "@components/boolean-indicator";
@@ -48,29 +48,48 @@ export function ConfigurationDetailPage() {
       <PageHeader
         title="Configuration Details"
         actions={
-          canEdit ? (
-            <>
-              <Button
-                size="sm"
-                render={
-                  <Link to="/santa/configurations/$id/edit" params={{ id: configuration.id }} />
-                }
-                nativeButton={false}
-              >
-                <Pencil data-icon="inline-start" />
-                Edit
-              </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                size="sm"
-                onClick={() => setDeleteOpen(true)}
-              >
-                <Trash2 data-icon="inline-start" />
-                Delete
-              </Button>
-            </>
-          ) : null
+          <>
+            <Button
+              size="sm"
+              variant="outline"
+              render={
+                <Link
+                  to="/santa/configurations/$id/rules"
+                  params={{ id: configuration.id }}
+                />
+              }
+              nativeButton={false}
+            >
+              <ListChecks data-icon="inline-start" />
+              Rules
+            </Button>
+            {canEdit ? (
+              <>
+                <Button
+                  size="sm"
+                  render={
+                    <Link
+                      to="/santa/configurations/$id/edit"
+                      params={{ id: configuration.id }}
+                    />
+                  }
+                  nativeButton={false}
+                >
+                  <Pencil data-icon="inline-start" />
+                  Edit
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setDeleteOpen(true)}
+                >
+                  <Trash2 data-icon="inline-start" />
+                  Delete
+                </Button>
+              </>
+            ) : null}
+          </>
         }
       />
 
