@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.8.3](https://github.com/woodleighschool/woodstar/compare/0.8.2...0.8.3) (2026-08-08)
+
+
+### Features
+
+* **deps:** update dependency @types/node (26.1.2 → 26.2.0) ([#145](https://github.com/woodleighschool/woodstar/issues/145)) ([bb5c783](https://github.com/woodleighschool/woodstar/commit/bb5c783f52ffba060a4f67bdd394ce8b9346d4b2))
+* **mise:** Update Node toolchain ([#147](https://github.com/woodleighschool/woodstar/issues/147)) ([3424bf6](https://github.com/woodleighschool/woodstar/commit/3424bf63479db51916c95c646e7d59c53acf74e8))
+
+
+### Bug Fixes
+
+* **hosts:** restore public IP enrichment ([d75d2a2](https://github.com/woodleighschool/woodstar/commit/d75d2a2ff1c92fc0351e422abb66a319c84b8121))
+
+
+### Documentation
+
+* **config:** document GeoIP databases ([f1213fc](https://github.com/woodleighschool/woodstar/commit/f1213fcd5786cde3034f2d2621cc48d5f41e5fe0))
+
 ## [0.8.2](https://github.com/woodleighschool/woodstar/compare/0.8.1...0.8.2) (2026-08-08)
 
 
