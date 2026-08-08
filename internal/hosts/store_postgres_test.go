@@ -449,6 +449,104 @@ func TestHostListFiltersAndSortsByFlattenedContactFields(t *testing.T) {
 	}
 }
 
+func TestHostListSearchesPersistedIdentityNetworkAndPrimaryUserFields(t *testing.T) {
+	store, ctx := newPostgresHostStore(t)
+	primaryUsers := NewPrimaryUserStore(store.db)
+	host, err := store.UpsertOnOsqueryEnroll(ctx, InventoryUpdate{
+		ComputerName:   "Searchable Mac",
+		Hardware:       HostHardware{UUID: "test-search-host", Serial: "C02SEARCH123"},
+		OsqueryNodeKey: "test-search-node-key",
+	})
+	if err != nil {
+		t.Fatalf("enroll host: %v", err)
+	}
+	if err := store.ApplyInventory(ctx, host.ID, InventoryUpdate{
+		Hostname:     "searchable-mac.woodleigh.local",
+		ComputerName: "Searchable Mac",
+		Hardware: HostHardware{
+			Serial:          "C02SEARCH123",
+			Vendor:          "Apple Search Vendor",
+			ModelIdentifier: "MacSearch10,1",
+			CPU: HostCPU{
+				Architecture: "arm64-search",
+				Subtype:      "search-subtype",
+				Brand:        "Search Silicon",
+			},
+		},
+		OS: HostOS{
+			Platform:      "darwin-search",
+			Name:          "SearchOS",
+			Version:       "26.4-search",
+			Build:         "25ESEARCH",
+			KernelVersion: "search-kernel",
+		},
+		Network: InventoryNetwork{
+			PrimaryIP:  "10.44.55.66",
+			PrimaryMAC: "00:11:22:33:44:55",
+		},
+		Agents: HostAgents{
+			Osquery: HostOsqueryAgent{Version: "5.99-search"},
+			Orbit:   HostOrbitAgent{Version: "1.99-search"},
+		},
+	}); err != nil {
+		t.Fatalf("apply inventory: %v", err)
+	}
+	recordTestHeartbeat(
+		t, ctx, store, host.ID, heartbeats.SourceOsquery, time.Now(), "198.51.100.77", "",
+	)
+	if _, err := store.db.Pool().Exec(ctx, `
+INSERT INTO users (
+	email, name, source, external_id, user_principal_name,
+	mail_nickname, given_name, family_name, department
+)
+VALUES (
+	'search.person@woodleigh.vic.edu.au',
+	'Search Person',
+	'entra',
+	'test-search-person-entra',
+	'search.person@woodleigh.vic.edu.au',
+	'searchperson',
+	'Search',
+	'Person',
+	'Managed Devices'
+)`); err != nil {
+		t.Fatalf("insert directory user: %v", err)
+	}
+	if err := primaryUsers.Upsert(
+		ctx,
+		host.ID,
+		"search.person@woodleigh.vic.edu.au",
+		PrimaryUserSourceManual,
+	); err != nil {
+		t.Fatalf("set primary user: %v", err)
+	}
+
+	queries := []string{
+		"searchable-mac.woodleigh.local",
+		"C02SEARCH123",
+		"MacSearch10,1",
+		"Search Silicon",
+		"25ESEARCH",
+		"10.44.55.66",
+		"198.51.100.77",
+		"search.person@woodleigh.vic.edu.au",
+		"searchperson",
+		"Search Person",
+		"Managed Devices",
+	}
+	for _, query := range queries {
+		rows, count, err := store.List(ctx, HostListParams{
+			ListParams: dbutil.ListParams{Q: query},
+		})
+		if err != nil {
+			t.Fatalf("search %q: %v", query, err)
+		}
+		if count != 1 || len(rows) != 1 || rows[0].ID != host.ID {
+			t.Fatalf("search %q returned ids %v and count %d", query, hostIDs(rows), count)
+		}
+	}
+}
+
 func TestResolveSelectedTargetsMergesDirectHostsAndLabels(t *testing.T) {
 	store, ctx := newPostgresHostStore(t)
 	labelStore := labels.NewStore(store.db)
