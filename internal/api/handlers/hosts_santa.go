@@ -8,6 +8,7 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/santa"
+	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 	"github.com/woodleighschool/woodstar/internal/santa/rules"
 )
 
@@ -30,7 +31,12 @@ func registerHostSantaState(
 	)
 }
 
-func registerHostSantaRules(api huma.API, ruleStore *rules.Store, logger *slog.Logger) {
+func registerHostSantaRules(
+	api huma.API,
+	configurationStore *configurations.Store,
+	ruleStore *rules.Store,
+	logger *slog.Logger,
+) {
 	registerHostPage(
 		api,
 		"list-host-santa-rules",
@@ -41,7 +47,15 @@ func registerHostSantaRules(api huma.API, ruleStore *rules.Store, logger *slog.L
 			hostID int64,
 			params dbutil.ListParams,
 		) ([]rules.RuleStatus, int, error) {
-			return ruleStore.ListRuleStatusesForHost(ctx, hostID, rules.RuleStatusListParams{
+			configuration, err := configurationStore.ResolveConfigurationForHost(ctx, hostID)
+			if err != nil {
+				return nil, 0, err
+			}
+			var configurationID int64
+			if configuration != nil {
+				configurationID = configuration.ID
+			}
+			return ruleStore.ListRuleStatusesForHost(ctx, hostID, configurationID, rules.RuleStatusListParams{
 				ListParams: params,
 			})
 		},

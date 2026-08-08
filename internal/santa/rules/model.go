@@ -73,7 +73,8 @@ func (Policy) Schema(_ huma.Registry) *huma.Schema {
 type RuleListParams struct {
 	dbutil.ListParams
 
-	RuleTypes []RuleType `validate:"unique,dive,oneof=binary certificate teamid signingid cdhash bundle"`
+	ConfigurationIDs []int64    `validate:"unique,dive,gt=0"`
+	RuleTypes        []RuleType `validate:"unique,dive,oneof=binary certificate teamid signingid cdhash bundle"`
 }
 
 func (params *RuleListParams) normalize() {
@@ -89,13 +90,16 @@ func (params *RuleListParams) validate() error {
 }
 
 type RuleMutation struct {
-	RuleType      RuleType    `json:"rule_type"                validate:"required,oneof=binary certificate teamid signingid cdhash bundle"`
-	Identifier    string      `json:"identifier"               validate:"required,notblank"                                                minLength:"1"`
-	Name          string      `json:"name"                     validate:"required,notblank"                                                minLength:"1"`
-	Description   string      `json:"description,omitempty"`
-	CustomMessage string      `json:"custom_message,omitempty"`
-	CustomURL     string      `json:"custom_url,omitempty"     validate:"omitempty,https_url"                                                            format:"uri"`
-	Targets       RuleTargets `json:"targets"`
+	ConfigurationID int64       `json:"configuration_id"         validate:"gt=0"                                                                                                          minimum:"1"`
+	RuleType        RuleType    `json:"rule_type"                validate:"required,oneof=binary certificate teamid signingid cdhash bundle"`
+	Identifier      string      `json:"identifier"               validate:"required,notblank"                                                                                             minLength:"1"`
+	Name            string      `json:"name"                     validate:"required,notblank"                                                                                             minLength:"1"`
+	Description     string      `json:"description,omitempty"`
+	Policy          Policy      `json:"policy"                   validate:"required,oneof=allowlist allowlist_compiler blocklist silent_blocklist silent_gui_blocklist silent_tty_blocklist cel"`
+	CELExpression   string      `json:"cel_expression,omitempty" validate:"excluded_unless=Policy cel,required_if=Policy cel"`
+	CustomMessage   string      `json:"custom_message,omitempty"`
+	CustomURL       string      `json:"custom_url,omitempty"     validate:"omitempty,https_url"                                                                                           format:"uri"`
+	Targets         RuleTargets `json:"targets"`
 }
 
 func (p *RuleMutation) Validate() error {
@@ -104,6 +108,11 @@ func (p *RuleMutation) Validate() error {
 	}
 	if err := validateRuleIdentifier(p.RuleType, p.Identifier); err != nil {
 		return err
+	}
+	if p.Policy == PolicyCEL {
+		if err := validateCELSyntax(p.CELExpression); err != nil {
+			return err
+		}
 	}
 	if err := p.Targets.validate(); err != nil {
 		return err
@@ -116,6 +125,8 @@ func (p *RuleMutation) normalize() {
 	p.Identifier = strings.TrimSpace(p.Identifier)
 	p.Name = strings.TrimSpace(p.Name)
 	p.Description = strings.TrimSpace(p.Description)
+	p.Policy = Policy(strings.TrimSpace(string(p.Policy)))
+	p.CELExpression = strings.TrimSpace(p.CELExpression)
 	p.CustomMessage = strings.TrimSpace(p.CustomMessage)
 	p.CustomURL = strings.TrimSpace(p.CustomURL)
 	p.Targets = normalizeRuleTargets(p.Targets)
@@ -158,16 +169,19 @@ func validateRuleIdentifier(ruleType RuleType, identifier string) error {
 }
 
 type Rule struct {
-	ID            int64       `json:"id"`
-	RuleType      RuleType    `json:"rule_type"`
-	Identifier    string      `json:"identifier"`
-	Name          string      `json:"name"`
-	Description   string      `json:"description"`
-	CustomMessage string      `json:"custom_message"`
-	CustomURL     string      `json:"custom_url"`
-	Targets       RuleTargets `json:"targets"`
-	CreatedAt     time.Time   `json:"created_at"`
-	UpdatedAt     time.Time   `json:"updated_at"`
+	ID              int64       `json:"id"`
+	ConfigurationID int64       `json:"configuration_id"`
+	RuleType        RuleType    `json:"rule_type"`
+	Identifier      string      `json:"identifier"`
+	Name            string      `json:"name"`
+	Description     string      `json:"description"`
+	Policy          Policy      `json:"policy"`
+	CELExpression   string      `json:"cel_expression,omitempty"`
+	CustomMessage   string      `json:"custom_message"`
+	CustomURL       string      `json:"custom_url"`
+	Targets         RuleTargets `json:"targets"`
+	CreatedAt       time.Time   `json:"created_at"`
+	UpdatedAt       time.Time   `json:"updated_at"`
 }
 
 type HostRule struct {

@@ -35,7 +35,7 @@ func (s *Store) List(ctx context.Context, params RuleListParams) ([]Rule, int, e
 		WhereSQL:     where,
 		Args:         args,
 		OrderKeys:    ruleOrderKeys(),
-		DefaultOrder: []dbutil.OrderExpr{{SQL: "rule_type_sort"}, {SQL: "identifier"}, {SQL: "id"}},
+		DefaultOrder: []dbutil.OrderExpr{{SQL: "configuration_id"}, {SQL: "rule_type_sort"}, {SQL: "identifier"}, {SQL: "id"}},
 		Params:       params.ListParams,
 	}
 	rows, count, err := dbutil.ListWithCount[ruleRow](ctx, s.db.Pool(), listQuery)
@@ -86,17 +86,23 @@ func (s *Store) Create(ctx context.Context, params RuleMutation) (*Rule, error) 
 		}
 		if err := tx.QueryRow(ctx, `
 			INSERT INTO santa_rules (
+				configuration_id,
 				rule_type,
 				identifier,
 				name,
 				description,
+				policy,
+				cel_expression,
 				custom_message,
 				custom_url
 			) VALUES (
+				@configuration_id,
 				@rule_type::santa_rule_type,
 				@identifier,
 				@name,
 				@description,
+				@policy::santa_policy,
+				@cel_expression,
 				@custom_message,
 				@custom_url
 			)
@@ -129,10 +135,13 @@ func (s *Store) Update(ctx context.Context, id int64, params RuleMutation) (*Rul
 		if err := tx.QueryRow(ctx, `
 			UPDATE santa_rules
 			SET
+				configuration_id = @configuration_id,
 				rule_type = @rule_type::santa_rule_type,
 				identifier = @identifier,
 				name = @name,
 				description = @description,
+				policy = @policy::santa_policy,
+				cel_expression = @cel_expression,
 				custom_message = @custom_message,
 				custom_url = @custom_url,
 				updated_at = now()
@@ -179,7 +188,7 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 	return len(deletedIDs), nil
 }
 
-func (s *Store) ResolveRulesForHost(ctx context.Context, hostID int64) ([]HostRule, error) {
+func (s *Store) ResolveRulesForHost(ctx context.Context, hostID, configurationID int64) ([]HostRule, error) {
 	qrows, err := s.db.Pool().Query(ctx, `
 		SELECT
 			rule_id,
@@ -192,8 +201,8 @@ func (s *Store) ResolveRulesForHost(ctx context.Context, hostID int64) ([]HostRu
 			custom_message,
 			custom_url,
 			notification_app_name
-		FROM santa_resolved_rules_for_host($1)
-		ORDER BY rule_type_sort, identifier, rule_id`, hostID)
+		FROM santa_resolved_rules_for_host($1, $2)
+		ORDER BY rule_type_sort, identifier, rule_id`, hostID, configurationID)
 	if err != nil {
 		return nil, err
 	}
@@ -207,6 +216,7 @@ func (s *Store) ResolveRulesForHost(ctx context.Context, hostID int64) ([]HostRu
 func (s *Store) ListRuleStatusesForHost(
 	ctx context.Context,
 	hostID int64,
+	configurationID int64,
 	params RuleStatusListParams,
 ) ([]RuleStatus, int, error) {
 	params.ListParams = dbutil.NormalizeListParams(params.ListParams)
@@ -215,48 +225,37 @@ func (s *Store) ListRuleStatusesForHost(
 	}
 
 	var hostExists bool
-	var count int
-	if err := s.db.Pool().QueryRow(ctx, `
-		SELECT
-			EXISTS (SELECT 1 FROM hosts WHERE id = $1)::boolean AS host_exists,
-			count(*)::integer AS rule_count
-		FROM santa_resolved_rules_for_host($1)`, hostID).Scan(&hostExists, &count); err != nil {
+	if err := s.db.Pool().QueryRow(
+		ctx,
+		`SELECT EXISTS (SELECT 1 FROM hosts WHERE id = $1)`,
+		hostID,
+	).Scan(&hostExists); err != nil {
 		return nil, 0, err
 	}
 	if !hostExists {
 		return nil, 0, dbutil.ErrNotFound
 	}
+	if configurationID <= 0 {
+		return []RuleStatus{}, 0, nil
+	}
 
-	qrows, err := s.db.Pool().Query(
-		ctx, `
-			SELECT
-				rule_id,
-				rule_type,
-				identifier,
-				name,
-				description,
-				policy,
-				cel_expression,
-				custom_message,
-				custom_url,
-				notification_app_name
-			FROM santa_resolved_rules_for_host($1)
-			ORDER BY rule_type_sort, identifier, rule_id
-			LIMIT $2 OFFSET $3`,
-		hostID,
-		params.PageSize,
-		params.PageIndex*params.PageSize,
-	)
+	hostRules, err := s.ResolveRulesForHost(ctx, hostID, configurationID)
 	if err != nil {
 		return nil, 0, err
 	}
-	rows, err := pgx.CollectRows(qrows, pgx.RowToStructByName[hostRuleRow])
+	hostRules, targets, err := canonicalHostRules(hostRules)
 	if err != nil {
 		return nil, 0, err
 	}
-	hostRules := hostRulesFromRows(rows)
+	count := len(hostRules)
+	start := int(params.PageIndex * params.PageSize)
+	if start >= count {
+		return []RuleStatus{}, count, nil
+	}
+	end := min(start+int(params.PageSize), count)
+	hostRules = hostRules[start:end]
+	targets = targets[start:end]
 
-	targets := SyncTargetsFromRules(hostRules)
 	applied, err := s.appliedSyncTargetSet(ctx, hostID)
 	if err != nil {
 		return nil, 0, err
@@ -361,12 +360,10 @@ func replaceRuleTargets(
 	rows := make([]ruleTargetWrite, 0, len(targets.Include)+len(targets.Exclude))
 	for i, include := range targets.Include {
 		rows = append(rows, ruleTargetWrite{
-			RuleID:        ruleID,
-			Direction:     string(targeting.Include),
-			Position:      int32(i),
-			LabelID:       include.LabelID,
-			Policy:        string(include.Policy),
-			CELExpression: include.CELExpression,
+			RuleID:    ruleID,
+			Direction: string(targeting.Include),
+			Position:  int32(i),
+			LabelID:   include.LabelID,
 		})
 	}
 	for i, exclude := range targets.Exclude {
@@ -381,14 +378,12 @@ func replaceRuleTargets(
 		ctx, tx,
 		`DELETE FROM santa_rule_targets WHERE rule_id = $1`, []any{ruleID},
 		`
-			INSERT INTO santa_rule_targets (rule_id, direction, position, label_id, policy, cel_expression)
+			INSERT INTO santa_rule_targets (rule_id, direction, position, label_id)
 			VALUES (
 				@rule_id,
 				@direction::target_direction,
 				@position,
-				@label_id,
-				NULLIF(@policy, '')::santa_policy,
-				NULLIF(@cel_expression, '')
+				@label_id
 			)`, rows,
 	); err != nil {
 		return dbutil.MutationError(err)
@@ -407,19 +402,15 @@ func (s *Store) attachRuleTargets(ctx context.Context, rules []Rule, ruleIDs []i
 	}
 
 	type targetRow struct {
-		RuleID        int64  `db:"rule_id"`
-		Direction     string `db:"direction"`
-		LabelID       int64  `db:"label_id"`
-		Policy        string `db:"policy"`
-		CELExpression string `db:"cel_expression"`
+		RuleID    int64  `db:"rule_id"`
+		Direction string `db:"direction"`
+		LabelID   int64  `db:"label_id"`
 	}
 	qrows, err := s.db.Pool().Query(ctx, `
 		SELECT
 			rule_id,
 			direction::text AS direction,
-			label_id,
-			COALESCE(policy::text, '') AS policy,
-			COALESCE(cel_expression, '') AS cel_expression
+			label_id
 		FROM santa_rule_targets
 		WHERE rule_id = ANY($1::bigint[])
 		ORDER BY rule_id, direction, position`,
@@ -440,11 +431,7 @@ func (s *Store) attachRuleTargets(ctx context.Context, rules []Rule, ruleIDs []i
 		tgts := rules[i].Targets
 		switch targeting.Direction(row.Direction) {
 		case targeting.Include:
-			tgts.Include = append(tgts.Include, RuleInclude{
-				Policy:        Policy(row.Policy),
-				CELExpression: row.CELExpression,
-				LabelID:       row.LabelID,
-			})
+			tgts.Include = append(tgts.Include, targeting.LabelRef{LabelID: row.LabelID})
 		case targeting.Exclude:
 			tgts.Exclude = append(tgts.Exclude, targeting.LabelRef{LabelID: row.LabelID})
 		}
@@ -508,98 +495,133 @@ func ruleListWhere(params RuleListParams) (string, []any) {
 	if len(params.RuleTypes) > 0 {
 		where.Add("rule_type::text = ANY(" + where.Arg(params.RuleTypes) + "::text[])")
 	}
+	if len(params.ConfigurationIDs) > 0 {
+		where.Add("configuration_id = ANY(" + where.Arg(params.ConfigurationIDs) + "::bigint[])")
+	}
 	return where.Build()
 }
 
 func ruleOrderKeys() map[string]dbutil.OrderExpr {
 	return map[string]dbutil.OrderExpr{
-		"rule_type":   {SQL: "rule_type_sort"},
-		"identifier":  {SQL: "identifier"},
-		"name":        {SQL: "lower(name)"},
-		"description": {SQL: "lower(description)"},
-		"updated_at":  {SQL: "updated_at"},
+		"configuration_id": {SQL: "configuration_id"},
+		"rule_type":        {SQL: "rule_type_sort"},
+		"identifier":       {SQL: "identifier"},
+		"name":             {SQL: "lower(name)"},
+		"description":      {SQL: "lower(description)"},
+		"policy":           {SQL: "policy::text"},
+		"updated_at":       {SQL: "updated_at"},
 	}
 }
 
 type ruleRow struct {
-	ID            int64     `db:"id"`
-	RuleType      string    `db:"rule_type"`
-	Identifier    string    `db:"identifier"`
-	Name          string    `db:"name"`
-	Description   string    `db:"description"`
-	CustomMessage string    `db:"custom_message"`
-	CustomURL     string    `db:"custom_url"`
-	CreatedAt     time.Time `db:"created_at"`
-	UpdatedAt     time.Time `db:"updated_at"`
+	ID              int64     `db:"id"`
+	ConfigurationID int64     `db:"configuration_id"`
+	RuleType        string    `db:"rule_type"`
+	Identifier      string    `db:"identifier"`
+	Name            string    `db:"name"`
+	Description     string    `db:"description"`
+	Policy          string    `db:"policy"`
+	CELExpression   string    `db:"cel_expression"`
+	CustomMessage   string    `db:"custom_message"`
+	CustomURL       string    `db:"custom_url"`
+	CreatedAt       time.Time `db:"created_at"`
+	UpdatedAt       time.Time `db:"updated_at"`
 }
 
 func ruleFromRow(row ruleRow) Rule {
 	return Rule{
-		ID:            row.ID,
-		RuleType:      RuleType(row.RuleType),
-		Identifier:    row.Identifier,
-		Name:          row.Name,
-		Description:   row.Description,
-		CustomMessage: row.CustomMessage,
-		CustomURL:     row.CustomURL,
-		CreatedAt:     row.CreatedAt,
-		UpdatedAt:     row.UpdatedAt,
+		ID:              row.ID,
+		ConfigurationID: row.ConfigurationID,
+		RuleType:        RuleType(row.RuleType),
+		Identifier:      row.Identifier,
+		Name:            row.Name,
+		Description:     row.Description,
+		Policy:          Policy(row.Policy),
+		CELExpression:   row.CELExpression,
+		CustomMessage:   row.CustomMessage,
+		CustomURL:       row.CustomURL,
+		CreatedAt:       row.CreatedAt,
+		UpdatedAt:       row.UpdatedAt,
 	}
 }
 
 type ruleWrite struct {
-	ID            int64  `db:"id"`
-	RuleType      string `db:"rule_type"`
-	Identifier    string `db:"identifier"`
-	Name          string `db:"name"`
-	Description   string `db:"description"`
-	CustomMessage string `db:"custom_message"`
-	CustomURL     string `db:"custom_url"`
+	ID              int64  `db:"id"`
+	ConfigurationID int64  `db:"configuration_id"`
+	RuleType        string `db:"rule_type"`
+	Identifier      string `db:"identifier"`
+	Name            string `db:"name"`
+	Description     string `db:"description"`
+	Policy          string `db:"policy"`
+	CELExpression   string `db:"cel_expression"`
+	CustomMessage   string `db:"custom_message"`
+	CustomURL       string `db:"custom_url"`
 }
 
 func newRuleWrite(params RuleMutation) ruleWrite {
 	return ruleWrite{
-		RuleType:      string(params.RuleType),
-		Identifier:    params.Identifier,
-		Name:          params.Name,
-		Description:   params.Description,
-		CustomMessage: params.CustomMessage,
-		CustomURL:     params.CustomURL,
+		ConfigurationID: params.ConfigurationID,
+		RuleType:        string(params.RuleType),
+		Identifier:      params.Identifier,
+		Name:            params.Name,
+		Description:     params.Description,
+		Policy:          string(params.Policy),
+		CELExpression:   params.CELExpression,
+		CustomMessage:   params.CustomMessage,
+		CustomURL:       params.CustomURL,
 	}
 }
 
 type ruleTargetWrite struct {
-	RuleID        int64  `db:"rule_id"`
-	Direction     string `db:"direction"`
-	Position      int32  `db:"position"`
-	LabelID       int64  `db:"label_id"`
-	Policy        string `db:"policy"`
-	CELExpression string `db:"cel_expression"`
+	RuleID    int64  `db:"rule_id"`
+	Direction string `db:"direction"`
+	Position  int32  `db:"position"`
+	LabelID   int64  `db:"label_id"`
 }
 
-// SyncTargetsFromRules returns Santa sync payload targets for host rules.
-func SyncTargetsFromRules(rules []HostRule) []syncstate.Target {
+// SyncTargetsFromRules returns one wire target per identity and rejects conflicting decisions.
+func SyncTargetsFromRules(rules []HostRule) ([]syncstate.Target, error) {
+	_, targets, err := canonicalHostRules(rules)
+	return targets, err
+}
+
+func canonicalHostRules(rules []HostRule) ([]HostRule, []syncstate.Target, error) {
+	canonicalRules := make([]HostRule, 0, len(rules))
 	targets := make([]syncstate.Target, 0, len(rules))
-	seen := make(map[string]struct{}, len(rules))
+	seen := make(map[string]string, len(rules))
 	for _, rule := range rules {
-		identity := string(rule.RuleType) + "\x00" + rule.Identifier
-		if _, ok := seen[identity]; ok {
+		target := syncTargetFromRule(rule)
+		identity := target.RuleType + "\x00" + target.Identifier
+		if payloadHash, ok := seen[identity]; ok {
+			if payloadHash != target.PayloadHash {
+				return nil, nil, fmt.Errorf(
+					"%w: conflicting Santa rules for %s %q",
+					dbutil.ErrConflict,
+					rule.RuleType,
+					rule.Identifier,
+				)
+			}
 			continue
 		}
-		seen[identity] = struct{}{}
-		target := syncstate.Target{
-			RuleType:      string(rule.RuleType),
-			Identifier:    rule.Identifier,
-			Policy:        string(rule.Policy),
-			CELExpression: rule.CELExpression,
-			CustomMessage: rule.CustomMessage,
-			CustomURL:     rule.CustomURL,
-			AppName:       rule.AppName,
-		}
-		target.PayloadHash = syncTargetPayloadHash(target)
+		seen[identity] = target.PayloadHash
+		canonicalRules = append(canonicalRules, rule)
 		targets = append(targets, target)
 	}
-	return targets
+	return canonicalRules, targets, nil
+}
+
+func syncTargetFromRule(rule HostRule) syncstate.Target {
+	target := syncstate.Target{
+		RuleType:      string(rule.RuleType),
+		Identifier:    rule.Identifier,
+		Policy:        string(rule.Policy),
+		CELExpression: rule.CELExpression,
+		CustomMessage: rule.CustomMessage,
+		CustomURL:     rule.CustomURL,
+		AppName:       rule.AppName,
+	}
+	target.PayloadHash = syncTargetPayloadHash(target)
+	return target
 }
 
 func syncTargetPayloadHash(target syncstate.Target) string {
@@ -618,10 +640,13 @@ func ruleSelectSQL() string {
 	return `
 		SELECT
 			id,
+			configuration_id,
 			rule_type::text,
 			identifier,
 			name,
 			description,
+			policy::text,
+			cel_expression,
 			custom_message,
 			custom_url,
 			created_at,
@@ -629,10 +654,13 @@ func ruleSelectSQL() string {
 		FROM (
 			SELECT
 				r.id,
+				r.configuration_id,
 				r.rule_type,
 				r.identifier,
 				r.name,
 				r.description,
+				r.policy,
+				r.cel_expression,
 				r.custom_message,
 				r.custom_url,
 				r.created_at,

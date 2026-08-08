@@ -24,5 +24,5 @@ func RegisterSanta(
 	registerSantaConfigurations(api, configurationStore, logger)
 	registerSantaRules(api, ruleStore, logger)
 	registerSantaEvents(api, eventStore, logger)
-	registerHostSantaRules(api, ruleStore, logger)
+	registerHostSantaRules(api, configurationStore, ruleStore, logger)
 }

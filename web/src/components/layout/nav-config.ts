@@ -47,7 +47,6 @@ export const navSections: NavMenu[] = [
         icon: ShieldCheck,
         items: [
           { label: "Configurations", to: "/santa/configurations" },
-          { label: "Rules", to: "/santa/rules" },
           { label: "Events", to: "/santa/events" },
         ],
       },

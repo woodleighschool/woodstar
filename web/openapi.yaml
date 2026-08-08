@@ -3571,6 +3571,11 @@ components:
     SantaRule:
       additionalProperties: false
       properties:
+        cel_expression:
+          type: string
+        configuration_id:
+          format: int64
+          type: integer
         created_at:
           format: date-time
           type: string
@@ -3586,6 +3591,16 @@ components:
         identifier:
           type: string
         name:
+          type: string
+        policy:
+          enum:
+            - allowlist
+            - allowlist_compiler
+            - blocklist
+            - silent_blocklist
+            - silent_gui_blocklist
+            - silent_tty_blocklist
+            - cel
           type: string
         rule_type:
           enum:
@@ -3603,42 +3618,27 @@ components:
           type: string
       required:
         - id
+        - configuration_id
         - rule_type
         - identifier
         - name
         - description
+        - policy
         - custom_message
         - custom_url
         - targets
         - created_at
         - updated_at
       type: object
-    SantaRuleInclude:
+    SantaRuleMutation:
       additionalProperties: false
       properties:
         cel_expression:
           type: string
-        label_id:
+        configuration_id:
           format: int64
           minimum: 1
           type: integer
-        policy:
-          enum:
-            - allowlist
-            - allowlist_compiler
-            - blocklist
-            - silent_blocklist
-            - silent_gui_blocklist
-            - silent_tty_blocklist
-            - cel
-          type: string
-      required:
-        - policy
-        - label_id
-      type: object
-    SantaRuleMutation:
-      additionalProperties: false
-      properties:
         custom_message:
           type: string
         custom_url:
@@ -3652,6 +3652,16 @@ components:
         name:
           minLength: 1
           type: string
+        policy:
+          enum:
+            - allowlist
+            - allowlist_compiler
+            - blocklist
+            - silent_blocklist
+            - silent_gui_blocklist
+            - silent_tty_blocklist
+            - cel
+          type: string
         rule_type:
           enum:
             - binary
@@ -3664,9 +3674,11 @@ components:
         targets:
           $ref: "#/components/schemas/SantaRuleTargets"
       required:
+        - configuration_id
         - rule_type
         - identifier
         - name
+        - policy
         - targets
       type: object
     SantaRuleStatus:
@@ -3748,7 +3760,7 @@ components:
           type: array
         include:
           items:
-            $ref: "#/components/schemas/SantaRuleInclude"
+            $ref: "#/components/schemas/LabelRef"
           type: array
       required:
         - include
@@ -9486,6 +9498,14 @@ paths:
           name: sort
           schema:
             type: string
+        - explode: false
+          in: query
+          name: configuration_id
+          schema:
+            items:
+              format: int64
+              type: integer
+            type: array
         - explode: false
           in: query
           name: rule_type
