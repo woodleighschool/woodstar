@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.4](https://github.com/woodleighschool/woodstar/compare/0.8.3...0.8.4) (2026-08-08)
+
+
+### Bug Fixes
+
+* **geoip:** require explicit database paths ([c26343d](https://github.com/woodleighschool/woodstar/commit/c26343dad92594841fe8db19cb6c97420fc430c2))
+
 ## [0.8.3](https://github.com/woodleighschool/woodstar/compare/0.8.2...0.8.3) (2026-08-08)
 
 
