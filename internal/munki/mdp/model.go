@@ -92,6 +92,16 @@ type ResolvedPoint struct {
 	ClientBaseURL string
 }
 
+// ClientCandidate is an enabled distribution point whose client CIDRs contain
+// an address. Candidates are returned in administrative order.
+type ClientCandidate struct {
+	ID   int64
+	Name string
+
+	key           string
+	clientBaseURL string
+}
+
 // DesiredPackage is one installer a distribution point should mirror: a stable
 // id, the filename to store it under, and the bytes to verify against. The
 // worker fetches a fresh download URL per job, so none is carried here.

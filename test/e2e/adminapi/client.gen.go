@@ -1378,6 +1378,7 @@ type Host struct {
 	PrimaryUser        *HostPrimaryUser             `json:"primary_user,omitempty"`
 	PrimaryUserSources []HostPrimaryUserObservation `json:"primary_user_sources"`
 	PublicIp           *string                      `json:"public_ip,omitempty"`
+	PublicIpDetails    *PublicIPDetails             `json:"public_ip_details,omitempty"`
 	Status             HostStatus                   `json:"status"`
 	Storage            HostStorage                  `json:"storage"`
 	UpdatedAt          time.Time                    `json:"updated_at"`
@@ -1463,6 +1464,7 @@ type HostDetail struct {
 	PrimaryUser        *HostPrimaryUser             `json:"primary_user,omitempty"`
 	PrimaryUserSources []HostPrimaryUserObservation `json:"primary_user_sources"`
 	PublicIp           *string                      `json:"public_ip,omitempty"`
+	PublicIpDetails    *PublicIPDetails             `json:"public_ip_details,omitempty"`
 	Status             HostDetailStatus             `json:"status"`
 	Storage            HostStorage                  `json:"storage"`
 	UpdatedAt          time.Time                    `json:"updated_at"`
@@ -2216,6 +2218,26 @@ type PathSignatureInformation struct {
 	InstalledPath    string `json:"installed_path"`
 	SigningAuthority string `json:"signing_authority"`
 	TeamIdentifier   string `json:"team_identifier"`
+}
+
+// PublicIPDetails defines model for PublicIPDetails.
+type PublicIPDetails struct {
+	Asn               *int32                     `json:"asn,omitempty"`
+	City              *string                    `json:"city,omitempty"`
+	Country           *string                    `json:"country,omitempty"`
+	CountryCode       *string                    `json:"country_code,omitempty"`
+	DistributionPoint *PublicIPDistributionPoint `json:"distribution_point,omitempty"`
+	Latitude          *float64                   `json:"latitude,omitempty"`
+	Longitude         *float64                   `json:"longitude,omitempty"`
+	Organization      *string                    `json:"organization,omitempty"`
+	Region            *string                    `json:"region,omitempty"`
+	RegionCode        *string                    `json:"region_code,omitempty"`
+}
+
+// PublicIPDistributionPoint defines model for PublicIPDistributionPoint.
+type PublicIPDistributionPoint struct {
+	Id   int64  `json:"id"`
+	Name string `json:"name"`
 }
 
 // SantaConfiguration defines model for SantaConfiguration.

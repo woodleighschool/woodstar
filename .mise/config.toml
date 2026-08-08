@@ -52,10 +52,12 @@ run = 'CAROOT="$PWD/tmp/tls/ca" mkcert -install'
 
 [tasks.dev-backend]
 description = "Run backend development server"
+depends = ["geoip"]
 run = """
 set -a
 [ ! -f .env ] || . ./.env
 set +a
+export WOODSTAR_GEOIP_DIR="$PWD/.cache/geoip"
 air -c .air.toml
 """
 
@@ -68,6 +70,10 @@ run = { task = "backend" }
 description = "Build backend binary"
 run = "go build -o woodstar ./cmd/woodstar"
 
+[tasks.geoip]
+description = "Download the current DB-IP Lite databases"
+run = "go run ./tools/geoipdb -output .cache/geoip"
+
 [tasks.tidy]
 description = "Tidy the Go module"
 run = "go mod tidy"
@@ -77,8 +83,12 @@ description = "Check the Go module is tidy"
 run = "go mod tidy -diff"
 
 [tasks.test]
-description = "Run dependency-free Go checks"
-run = ["go vet ./...", "go test -race -count=1 ./..."]
+description = "Run Go checks"
+depends = ["geoip"]
+run = [
+  "WOODSTAR_GEOIP_DIR=$PWD/.cache/geoip go vet ./...",
+  "WOODSTAR_GEOIP_DIR=$PWD/.cache/geoip go test -race -count=1 ./...",
+]
 
 [tasks.test-postgres]
 description = "Run PostgreSQL component tests"
