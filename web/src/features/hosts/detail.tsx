@@ -138,10 +138,12 @@ export function HostChecksPage() {
 
 export function HostMunkiPage() {
   const hostID = useHostID();
+  const host = useHost(hostID).data;
   const query = useHostMunkiState(hostID);
   return (
     <HostMunkiTab
       hostId={hostID}
+      hostSerial={host?.hardware.serial}
       munki={query.data}
       stateError={query.error}
       onStateRetry={() => void query.refetch()}

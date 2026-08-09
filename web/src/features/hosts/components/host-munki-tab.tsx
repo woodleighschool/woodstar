@@ -78,14 +78,23 @@ const problemColumns: DataTableColumnDef<ProblemRow>[] = [
 
 interface HostMunkiTabProps {
   hostId: number;
+  hostSerial: string | undefined;
   munki: MunkiHostState | null | undefined;
   stateError: ApiError | null;
   onStateRetry: () => void;
 }
 
-export function HostMunkiTab({ hostId, munki, stateError, onStateRetry }: HostMunkiTabProps) {
+export function HostMunkiTab({
+  hostId,
+  hostSerial,
+  munki,
+  stateError,
+  onStateRetry,
+}: HostMunkiTabProps) {
   const software = useHostMunkiSoftware(hostId, { per_page: MAX_PAGE_SIZE });
   const hasReport = Boolean(munki && (munki.run_at || munki.version || munki.manifest_name));
+  // This is good enough for now: a serial-named manifest means Munki is pointed at Woodstar.
+  const showManifest = Boolean(munki?.manifest_name && munki.manifest_name !== hostSerial);
   const problems = munki
     ? [
         ...problemRows("Errors", munki.errors),
@@ -101,9 +110,7 @@ export function HostMunkiTab({ hostId, munki, stateError, onStateRetry }: HostMu
       ) : munki && hasReport ? (
         <KeyValueSection title="Overview">
           {munki.version ? <KeyValueRow label="Version" value={munki.version} /> : null}
-          {munki.manifest_name ? (
-            <KeyValueRow label="Manifest" value={munki.manifest_name} />
-          ) : null}
+          {showManifest ? <KeyValueRow label="Manifest" value={munki.manifest_name} /> : null}
           {munki.run_at ? (
             <KeyValueRow label="Last Run" value={<RelativeTime value={munki.run_at} />} />
           ) : null}
