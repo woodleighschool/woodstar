@@ -382,6 +382,7 @@ func buildDependencies(
 	}
 	starters := []starter{
 		storageUploadCleanupStarter(storageIngestor, cfg.StorageTransferTTL, storageLogger),
+		inventoryCleanupStarter(inventoryStore, logger),
 		santaCleanupStarter(cfg, eventStore, logger),
 		entraStarter,
 	}
@@ -400,6 +401,13 @@ func storageUploadCleanupStarter(
 ) starter {
 	return func(ctx context.Context) func() {
 		cleanup := storage.StartUploadCleanup(ctx, ingestor, transferTTL, logger)
+		return cleanup.Stop
+	}
+}
+
+func inventoryCleanupStarter(store *inventory.Store, logger *slog.Logger) starter {
+	return func(ctx context.Context) func() {
+		cleanup := inventory.StartCleanup(ctx, store, logger.With("component", "inventory"))
 		return cleanup.Stop
 	}
 }
