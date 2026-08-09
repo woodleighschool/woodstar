@@ -2,6 +2,7 @@ import { useNavigate, useParams } from "@tanstack/react-router";
 import { Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 
+import { BooleanIndicator } from "@components/boolean-indicator";
 import { EnumBadge } from "@components/enum-badge";
 import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
@@ -58,14 +59,19 @@ export function UserDetailPage() {
           actions={
             isSelf || isAdmin ? (
               <>
-                <Button size="sm" render={<Link {...editLink} />} nativeButton={false}>
+                <Button
+                  variant={isAdmin && !isSelf ? "outline" : "default"}
+                  size="sm"
+                  render={<Link {...editLink} />}
+                  nativeButton={false}
+                >
                   <Pencil data-icon="inline-start" />
                   Edit
                 </Button>
                 {isAdmin && !isSelf ? (
                   <Button
                     type="button"
-                    variant="destructive"
+                    variant="outline"
                     size="sm"
                     onClick={() => setDeleteOpen(true)}
                   >
@@ -89,7 +95,7 @@ export function UserDetailPage() {
             label="Role"
             value={<EnumBadge value={userAccessRole(user.role)} metadata={USER_ACCESS_ROLES} />}
           />
-          <KeyValueRow label="Can Login" value={user.can_login ? "Yes" : "No"} />
+          <KeyValueRow label="Can Login" value={<BooleanIndicator value={user.can_login} />} />
           <KeyValueRow label="Department" value={nonEmpty(user.department) ?? "-"} />
           <KeyValueRow label="Given Name" value={nonEmpty(user.given_name) ?? "-"} />
           <KeyValueRow label="Family Name" value={nonEmpty(user.family_name) ?? "-"} />

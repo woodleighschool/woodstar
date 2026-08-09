@@ -5,7 +5,6 @@ import type {
 import { DataTableRowExpander } from "@components/data-table/data-table-row-expander";
 import type { DataTableColumnDef } from "@components/data-table/types";
 import { Link } from "@components/link";
-import { Badge } from "@components/ui/badge";
 import {
   Table,
   TableBody,
@@ -101,7 +100,7 @@ export function createReportResultColumns({
       accessorKey: "status",
       header: () => "Status",
       enableColumnFilter: true,
-      cell: ({ row }) => <SnapshotStatusBadge row={row.original} />,
+      cell: ({ row }) => snapshotStatusLabel(row.original),
     },
     timestampColumn,
     {
@@ -144,18 +143,6 @@ export function snapshotStatusLabel(row: ReportResultRow): string {
     stopped: "Stopped",
   };
   return labels[snapshotStatus(row)];
-}
-
-export function SnapshotStatusBadge({ row }: { row: ReportResultRow }) {
-  const status = snapshotStatus(row);
-  const variants = {
-    collected: "success",
-    error: "error",
-    pending: "outline",
-    stopped: "secondary",
-  } as const;
-
-  return <Badge variant={variants[status]}>{snapshotStatusLabel(row)}</Badge>;
 }
 
 export function resultRowCountLabel(row: ReportResultRow): string {

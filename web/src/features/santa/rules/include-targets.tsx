@@ -5,7 +5,6 @@ import { useMemo, useState } from "react";
 import { TableSurface } from "@components/data-table/table-surface";
 import { encodeSort } from "@components/data-table/use-data-table-search";
 import { CodeEditor } from "@components/editor/code-editor";
-import { EnumBadge } from "@components/enum-badge";
 import { FormActions } from "@components/form-actions";
 import { focusFirstInvalidField } from "@components/form-tabs";
 import { PanelEmptyState } from "@components/panel-empty-state";
@@ -107,7 +106,7 @@ export function SantaIncludeTargets({
                   <TableCell>{includeLabel(row, labelsByID)}</TableCell>
                   <TableCell>
                     <div className="flex min-w-0 items-center gap-2">
-                      <EnumBadge value={row.policy} metadata={POLICIES} />
+                      <span>{POLICIES[row.policy].name}</span>
                       {row.policy === "cel" && row.cel_expression ? (
                         <code className="text-xs text-muted-foreground">{row.cel_expression}</code>
                       ) : null}

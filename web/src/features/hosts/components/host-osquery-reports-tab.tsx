@@ -21,7 +21,6 @@ import {
   serializeSnapshots,
   SnapshotResultRows,
   snapshotStatusLabel,
-  SnapshotStatusBadge,
 } from "@features/osquery/reports/query-results";
 import type { OsqueryReportSnapshot } from "@lib/api";
 import { formatRelative } from "@lib/utils";
@@ -65,7 +64,7 @@ const hostReportColumns: DataTableColumnDef<OsqueryReportSnapshot>[] = [
     accessorKey: "status",
     header: () => "Status",
     enableColumnFilter: true,
-    cell: ({ row }) => <SnapshotStatusBadge row={row.original} />,
+    cell: ({ row }) => snapshotStatusLabel(row.original),
   },
   {
     id: "collected_at",

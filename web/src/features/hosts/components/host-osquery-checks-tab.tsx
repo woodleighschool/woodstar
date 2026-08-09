@@ -8,12 +8,12 @@ import { DataTableSkeleton } from "@components/data-table/data-table-skeleton";
 import type { DataTableColumnDef, DataTableInstance } from "@components/data-table/types";
 import { useDataTable } from "@components/data-table/use-data-table";
 import { useDataTableSearch } from "@components/data-table/use-data-table-search";
-import { EnumStatusIndicator } from "@components/enum-status-indicator";
 import { Link } from "@components/link";
 import { PanelEmptyState } from "@components/panel-empty-state";
 import { QueryError } from "@components/query-error";
 import { useHostOsqueryChecks } from "@features/hosts/queries";
-import { CHECK_RESULT_STATUSES, CHECK_RESULT_STATUS_OPTIONS } from "@features/osquery/checks/model";
+import { CHECK_RESULT_STATUS_OPTIONS } from "@features/osquery/checks/model";
+import { checkResultStatusLabel } from "@features/osquery/checks/query-results";
 import type { OsqueryCheckHostStatus } from "@lib/api";
 import { formatRelative } from "@lib/utils";
 
@@ -31,9 +31,7 @@ const checkColumns: DataTableColumnDef<OsqueryCheckHostStatus>[] = [
     accessorKey: "status",
     header: () => "Status",
     enableColumnFilter: true,
-    cell: ({ row }) => (
-      <EnumStatusIndicator value={row.original.status} metadata={CHECK_RESULT_STATUSES} />
-    ),
+    cell: ({ row }) => checkResultStatusLabel(row.original.status),
   },
   {
     accessorKey: "updated_at",

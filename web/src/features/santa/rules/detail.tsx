@@ -63,6 +63,7 @@ export function RuleDetailPage() {
           isAdmin ? (
             <>
               <Button
+                variant="outline"
                 size="sm"
                 render={<Link to="/santa/rules/$id/edit" params={{ id: String(rule.id) }} />}
                 nativeButton={false}
@@ -70,12 +71,7 @@ export function RuleDetailPage() {
                 <Pencil data-icon="inline-start" />
                 Edit
               </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                size="sm"
-                onClick={() => setDeleteOpen(true)}
-              >
+              <Button type="button" variant="outline" size="sm" onClick={() => setDeleteOpen(true)}>
                 <Trash2 data-icon="inline-start" />
                 Delete
               </Button>

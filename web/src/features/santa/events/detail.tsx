@@ -1,6 +1,6 @@
 import { useParams, useSearch } from "@tanstack/react-router";
-import { Check, X } from "lucide-react";
 
+import { BooleanIndicator } from "@components/boolean-indicator";
 import { TableSurface } from "@components/data-table/table-surface";
 import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
@@ -324,8 +324,7 @@ function EntitlementValue({ value }: { value: unknown }) {
   }
 
   if (typeof normalized === "boolean") {
-    const Icon = normalized ? Check : X;
-    return <Icon className="size-4" />;
+    return <BooleanIndicator value={normalized} />;
   }
 
   if (Array.isArray(normalized)) {

@@ -3,6 +3,7 @@ import { filesize } from "filesize";
 import { Package as PackageIcon, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 
+import { BooleanIndicator } from "@components/boolean-indicator";
 import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link } from "@components/link";
@@ -54,6 +55,7 @@ export function MunkiPackageDetailPage() {
           isAdmin ? (
             <>
               <Button
+                variant="outline"
                 size="sm"
                 render={<Link to="/munki/packages/$id/edit" params={{ id: String(pkg.id) }} />}
                 nativeButton={false}
@@ -61,12 +63,7 @@ export function MunkiPackageDetailPage() {
                 <Pencil data-icon="inline-start" />
                 Edit
               </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                size="sm"
-                onClick={() => setDeleteOpen(true)}
-              >
+              <Button type="button" variant="outline" size="sm" onClick={() => setDeleteOpen(true)}>
                 <Trash2 data-icon="inline-start" />
                 Delete
               </Button>
@@ -105,11 +102,17 @@ export function MunkiPackageDetailPage() {
       </KeyValueSection>
 
       <KeyValueSection title="Behaviour">
-        <KeyValueRow label="On Demand" value={yesNo(pkg.on_demand)} />
-        <KeyValueRow label="Precache" value={yesNo(pkg.precache)} />
-        <KeyValueRow label="Unattended Install" value={yesNo(pkg.unattended_install)} />
-        <KeyValueRow label="Unattended Uninstall" value={yesNo(pkg.unattended_uninstall)} />
-        <KeyValueRow label="Uninstallable" value={yesNo(pkg.uninstallable)} />
+        <KeyValueRow label="On Demand" value={<BooleanIndicator value={pkg.on_demand} />} />
+        <KeyValueRow label="Precache" value={<BooleanIndicator value={pkg.precache} />} />
+        <KeyValueRow
+          label="Unattended Install"
+          value={<BooleanIndicator value={pkg.unattended_install} />}
+        />
+        <KeyValueRow
+          label="Unattended Uninstall"
+          value={<BooleanIndicator value={pkg.unattended_uninstall} />}
+        />
+        <KeyValueRow label="Uninstallable" value={<BooleanIndicator value={pkg.uninstallable} />} />
         <KeyValueRow label="Restart Action" value={pkg.restart_action || "None"} />
       </KeyValueSection>
 
@@ -148,8 +151,4 @@ function PackageReferences({ values }: { values: MunkiPackageReference[] }) {
 
 function valueList(values: string[]) {
   return values.length > 0 ? values.join(", ") : "Any";
-}
-
-function yesNo(value: boolean) {
-  return value ? "Yes" : "No";
 }

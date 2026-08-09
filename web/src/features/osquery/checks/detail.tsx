@@ -10,6 +10,7 @@ import { DataTableSkeleton } from "@components/data-table/data-table-skeleton";
 import type { DataTableInstance } from "@components/data-table/types";
 import { useDataTable } from "@components/data-table/use-data-table";
 import { useDataTableSearch } from "@components/data-table/use-data-table-search";
+import { SQLEditor } from "@components/editor/sql-editor";
 import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { ScrollableTabs, ScrollableTabsList } from "@components/layout/scrollable-tabs";
@@ -19,11 +20,12 @@ import { QueryError } from "@components/query-error";
 import { QueryGate } from "@components/query-gate";
 import { LabelTargetDetails } from "@components/targeting/target-details";
 import { Button } from "@components/ui/button";
+import { Separator } from "@components/ui/separator";
 import { Skeleton } from "@components/ui/skeleton";
 import { TabsContent, TabsTrigger } from "@components/ui/tabs";
 import { useAuth } from "@features/auth/queries";
 import { CHECK_RESULT_STATUS_OPTIONS } from "@features/osquery/checks/model";
-import { LiveRunButton, ShowQueryButton } from "@features/osquery/live/query-actions";
+import { LiveRunButton } from "@features/osquery/live/query-actions";
 import { parseRouteID } from "@lib/route-params";
 import { formatRelative } from "@lib/utils";
 
@@ -142,6 +144,7 @@ export function CheckDetailPage() {
             {isAdmin ? (
               <>
                 <Button
+                  variant="outline"
                   size="sm"
                   render={<Link to="/osquery/checks/$id/edit" params={{ id: checkId }} />}
                   nativeButton={false}
@@ -151,7 +154,7 @@ export function CheckDetailPage() {
                 </Button>
                 <Button
                   type="button"
-                  variant="destructive"
+                  variant="outline"
                   size="sm"
                   onClick={() => setDeleteOpen(true)}
                 >
@@ -160,7 +163,6 @@ export function CheckDetailPage() {
                 </Button>
               </>
             ) : null}
-            <ShowQueryButton sql={check.data.query} />
             <LiveRunButton kind="check" id={id} sql={check.data.query} />
           </>
         }
@@ -221,6 +223,12 @@ export function CheckDetailPage() {
               }
             />
           </KeyValueSection>
+
+          <section className="flex min-w-0 flex-col gap-3">
+            <h2 className="text-base/snug font-medium text-foreground">Query</h2>
+            <Separator />
+            <SQLEditor value={check.data.query} onChange={() => undefined} readOnly />
+          </section>
 
           <LabelTargetDetails targets={check.data.targets} />
         </TabsContent>

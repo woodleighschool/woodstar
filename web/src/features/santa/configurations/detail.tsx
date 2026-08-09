@@ -2,8 +2,8 @@ import { useNavigate, useParams } from "@tanstack/react-router";
 import { Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 
+import { BooleanIndicator } from "@components/boolean-indicator";
 import { EnumBadge } from "@components/enum-badge";
-import { EnumStatusIndicator } from "@components/enum-status-indicator";
 import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link } from "@components/link";
@@ -65,6 +65,7 @@ export function ConfigurationDetailPage() {
           isAdmin ? (
             <>
               <Button
+                variant="outline"
                 size="sm"
                 render={
                   <Link
@@ -77,12 +78,7 @@ export function ConfigurationDetailPage() {
                 <Pencil data-icon="inline-start" />
                 Edit
               </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                size="sm"
-                onClick={() => setDeleteOpen(true)}
-              >
+              <Button type="button" variant="outline" size="sm" onClick={() => setDeleteOpen(true)}>
                 <Trash2 data-icon="inline-start" />
                 Delete
               </Button>
@@ -94,28 +90,28 @@ export function ConfigurationDetailPage() {
       <KeyValueSection title="Overview">
         <KeyValueRow label="Name" value={configuration.name} />
         <KeyValueRow label="Description" value={configuration.description} />
-        <KeyValueRow
-          label="Client Mode"
-          value={<EnumStatusIndicator value={configuration.client_mode} metadata={CLIENT_MODES} />}
-        />
+        <KeyValueRow label="Client Mode" value={CLIENT_MODES[configuration.client_mode].name} />
         <KeyValueRow label="Order" value={configuration.position + 1} />
         <KeyValueRow
           label="Full Sync Interval"
           value={formatInterval(configuration.full_sync_interval_seconds)}
         />
         <KeyValueRow label="Batch Size" value={configuration.batch_size} />
-        <KeyValueRow label="Bundles" value={enabledLabel(configuration.enable_bundles)} />
+        <KeyValueRow
+          label="Bundles"
+          value={<BooleanIndicator value={configuration.enable_bundles} />}
+        />
         <KeyValueRow
           label="Transitive Rules"
-          value={enabledLabel(configuration.enable_transitive_rules)}
+          value={<BooleanIndicator value={configuration.enable_transitive_rules} />}
         />
         <KeyValueRow
           label="All Event Upload"
-          value={enabledLabel(configuration.enable_all_event_upload)}
+          value={<BooleanIndicator value={configuration.enable_all_event_upload} />}
         />
         <KeyValueRow
           label="Unknown Event Upload"
-          value={enabledLabel(!configuration.disable_unknown_event_upload)}
+          value={<BooleanIndicator value={!configuration.disable_unknown_event_upload} />}
         />
         <KeyValueRow
           label="File Access"
@@ -150,10 +146,6 @@ export function ConfigurationDetailPage() {
       />
     </PageShell>
   );
-}
-
-function enabledLabel(value: boolean) {
-  return value ? "Enabled" : "Disabled";
 }
 
 function MediaPolicyValue({ policy }: { policy: SantaRemovableMediaPolicy | undefined }) {

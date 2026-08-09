@@ -5,6 +5,7 @@ import { type ReactNode, useMemo, useState } from "react";
 import { z } from "zod";
 
 import { AsyncButton } from "@components/async-button";
+import { BooleanIndicator } from "@components/boolean-indicator";
 import { DataTableStatic } from "@components/data-table/data-table-static";
 import type { DataTableColumnDef } from "@components/data-table/types";
 import { KeyValueRow, KeyValueRows, KeyValueSection } from "@components/key-value";
@@ -411,7 +412,13 @@ function CertificateDetailsDialog({
               rows={[
                 ["Issued", formatDate(certificate.not_valid_before, { month: "short" })],
                 ["Expires", formatDate(certificate.not_valid_after, { month: "short" })],
-                ["Certificate authority", certificate.certificate_authority ? "Yes" : "No"],
+                [
+                  "Certificate authority",
+                  <BooleanIndicator
+                    key="certificate-authority"
+                    value={certificate.certificate_authority}
+                  />,
+                ],
               ]}
             />
             <CertificateDetailSection
