@@ -72,6 +72,7 @@ export function DataTable<TData extends DataTableRowData>({
       <TableSurface
         heading={heading}
         toolbar={toolbar}
+        empty={table.getRowModel().rows.length ? undefined : empty}
         footer={
           <DataTablePagination
             table={table}
@@ -142,47 +143,38 @@ export function DataTable<TData extends DataTableRowData>({
             ))}
           </TableHeader>
           <TableBody className="block">
-            {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
-                <React.Fragment key={row.id}>
-                  <TableRow
-                    className="group/row flex w-full"
-                    data-state={row.getIsSelected() && "selected"}
-                  >
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell
-                        key={cell.id}
-                        style={getDataTableColumnStyle(cell.column)}
-                        className="flex min-w-0 items-center overflow-hidden"
-                      >
-                        <DataTableCellContent>
-                          <table.FlexRender cell={cell} />
-                        </DataTableCellContent>
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                  {row.getCanExpand() && row.getIsExpanded() && renderSubRow ? (
-                    <TableRow className="flex w-full hover:bg-transparent">
-                      <TableCell
-                        colSpan={row.getVisibleCells().length}
-                        className="w-full max-w-none flex-1 border-b bg-muted/20 p-0"
-                      >
-                        {renderSubRow(row)}
-                      </TableCell>
+            {table.getRowModel().rows.length
+              ? table.getRowModel().rows.map((row) => (
+                  <React.Fragment key={row.id}>
+                    <TableRow
+                      className="group/row flex w-full"
+                      data-state={row.getIsSelected() && "selected"}
+                    >
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell
+                          key={cell.id}
+                          style={getDataTableColumnStyle(cell.column)}
+                          className="flex min-w-0 items-center overflow-hidden"
+                        >
+                          <DataTableCellContent>
+                            <table.FlexRender cell={cell} />
+                          </DataTableCellContent>
+                        </TableCell>
+                      ))}
                     </TableRow>
-                  ) : null}
-                </React.Fragment>
-              ))
-            ) : (
-              <TableRow className="flex w-full hover:bg-transparent">
-                <TableCell
-                  colSpan={table.getVisibleLeafColumns().length}
-                  className="w-full max-w-none flex-1 p-0"
-                >
-                  {empty}
-                </TableCell>
-              </TableRow>
-            )}
+                    {row.getCanExpand() && row.getIsExpanded() && renderSubRow ? (
+                      <TableRow className="flex w-full hover:bg-transparent">
+                        <TableCell
+                          colSpan={row.getVisibleCells().length}
+                          className="w-full max-w-none flex-1 border-b bg-muted/20 p-0"
+                        >
+                          {renderSubRow(row)}
+                        </TableCell>
+                      </TableRow>
+                    ) : null}
+                  </React.Fragment>
+                ))
+              : null}
           </TableBody>
         </Table>
       </TableSurface>

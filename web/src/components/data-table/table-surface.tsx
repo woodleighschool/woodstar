@@ -5,6 +5,7 @@ import { cn } from "@lib/utils";
 export function TableSurface({
   heading,
   toolbar,
+  empty,
   footer,
   variant = "flat",
   className,
@@ -13,6 +14,7 @@ export function TableSurface({
 }: Omit<ComponentProps<"section">, "children"> & {
   heading?: ReactNode;
   toolbar?: ReactNode;
+  empty?: ReactNode;
   footer?: ReactNode;
   variant?: "flat" | "embedded";
   className?: string;
@@ -30,6 +32,11 @@ export function TableSurface({
         )}
       >
         {children}
+        {empty != null ? (
+          <output data-slot="table-surface-empty" className="block w-full min-w-0">
+            {empty}
+          </output>
+        ) : null}
         {footer}
       </div>
     </section>
