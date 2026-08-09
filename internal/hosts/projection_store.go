@@ -42,6 +42,7 @@ type hostRow struct {
 	OsqueryDistributedIntervalSeconds *int32                                   `db:"osquery_distributed_interval_seconds"`
 	OsqueryConfigRefreshSeconds       *int32                                   `db:"osquery_config_refresh_seconds"`
 	InventoryQueryHash                string                                   `db:"inventory_query_hash"`
+	InventoryRefreshRequested         bool                                     `db:"inventory_refresh_requested"`
 	EnrolledAt                        *time.Time                               `db:"enrolled_at"`
 	InventoryUpdatedAt                *time.Time                               `db:"inventory_updated_at"`
 	CreatedAt                         time.Time                                `db:"created_at"`
@@ -86,6 +87,7 @@ func hostSelectSQL() string {
 	osquery_distributed_interval_seconds,
 	osquery_config_refresh_seconds,
 	inventory_query_hash,
+	inventory_refresh_requested,
 	enrolled_at,
 	inventory_updated_at,
 	created_at,
@@ -156,17 +158,18 @@ func hostFromRow(row hostRow, now time.Time) Host {
 			},
 			Orbit: HostOrbitAgent{Version: row.OrbitVersion},
 		},
-		PublicIP:           row.PublicIP,
-		LastContact:        row.LastContact,
-		Heartbeats:         []heartbeats.Heartbeat(row.Heartbeats),
-		PrimaryUserSources: []HostPrimaryUserSource{},
-		CreatedAt:          row.CreatedAt,
-		UpdatedAt:          row.UpdatedAt,
-		InventoryUpdatedAt: row.InventoryUpdatedAt,
-		LastRestartedAt:    row.LastRestartedAt,
-		OrbitNodeKey:       row.OrbitNodeKey,
-		OsqueryNodeKey:     row.OsqueryNodeKey,
-		InventoryQueryHash: row.InventoryQueryHash,
+		PublicIP:                  row.PublicIP,
+		LastContact:               row.LastContact,
+		Heartbeats:                []heartbeats.Heartbeat(row.Heartbeats),
+		PrimaryUserSources:        []HostPrimaryUserSource{},
+		CreatedAt:                 row.CreatedAt,
+		UpdatedAt:                 row.UpdatedAt,
+		InventoryUpdatedAt:        row.InventoryUpdatedAt,
+		InventoryRefreshRequested: row.InventoryRefreshRequested,
+		LastRestartedAt:           row.LastRestartedAt,
+		OrbitNodeKey:              row.OrbitNodeKey,
+		OsqueryNodeKey:            row.OsqueryNodeKey,
+		InventoryQueryHash:        row.InventoryQueryHash,
 	}
 }
 

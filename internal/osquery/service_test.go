@@ -15,6 +15,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/heartbeats"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
+	"github.com/woodleighschool/woodstar/internal/osquery/catalog"
 	"github.com/woodleighschool/woodstar/internal/osquery/checks"
 	"github.com/woodleighschool/woodstar/internal/osquery/ingest"
 	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
@@ -200,6 +201,31 @@ func TestAgentServicePropagatesHeartbeatError(t *testing.T) {
 	_, err := service.Config(t.Context(), "node-key", heartbeats.Contact{})
 	if !errors.Is(err, wantErr) {
 		t.Fatalf("Config error = %v, want %v", err, wantErr)
+	}
+}
+
+func TestDistributedReadQueuesFreshInventoryWhenRefreshRequested(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now()
+	hostStore := &fakeHostStore{host: &hosts.Host{
+		ID:                        42,
+		InventoryUpdatedAt:        &now,
+		InventoryQueryHash:        catalog.DetailQueryHash(),
+		InventoryRefreshRequested: true,
+	}}
+	service := newTestAgentService(&fakeOsqueryHeartbeatRecorder{}, hostStore)
+
+	response, err := service.DistributedRead(t.Context(), "node-key", heartbeats.Contact{})
+	if err != nil {
+		t.Fatalf("DistributedRead: %v", err)
+	}
+	want := catalog.DetailQueriesDue(nil, "")
+	if len(response.Queries) != len(want.Queries) {
+		t.Fatalf("query count = %d, want %d requested detail queries", len(response.Queries), len(want.Queries))
+	}
+	if len(response.Discovery) != len(want.Discovery) {
+		t.Fatalf("discovery count = %d, want %d", len(response.Discovery), len(want.Discovery))
 	}
 }
 

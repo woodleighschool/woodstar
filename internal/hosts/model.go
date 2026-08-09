@@ -77,27 +77,28 @@ func (HostStatus) Schema(_ huma.Registry) *huma.Schema {
 
 // Host is an enrolled Mac. Used for list rows and as the base of HostDetail.
 type Host struct {
-	ID                 int64                   `json:"id"`
-	DisplayName        string                  `json:"display_name"`
-	Status             HostStatus              `json:"status"`
-	Hostname           string                  `json:"hostname"`
-	ComputerName       string                  `json:"computer_name"`
-	Enrollment         HostEnrollment          `json:"enrollment"`
-	Hardware           HostHardware            `json:"hardware"`
-	OS                 HostOS                  `json:"os"`
-	Storage            HostStorage             `json:"storage"`
-	Network            HostNetwork             `json:"network"`
-	Agents             HostAgents              `json:"agents"`
-	PublicIP           *netip.Addr             `json:"public_ip,omitempty"`
-	PublicIPDetails    *PublicIPDetails        `json:"public_ip_details,omitempty"`
-	LastContact        *time.Time              `json:"last_contact,omitempty"`
-	Heartbeats         []heartbeats.Heartbeat  `json:"heartbeats"`
-	PrimaryUser        *HostPrimaryUser        `json:"primary_user,omitempty"`
-	PrimaryUserSources []HostPrimaryUserSource `json:"primary_user_sources"`
-	CreatedAt          time.Time               `json:"created_at"`
-	UpdatedAt          time.Time               `json:"updated_at"`
-	InventoryUpdatedAt *time.Time              `json:"inventory_updated_at,omitempty"`
-	LastRestartedAt    *time.Time              `json:"last_restarted_at,omitempty"`
+	ID                        int64                   `json:"id"`
+	DisplayName               string                  `json:"display_name"`
+	Status                    HostStatus              `json:"status"`
+	Hostname                  string                  `json:"hostname"`
+	ComputerName              string                  `json:"computer_name"`
+	Enrollment                HostEnrollment          `json:"enrollment"`
+	Hardware                  HostHardware            `json:"hardware"`
+	OS                        HostOS                  `json:"os"`
+	Storage                   HostStorage             `json:"storage"`
+	Network                   HostNetwork             `json:"network"`
+	Agents                    HostAgents              `json:"agents"`
+	PublicIP                  *netip.Addr             `json:"public_ip,omitempty"`
+	PublicIPDetails           *PublicIPDetails        `json:"public_ip_details,omitempty"`
+	LastContact               *time.Time              `json:"last_contact,omitempty"`
+	Heartbeats                []heartbeats.Heartbeat  `json:"heartbeats"`
+	PrimaryUser               *HostPrimaryUser        `json:"primary_user,omitempty"`
+	PrimaryUserSources        []HostPrimaryUserSource `json:"primary_user_sources"`
+	CreatedAt                 time.Time               `json:"created_at"`
+	UpdatedAt                 time.Time               `json:"updated_at"`
+	InventoryUpdatedAt        *time.Time              `json:"inventory_updated_at,omitempty"`
+	InventoryRefreshRequested bool                    `json:"inventory_refresh_requested"`
+	LastRestartedAt           *time.Time              `json:"last_restarted_at,omitempty"`
 
 	OrbitNodeKey       string `json:"-"`
 	OsqueryNodeKey     string `json:"-"`

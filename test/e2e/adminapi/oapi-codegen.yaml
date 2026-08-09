@@ -12,6 +12,7 @@ output-options:
     - create-agent-secret
     - list-hosts
     - get-host
+    - request-host-inventory-refresh
     - list-host-software
     - list-software
     - get-host-munki-state

@@ -5,6 +5,9 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+
+	"github.com/woodleighschool/woodstar/internal/fault"
+	"github.com/woodleighschool/woodstar/internal/postgres"
 )
 
 func (s *Store) ApplyInventory(ctx context.Context, hostID int64, update InventoryUpdate) error {
@@ -316,13 +319,32 @@ ORDER BY common_name, sha1, id`,
 func (s *Store) MarkInventoryFresh(ctx context.Context, hostID int64, inventoryQueryHash string) error {
 	_, err := s.pool.Exec(ctx, `
 UPDATE hosts
-SET inventory_updated_at = now(), inventory_query_hash = @inventory_query_hash, updated_at = now()
+SET
+	inventory_updated_at = now(),
+	inventory_query_hash = @inventory_query_hash,
+	inventory_refresh_requested = FALSE,
+	updated_at = now()
 WHERE id = @id`,
 		pgx.NamedArgs{
 			"id":                   hostID,
 			"inventory_query_hash": inventoryQueryHash,
 		})
 	return err
+}
+
+// RequestInventoryRefresh marks a host's full osquery detail inventory as due.
+func (s *Store) RequestInventoryRefresh(ctx context.Context, hostID int64) error {
+	tag, err := s.pool.Exec(ctx, `
+UPDATE hosts
+SET inventory_refresh_requested = TRUE, updated_at = now()
+WHERE id = $1`, hostID)
+	if err != nil {
+		return postgres.GetError(err)
+	}
+	if tag.RowsAffected() == 0 {
+		return fault.ErrNotFound
+	}
+	return nil
 }
 
 type applyInventoryWrite struct {

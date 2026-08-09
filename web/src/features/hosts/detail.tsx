@@ -1,5 +1,5 @@
 import { Outlet, useNavigate, useParams, useRouterState } from "@tanstack/react-router";
-import { Trash2 } from "lucide-react";
+import { ChevronDown, RefreshCw, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import { PageShell } from "@components/layout/page-layout";
@@ -7,6 +7,13 @@ import { ScrollableTabs, ScrollableTabsList } from "@components/layout/scrollabl
 import { Link } from "@components/link";
 import { QueryGate } from "@components/query-gate";
 import { Button } from "@components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@components/ui/dropdown-menu";
 import { TabsTrigger } from "@components/ui/tabs";
 import { useAuth } from "@features/auth/queries";
 import {
@@ -24,7 +31,12 @@ import { HostOsqueryReportsTab } from "@features/hosts/components/host-osquery-r
 import { HostSantaTab } from "@features/hosts/components/host-santa-tab";
 import { HostSoftwareTab } from "@features/hosts/components/host-software-tab";
 import { HostDeleteDialog } from "@features/hosts/delete-dialog";
-import { useHost, useHostMunkiState, useHostSantaState } from "@features/hosts/queries";
+import {
+  useHost,
+  useHostMunkiState,
+  useHostSantaState,
+  useRequestHostInventoryRefresh,
+} from "@features/hosts/queries";
 import type { HostDetail } from "@lib/api";
 
 const hostSections = [
@@ -51,7 +63,11 @@ export function HostDetailPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const query = useHost(hostID, { refetchInterval: 30_000 });
+  const refresh = useRequestHostInventoryRefresh();
+  const query = useHost(hostID, {
+    refetchInterval: (hostQuery) =>
+      hostQuery.state.data?.inventory_refresh_requested ? 2_000 : 30_000,
+  });
   const host = query.data;
 
   if (query.error || !host) {
@@ -71,15 +87,31 @@ export function HostDetailPage() {
           host={host}
           actions={
             user?.role === "admin" ? (
-              <Button
-                type="button"
-                variant="destructive"
-                size="sm"
-                onClick={() => setDeleteOpen(true)}
-              >
-                <Trash2 data-icon="inline-start" />
-                Delete
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger render={<Button type="button" variant="outline" size="sm" />}>
+                  Actions
+                  <ChevronDown data-icon="inline-end" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-44">
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem
+                      disabled={refresh.isPending || host.inventory_refresh_requested}
+                      onClick={() => refresh.mutate(host.id)}
+                    >
+                      <RefreshCw />
+                      {refresh.isPending
+                        ? "Requesting…"
+                        : host.inventory_refresh_requested
+                          ? "Refresh requested"
+                          : "Refresh inventory"}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem variant="destructive" onClick={() => setDeleteOpen(true)}>
+                      <Trash2 />
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
             ) : null
           }
         />

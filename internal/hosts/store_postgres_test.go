@@ -43,6 +43,68 @@ func TestApplyInventoryAcceptsBigMemory(t *testing.T) {
 	}
 }
 
+func TestInventoryRefreshRequestLifecycle(t *testing.T) {
+	store, ctx := newPostgresHostStore(t)
+
+	host, err := store.UpsertOnOsqueryEnroll(ctx, InventoryUpdate{
+		Hardware:       HostHardware{UUID: "test-inventory-refresh-request"},
+		OsqueryNodeKey: "test-inventory-refresh-request-node-key",
+	})
+	if err != nil {
+		t.Fatalf("enroll host: %v", err)
+	}
+	if err := store.MarkInventoryFresh(ctx, host.ID, "test-query-hash"); err != nil {
+		t.Fatalf("mark inventory fresh: %v", err)
+	}
+	before, err := store.GetByID(ctx, host.ID)
+	if err != nil {
+		t.Fatalf("get fresh host: %v", err)
+	}
+	if before.InventoryUpdatedAt == nil || before.InventoryRefreshRequested {
+		t.Fatalf(
+			"fresh inventory state = updated %v, requested %t; want timestamp and no request",
+			before.InventoryUpdatedAt,
+			before.InventoryRefreshRequested,
+		)
+	}
+
+	if err := store.RequestInventoryRefresh(ctx, host.ID); err != nil {
+		t.Fatalf("request inventory refresh: %v", err)
+	}
+	if err := store.RequestInventoryRefresh(ctx, host.ID); err != nil {
+		t.Fatalf("repeat inventory refresh request: %v", err)
+	}
+	requested, err := store.GetByID(ctx, host.ID)
+	if err != nil {
+		t.Fatalf("get host with refresh request: %v", err)
+	}
+	if !requested.InventoryRefreshRequested {
+		t.Fatal("InventoryRefreshRequested = false, want true")
+	}
+	if requested.InventoryUpdatedAt == nil || !requested.InventoryUpdatedAt.Equal(*before.InventoryUpdatedAt) {
+		t.Fatalf(
+			"InventoryUpdatedAt = %v, want unchanged %v",
+			requested.InventoryUpdatedAt,
+			before.InventoryUpdatedAt,
+		)
+	}
+
+	if err := store.MarkInventoryFresh(ctx, host.ID, "test-query-hash"); err != nil {
+		t.Fatalf("complete requested inventory refresh: %v", err)
+	}
+	completed, err := store.GetByID(ctx, host.ID)
+	if err != nil {
+		t.Fatalf("get refreshed host: %v", err)
+	}
+	if completed.InventoryRefreshRequested {
+		t.Fatal("InventoryRefreshRequested = true after refresh, want false")
+	}
+
+	if err := store.RequestInventoryRefresh(ctx, 999999); !errors.Is(err, fault.ErrNotFound) {
+		t.Fatalf("request missing host error = %v, want ErrNotFound", err)
+	}
+}
+
 func TestLoadDetailResolvesPrimaryUserFromSourceEmail(t *testing.T) {
 	store, ctx := newPostgresHostStore(t)
 	primaryUsers := NewPrimaryUserStore(store.pool)

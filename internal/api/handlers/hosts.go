@@ -68,6 +68,7 @@ func RegisterHosts(
 ) {
 	registerListHosts(api, hostStore, munkiVersions, santaVersions, distribution, geo, logger)
 	registerGetHost(api, hostStore, munkiVersions, santaVersions, distribution, geo, logger)
+	registerRequestHostInventoryRefresh(api, hostStore, logger)
 	registerDeleteHost(api, hostStore, logger)
 	registerBulkDeleteHosts(api, hostStore, logger)
 	registerSetHostPrimaryUser(
@@ -76,6 +77,31 @@ func RegisterHosts(
 	registerClearHostPrimaryUser(
 		api, hostStore, primaryUsers, munkiVersions, santaVersions, distribution, geo, logger,
 	)
+}
+
+func registerRequestHostInventoryRefresh(api huma.API, hostStore *hosts.Store, logger *slog.Logger) {
+	huma.Register(api, huma.Operation{
+		OperationID:   "request-host-inventory-refresh",
+		Method:        http.MethodPost,
+		Path:          "/api/hosts/{id}/inventory-refresh",
+		Tags:          []string{hostsTag},
+		Summary:       "Request host inventory refresh",
+		DefaultStatus: http.StatusAccepted,
+		Errors:        []int{http.StatusNotFound},
+	}, func(ctx context.Context, input *hostGetInput) (*struct{}, error) {
+		if err := hostStore.RequestInventoryRefresh(ctx, input.ID); err != nil {
+			return nil, resourceError(
+				ctx,
+				logger,
+				"request-host-inventory-refresh",
+				hostResource,
+				err,
+				"host_id",
+				input.ID,
+			)
+		}
+		return &struct{}{}, nil
+	})
 }
 
 func registerListHosts(

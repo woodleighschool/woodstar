@@ -1361,27 +1361,28 @@ type Heartbeat struct {
 
 // Host defines model for Host.
 type Host struct {
-	Agents             HostAgents                   `json:"agents"`
-	ComputerName       string                       `json:"computer_name"`
-	CreatedAt          time.Time                    `json:"created_at"`
-	DisplayName        string                       `json:"display_name"`
-	Enrollment         HostEnrollment               `json:"enrollment"`
-	Hardware           HostHardware                 `json:"hardware"`
-	Heartbeats         []Heartbeat                  `json:"heartbeats"`
-	Hostname           string                       `json:"hostname"`
-	Id                 int64                        `json:"id"`
-	InventoryUpdatedAt *time.Time                   `json:"inventory_updated_at,omitempty"`
-	LastContact        *time.Time                   `json:"last_contact,omitempty"`
-	LastRestartedAt    *time.Time                   `json:"last_restarted_at,omitempty"`
-	Network            HostNetwork                  `json:"network"`
-	Os                 HostOS                       `json:"os"`
-	PrimaryUser        *HostPrimaryUser             `json:"primary_user,omitempty"`
-	PrimaryUserSources []HostPrimaryUserObservation `json:"primary_user_sources"`
-	PublicIp           *string                      `json:"public_ip,omitempty"`
-	PublicIpDetails    *PublicIPDetails             `json:"public_ip_details,omitempty"`
-	Status             HostStatus                   `json:"status"`
-	Storage            HostStorage                  `json:"storage"`
-	UpdatedAt          time.Time                    `json:"updated_at"`
+	Agents                    HostAgents                   `json:"agents"`
+	ComputerName              string                       `json:"computer_name"`
+	CreatedAt                 time.Time                    `json:"created_at"`
+	DisplayName               string                       `json:"display_name"`
+	Enrollment                HostEnrollment               `json:"enrollment"`
+	Hardware                  HostHardware                 `json:"hardware"`
+	Heartbeats                []Heartbeat                  `json:"heartbeats"`
+	Hostname                  string                       `json:"hostname"`
+	Id                        int64                        `json:"id"`
+	InventoryRefreshRequested bool                         `json:"inventory_refresh_requested"`
+	InventoryUpdatedAt        *time.Time                   `json:"inventory_updated_at,omitempty"`
+	LastContact               *time.Time                   `json:"last_contact,omitempty"`
+	LastRestartedAt           *time.Time                   `json:"last_restarted_at,omitempty"`
+	Network                   HostNetwork                  `json:"network"`
+	Os                        HostOS                       `json:"os"`
+	PrimaryUser               *HostPrimaryUser             `json:"primary_user,omitempty"`
+	PrimaryUserSources        []HostPrimaryUserObservation `json:"primary_user_sources"`
+	PublicIp                  *string                      `json:"public_ip,omitempty"`
+	PublicIpDetails           *PublicIPDetails             `json:"public_ip_details,omitempty"`
+	Status                    HostStatus                   `json:"status"`
+	Storage                   HostStorage                  `json:"storage"`
+	UpdatedAt                 time.Time                    `json:"updated_at"`
 }
 
 // HostStatus defines model for Host.Status.
@@ -1444,31 +1445,32 @@ type HostCertificate struct {
 
 // HostDetail defines model for HostDetail.
 type HostDetail struct {
-	Agents             HostAgents                   `json:"agents"`
-	Batteries          []HostBattery                `json:"batteries"`
-	Certificates       []HostCertificate            `json:"certificates"`
-	ComputerName       string                       `json:"computer_name"`
-	CreatedAt          time.Time                    `json:"created_at"`
-	DisplayName        string                       `json:"display_name"`
-	Enrollment         HostEnrollment               `json:"enrollment"`
-	Hardware           HostHardware                 `json:"hardware"`
-	Heartbeats         []Heartbeat                  `json:"heartbeats"`
-	Hostname           string                       `json:"hostname"`
-	Id                 int64                        `json:"id"`
-	InventoryUpdatedAt *time.Time                   `json:"inventory_updated_at,omitempty"`
-	Labels             []Label                      `json:"labels"`
-	LastContact        *time.Time                   `json:"last_contact,omitempty"`
-	LastRestartedAt    *time.Time                   `json:"last_restarted_at,omitempty"`
-	Network            HostNetwork                  `json:"network"`
-	Os                 HostOS                       `json:"os"`
-	PrimaryUser        *HostPrimaryUser             `json:"primary_user,omitempty"`
-	PrimaryUserSources []HostPrimaryUserObservation `json:"primary_user_sources"`
-	PublicIp           *string                      `json:"public_ip,omitempty"`
-	PublicIpDetails    *PublicIPDetails             `json:"public_ip_details,omitempty"`
-	Status             HostDetailStatus             `json:"status"`
-	Storage            HostStorage                  `json:"storage"`
-	UpdatedAt          time.Time                    `json:"updated_at"`
-	Users              []HostUser                   `json:"users"`
+	Agents                    HostAgents                   `json:"agents"`
+	Batteries                 []HostBattery                `json:"batteries"`
+	Certificates              []HostCertificate            `json:"certificates"`
+	ComputerName              string                       `json:"computer_name"`
+	CreatedAt                 time.Time                    `json:"created_at"`
+	DisplayName               string                       `json:"display_name"`
+	Enrollment                HostEnrollment               `json:"enrollment"`
+	Hardware                  HostHardware                 `json:"hardware"`
+	Heartbeats                []Heartbeat                  `json:"heartbeats"`
+	Hostname                  string                       `json:"hostname"`
+	Id                        int64                        `json:"id"`
+	InventoryRefreshRequested bool                         `json:"inventory_refresh_requested"`
+	InventoryUpdatedAt        *time.Time                   `json:"inventory_updated_at,omitempty"`
+	Labels                    []Label                      `json:"labels"`
+	LastContact               *time.Time                   `json:"last_contact,omitempty"`
+	LastRestartedAt           *time.Time                   `json:"last_restarted_at,omitempty"`
+	Network                   HostNetwork                  `json:"network"`
+	Os                        HostOS                       `json:"os"`
+	PrimaryUser               *HostPrimaryUser             `json:"primary_user,omitempty"`
+	PrimaryUserSources        []HostPrimaryUserObservation `json:"primary_user_sources"`
+	PublicIp                  *string                      `json:"public_ip,omitempty"`
+	PublicIpDetails           *PublicIPDetails             `json:"public_ip_details,omitempty"`
+	Status                    HostDetailStatus             `json:"status"`
+	Storage                   HostStorage                  `json:"storage"`
+	UpdatedAt                 time.Time                    `json:"updated_at"`
+	Users                     []HostUser                   `json:"users"`
 }
 
 // HostDetailStatus defines model for HostDetail.Status.
@@ -3059,6 +3061,11 @@ type ClientInterface interface {
 	// Corresponds with GET /api/hosts/{id} (the `GetHost` operationId).
 	GetHost(ctx context.Context, id int64, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// RequestHostInventoryRefresh Request host inventory refresh
+	//
+	// Corresponds with POST /api/hosts/{id}/inventory-refresh (the `RequestHostInventoryRefresh` operationId).
+	RequestHostInventoryRefresh(ctx context.Context, id int64, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetHostMunkiState Get Munki state for a host
 	//
 	// Corresponds with GET /api/hosts/{id}/munki (the `GetHostMunkiState` operationId).
@@ -3415,6 +3422,21 @@ func (c *Client) ListHosts(ctx context.Context, params *ListHostsParams, reqEdit
 // Corresponds with GET /api/hosts/{id} (the `GetHost` operationId).
 func (c *Client) GetHost(ctx context.Context, id int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetHostRequest(c.Server, id)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RequestHostInventoryRefresh Request host inventory refresh
+//
+// Corresponds with POST /api/hosts/{id}/inventory-refresh (the `RequestHostInventoryRefresh` operationId).
+func (c *Client) RequestHostInventoryRefresh(ctx context.Context, id int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRequestHostInventoryRefreshRequest(c.Server, id)
 	if err != nil {
 		return nil, err
 	}
@@ -4397,6 +4419,40 @@ func NewGetHostRequest(server string, id int64) (*http.Request, error) {
 	}
 
 	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewRequestHostInventoryRefreshRequest constructs an http.Request for the RequestHostInventoryRefresh method
+func NewRequestHostInventoryRefreshRequest(server string, id int64) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "id", id, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: "int64"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/hosts/%s/inventory-refresh", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -6139,6 +6195,13 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /api/hosts/{id} (the `GetHost` operationId).
 	GetHostWithResponse(ctx context.Context, id int64, reqEditors ...RequestEditorFn) (*GetHostResponse, error)
 
+	// RequestHostInventoryRefreshWithResponse Request host inventory refresh
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /api/hosts/{id}/inventory-refresh (the `RequestHostInventoryRefresh` operationId).
+	RequestHostInventoryRefreshWithResponse(ctx context.Context, id int64, reqEditors ...RequestEditorFn) (*RequestHostInventoryRefreshResponse, error)
+
 	// GetHostMunkiStateWithResponse Get Munki state for a host
 	//
 	// Returns a wrapper object for the known response body format(s).
@@ -6759,6 +6822,75 @@ func (r GetHostResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r GetHostResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RequestHostInventoryRefreshResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON401 the response for an HTTP 401 `application/problem+json` response
+	ApplicationproblemJSON401 *ErrorModel
+	// ApplicationproblemJSON403 the response for an HTTP 403 `application/problem+json` response
+	ApplicationproblemJSON403 *ErrorModel
+	// ApplicationproblemJSON404 the response for an HTTP 404 `application/problem+json` response
+	ApplicationproblemJSON404 *ErrorModel
+	// ApplicationproblemJSON422 the response for an HTTP 422 `application/problem+json` response
+	ApplicationproblemJSON422 *ErrorModel
+	// ApplicationproblemJSON500 the response for an HTTP 500 `application/problem+json` response
+	ApplicationproblemJSON500 *ErrorModel
+}
+
+// GetApplicationproblemJSON401 returns the response for an HTTP 401 `application/problem+json` response
+func (r RequestHostInventoryRefreshResponse) GetApplicationproblemJSON401() *ErrorModel {
+	return r.ApplicationproblemJSON401
+}
+
+// GetApplicationproblemJSON403 returns the response for an HTTP 403 `application/problem+json` response
+func (r RequestHostInventoryRefreshResponse) GetApplicationproblemJSON403() *ErrorModel {
+	return r.ApplicationproblemJSON403
+}
+
+// GetApplicationproblemJSON404 returns the response for an HTTP 404 `application/problem+json` response
+func (r RequestHostInventoryRefreshResponse) GetApplicationproblemJSON404() *ErrorModel {
+	return r.ApplicationproblemJSON404
+}
+
+// GetApplicationproblemJSON422 returns the response for an HTTP 422 `application/problem+json` response
+func (r RequestHostInventoryRefreshResponse) GetApplicationproblemJSON422() *ErrorModel {
+	return r.ApplicationproblemJSON422
+}
+
+// GetApplicationproblemJSON500 returns the response for an HTTP 500 `application/problem+json` response
+func (r RequestHostInventoryRefreshResponse) GetApplicationproblemJSON500() *ErrorModel {
+	return r.ApplicationproblemJSON500
+}
+
+// GetBody returns the raw response body bytes
+func (r RequestHostInventoryRefreshResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RequestHostInventoryRefreshResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RequestHostInventoryRefreshResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RequestHostInventoryRefreshResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -9061,6 +9193,19 @@ func (c *ClientWithResponses) GetHostWithResponse(ctx context.Context, id int64,
 	return ParseGetHostResponse(rsp)
 }
 
+// RequestHostInventoryRefreshWithResponse Request host inventory refresh
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /api/hosts/{id}/inventory-refresh (the `RequestHostInventoryRefresh` operationId).
+func (c *ClientWithResponses) RequestHostInventoryRefreshWithResponse(ctx context.Context, id int64, reqEditors ...RequestEditorFn) (*RequestHostInventoryRefreshResponse, error) {
+	rsp, err := c.RequestHostInventoryRefresh(ctx, id, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRequestHostInventoryRefreshResponse(rsp)
+}
+
 // GetHostMunkiStateWithResponse Get Munki state for a host
 //
 // Returns a wrapper object for the known response body format(s).
@@ -9842,6 +9987,63 @@ func ParseGetHostResponse(rsp *http.Response) (*GetHostResponse, error) {
 			return nil, err
 		}
 		response.ApplicationproblemJSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON422 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRequestHostInventoryRefreshResponse parses an HTTP response from a RequestHostInventoryRefreshWithResponse call
+func ParseRequestHostInventoryRefreshResponse(rsp *http.Response) (*RequestHostInventoryRefreshResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RequestHostInventoryRefreshResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 202:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest ErrorModel

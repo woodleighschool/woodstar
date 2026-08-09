@@ -241,6 +241,8 @@ components:
         id:
           format: int64
           type: integer
+        inventory_refresh_requested:
+          type: boolean
         inventory_updated_at:
           format: date-time
           type: string
@@ -291,6 +293,7 @@ components:
         - primary_user_sources
         - created_at
         - updated_at
+        - inventory_refresh_requested
       type: object
     HostAgents:
       additionalProperties: false
@@ -457,6 +460,8 @@ components:
         id:
           format: int64
           type: integer
+        inventory_refresh_requested:
+          type: boolean
         inventory_updated_at:
           format: date-time
           type: string
@@ -519,6 +524,7 @@ components:
         - primary_user_sources
         - created_at
         - updated_at
+        - inventory_refresh_requested
       type: object
     HostEnrollment:
       additionalProperties: false
@@ -4836,6 +4842,55 @@ paths:
         - cookieAuth: []
         - bearerAuth: []
       summary: Get a host
+      tags:
+        - Hosts
+  /api/hosts/{id}/inventory-refresh:
+    post:
+      operationId: request-host-inventory-refresh
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+      responses:
+        "202":
+          description: Accepted
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      summary: Request host inventory refresh
       tags:
         - Hosts
   /api/hosts/{id}/munki:

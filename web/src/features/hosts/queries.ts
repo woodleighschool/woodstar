@@ -1,6 +1,7 @@
 import {
   keepPreviousData,
   queryOptions,
+  type UseQueryOptions,
   useMutation,
   useQuery,
   useQueryClient,
@@ -35,6 +36,7 @@ import {
   listHostSantaRules,
   listHostSoftware,
   nullOn404,
+  requestHostInventoryRefresh,
   setHostPrimaryUser,
   unwrap,
 } from "@lib/api";
@@ -79,6 +81,7 @@ type HostOsqueryChecksParams = NonNullable<ListHostOsqueryChecksData["query"]>;
 type HostOsqueryReportsParams = NonNullable<ListHostOsqueryReportsData["query"]>;
 type HostSantaRulesParams = NonNullable<ListHostSantaRulesData["query"]>;
 type RefetchOptions = { refetchInterval?: number | false };
+type HostRefetchOptions = Pick<UseQueryOptions<HostDetail, ApiError>, "refetchInterval">;
 
 interface HostPrimaryUserMutation {
   email: string;
@@ -95,7 +98,7 @@ function hostListQueryParams(params: HostListParams) {
   };
 }
 
-export function hostQueryOptions(id: number | null, options: RefetchOptions = {}) {
+export function hostQueryOptions(id: number | null, options: HostRefetchOptions = {}) {
   return queryOptions<HostDetail, ApiError>({
     queryKey: hostKeys.detail(id),
     queryFn: ({ signal }) => unwrap(getHost({ path: detailPath(id), signal })),
@@ -125,7 +128,7 @@ export async function listAllHosts(params: HostListParams = {}): Promise<Host[]>
   );
 }
 
-export function useHost(id: number | null, options: RefetchOptions = {}) {
+export function useHost(id: number | null, options: HostRefetchOptions = {}) {
   return useQuery(hostQueryOptions(id, options));
 }
 
@@ -181,6 +184,30 @@ export function useDeleteHost() {
     mutationFn: (id) => unwrap(deleteHost({ path: { id } })),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: hostKeys.all });
+    },
+  });
+}
+
+export function useRequestHostInventoryRefresh() {
+  const queryClient = useQueryClient();
+  return useMutation<unknown, ApiError, number>({
+    mutationFn: (id) => unwrap(requestHostInventoryRefresh({ path: { id } })),
+    onSuccess: (_, id) => {
+      queryClient.setQueryData<HostDetail>(hostKeys.detail(id), (host) =>
+        host ? { ...host, inventory_refresh_requested: true } : host,
+      );
+      toast.add({
+        title: "Inventory refresh requested",
+        description: "It will run when the host next checks in.",
+        type: "success",
+      });
+    },
+    onError: (error) => {
+      toast.add({
+        title: "Inventory refresh could not be requested",
+        description: error.message,
+        type: "error",
+      });
     },
   });
 }

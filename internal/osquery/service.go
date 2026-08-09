@@ -169,7 +169,13 @@ func (s *AgentService) DistributedRead(
 		return DistributedReadResponse{NodeInvalid: true}, nil
 	}
 
-	due := catalog.DetailQueriesDue(host.InventoryUpdatedAt, host.InventoryQueryHash)
+	inventoryUpdatedAt := host.InventoryUpdatedAt
+	inventoryQueryHash := host.InventoryQueryHash
+	if host.InventoryRefreshRequested {
+		inventoryUpdatedAt = nil
+		inventoryQueryHash = ""
+	}
+	due := catalog.DetailQueriesDue(inventoryUpdatedAt, inventoryQueryHash)
 	detailQueries := make(map[string]string, len(due.Queries))
 	for suffix, sql := range due.Queries {
 		detailQueries[queryName(kindDetail, suffix)] = sql

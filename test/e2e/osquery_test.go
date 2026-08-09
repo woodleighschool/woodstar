@@ -462,6 +462,109 @@ func TestOsquery(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear proto
 		)
 	}
 
+	refreshResponse, err := server.Admin.RequestHostInventoryRefreshWithResponse(
+		t.Context(),
+		enrolledHost.Id,
+	)
+	requireAPIResponse(
+		t,
+		"request host inventory refresh",
+		http.StatusAccepted,
+		refreshResponse,
+		err,
+	)
+	requestedHostResponse, err := server.Admin.GetHostWithResponse(t.Context(), enrolledHost.Id)
+	requestedHostResponse = requireAPIResponse(
+		t,
+		"get host with inventory refresh requested",
+		http.StatusOK,
+		requestedHostResponse,
+		err,
+	)
+	if requestedHostResponse.JSON200 == nil {
+		t.Fatal("get requested host returned no JSON body")
+	}
+	requestedHost := *requestedHostResponse.JSON200
+	if !requestedHost.InventoryRefreshRequested || requestedHost.InventoryUpdatedAt == nil {
+		t.Fatalf(
+			"requested inventory state = requested %t, updated %v; want true and prior timestamp",
+			requestedHost.InventoryRefreshRequested,
+			requestedHost.InventoryUpdatedAt,
+		)
+	}
+
+	var refreshRead osqueryTestDistributedReadResponse
+	postJSON(
+		t,
+		agentClient,
+		server.BaseURL+"/api/v1/osquery/distributed/read",
+		osqueryTestNodeRequest{NodeKey: enroll.NodeKey},
+		&refreshRead,
+	)
+	if refreshRead.NodeInvalid || len(refreshRead.Queries) != len(queryRows) {
+		t.Fatalf(
+			"refresh distributed read node_invalid/query count = %t/%d, want false/%d",
+			refreshRead.NodeInvalid,
+			len(refreshRead.Queries),
+			len(queryRows),
+		)
+	}
+	for name := range queryRows {
+		if _, ok := refreshRead.Queries[name]; !ok {
+			t.Fatalf("refresh distributed read missing prior detail query %q", name)
+		}
+	}
+
+	postJSON(
+		t,
+		agentClient,
+		server.BaseURL+"/api/v1/osquery/distributed/write",
+		osqueryTestDistributedWriteRequest{
+			NodeKey: enroll.NodeKey, Queries: queryRows, Statuses: statuses, Messages: map[string]string{},
+		},
+		&writeAck,
+	)
+	if writeAck.NodeInvalid {
+		t.Fatal("refresh distributed write returned node_invalid")
+	}
+	refreshedHostResponse, err := server.Admin.GetHostWithResponse(t.Context(), enrolledHost.Id)
+	refreshedHostResponse = requireAPIResponse(
+		t,
+		"get host after inventory refresh",
+		http.StatusOK,
+		refreshedHostResponse,
+		err,
+	)
+	if refreshedHostResponse.JSON200 == nil {
+		t.Fatal("get refreshed host returned no JSON body")
+	}
+	refreshedHost := *refreshedHostResponse.JSON200
+	if refreshedHost.InventoryRefreshRequested || refreshedHost.InventoryUpdatedAt == nil ||
+		!refreshedHost.InventoryUpdatedAt.After(*requestedHost.InventoryUpdatedAt) {
+		t.Fatalf(
+			"refreshed inventory state = requested %t, updated %v; want false and after %v",
+			refreshedHost.InventoryRefreshRequested,
+			refreshedHost.InventoryUpdatedAt,
+			requestedHost.InventoryUpdatedAt,
+		)
+	}
+
+	var postRefreshRead osqueryTestDistributedReadResponse
+	postJSON(
+		t,
+		agentClient,
+		server.BaseURL+"/api/v1/osquery/distributed/read",
+		osqueryTestNodeRequest{NodeKey: enroll.NodeKey},
+		&postRefreshRead,
+	)
+	if postRefreshRead.NodeInvalid || len(postRefreshRead.Queries) != 0 {
+		t.Fatalf(
+			"post-refresh distributed read node_invalid/query count = %t/%d, want false/0",
+			postRefreshRead.NodeInvalid,
+			len(postRefreshRead.Queries),
+		)
+	}
+
 	var statusAck osqueryTestAcknowledgement
 	postJSON(
 		t,

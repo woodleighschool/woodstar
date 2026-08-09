@@ -117,6 +117,7 @@ export type Host = {
     heartbeats: Array<Heartbeat>;
     hostname: string;
     id: number;
+    inventory_refresh_requested: boolean;
     inventory_updated_at?: string;
     last_contact?: string;
     last_restarted_at?: string;
@@ -193,6 +194,7 @@ export type HostDetail = {
     heartbeats: Array<Heartbeat>;
     hostname: string;
     id: number;
+    inventory_refresh_requested: boolean;
     inventory_updated_at?: string;
     labels: Array<Label>;
     last_contact?: string;
@@ -1449,6 +1451,7 @@ export type HostDetailWritable = {
     heartbeats: Array<Heartbeat>;
     hostname: string;
     id: number;
+    inventory_refresh_requested: boolean;
     inventory_updated_at?: string;
     labels: Array<LabelWritable>;
     last_contact?: string;
@@ -2099,6 +2102,47 @@ export type GetHostResponses = {
 };
 
 export type GetHostResponse = GetHostResponses[keyof GetHostResponses];
+
+export type RequestHostInventoryRefreshData = {
+    body?: never;
+    path: {
+        id: number;
+    };
+    query?: never;
+    url: '/api/hosts/{id}/inventory-refresh';
+};
+
+export type RequestHostInventoryRefreshErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type RequestHostInventoryRefreshError = RequestHostInventoryRefreshErrors[keyof RequestHostInventoryRefreshErrors];
+
+export type RequestHostInventoryRefreshResponses = {
+    /**
+     * Accepted
+     */
+    202: unknown;
+};
 
 export type GetHostMunkiStateData = {
     body?: never;
