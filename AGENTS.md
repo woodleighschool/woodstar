@@ -14,7 +14,7 @@ Repository guidance for Woodstar.
 - Process composition and subcommands: `cmd/woodstar`
 - Capability-owned backend code: `internal/`
 - HTTP server and handlers: `internal/api`
-- Database and migrations: `internal/database`
+- PostgreSQL bootstrap, shared SQL mechanics, and migrations: `internal/postgres`
 - Protocols: `internal/{orbit,osquery,munki,santa}/protocol`
 - Cross-system tests: `test/e2e`; provider/storage integration: `test/integration`
 - Frontend: `web/`; read `web/AGENTS.md` before changing it
@@ -34,6 +34,7 @@ Use Mise tasks as the repository contract.
 - Lint: `mise run lint`; fixes: `mise run lint-fix`
 - Format: `mise run format`; check: `mise run fmt-check`
 - Generated OpenAPI and clients: `mise run openapi-types`
+- Migrations: create with `mise run migration <name>`; validate with `mise run migration:validate`
 - Module and workflow checks: `mise run tidy-check`, `mise run workflow-lint`
 
 `mise run test` requires neither PostgreSQL nor Docker. Tagged database and integration lanes require their named services and don't silently skip. Use `//web:*` and `//docs:*` tasks when only one frontend is in scope.
@@ -43,7 +44,13 @@ Use Mise tasks as the repository contract.
 - `cmd/woodstar/main.go` owns central composition. Services orchestrate behavior; they aren't plain CRUD wrappers.
 - Domain types live in their capability. Keep core host packages independent of Orbit, osquery, Santa, and Munki.
 - Orbit and osquery enroll hosts. Santa and Munki enrich existing hosts rather than creating canonical identity.
-- Use raw pgx stores with a canonical projection shared by Get and List. Don't add an ORM or sqlc.
+- Use raw pgx stores and handwritten SQL with a canonical projection shared by Get and List. Don't add an ORM or sqlc.
+- `internal/postgres` owns pool startup, Goose, and shared SQL mechanics; capability Stores own application SQL and use `store.go` or `*_store.go`.
+- Keep pgx in `internal/postgres`, Store implementation files, composition, and PostgreSQL test support. Even cheap reads go through a narrow Store method, not services, handlers, protocols, or models.
+- Use `pgx.BeginFunc` for Store transactions. Pass `pgx.Tx` between Stores only when both must join that transaction; never expose it to higher layers.
+- Keep database-neutral errors and list inputs in `internal/fault` and `internal/listing`, not PostgreSQL helpers. Keep blob bytes (`BlobStore`) distinct from object metadata (`ObjectStore`).
+- When all databases may be rebuilt, rewrite the `001`-`010` greenfield baseline and recreate consumers. Otherwise use `mise run migration <name>`; timestamped migrations are mutable on their branch, forward-only and immutable once consumed.
+- Don't add tracked architecture tests for imports, filenames, or source structure. Use behavior tests, review, and temporary ad hoc audits.
 - Persist timestamps with SQL `now()` and re-read created or updated records for response bodies.
 - API paths use lowercase resource nouns. Route registration remains side-effect-free.
 - API changes regenerate `web/openapi.yaml`, frontend clients, and the Go E2E client in the same change.
