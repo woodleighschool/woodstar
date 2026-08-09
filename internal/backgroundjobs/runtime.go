@@ -54,6 +54,27 @@ type Runtime struct {
 	client *river.Client[pgx.Tx]
 }
 
+type minimumLevelHandler struct {
+	next  slog.Handler
+	level slog.Level
+}
+
+func (h minimumLevelHandler) Enabled(ctx context.Context, level slog.Level) bool {
+	return level >= h.level && h.next.Enabled(ctx, level)
+}
+
+func (h minimumLevelHandler) Handle(ctx context.Context, record slog.Record) error {
+	return h.next.Handle(ctx, record)
+}
+
+func (h minimumLevelHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return minimumLevelHandler{next: h.next.WithAttrs(attrs), level: h.level}
+}
+
+func (h minimumLevelHandler) WithGroup(name string) slog.Handler {
+	return minimumLevelHandler{next: h.next.WithGroup(name), level: h.level}
+}
+
 func New(
 	pool *pgxpool.Pool,
 	workers *river.Workers,
@@ -61,7 +82,8 @@ func New(
 	logger *slog.Logger,
 ) (*Runtime, error) {
 	client, err := river.NewClient(riverpgxv5.New(pool), &river.Config{
-		Logger:          logger,
+		// Keep River's five-second housekeeping chatter out of Woodstar's debug logs.
+		Logger:          riverLogger(logger),
 		JobTimeout:      30 * time.Minute,
 		SoftStopTimeout: softStopTimeout,
 		Queues: map[string]river.QueueConfig{
@@ -74,6 +96,13 @@ func New(
 		return nil, fmt.Errorf("configure River: %w", err)
 	}
 	return &Runtime{client: client}, nil
+}
+
+func riverLogger(logger *slog.Logger) *slog.Logger {
+	return slog.New(minimumLevelHandler{
+		next:  logger.Handler(),
+		level: slog.LevelInfo,
+	})
 }
 
 func (r *Runtime) Start(ctx context.Context) error {
