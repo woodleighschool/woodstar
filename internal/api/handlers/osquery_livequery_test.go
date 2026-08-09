@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -10,14 +9,12 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	"github.com/go-chi/chi/v5"
-
-	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
 )
 
 func TestCreateLiveQueryRejectsBlankSQL(t *testing.T) {
 	router := chi.NewRouter()
 	api := humachi.New(router, testHumaConfig())
-	registerLiveQueries(api, api, livequery.NewManager(), nil, discardLogger())
+	registerLiveQueries(api, api, nil, nil, discardLogger())
 
 	request := httptest.NewRequestWithContext(
 		t.Context(),
@@ -31,35 +28,6 @@ func TestCreateLiveQueryRejectsBlankSQL(t *testing.T) {
 
 	if recorder.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want %d; body = %q", recorder.Code, http.StatusBadRequest, recorder.Body.String())
-	}
-}
-
-func TestDeleteLiveQueryStopsRun(t *testing.T) {
-	manager := livequery.NewManager()
-	handle := manager.Start("select 1", []livequery.Target{{HostID: 42, HostName: "mac-42"}})
-	router := chi.NewRouter()
-	api := humachi.New(router, testHumaConfig())
-	registerLiveQueries(api, api, manager, nil, discardLogger())
-
-	recorder := httptest.NewRecorder()
-	router.ServeHTTP(
-		recorder,
-		httptest.NewRequestWithContext(t.Context(), http.MethodDelete, fmt.Sprintf("/api/osquery/live-queries/%d", handle.ID), nil),
-	)
-	if recorder.Code != http.StatusNoContent {
-		t.Fatalf("status = %d, want %d; body = %q", recorder.Code, http.StatusNoContent, recorder.Body.String())
-	}
-	if pending := manager.PendingForHost(42); len(pending) != 0 {
-		t.Fatalf("pending work after DELETE = %+v, want none", pending)
-	}
-
-	recorder = httptest.NewRecorder()
-	router.ServeHTTP(
-		recorder,
-		httptest.NewRequestWithContext(t.Context(), http.MethodDelete, "/api/osquery/live-queries/999999", nil),
-	)
-	if recorder.Code != http.StatusNotFound {
-		t.Fatalf("missing status = %d, want %d; body = %q", recorder.Code, http.StatusNotFound, recorder.Body.String())
 	}
 }
 
@@ -111,57 +79,4 @@ func testHumaConfigWithoutUtilityRoutes() huma.Config {
 	cfg.DocsPath = ""
 	cfg.SchemasPath = ""
 	return cfg
-}
-
-func TestLiveQueryStreamReturnsNotFoundBeforeStreaming(t *testing.T) {
-	router := chi.NewRouter()
-	api := humachi.New(router, testHumaConfig())
-	registerLiveQueries(api, api, livequery.NewManager(), nil, discardLogger())
-
-	recorder := httptest.NewRecorder()
-	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/osquery/live-queries/404/stream", nil)
-	request.Header.Set("Accept", "text/event-stream")
-	router.ServeHTTP(recorder, request)
-
-	if recorder.Code != http.StatusNotFound {
-		t.Fatalf("status = %d, want %d; body = %q", recorder.Code, http.StatusNotFound, recorder.Body.String())
-	}
-	if contentType := recorder.Header().Get("Content-Type"); strings.Contains(contentType, "text/event-stream") {
-		t.Fatalf("Content-Type = %q, want a regular error response", contentType)
-	}
-}
-
-func TestLiveQueryStreamReplaysCompletedResults(t *testing.T) {
-	manager := livequery.NewManager()
-	handle := manager.Start("select 1", []livequery.Target{{HostID: 4, HostName: "mac-4"}})
-	manager.RecordResult(livequery.Result{
-		QueryID:  handle.ID,
-		HostID:   4,
-		HostName: "mac-4",
-		Status:   livequery.StatusCollected,
-		Rows:     []map[string]string{{"answer": "1"}},
-	})
-	router := chi.NewRouter()
-	api := humachi.New(router, testHumaConfig())
-	registerLiveQueries(api, api, manager, nil, discardLogger())
-
-	recorder := httptest.NewRecorder()
-	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/osquery/live-queries/1/stream", nil)
-	request.Header.Set("Accept", "text/event-stream")
-	router.ServeHTTP(recorder, request)
-
-	if recorder.Code != http.StatusOK {
-		t.Fatalf("status = %d, want %d; body = %q", recorder.Code, http.StatusOK, recorder.Body.String())
-	}
-	body := recorder.Body.String()
-	resultAt := strings.Index(body, "event: snapshot")
-	completedAt := strings.Index(body, "event: completed")
-	if resultAt < 0 || completedAt < 0 || resultAt > completedAt {
-		t.Fatalf("SSE body = %q, want replayed snapshot before completion", body)
-	}
-	for _, want := range []string{`"status":"collected"`, `"host_name":"mac-4"`, `"rows":[{"answer":"1"}]`} {
-		if !strings.Contains(body, want) {
-			t.Fatalf("SSE body = %q, want %q", body, want)
-		}
-	}
 }

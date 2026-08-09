@@ -230,7 +230,7 @@ func buildDependencies(
 	// Osquery stores.
 	reportStore := reports.NewStore(pool)
 	checkStore := checks.NewStore(pool)
-	liveQueries := livequery.NewManager()
+	liveQueries := livequery.NewStore(pool)
 
 	// Munki stores.
 	storageLogger := logger.With("component", "storage")

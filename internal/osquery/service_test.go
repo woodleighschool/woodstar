@@ -320,9 +320,11 @@ func (fakeCheckStore) UpsertMembership(context.Context, int64, string, int64, *b
 
 type fakeLiveQueries struct{}
 
-func (fakeLiveQueries) PendingForHost(int64) []livequery.Work { return nil }
+func (fakeLiveQueries) PendingForHost(context.Context, int64) ([]livequery.Work, error) {
+	return nil, nil
+}
 
-func (fakeLiveQueries) RecordResult(livequery.Result) {}
+func (fakeLiveQueries) RecordResult(context.Context, livequery.Result) error { return nil }
 
 func (fakeReportStore) ScheduledForHost(context.Context, *hosts.Host) ([]reports.Report, error) {
 	return nil, nil

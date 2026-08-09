@@ -1,17 +1,23 @@
 package livequery
 
 import (
+	"context"
 	"errors"
-	"sort"
-	"sync"
-	"sync/atomic"
 	"time"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/woodleighschool/woodstar/internal/postgres"
 )
 
-// ErrLiveQueryNotFound is returned when the manager has no live query for an id.
+// ErrLiveQueryNotFound is returned when no retained live query has the given ID.
 var ErrLiveQueryNotFound = errors.New("live query not found")
 
-const orphanCleanupAfter = time.Minute
+const (
+	runTimeout         = 5 * time.Minute
+	completedRetention = time.Minute
+)
 
 // Status is one host's state within a live query.
 type Status string
@@ -29,7 +35,7 @@ type Target struct {
 	HostName string
 }
 
-// Work is one queued live query for a host (read by /distributed/read).
+// Work is one unfinished live query for a host.
 type Work struct {
 	QueryID int64
 	SQL     string
@@ -63,300 +69,256 @@ type Result struct {
 	Error    string
 }
 
-// Manager runs ephemeral live queries entirely in-process.
-type Manager struct {
-	cleanupAfter time.Duration
-
-	next    atomic.Int64
-	subNext atomic.Int64
-
-	mu        sync.Mutex
-	active    map[int64]*liveQuery
-	completed map[int64]*liveQuery
-	subs      map[int64]map[int64]chan Snapshot
+// Store persists live-query runs and per-host snapshots.
+type Store struct {
+	pool *pgxpool.Pool
 }
 
-type liveQuery struct {
-	id           int64
-	sql          string
-	startedAt    time.Time
-	snapshots    map[int64]Snapshot
-	cleanupTimer *time.Timer
+// NewStore returns a live-query store backed by PostgreSQL.
+func NewStore(pool *pgxpool.Pool) *Store {
+	return &Store{pool: pool}
 }
 
-// NewManager returns a manager for ephemeral browser-session live runs.
-func NewManager() *Manager {
-	return &Manager{
-		cleanupAfter: orphanCleanupAfter,
-		active:       make(map[int64]*liveQuery),
-		completed:    make(map[int64]*liveQuery),
-		subs:         make(map[int64]map[int64]chan Snapshot),
-	}
-}
-
-// Start registers a live query against the host set resolved when the browser
-// starts the run. The returned handle is what the admin uses to attach a stream.
-func (m *Manager) Start(sql string, targets []Target) Handle {
-	id := m.next.Add(1)
-	startedAt := time.Now().UTC()
-	snapshots := make(map[int64]Snapshot, len(targets))
+// Start creates a run against the distinct host set resolved by the caller.
+func (s *Store) Start(ctx context.Context, sql string, targets []Target) (Handle, error) {
+	targetsByID := make(map[int64]Target, len(targets))
 	for _, target := range targets {
-		snapshots[target.HostID] = Snapshot{
-			HostID:    target.HostID,
-			HostName:  target.HostName,
-			Status:    StatusPending,
-			Rows:      []map[string]string{},
-			UpdatedAt: startedAt,
+		targetsByID[target.HostID] = target
+	}
+
+	handle := Handle{SQL: sql}
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `
+DELETE FROM osquery_live_query_runs
+WHERE COALESCE(completed_at, deadline_at) < now() - $1 * interval '1 microsecond'`,
+			completedRetention.Microseconds(),
+		); err != nil {
+			return err
 		}
-	}
-	q := &liveQuery{
-		id:        id,
-		sql:       sql,
-		startedAt: startedAt,
-		snapshots: snapshots,
-	}
 
-	m.mu.Lock()
-	if len(snapshots) == 0 {
-		m.completed[id] = q
-		m.mu.Unlock()
-		m.forgetCompletedLater(id)
-		return Handle{ID: id, SQL: sql, StartedAt: startedAt}
-	}
-	m.active[id] = q
-	q.cleanupTimer = time.AfterFunc(m.cleanupAfter, func() { m.stopOrphan(id) })
-	m.mu.Unlock()
+		if err := tx.QueryRow(ctx, `
+INSERT INTO osquery_live_query_runs (query, deadline_at)
+VALUES ($1, now() + $2 * interval '1 microsecond')
+RETURNING id, started_at`, sql, runTimeout.Microseconds()).Scan(
+			&handle.ID,
+			&handle.StartedAt,
+		); err != nil {
+			return err
+		}
 
-	return Handle{
-		ID:                id,
-		SQL:               sql,
-		StartedAt:         startedAt,
-		ResolvedHostCount: int32(len(snapshots)), //nolint:gosec // More than MaxInt32 distinct in-memory hosts is outside supported process limits.
+		for _, target := range targetsByID {
+			if _, err := tx.Exec(ctx, `
+INSERT INTO osquery_live_query_targets (run_id, host_id, host_name)
+VALUES ($1, $2, $3)`, handle.ID, target.HostID, target.HostName); err != nil {
+				return err
+			}
+		}
+		if len(targetsByID) == 0 {
+			if _, err := tx.Exec(ctx, `
+UPDATE osquery_live_query_runs
+SET completed_at = started_at
+WHERE id = $1`, handle.ID); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return Handle{}, err
 	}
+	handle.ResolvedHostCount = int32(len(targetsByID)) //nolint:gosec // More than MaxInt32 targets is outside supported database limits.
+	return handle, nil
 }
 
-// PendingForHost returns live queries currently targeting host.
-func (m *Manager) PendingForHost(hostID int64) []Work {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	out := make([]Work, 0)
-	for _, q := range m.active {
-		snapshot, targeted := q.snapshots[hostID]
-		if !targeted || snapshot.Status != StatusPending {
-			continue
-		}
-		out = append(out, Work{QueryID: q.id, SQL: q.sql})
+// PendingForHost returns every unfinished, unexpired run targeting hostID.
+// Work remains visible until a result is recorded, so agent delivery is
+// naturally at least once across replicas.
+func (s *Store) PendingForHost(ctx context.Context, hostID int64) ([]Work, error) {
+	qrows, err := s.pool.Query(ctx, `
+SELECT run.id, run.query
+FROM osquery_live_query_targets target
+JOIN osquery_live_query_runs run ON run.id = target.run_id
+WHERE target.host_id = $1
+  AND target.status = 'pending'
+  AND run.completed_at IS NULL
+  AND run.deadline_at > now()
+ORDER BY run.id`, hostID)
+	if err != nil {
+		return nil, err
 	}
-	return out
+	work, err := pgx.CollectRows(qrows, pgx.RowToStructByPos[Work])
+	if err != nil {
+		return nil, err
+	}
+	return work, nil
 }
 
-// Stop cancels a running live query and marks its pending hosts stopped.
-// Stopping an already-completed live query is idempotent.
-func (m *Manager) Stop(queryID int64) error {
-	m.mu.Lock()
-	q, ok := m.active[queryID]
-	if !ok {
-		if _, completed := m.completed[queryID]; completed {
-			m.mu.Unlock()
+// Stop marks every unfinished target stopped. Stopping a completed run is
+// idempotent.
+func (s *Store) Stop(ctx context.Context, queryID int64) error {
+	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		var completedAt *time.Time
+		if err := tx.QueryRow(ctx, `
+SELECT completed_at
+FROM osquery_live_query_runs
+WHERE id = $1
+FOR UPDATE`, queryID).Scan(&completedAt); err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return ErrLiveQueryNotFound
+			}
+			return err
+		}
+		if completedAt != nil {
 			return nil
 		}
-		m.mu.Unlock()
-		return ErrLiveQueryNotFound
-	}
-	m.stopLocked(q)
-	m.mu.Unlock()
-	m.forgetCompletedLater(queryID)
-	return nil
-}
-
-// RecordResult replaces a host's pending snapshot with its response and
-// finishes the query when no hosts remain pending.
-func (m *Manager) RecordResult(result Result) {
-	m.mu.Lock()
-	q, ok := m.active[result.QueryID]
-	if !ok {
-		m.mu.Unlock()
-		return
-	}
-	snapshot, targeted := q.snapshots[result.HostID]
-	if !targeted || snapshot.Status != StatusPending {
-		m.mu.Unlock()
-		return
-	}
-	if result.HostName != "" {
-		snapshot.HostName = result.HostName
-	}
-	snapshot.Status = result.Status
-	snapshot.Rows = normalizeRows(result.Rows)
-	snapshot.Error = result.Error
-	snapshot.UpdatedAt = time.Now().UTC()
-	q.snapshots[result.HostID] = snapshot
-	m.publishLocked(result.QueryID, snapshot)
-
-	finished := !hasPendingSnapshots(q)
-	if finished {
-		m.completeLocked(q)
-		m.closeSubscribersLocked(result.QueryID)
-	}
-	m.mu.Unlock()
-	if finished {
-		m.forgetCompletedLater(result.QueryID)
-	}
-}
-
-// Subscribe returns current host snapshots followed by live replacements and a
-// release function. Completed queries replay their final snapshots and close.
-func (m *Manager) Subscribe(queryID int64) (<-chan Snapshot, func(), error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if q, ok := m.active[queryID]; ok {
-		ch, release := m.subscribeLocked(q)
-		return ch, release, nil
-	}
-	if q, ok := m.completed[queryID]; ok {
-		ch := make(chan Snapshot, len(q.snapshots))
-		m.replayLocked(q, ch)
-		close(ch)
-		return ch, func() {}, nil
-	}
-	return nil, nil, ErrLiveQueryNotFound
-}
-
-func (m *Manager) stopOrphan(queryID int64) {
-	m.mu.Lock()
-	if len(m.subs[queryID]) > 0 {
-		m.mu.Unlock()
-		return
-	}
-	stopped := false
-	if q, ok := m.active[queryID]; ok {
-		m.stopLocked(q)
-		stopped = true
-	}
-	m.mu.Unlock()
-	if stopped {
-		m.forgetCompletedLater(queryID)
-	}
-}
-
-func (m *Manager) completeLocked(q *liveQuery) {
-	if q.cleanupTimer != nil {
-		q.cleanupTimer.Stop()
-	}
-	delete(m.active, q.id)
-	m.completed[q.id] = q
-}
-
-func (m *Manager) stopLocked(q *liveQuery) {
-	updatedAt := time.Now().UTC()
-	for hostID, snapshot := range q.snapshots {
-		if snapshot.Status != StatusPending {
-			continue
+		if _, err := tx.Exec(ctx, `
+UPDATE osquery_live_query_targets
+SET status = 'stopped', updated_at = now()
+WHERE run_id = $1
+  AND status = 'pending'`, queryID); err != nil {
+			return err
 		}
-		snapshot.Status = StatusStopped
-		snapshot.UpdatedAt = updatedAt
-		q.snapshots[hostID] = snapshot
-		m.publishLocked(q.id, snapshot)
-	}
-	m.completeLocked(q)
-	m.closeSubscribersLocked(q.id)
-}
-
-func (m *Manager) scheduleCleanupLocked(queryID int64) {
-	q, ok := m.active[queryID]
-	if !ok {
-		return
-	}
-	if q.cleanupTimer != nil {
-		q.cleanupTimer.Stop()
-	}
-	q.cleanupTimer = time.AfterFunc(m.cleanupAfter, func() { m.stopOrphan(queryID) })
-}
-
-func (m *Manager) cancelCleanupLocked(queryID int64) {
-	q, ok := m.active[queryID]
-	if !ok || q.cleanupTimer == nil {
-		return
-	}
-	q.cleanupTimer.Stop()
-	q.cleanupTimer = nil
-}
-
-func (m *Manager) forgetCompletedLater(queryID int64) {
-	time.AfterFunc(m.cleanupAfter, func() {
-		m.mu.Lock()
-		delete(m.completed, queryID)
-		m.mu.Unlock()
+		_, err := tx.Exec(ctx, `
+UPDATE osquery_live_query_runs
+SET completed_at = now()
+WHERE id = $1`, queryID)
+		return err
 	})
 }
 
-func (m *Manager) subscribeLocked(q *liveQuery) (<-chan Snapshot, func()) {
-	id := m.subNext.Add(1)
-	// One initial and one terminal snapshot per host can be queued without
-	// blocking the producer before the stream consumer starts.
-	ch := make(chan Snapshot, len(q.snapshots)*2)
-	m.replayLocked(q, ch)
-	m.cancelCleanupLocked(q.id)
-
-	if m.subs[q.id] == nil {
-		m.subs[q.id] = make(map[int64]chan Snapshot)
-	}
-	m.subs[q.id][id] = ch
-
-	return ch, func() {
-		m.mu.Lock()
-		defer m.mu.Unlock()
-		subs := m.subs[q.id]
-		if subs == nil {
-			return
+// RecordResult replaces a pending host snapshot. Duplicate, late, untargeted,
+// and unknown results are ignored.
+func (s *Store) RecordResult(ctx context.Context, result Result) error {
+	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		var completedAt *time.Time
+		var expired bool
+		if err := tx.QueryRow(ctx, `
+SELECT completed_at, deadline_at <= now()
+FROM osquery_live_query_runs
+WHERE id = $1
+FOR UPDATE`, result.QueryID).Scan(&completedAt, &expired); err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return nil
+			}
+			return err
 		}
-		if _, ok := subs[id]; !ok {
-			return
+		if completedAt != nil {
+			return nil
 		}
-		delete(subs, id)
-		if len(subs) == 0 {
-			delete(m.subs, q.id)
-			m.scheduleCleanupLocked(q.id)
+		if expired {
+			return expireRun(ctx, tx, result.QueryID)
 		}
-		close(ch)
-	}
-}
 
-func (m *Manager) replayLocked(q *liveQuery, ch chan<- Snapshot) {
-	snapshots := make([]Snapshot, 0, len(q.snapshots))
-	for _, snapshot := range q.snapshots {
-		snapshots = append(snapshots, snapshot)
-	}
-	sort.Slice(snapshots, func(i, j int) bool {
-		return snapshots[i].HostID < snapshots[j].HostID
+		tag, err := tx.Exec(ctx, `
+UPDATE osquery_live_query_targets
+SET host_name = CASE WHEN $3 = '' THEN host_name ELSE $3 END,
+    status = $4,
+    rows = $5,
+    error = $6,
+    updated_at = now()
+WHERE run_id = $1
+  AND host_id = $2
+  AND status = 'pending'`,
+			result.QueryID,
+			result.HostID,
+			result.HostName,
+			string(result.Status),
+			postgres.JSONSlice[map[string]string](normalizeRows(result.Rows)),
+			result.Error,
+		)
+		if err != nil {
+			return err
+		}
+		if tag.RowsAffected() == 0 {
+			return nil
+		}
+		_, err = tx.Exec(ctx, `
+UPDATE osquery_live_query_runs run
+SET completed_at = now()
+WHERE run.id = $1
+  AND NOT EXISTS (
+      SELECT 1
+      FROM osquery_live_query_targets target
+      WHERE target.run_id = run.id
+        AND target.status = 'pending'
+  )`, result.QueryID)
+		return err
 	})
-	for _, snapshot := range snapshots {
-		ch <- snapshot
-	}
 }
 
-func (m *Manager) publishLocked(queryID int64, snapshot Snapshot) {
-	for _, ch := range m.subs[queryID] {
-		ch <- snapshot
-	}
-}
-
-func (m *Manager) closeSubscribersLocked(queryID int64) {
-	for id, ch := range m.subs[queryID] {
-		close(ch)
-		delete(m.subs[queryID], id)
-	}
-	delete(m.subs, queryID)
-}
-
-func hasPendingSnapshots(q *liveQuery) bool {
-	for _, snapshot := range q.snapshots {
-		if snapshot.Status == StatusPending {
-			return true
+// Snapshots returns the current host snapshots and whether the run is
+// terminal. An elapsed deadline is persisted as stopped state before return.
+func (s *Store) Snapshots(ctx context.Context, queryID int64) ([]Snapshot, bool, error) {
+	var snapshots []Snapshot
+	var completed bool
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		var completedAt *time.Time
+		var expired bool
+		if err := tx.QueryRow(ctx, `
+SELECT completed_at, deadline_at <= now()
+FROM osquery_live_query_runs
+WHERE id = $1
+FOR UPDATE`, queryID).Scan(&completedAt, &expired); err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return ErrLiveQueryNotFound
+			}
+			return err
 		}
+		completed = completedAt != nil
+		if !completed && expired {
+			if err := expireRun(ctx, tx, queryID); err != nil {
+				return err
+			}
+			completed = true
+		}
+
+		qrows, err := tx.Query(ctx, `
+SELECT host_id, host_name, status, rows, error, updated_at
+FROM osquery_live_query_targets
+WHERE run_id = $1
+ORDER BY host_id`, queryID)
+		if err != nil {
+			return err
+		}
+		rows, err := pgx.CollectRows(qrows, pgx.RowToStructByName[snapshotRow])
+		if err != nil {
+			return err
+		}
+		snapshots = make([]Snapshot, len(rows))
+		for i, row := range rows {
+			snapshots[i] = Snapshot{
+				HostID:    row.HostID,
+				HostName:  row.HostName,
+				Status:    Status(row.Status),
+				Rows:      row.Rows,
+				Error:     row.Error,
+				UpdatedAt: row.UpdatedAt,
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, false, err
 	}
-	return false
+	return snapshots, completed, nil
+}
+
+func expireRun(ctx context.Context, tx pgx.Tx, queryID int64) error {
+	if _, err := tx.Exec(ctx, `
+UPDATE osquery_live_query_targets target
+SET status = 'stopped', updated_at = run.deadline_at
+FROM osquery_live_query_runs run
+WHERE target.run_id = $1
+  AND run.id = target.run_id
+  AND target.status = 'pending'`, queryID); err != nil {
+		return err
+	}
+	_, err := tx.Exec(ctx, `
+UPDATE osquery_live_query_runs
+SET completed_at = deadline_at
+WHERE id = $1
+  AND completed_at IS NULL`, queryID)
+	return err
 }
 
 func normalizeRows(rows []map[string]string) []map[string]string {
@@ -364,4 +326,13 @@ func normalizeRows(rows []map[string]string) []map[string]string {
 		return []map[string]string{}
 	}
 	return rows
+}
+
+type snapshotRow struct {
+	HostID    int64                                 `db:"host_id"`
+	HostName  string                                `db:"host_name"`
+	Status    string                                `db:"status"`
+	Rows      postgres.JSONSlice[map[string]string] `db:"rows"`
+	Error     string                                `db:"error"`
+	UpdatedAt time.Time                             `db:"updated_at"`
 }
