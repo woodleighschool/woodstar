@@ -1,10 +1,14 @@
-import { Outlet, useParams, useRouterState } from "@tanstack/react-router";
+import { Outlet, useNavigate, useParams, useRouterState } from "@tanstack/react-router";
+import { Trash2 } from "lucide-react";
+import { useState } from "react";
 
 import { PageShell } from "@components/layout/page-layout";
 import { ScrollableTabs, ScrollableTabsList } from "@components/layout/scrollable-tabs";
 import { Link } from "@components/link";
 import { QueryGate } from "@components/query-gate";
+import { Button } from "@components/ui/button";
 import { TabsTrigger } from "@components/ui/tabs";
+import { useAuth } from "@features/auth/queries";
 import {
   HostCertificatesCard,
   HostIdentityCard,
@@ -19,6 +23,7 @@ import { HostOsqueryChecksTab } from "@features/hosts/components/host-osquery-ch
 import { HostOsqueryReportsTab } from "@features/hosts/components/host-osquery-reports-tab";
 import { HostSantaTab } from "@features/hosts/components/host-santa-tab";
 import { HostSoftwareTab } from "@features/hosts/components/host-software-tab";
+import { HostDeleteDialog } from "@features/hosts/delete-dialog";
 import { useHost, useHostMunkiState, useHostSantaState } from "@features/hosts/queries";
 import type { HostDetail } from "@lib/api";
 
@@ -43,6 +48,9 @@ const hostSections = [
 
 export function HostDetailPage() {
   const hostID = useHostID();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const query = useHost(hostID, { refetchInterval: 30_000 });
   const host = query.data;
 
@@ -57,11 +65,29 @@ export function HostDetailPage() {
   }
 
   return (
-    <PageShell>
-      <HostHeader host={host} />
-      <HostSectionNav hostID={hostID} host={host} />
-      <Outlet />
-    </PageShell>
+    <>
+      <PageShell>
+        <HostHeader
+          host={host}
+          actions={
+            user?.role === "admin" ? (
+              <Button type="button" variant="outline" size="sm" onClick={() => setDeleteOpen(true)}>
+                <Trash2 data-icon="inline-start" />
+                Delete
+              </Button>
+            ) : null
+          }
+        />
+        <HostSectionNav hostID={hostID} host={host} />
+        <Outlet />
+      </PageShell>
+      <HostDeleteDialog
+        host={host}
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        onDeleted={() => void navigate({ to: "/hosts" })}
+      />
+    </>
   );
 }
 

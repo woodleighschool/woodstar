@@ -24,6 +24,7 @@ import type {
 import {
   bulkDeleteHosts,
   clearHostPrimaryUser,
+  deleteHost,
   getHost,
   getHostMunkiState,
   getHostSantaState,
@@ -168,6 +169,16 @@ export function useBulkDeleteHosts() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number[]>({
     mutationFn: (ids) => unwrap(bulkDeleteHosts({ query: { ids } })),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: hostKeys.all });
+    },
+  });
+}
+
+export function useDeleteHost() {
+  const queryClient = useQueryClient();
+  return useMutation<void, ApiError, number>({
+    mutationFn: (id) => unwrap(deleteHost({ path: { id } })),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: hostKeys.all });
     },
