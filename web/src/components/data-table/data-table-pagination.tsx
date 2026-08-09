@@ -37,35 +37,38 @@ export function DataTablePagination<TData extends DataTableRowData>({
 
   return (
     <div
-      className={cn("flex w-full flex-wrap items-center justify-between gap-3 p-1", className)}
+      className={cn(
+        "grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 p-1 sm:flex sm:flex-wrap sm:justify-between sm:gap-3",
+        className,
+      )}
       {...props}
     >
-      <div className="min-w-fit flex-1 text-sm text-muted-foreground">
+      <div className="min-w-fit text-sm text-muted-foreground sm:flex-1">
         {firstRow}-{lastRow} of {rowCount}
       </div>
-      <div className="flex flex-wrap items-center justify-end gap-3">
-        <div className="flex items-center gap-2">
-          <p className="text-sm font-medium">Rows per page</p>
-          <Select
-            value={`${pageSize}`}
-            onValueChange={(value) => {
-              table.setPageSize(Number(value));
-            }}
-          >
-            <SelectTrigger className="h-8 w-18 data-size:h-8">
-              <SelectValue placeholder={pageSize} />
-            </SelectTrigger>
-            <SelectContent side="top">
-              <SelectGroup>
-                {pageSizeOptions.map((option) => (
-                  <SelectItem key={option} value={`${option}`}>
-                    {option}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </div>
+      <div className="flex items-center gap-2 justify-self-end">
+        <p className="text-sm font-medium">Rows per page</p>
+        <Select
+          value={`${pageSize}`}
+          onValueChange={(value) => {
+            table.setPageSize(Number(value));
+          }}
+        >
+          <SelectTrigger className="h-8 w-18 data-size:h-8">
+            <SelectValue placeholder={pageSize} />
+          </SelectTrigger>
+          <SelectContent side="top">
+            <SelectGroup>
+              {pageSizeOptions.map((option) => (
+                <SelectItem key={option} value={`${option}`}>
+                  {option}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="col-span-2 flex items-center justify-between gap-3 sm:contents">
         <div className="text-sm font-medium">
           Page {pageIndex + 1} of {table.getPageCount()}
         </div>
@@ -74,6 +77,7 @@ export function DataTablePagination<TData extends DataTableRowData>({
             type="button"
             variant="outline"
             size="icon"
+            className="hidden sm:inline-flex"
             onClick={() => table.setPageIndex(0)}
             disabled={!table.getCanPreviousPage()}
           >
@@ -101,6 +105,7 @@ export function DataTablePagination<TData extends DataTableRowData>({
             type="button"
             variant="outline"
             size="icon"
+            className="hidden sm:inline-flex"
             onClick={() => table.setPageIndex(table.getPageCount() - 1)}
             disabled={!table.getCanNextPage()}
           >

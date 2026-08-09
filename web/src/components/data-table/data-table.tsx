@@ -54,12 +54,36 @@ export function DataTable<TData extends DataTableRowData>({
   className,
   ...props
 }: DataTableProps<TData>) {
+  const toolbarControls = React.Children.toArray(children);
+  const [primaryToolbarControl, ...secondaryToolbarControls] = toolbarControls;
+  const hasToolbarActions = Boolean(toolbarActions || exportOptions);
   const toolbar =
-    children || toolbarActions || exportOptions ? (
-      <div className="flex flex-wrap items-center gap-2 p-1">
-        {children}
-        {toolbarActions || exportOptions ? (
-          <div className="ml-auto flex shrink-0 items-center gap-2">
+    toolbarControls.length || hasToolbarActions ? (
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 p-1 sm:flex sm:flex-wrap">
+        {primaryToolbarControl ? (
+          <div className="col-span-2 min-w-0 *:max-w-none sm:contents sm:*:max-w-sm">
+            {primaryToolbarControl}
+          </div>
+        ) : null}
+        {secondaryToolbarControls.length ? (
+          <div
+            className={cn(
+              "flex min-w-0 flex-wrap items-center gap-2 sm:contents",
+              !hasToolbarActions && "col-span-2",
+            )}
+          >
+            {secondaryToolbarControls}
+          </div>
+        ) : null}
+        {hasToolbarActions ? (
+          <div
+            className={cn(
+              "ml-auto flex shrink-0 items-center gap-2",
+              primaryToolbarControl
+                ? "col-start-2 row-start-2 sm:col-auto sm:row-auto"
+                : "col-span-2 justify-self-end",
+            )}
+          >
             {toolbarActions}
             {exportOptions ? <DataTableExport table={table} options={exportOptions} /> : null}
           </div>
