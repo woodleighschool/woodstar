@@ -1,9 +1,8 @@
-import { Activity, FolderLock } from "lucide-react";
+import { Activity } from "lucide-react";
 
+import { BooleanIndicator } from "@components/boolean-indicator";
 import { DataTableStatic } from "@components/data-table/data-table-static";
 import type { DataTableColumnDef } from "@components/data-table/types";
-import { EnumBadge } from "@components/enum-badge";
-import { EnumStatusIndicator } from "@components/enum-status-indicator";
 import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { Link } from "@components/link";
 import { PanelEmptyState } from "@components/panel-empty-state";
@@ -13,14 +12,9 @@ import { Separator } from "@components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@components/ui/tooltip";
 import { useHostSantaRules } from "@features/hosts/queries";
 import { CLIENT_MODES } from "@features/santa/configurations/metadata";
-import { POLICIES, RULE_TYPES } from "@features/santa/rules/metadata";
+import { POLICIES, ruleTypeLabel } from "@features/santa/rules/metadata";
 import type { ApiError, SantaHostState, SantaRuleStatus } from "@lib/api";
 import { MAX_PAGE_SIZE } from "@lib/pagination";
-
-const RULE_APPLICATION_STATUSES = {
-  applied: { name: "Applied", variant: "success" },
-  pending: { name: "Pending", variant: "warning" },
-} as const;
 
 const santaRuleColumns: DataTableColumnDef<SantaRuleStatus>[] = [
   {
@@ -35,31 +29,46 @@ const santaRuleColumns: DataTableColumnDef<SantaRuleStatus>[] = [
         {row.original.name}
       </Link>
     ),
+    size: 240,
+    minSize: 160,
+    maxSize: 400,
   },
   {
     accessorKey: "rule_type",
     header: () => "Rule Type",
-    cell: ({ row }) => <EnumBadge value={row.original.rule_type} metadata={RULE_TYPES} />,
+    cell: ({ row }) => ruleTypeLabel(row.original.rule_type),
+    size: 112,
+    minSize: 112,
+    maxSize: 112,
+    enableResizing: false,
   },
   {
     accessorKey: "identifier",
     header: () => "Identifier",
     cell: ({ row }) => row.original.identifier || "-",
+    size: 320,
+    minSize: 200,
+    maxSize: 720,
   },
   {
     accessorKey: "policy",
     header: () => "Policy",
-    cell: ({ row }) => <EnumBadge value={row.original.policy} metadata={POLICIES} />,
+    cell: ({ row }) => POLICIES[row.original.policy].name,
+    size: 104,
+    minSize: 104,
+    maxSize: 104,
+    enableResizing: false,
   },
   {
     accessorKey: "applied",
-    header: () => "Status",
+    header: () => "Applied",
     cell: ({ row }) => (
-      <EnumStatusIndicator
-        value={row.original.applied ? "applied" : "pending"}
-        metadata={RULE_APPLICATION_STATUSES}
-      />
+      <BooleanIndicator value={row.original.applied} trueLabel="Applied" falseLabel="Pending" />
     ),
+    size: 80,
+    minSize: 80,
+    maxSize: 80,
+    enableResizing: false,
   },
 ];
 
@@ -84,35 +93,19 @@ export function HostSantaTab({ hostId, santa, stateError, onStateRetry }: HostSa
         <KeyValueSection
           title="Overview"
           actions={
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                render={<Link to="/santa/events" search={{ host_id: hostId }} />}
-                nativeButton={false}
-              >
-                <Activity data-icon="inline-start" />
-                View Execution Events
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                render={<Link to="/santa/events/file-access" search={{ host_id: hostId }} />}
-                nativeButton={false}
-              >
-                <FolderLock data-icon="inline-start" />
-                View File Access Events
-              </Button>
-            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              render={<Link to="/santa/events" search={{ host_id: hostId }} />}
+              nativeButton={false}
+            >
+              <Activity data-icon="inline-start" />
+              See Events
+            </Button>
           }
         >
           <KeyValueRow label="Version" value={santa.version} />
-          <KeyValueRow
-            label="Client Mode"
-            value={
-              <EnumStatusIndicator value={santa.client_mode_reported} metadata={CLIENT_MODES} />
-            }
-          />
+          <KeyValueRow label="Client Mode" value={CLIENT_MODES[santa.client_mode_reported].name} />
           <KeyValueRow
             label="Configuration"
             value={configuration ? <SantaConfigurationLink configuration={configuration} /> : null}

@@ -29,27 +29,42 @@ const softwareColumns: DataTableColumnDef<MunkiHostManifestSoftware>[] = [
     accessorFn: (row) => row.software.name,
     header: () => "Software",
     cell: ({ row }) => <MunkiSoftwareCell software={row.original} />,
+    size: 240,
+    minSize: 180,
+    maxSize: 480,
   },
   {
     accessorKey: "actions",
     header: () => "Actions",
     cell: ({ row }) => (
-      <div className="flex flex-wrap gap-1">
+      <div className="flex flex-nowrap gap-1">
         {row.original.actions.map((action) => (
           <MunkiActionBadge key={action} action={action} />
         ))}
       </div>
     ),
+    size: 280,
+    minSize: 280,
+    maxSize: 280,
+    enableResizing: false,
   },
   {
     id: "target_version",
     header: () => "Target Version",
     cell: ({ row }) => row.original.observation?.target_version,
+    size: 136,
+    minSize: 136,
+    maxSize: 136,
+    enableResizing: false,
   },
   {
     id: "status",
     header: () => "Status",
     cell: ({ row }) => <MunkiSoftwareStatusBadge software={row.original} />,
+    size: 200,
+    minSize: 200,
+    maxSize: 200,
+    enableResizing: false,
   },
 ];
 
