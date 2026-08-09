@@ -150,42 +150,49 @@ func TestHandleLiveResultReplacesHostSnapshot(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			manager := livequery.NewManager()
-			handle := manager.Start("select 1", []livequery.Target{
-				{HostID: 42, HostName: "original-name"},
-			})
-			service := &AgentService{deps: Dependencies{LiveQueries: manager}}
+			recorder := &recordingLiveQueries{}
+			service := &AgentService{deps: Dependencies{LiveQueries: recorder}}
 			rows := []map[string]string{{"answer": "42"}}
 
-			service.handleLiveResult(
+			if err := service.handleLiveResult(
+				context.Background(),
 				&hosts.Host{ID: 42, DisplayName: "current-name"},
-				strconv.FormatInt(handle.ID, 10),
+				strconv.FormatInt(7, 10),
 				rows,
 				tt.status,
 				tt.hasStatus,
 				tt.message,
-			)
-
-			snapshots, release, err := manager.Subscribe(handle.ID)
-			if err != nil {
-				t.Fatalf("Subscribe: %v", err)
+			); err != nil {
+				t.Fatalf("handleLiveResult: %v", err)
 			}
-			defer release()
-			snapshot := <-snapshots
-			if snapshot.Status != tt.wantStatus {
-				t.Fatalf("status = %q, want %q", snapshot.Status, tt.wantStatus)
+			result := recorder.result
+			if result.QueryID != 7 || result.HostID != 42 || result.Status != tt.wantStatus {
+				t.Fatalf("result = %+v, want query 7 host 42 status %q", result, tt.wantStatus)
 			}
-			if snapshot.HostName != "current-name" {
-				t.Fatalf("host name = %q, want current-name", snapshot.HostName)
+			if result.HostName != "current-name" {
+				t.Fatalf("host name = %q, want current-name", result.HostName)
 			}
-			if !reflect.DeepEqual(snapshot.Rows, rows) {
-				t.Fatalf("rows = %#v, want %#v", snapshot.Rows, rows)
+			if !reflect.DeepEqual(result.Rows, rows) {
+				t.Fatalf("rows = %#v, want %#v", result.Rows, rows)
 			}
-			if snapshot.Error != tt.message {
-				t.Fatalf("error = %q, want %q", snapshot.Error, tt.message)
+			if result.Error != tt.message {
+				t.Fatalf("error = %q, want %q", result.Error, tt.message)
 			}
 		})
 	}
+}
+
+type recordingLiveQueries struct {
+	result livequery.Result
+}
+
+func (r *recordingLiveQueries) PendingForHost(context.Context, int64) ([]livequery.Work, error) {
+	return nil, nil
+}
+
+func (r *recordingLiveQueries) RecordResult(_ context.Context, result livequery.Result) error {
+	r.result = result
+	return nil
 }
 
 func TestFinalizeDetailPassSendsMunkiQueryFamilyTogether(t *testing.T) {

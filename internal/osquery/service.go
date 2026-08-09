@@ -87,8 +87,8 @@ type checkStore interface {
 }
 
 type liveQueries interface {
-	PendingForHost(hostID int64) []livequery.Work
-	RecordResult(result livequery.Result)
+	PendingForHost(context.Context, int64) ([]livequery.Work, error)
+	RecordResult(context.Context, livequery.Result) error
 }
 
 func NewAgentService(deps Dependencies) *AgentService {
@@ -193,7 +193,10 @@ func (s *AgentService) DistributedRead(
 	if err != nil {
 		return DistributedReadResponse{}, err
 	}
-	liveCount := s.queueLiveQueries(host, detailQueries)
+	liveCount, err := s.queueLiveQueries(ctx, host, detailQueries)
+	if err != nil {
+		return DistributedReadResponse{}, err
+	}
 
 	s.deps.Logger.DebugContext(
 		ctx,
@@ -243,14 +246,20 @@ func (s *AgentService) queueCheckQueries(
 	return len(checks), nil
 }
 
-// queueLiveQueries injects ephemeral live queries pending for host. The
-// in-memory manager owns lifecycle; results route back through dispatch.
-func (s *AgentService) queueLiveQueries(host *hosts.Host, queryMap map[string]string) int {
-	work := s.deps.LiveQueries.PendingForHost(host.ID)
+// queueLiveQueries injects unfinished live queries targeting host.
+func (s *AgentService) queueLiveQueries(
+	ctx context.Context,
+	host *hosts.Host,
+	queryMap map[string]string,
+) (int, error) {
+	work, err := s.deps.LiveQueries.PendingForHost(ctx, host.ID)
+	if err != nil {
+		return 0, err
+	}
 	for _, item := range work {
 		queryMap[queryNameID(kindLive, item.QueryID)] = item.SQL
 	}
-	return len(work)
+	return len(work), nil
 }
 
 // DistributedWrite ingests results for every kind of distributed query.
