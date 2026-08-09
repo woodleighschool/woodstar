@@ -55,7 +55,6 @@ export function MunkiPackageDetailPage() {
           isAdmin ? (
             <>
               <Button
-                variant="outline"
                 size="sm"
                 render={<Link to="/munki/packages/$id/edit" params={{ id: String(pkg.id) }} />}
                 nativeButton={false}
@@ -63,7 +62,12 @@ export function MunkiPackageDetailPage() {
                 <Pencil data-icon="inline-start" />
                 Edit
               </Button>
-              <Button type="button" variant="outline" size="sm" onClick={() => setDeleteOpen(true)}>
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                onClick={() => setDeleteOpen(true)}
+              >
                 <Trash2 data-icon="inline-start" />
                 Delete
               </Button>

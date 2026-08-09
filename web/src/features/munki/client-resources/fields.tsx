@@ -92,19 +92,6 @@ export function MunkiClientResourcesForm({
             actions={
               editable ? (
                 <>
-                  {deployed ? (
-                    <AsyncButton
-                      type="button"
-                      variant="destructive"
-                      size="sm"
-                      isPending={undeploying}
-                      disabled={submitting}
-                      icon={<Trash2 data-icon="inline-start" />}
-                      onClick={() => setConfirmUndeploy(true)}
-                    >
-                      Undeploy
-                    </AsyncButton>
-                  ) : null}
                   <Button
                     type="button"
                     size="sm"
@@ -118,6 +105,19 @@ export function MunkiClientResourcesForm({
                     )}
                     {custom ? "Use Builder" : "Upload Custom ZIP"}
                   </Button>
+                  {deployed ? (
+                    <AsyncButton
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      isPending={undeploying}
+                      disabled={submitting}
+                      icon={<Trash2 data-icon="inline-start" />}
+                      onClick={() => setConfirmUndeploy(true)}
+                    >
+                      Undeploy
+                    </AsyncButton>
+                  ) : null}
                 </>
               ) : null
             }

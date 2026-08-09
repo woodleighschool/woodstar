@@ -151,7 +151,6 @@ export function ReportDetailPage() {
             {isAdmin ? (
               <>
                 <Button
-                  variant="outline"
                   size="sm"
                   render={<Link to="/osquery/reports/$id/edit" params={{ id: reportId }} />}
                   nativeButton={false}
@@ -159,18 +158,20 @@ export function ReportDetailPage() {
                   <Pencil data-icon="inline-start" />
                   Edit
                 </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setDeleteOpen(true)}
-                >
-                  <Trash2 data-icon="inline-start" />
-                  Delete
-                </Button>
               </>
             ) : null}
             <LiveRunButton kind="report" id={id} sql={report.data.query} />
+            {isAdmin ? (
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                onClick={() => setDeleteOpen(true)}
+              >
+                <Trash2 data-icon="inline-start" />
+                Delete
+              </Button>
+            ) : null}
           </>
         }
       />

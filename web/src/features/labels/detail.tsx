@@ -59,7 +59,6 @@ export function LabelDetailPage() {
           isAdmin && mutable ? (
             <>
               <Button
-                variant="outline"
                 size="sm"
                 render={<Link to="/labels/$id/edit" params={{ id: String(label.id) }} />}
                 nativeButton={false}
@@ -67,7 +66,12 @@ export function LabelDetailPage() {
                 <Pencil data-icon="inline-start" />
                 Edit
               </Button>
-              <Button type="button" variant="outline" size="sm" onClick={() => setDeleteOpen(true)}>
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                onClick={() => setDeleteOpen(true)}
+              >
                 <Trash2 data-icon="inline-start" />
                 Delete
               </Button>

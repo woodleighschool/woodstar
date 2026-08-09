@@ -62,7 +62,6 @@ export function DistributionPointDetailPage() {
           isAdmin ? (
             <>
               <Button
-                variant="outline"
                 size="sm"
                 render={
                   <Link
@@ -85,7 +84,12 @@ export function DistributionPointDetailPage() {
               >
                 Rotate Key
               </AsyncButton>
-              <Button type="button" variant="outline" size="sm" onClick={() => setDeleteOpen(true)}>
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                onClick={() => setDeleteOpen(true)}
+              >
                 <Trash2 data-icon="inline-start" />
                 Delete
               </Button>

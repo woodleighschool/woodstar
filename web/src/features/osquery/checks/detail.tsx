@@ -144,7 +144,6 @@ export function CheckDetailPage() {
             {isAdmin ? (
               <>
                 <Button
-                  variant="outline"
                   size="sm"
                   render={<Link to="/osquery/checks/$id/edit" params={{ id: checkId }} />}
                   nativeButton={false}
@@ -152,18 +151,20 @@ export function CheckDetailPage() {
                   <Pencil data-icon="inline-start" />
                   Edit
                 </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setDeleteOpen(true)}
-                >
-                  <Trash2 data-icon="inline-start" />
-                  Delete
-                </Button>
               </>
             ) : null}
             <LiveRunButton kind="check" id={id} sql={check.data.query} />
+            {isAdmin ? (
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                onClick={() => setDeleteOpen(true)}
+              >
+                <Trash2 data-icon="inline-start" />
+                Delete
+              </Button>
+            ) : null}
           </>
         }
       />

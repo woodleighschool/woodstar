@@ -59,19 +59,14 @@ export function UserDetailPage() {
           actions={
             isSelf || isAdmin ? (
               <>
-                <Button
-                  variant={isAdmin && !isSelf ? "outline" : "default"}
-                  size="sm"
-                  render={<Link {...editLink} />}
-                  nativeButton={false}
-                >
+                <Button size="sm" render={<Link {...editLink} />} nativeButton={false}>
                   <Pencil data-icon="inline-start" />
                   Edit
                 </Button>
                 {isAdmin && !isSelf ? (
                   <Button
                     type="button"
-                    variant="outline"
+                    variant="destructive"
                     size="sm"
                     onClick={() => setDeleteOpen(true)}
                   >
