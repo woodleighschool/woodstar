@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.8.5](https://github.com/woodleighschool/woodstar/compare/0.8.4...0.8.5) (2026-08-09)
+
+
+### Features
+
+* **deps:** update module github.com/oschwald/geoip2-golang/v2 (v2.2.0 → v2.3.0) ([#152](https://github.com/woodleighschool/woodstar/issues/152)) ([535c140](https://github.com/woodleighschool/woodstar/commit/535c1401c99f7fce733876ccf9ac80695eedc0f3))
+* **hosts:** add host deletion controls ([ec68d08](https://github.com/woodleighschool/woodstar/commit/ec68d084c21435a57dd1057a8f80217487d27e48))
+* **inventory:** prune unreferenced software ([7450a3d](https://github.com/woodleighschool/woodstar/commit/7450a3d4b88e5db015819667409346acbdc6277f))
+
+
+### Bug Fixes
+
+* **data-table:** keep empty states in view ([21228d4](https://github.com/woodleighschool/woodstar/commit/21228d4d08bfd921365c697043311eadc4af07cb))
+* **data-table:** restore mobile layout ([9ef004a](https://github.com/woodleighschool/woodstar/commit/9ef004aa460a1d2652abe763e705de5b1da57795))
+* **hosts:** replace host on re-enrollment ([d65a174](https://github.com/woodleighschool/woodstar/commit/d65a174c0f584081c0ff8c8ff624bbe518799e56))
+* **web:** align detail header icons ([e8fa1bb](https://github.com/woodleighschool/woodstar/commit/e8fa1bbc2316e703df255efe3dd0fc124f27f7b5))
+* **web:** rebalance list columns ([d2a5872](https://github.com/woodleighschool/woodstar/commit/d2a58722deec417061b4c5820c0dbad8d33435b4))
+
+
+### Code Refactoring
+
+* **hosts:** simplify integration tabs ([06b425b](https://github.com/woodleighschool/woodstar/commit/06b425beed7f8d1f1630d887064c8f26c0d4e954))
+* **labels:** reuse the SQL query viewer ([560f852](https://github.com/woodleighschool/woodstar/commit/560f8525db544e752c4f6cc4c653e69ea0e5ff93))
+* **munki:** simplify distribution point health ([588975e](https://github.com/woodleighschool/woodstar/commit/588975e57f825d8581254144094af50747e0ea95))
+* **web:** compact target details ([46411d3](https://github.com/woodleighschool/woodstar/commit/46411d3c33da09594091396e2b09493b43534ffe))
+* **web:** simplify state presentation ([eeca73a](https://github.com/woodleighschool/woodstar/commit/eeca73ab2f724dc0f37758daced3b611d7f27dbc))
+* **web:** standardize detail actions ([ad14979](https://github.com/woodleighschool/woodstar/commit/ad14979adc415a42b60e111cecb96a1cf6ab4607))
+
 ## [0.8.4](https://github.com/woodleighschool/woodstar/compare/0.8.3...0.8.4) (2026-08-08)
 
 
