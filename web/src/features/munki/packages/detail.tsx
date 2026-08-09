@@ -48,7 +48,12 @@ export function MunkiPackageDetailPage() {
       <PageHeader
         title="Package Details"
         icon={
-          <SoftwareArtwork src={pkg.software.icon_url} fallbackIcon={PackageIcon} loading="eager" />
+          <SoftwareArtwork
+            src={pkg.software.icon_url}
+            fallbackIcon={PackageIcon}
+            size="md"
+            loading="eager"
+          />
         }
         meta={`Edited ${formatRelative(pkg.updated_at)}`}
         actions={

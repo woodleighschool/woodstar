@@ -46,15 +46,28 @@ function PageHeader({
   meta?: ReactNode;
   className?: string;
 }) {
+  const subtitleRows = Number(Boolean(description)) + Number(Boolean(meta));
+
   return (
     <div className={cn("flex flex-wrap items-start justify-between gap-4", className)}>
       <div
-        className={cn("grid min-w-0 gap-x-2 gap-y-1", icon && "grid-cols-[1.75rem_minmax(0,1fr)]")}
+        className={cn(
+          "grid min-w-0 gap-x-2 gap-y-1",
+          icon &&
+            (subtitleRows > 0
+              ? "grid-cols-[2.5rem_minmax(0,1fr)] gap-x-3"
+              : "grid-cols-[1.75rem_minmax(0,1fr)]"),
+        )}
       >
         {icon ? (
           <span
             aria-hidden="true"
-            className="inline-flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-md text-muted-foreground *:max-h-full *:max-w-full [&>svg]:size-5"
+            className={cn(
+              "inline-flex shrink-0 items-center justify-center self-center overflow-hidden rounded-md text-muted-foreground *:max-h-full *:max-w-full",
+              subtitleRows > 0 ? "size-10 [&>svg]:size-6" : "size-7 [&>svg]:size-5",
+              subtitleRows === 1 && "row-span-2",
+              subtitleRows === 2 && "row-span-3",
+            )}
           >
             {icon}
           </span>

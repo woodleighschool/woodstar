@@ -87,7 +87,14 @@ export function MunkiSoftwareDetailPage() {
     <PageShell className="gap-6">
       <PageHeader
         title="Software Details"
-        icon={<SoftwareArtwork src={software.icon_url} fallbackIcon={AppWindow} loading="eager" />}
+        icon={
+          <SoftwareArtwork
+            src={software.icon_url}
+            fallbackIcon={AppWindow}
+            size="md"
+            loading="eager"
+          />
+        }
         meta={`Edited ${formatRelative(software.updated_at)}`}
         actions={
           isAdmin ? (
