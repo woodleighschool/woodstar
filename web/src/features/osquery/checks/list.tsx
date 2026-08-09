@@ -145,6 +145,9 @@ const checkColumns: DataTableColumnDef<CheckTableRow>[] = [
       </Link>
     ),
     enableHiding: false,
+    size: 360,
+    minSize: 240,
+    maxSize: 720,
     meta: { label: "Name" },
   },
   {
@@ -164,6 +167,10 @@ const checkColumns: DataTableColumnDef<CheckTableRow>[] = [
         status="pass"
       />
     ),
+    size: 112,
+    minSize: 112,
+    maxSize: 112,
+    enableResizing: false,
     meta: { label: "Pass" },
   },
   {
@@ -183,6 +190,10 @@ const checkColumns: DataTableColumnDef<CheckTableRow>[] = [
         status="fail"
       />
     ),
+    size: 112,
+    minSize: 112,
+    maxSize: 112,
+    enableResizing: false,
     meta: { label: "Fail" },
   },
   {
@@ -190,6 +201,10 @@ const checkColumns: DataTableColumnDef<CheckTableRow>[] = [
     accessorKey: "updated_at",
     header: "Updated",
     cell: ({ row }) => formatRelative(row.original.updated_at),
+    size: 136,
+    minSize: 136,
+    maxSize: 136,
+    enableResizing: false,
     meta: { label: "Updated" },
   },
 ];

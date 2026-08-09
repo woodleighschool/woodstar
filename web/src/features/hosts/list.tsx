@@ -198,6 +198,7 @@ const hostColumns: DataTableColumnDef<Host>[] = [
     enableHiding: false,
     size: 220,
     minSize: 140,
+    maxSize: 360,
     meta: { label: "Name" },
   },
   {
@@ -214,6 +215,9 @@ const hostColumns: DataTableColumnDef<Host>[] = [
     header: "OS",
     cell: ({ row }) => row.original.os.version || "-",
     size: 96,
+    minSize: 96,
+    maxSize: 96,
+    enableResizing: false,
     meta: { label: "OS" },
   },
   {
@@ -222,6 +226,9 @@ const hostColumns: DataTableColumnDef<Host>[] = [
     header: "Model",
     cell: ({ row }) => row.original.hardware.model_identifier || "-",
     size: 160,
+    minSize: 160,
+    maxSize: 160,
+    enableResizing: false,
     meta: { label: "Model" },
   },
   {
@@ -230,6 +237,9 @@ const hostColumns: DataTableColumnDef<Host>[] = [
     header: "Serial",
     cell: ({ row }) => row.original.hardware.serial || "-",
     size: 136,
+    minSize: 136,
+    maxSize: 136,
+    enableResizing: false,
     meta: { label: "Serial" },
   },
   {
@@ -240,7 +250,10 @@ const hostColumns: DataTableColumnDef<Host>[] = [
       row.original.storage.boot_volume.available_bytes
         ? filesize(row.original.storage.boot_volume.available_bytes)
         : "-",
-    size: 112,
+    size: 120,
+    minSize: 120,
+    maxSize: 120,
+    enableResizing: false,
     meta: { label: "Disk Free" },
   },
   {
@@ -248,7 +261,9 @@ const hostColumns: DataTableColumnDef<Host>[] = [
     header: () => "User Email",
     enableSorting: false,
     cell: ({ row }) => row.original.primary_user?.email ?? "",
-    size: 220,
+    size: 280,
+    minSize: 220,
+    maxSize: 360,
     meta: { label: "User Email" },
   },
   {

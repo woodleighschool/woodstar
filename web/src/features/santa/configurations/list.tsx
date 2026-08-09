@@ -19,7 +19,6 @@ import { TableSurface } from "@components/data-table/table-surface";
 import type { DataTableColumnDef } from "@components/data-table/types";
 import { useDataTable } from "@components/data-table/use-data-table";
 import { encodeSort, useDataTableSearch } from "@components/data-table/use-data-table-search";
-import { EnumStatusIndicator } from "@components/enum-status-indicator";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link } from "@components/link";
 import { QueryError } from "@components/query-error";
@@ -216,6 +215,10 @@ function configurationColumns(
       accessorKey: "position",
       header: "Order",
       cell: ({ row }) => row.original.position + 1,
+      size: 96,
+      minSize: 96,
+      maxSize: 96,
+      enableResizing: false,
       meta: { label: "Order" },
     },
     {
@@ -232,6 +235,9 @@ function configurationColumns(
         </Link>
       ),
       enableHiding: false,
+      size: 320,
+      minSize: 200,
+      maxSize: 720,
       meta: { label: "Name" },
     },
     {
@@ -239,9 +245,11 @@ function configurationColumns(
       accessorKey: "client_mode",
       header: () => "Client Mode",
       enableSorting: false,
-      cell: ({ row }) => (
-        <EnumStatusIndicator value={row.original.client_mode} metadata={CLIENT_MODES} />
-      ),
+      cell: ({ row }) => CLIENT_MODES[row.original.client_mode].name,
+      size: 144,
+      minSize: 144,
+      maxSize: 144,
+      enableResizing: false,
       meta: { label: "Client Mode" },
     },
     {
@@ -250,6 +258,10 @@ function configurationColumns(
       header: () => "Updated",
       enableSorting: false,
       cell: ({ row }) => formatRelative(row.original.updated_at),
+      size: 136,
+      minSize: 136,
+      maxSize: 136,
+      enableResizing: false,
       meta: { label: "Updated" },
     },
     ...(isAdmin
@@ -367,9 +379,7 @@ function ConfigurationReorder({
                   </TableCell>
                   <TableCell className="w-20">{index + 1}</TableCell>
                   <TableCell className="font-medium">{row.name}</TableCell>
-                  <TableCell>
-                    <EnumStatusIndicator value={row.client_mode} metadata={CLIENT_MODES} />
-                  </TableCell>
+                  <TableCell>{CLIENT_MODES[row.client_mode].name}</TableCell>
                   <TableCell>{formatRelative(row.updated_at)}</TableCell>
                 </DraggableTableRow>
               ))}

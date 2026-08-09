@@ -139,6 +139,9 @@ const softwareColumns: DataTableColumnDef<SoftwareTitle>[] = [
     cell: ({ row }) => versionsSummaryLabel(row.original.versions.items),
     meta: { label: "Versions" },
     size: 112,
+    minSize: 112,
+    maxSize: 112,
+    enableResizing: false,
   },
   {
     id: "source",
@@ -147,7 +150,10 @@ const softwareColumns: DataTableColumnDef<SoftwareTitle>[] = [
     cell: ({ row }) => softwareSourceLabel(row.original.source, row.original.extension_for),
     meta: { label: "Type", options: SOURCE_FILTER_OPTIONS },
     enableColumnFilter: true,
-    size: 160,
+    size: 208,
+    minSize: 208,
+    maxSize: 208,
+    enableResizing: false,
   },
   {
     id: "hosts_count",
@@ -160,5 +166,8 @@ const softwareColumns: DataTableColumnDef<SoftwareTitle>[] = [
     ),
     meta: { label: "Hosts" },
     size: 96,
+    minSize: 96,
+    maxSize: 96,
+    enableResizing: false,
   },
 ];

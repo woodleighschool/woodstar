@@ -12,7 +12,6 @@ import { selectColumn } from "@components/data-table/select-column";
 import type { DataTableCellContext, DataTableColumnDef } from "@components/data-table/types";
 import { useDataTable } from "@components/data-table/use-data-table";
 import { useDataTableSearch } from "@components/data-table/use-data-table-search";
-import { EnumBadge } from "@components/enum-badge";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link } from "@components/link";
 import { QueryError } from "@components/query-error";
@@ -30,7 +29,7 @@ import { DEFAULT_PAGE_SIZE } from "@lib/pagination";
 import { formatRelative } from "@lib/utils";
 
 import { RuleDeleteDialog } from "./delete-dialog";
-import { RULE_TYPES, RULE_TYPE_OPTIONS } from "./metadata";
+import { ruleTypeLabel, RULE_TYPE_OPTIONS } from "./metadata";
 import { useBulkDeleteSantaRules, useSantaRules } from "./queries";
 
 const routeApi = getRouteApi("/_authenticated/santa/rules/");
@@ -67,21 +66,31 @@ function ruleColumns(isAdmin: boolean): DataTableColumnDef<RuleTableRow>[] {
       header: "Name",
       cell: RuleNameCell,
       enableHiding: false,
+      size: 240,
+      minSize: 160,
+      maxSize: 400,
       meta: { label: "Name" },
     },
     {
       id: "rule_type",
       accessorFn: (row) => row.rule.rule_type,
       header: "Rule Type",
-      cell: ({ row }) => <EnumBadge value={row.original.rule.rule_type} metadata={RULE_TYPES} />,
+      cell: ({ row }) => ruleTypeLabel(row.original.rule.rule_type),
       meta: { label: "Rule Type", options: RULE_TYPE_OPTIONS },
       enableColumnFilter: true,
+      size: 120,
+      minSize: 120,
+      maxSize: 120,
+      enableResizing: false,
     },
     {
       id: "identifier",
       accessorFn: (row) => row.rule.identifier,
       header: "Identifier",
       cell: ({ row }) => row.original.rule.identifier || "-",
+      size: 320,
+      minSize: 200,
+      maxSize: 720,
       meta: { label: "Identifier" },
     },
     {
@@ -89,6 +98,10 @@ function ruleColumns(isAdmin: boolean): DataTableColumnDef<RuleTableRow>[] {
       accessorFn: (row) => row.rule.updated_at,
       header: "Updated",
       cell: ({ row }) => formatRelative(row.original.rule.updated_at),
+      size: 136,
+      minSize: 136,
+      maxSize: 136,
+      enableResizing: false,
       meta: { label: "Updated" },
     },
     ...(isAdmin
