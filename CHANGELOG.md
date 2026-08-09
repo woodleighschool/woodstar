@@ -1,5 +1,38 @@
 # Changelog
 
+## [0.8.6](https://github.com/woodleighschool/woodstar/compare/0.8.5...0.8.6) (2026-08-09)
+
+
+### Features
+
+* **directory:** add resource overview ([99b0226](https://github.com/woodleighschool/woodstar/commit/99b0226b2093336c43d816a5577f260db9dcbd2e))
+* **hosts:** request immediate inventory refresh ([e76a34e](https://github.com/woodleighschool/woodstar/commit/e76a34e77a33a905f965d9285f2a78f74da48f11))
+* **jobs:** make background work replica-safe ([e8cae6d](https://github.com/woodleighschool/woodstar/commit/e8cae6d06613b67d4555cf46af2c86d0366b0cfa))
+* **munki:** collect authoritative host state ([75c0495](https://github.com/woodleighschool/woodstar/commit/75c049511fea83220ab3b6580b1096b23811583d))
+
+
+### Bug Fixes
+
+* **deps:** update dependency @tanstack/react-form (1.33.3 → 1.33.4) ([#156](https://github.com/woodleighschool/woodstar/issues/156)) ([7f11c90](https://github.com/woodleighschool/woodstar/commit/7f11c904b48777a1e84bbf912349271ee451c472))
+* **deps:** update dependency @tanstack/react-table (9.1.0 → 9.1.1) ([#154](https://github.com/woodleighschool/woodstar/issues/154)) ([16a63e7](https://github.com/woodleighschool/woodstar/commit/16a63e77d3734dbcab1b9482aded93e4f50424cd))
+* **deps:** update dependency @tanstack/react-table (9.1.1 → 9.1.2) ([#160](https://github.com/woodleighschool/woodstar/issues/160)) ([d1e7c9d](https://github.com/woodleighschool/woodstar/commit/d1e7c9d84fbf21e69ef84a05f717fccb3ab4aa9f))
+* **deps:** update tanstack-router monorepo ([#161](https://github.com/woodleighschool/woodstar/issues/161)) ([8585b5d](https://github.com/woodleighschool/woodstar/commit/8585b5d63f2cd6f49c2ec48fbdfe642915229127))
+* **jobs:** suppress River debug chatter ([3825a93](https://github.com/woodleighschool/woodstar/commit/3825a93c0db5afd5440c751ec329801e957e1fe0))
+* **munki:** hide redundant serial manifest ([1c31a69](https://github.com/woodleighschool/woodstar/commit/1c31a694f6631a8a74523f2d22d7ded1337bea85))
+
+
+### Documentation
+
+* define persistence working rules ([48d50e5](https://github.com/woodleighschool/woodstar/commit/48d50e5407ce9b1184380bd19827a6b6d6ed8903))
+
+
+### Code Refactoring
+
+* **core:** separate faults and list contracts ([8d8fb4d](https://github.com/woodleighschool/woodstar/commit/8d8fb4d1be95b3eef6f512c0ca4215f8e3bbeace))
+* **postgres:** flatten migration baseline ([87afc6d](https://github.com/woodleighschool/woodstar/commit/87afc6d66d48ecc501e36b398c72a71aeb3582dc))
+* **postgres:** pass pgx pools directly ([657dffe](https://github.com/woodleighschool/woodstar/commit/657dffefd35b379d92d736a2dc341241c9a7e68e))
+* **stores:** make persistence ownership explicit ([ced7e13](https://github.com/woodleighschool/woodstar/commit/ced7e133ef77efb0f4defd82701eb16dd30a75c6))
+
 ## [0.8.5](https://github.com/woodleighschool/woodstar/compare/0.8.4...0.8.5) (2026-08-09)
 
 
