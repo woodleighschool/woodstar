@@ -2,6 +2,7 @@ import { useNavigate, useParams } from "@tanstack/react-router";
 import { Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 
+import { SQLEditor } from "@components/editor/sql-editor";
 import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link } from "@components/link";
@@ -114,7 +115,7 @@ function MembershipCard({ label }: { label: Label }) {
         <section className="flex min-w-0 flex-col gap-3">
           <h2 className="text-base/snug font-medium">Query</h2>
           <Separator />
-          <CodeBlock value={label.query} />
+          <SQLEditor value={label.query ?? ""} onChange={() => undefined} readOnly />
         </section>
       );
     case "manual":
@@ -146,15 +147,6 @@ function MembershipCard({ label }: { label: Label }) {
   }
 
   return null;
-}
-
-function CodeBlock({ value }: { value: string | undefined }) {
-  if (!value) return <span className="text-muted-foreground">-</span>;
-  return (
-    <pre className="overflow-x-auto border-y bg-muted/20 px-3 py-2.5 font-mono text-xs">
-      <code>{value}</code>
-    </pre>
-  );
 }
 
 function CriteriaValues({
