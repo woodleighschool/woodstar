@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 	"github.com/woodleighschool/woodstar/internal/targeting"
 )
@@ -62,7 +62,7 @@ func TestConfigurationMutationValidate(t *testing.T) {
 			t.Parallel()
 			mutation := baseline(tt.name)
 			tt.mutate(&mutation)
-			if err := mutation.Validate(); !errors.Is(err, dbutil.ErrInvalidInput) {
+			if err := mutation.Validate(); !errors.Is(err, fault.ErrInvalidInput) {
 				t.Fatalf("Validate error = %v, want ErrInvalidInput", err)
 			}
 		})

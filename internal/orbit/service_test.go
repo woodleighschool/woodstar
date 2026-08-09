@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/woodleighschool/woodstar/internal/agentauth"
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/heartbeats"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 )
@@ -154,9 +154,9 @@ func TestEnrollmentServiceDoesNotRecordUnauthenticatedContact(t *testing.T) {
 			name: "invalid node key",
 			call: func(t *testing.T, service *EnrollmentService, hostStore *fakeOrbitHostStore) {
 				t.Helper()
-				hostStore.getErr = dbutil.ErrNotFound
+				hostStore.getErr = fault.ErrNotFound
 				_, err := service.Config(t.Context(), "bad", heartbeats.Contact{})
-				if !errors.Is(err, dbutil.ErrNotFound) {
+				if !errors.Is(err, fault.ErrNotFound) {
 					t.Fatalf("Config error = %v, want not found", err)
 				}
 			},
@@ -175,9 +175,9 @@ func TestEnrollmentServiceDoesNotRecordUnauthenticatedContact(t *testing.T) {
 			name: "unknown device token",
 			call: func(t *testing.T, service *EnrollmentService, hostStore *fakeOrbitHostStore) {
 				t.Helper()
-				hostStore.validateErr = dbutil.ErrNotFound
+				hostStore.validateErr = fault.ErrNotFound
 				err := service.ValidateDeviceAuthToken(t.Context(), "bad", heartbeats.Contact{})
-				if !errors.Is(err, dbutil.ErrNotFound) {
+				if !errors.Is(err, fault.ErrNotFound) {
 					t.Fatalf("ValidateDeviceAuthToken error = %v, want not found", err)
 				}
 			},

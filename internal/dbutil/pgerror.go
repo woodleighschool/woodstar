@@ -7,6 +7,7 @@ import (
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/woodleighschool/woodstar/internal/fault"
 )
 
 func sqlState(err error) string {
@@ -20,37 +21,37 @@ func sqlState(err error) string {
 // GetError maps missing read rows to the shared not-found sentinel.
 func GetError(err error) error {
 	if errors.Is(err, pgx.ErrNoRows) {
-		return ErrNotFound
+		return fault.ErrNotFound
 	}
 	return err
 }
 
 // MutationError maps a Postgres write error to a shared store sentinel: missing
-// rows and foreign-key violations become ErrNotFound, unique violations
-// ErrAlreadyExists, and value or constraint violations ErrInvalidInput.
+// rows and foreign-key violations become fault.ErrNotFound, unique violations
+// fault.ErrAlreadyExists, and value or constraint violations fault.ErrInvalidInput.
 func MutationError(err error) error {
 	if errors.Is(err, pgx.ErrNoRows) {
-		return ErrNotFound
+		return fault.ErrNotFound
 	}
 	switch sqlState(err) {
 	case pgerrcode.ForeignKeyViolation:
-		return ErrNotFound
+		return fault.ErrNotFound
 	case pgerrcode.UniqueViolation:
-		return ErrAlreadyExists
+		return fault.ErrAlreadyExists
 	case pgerrcode.InvalidTextRepresentation,
 		pgerrcode.NotNullViolation,
 		pgerrcode.CheckViolation:
-		return fmt.Errorf("%w: %w", ErrInvalidInput, err)
+		return fmt.Errorf("%w: %w", fault.ErrInvalidInput, err)
 	}
 	return err
 }
 
-// DeleteConflict maps foreign-key and restrict violations to ErrConflict carrying
+// DeleteConflict maps foreign-key and restrict violations to fault.ErrConflict carrying
 // message, falling back to MutationError for any other error.
 func DeleteConflict(err error, message string) error {
 	switch sqlState(err) {
 	case pgerrcode.ForeignKeyViolation, pgerrcode.RestrictViolation:
-		return fmt.Errorf("%w: %s", ErrConflict, message)
+		return fmt.Errorf("%w: %s", fault.ErrConflict, message)
 	}
 	return MutationError(err)
 }

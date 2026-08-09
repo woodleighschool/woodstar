@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
+	"github.com/woodleighschool/woodstar/internal/listing"
 )
 
 var validExecutionDecisions = valueSet(ExecutionDecisionValues)
@@ -26,59 +27,59 @@ func validateEventInputs(
 ) error {
 	for _, event := range executionEvents {
 		if event.Decision != ExecutionDecisionBundleBinary && event.OccurredAt.IsZero() {
-			return fmt.Errorf("%w: execution event occurred_at is required", dbutil.ErrInvalidInput)
+			return fmt.Errorf("%w: execution event occurred_at is required", fault.ErrInvalidInput)
 		}
 	}
 	for _, event := range fileAccessEvents {
 		if event.OccurredAt.IsZero() {
-			return fmt.Errorf("%w: file access event occurred_at is required", dbutil.ErrInvalidInput)
+			return fmt.Errorf("%w: file access event occurred_at is required", fault.ErrInvalidInput)
 		}
 	}
 	for _, event := range standaloneRuleCreationEvents {
 		if strings.TrimSpace(event.Identifier) == "" {
-			return fmt.Errorf("%w: standalone rule identifier is required", dbutil.ErrInvalidInput)
+			return fmt.Errorf("%w: standalone rule identifier is required", fault.ErrInvalidInput)
 		}
 		if event.Decision == ExecutionDecisionUnknown {
-			return fmt.Errorf("%w: standalone rule decision is required", dbutil.ErrInvalidInput)
+			return fmt.Errorf("%w: standalone rule decision is required", fault.ErrInvalidInput)
 		}
 		if _, ok := validExecutionDecisions[event.Decision]; !ok {
-			return fmt.Errorf("%w: unknown standalone rule decision", dbutil.ErrInvalidInput)
+			return fmt.Errorf("%w: unknown standalone rule decision", fault.ErrInvalidInput)
 		}
 		if event.OccurredAt.IsZero() {
-			return fmt.Errorf("%w: standalone rule occurred_at is required", dbutil.ErrInvalidInput)
+			return fmt.Errorf("%w: standalone rule occurred_at is required", fault.ErrInvalidInput)
 		}
 	}
 	return nil
 }
 
 func validateExecutionEventListParams(params ExecutionEventListParams) error {
-	if err := dbutil.ValidateListParams(params.ListParams); err != nil {
+	if err := listing.Validate(params.ListParams); err != nil {
 		return err
 	}
 	if params.HostID < 0 {
-		return fmt.Errorf("%w: host_id must be non-negative", dbutil.ErrInvalidInput)
+		return fmt.Errorf("%w: host_id must be non-negative", fault.ErrInvalidInput)
 	}
 	for _, filter := range params.Decisions {
 		if filter == DecisionFilterAllowed || filter == DecisionFilterBlocked {
 			continue
 		}
 		if _, ok := validExecutionDecisions[ExecutionDecision(filter)]; !ok {
-			return fmt.Errorf("%w: unknown decision", dbutil.ErrInvalidInput)
+			return fmt.Errorf("%w: unknown decision", fault.ErrInvalidInput)
 		}
 	}
 	return nil
 }
 
 func validateFileAccessEventListParams(params FileAccessEventListParams) error {
-	if err := dbutil.ValidateListParams(params.ListParams); err != nil {
+	if err := listing.Validate(params.ListParams); err != nil {
 		return err
 	}
 	if params.HostID < 0 {
-		return fmt.Errorf("%w: host_id must be non-negative", dbutil.ErrInvalidInput)
+		return fmt.Errorf("%w: host_id must be non-negative", fault.ErrInvalidInput)
 	}
 	for _, decision := range params.Decisions {
 		if _, ok := validFileAccessDecisions[decision]; !ok {
-			return fmt.Errorf("%w: unknown file access decision", dbutil.ErrInvalidInput)
+			return fmt.Errorf("%w: unknown file access decision", fault.ErrInvalidInput)
 		}
 	}
 	return nil

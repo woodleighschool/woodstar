@@ -7,7 +7,8 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
+	"github.com/woodleighschool/woodstar/internal/listing"
 	"github.com/woodleighschool/woodstar/internal/openapischema"
 	"github.com/woodleighschool/woodstar/internal/validation"
 )
@@ -74,7 +75,7 @@ var FileAccessActionValues = []FileAccessAction{
 }
 
 type ConfigurationListParams struct {
-	dbutil.ListParams
+	ListParams listing.Params
 }
 
 // RemovableMediaPolicy is the optional USB policy. The zero value (Action == "")
@@ -131,7 +132,7 @@ type ConfigurationMutation struct {
 // Validate enforces caller-facing rules before storage.
 func (p *ConfigurationMutation) Validate() error {
 	if err := validation.Struct(p); err != nil {
-		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
+		return fmt.Errorf("%w: %w", fault.ErrInvalidInput, err)
 	}
 	if err := p.Targets.validate(); err != nil {
 		return err

@@ -13,9 +13,9 @@ import (
 	"time"
 
 	"github.com/woodleighschool/woodstar/internal/database"
-	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/heartbeats"
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/listing"
 	"github.com/woodleighschool/woodstar/internal/santa"
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 	santaevents "github.com/woodleighschool/woodstar/internal/santa/events"
@@ -651,7 +651,7 @@ func TestEventListCursorFiltersAndRetention(t *testing.T) {
 		santaevents.ExecutionEventListParams{
 			EventListParams: santaevents.EventListParams{
 				HostID:     host.ID,
-				ListParams: dbutil.ListParams{PageSize: 2},
+				ListParams: listing.Params{PageSize: 2},
 			},
 		},
 	)
@@ -666,7 +666,7 @@ func TestEventListCursorFiltersAndRetention(t *testing.T) {
 		santaevents.ExecutionEventListParams{
 			EventListParams: santaevents.EventListParams{
 				HostID:     host.ID,
-				ListParams: dbutil.ListParams{PageSize: 2, PageIndex: 1},
+				ListParams: listing.Params{PageSize: 2, PageIndex: 1},
 			},
 		},
 	)
@@ -695,7 +695,7 @@ func TestEventListCursorFiltersAndRetention(t *testing.T) {
 		ctx,
 		santaevents.ExecutionEventListParams{
 			EventListParams: santaevents.EventListParams{
-				ListParams: dbutil.ListParams{Q: "B"},
+				ListParams: listing.Params{Q: "B"},
 			},
 			Decisions: []santaevents.DecisionFilter{santaevents.DecisionFilterAllowed, "block_certificate"},
 		},

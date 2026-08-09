@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/directory"
+	"github.com/woodleighschool/woodstar/internal/fault"
 )
 
 const minimumCredentialFailureDuration = time.Second
@@ -50,7 +50,7 @@ func (s *Service) passwordLoginCandidate(
 	email string,
 ) (*directory.User, string, error) {
 	user, err := s.users.GetLoginByEmail(ctx, email)
-	if errors.Is(err, dbutil.ErrNotFound) {
+	if errors.Is(err, fault.ErrNotFound) {
 		return nil, s.dummyHash, nil
 	}
 	if err != nil {

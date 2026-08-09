@@ -7,8 +7,8 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/directory"
+	"github.com/woodleighschool/woodstar/internal/listing"
 )
 
 const (
@@ -37,7 +37,7 @@ type groupOutput struct {
 func (i groupListInput) params() directory.GroupListParams {
 	return directory.GroupListParams{
 		ListParams: i.ListQueryInput.params(),
-		Values:     dbutil.NormalizeListValues(i.Values),
+		Values:     listing.NormalizeValues(i.Values),
 	}
 }
 

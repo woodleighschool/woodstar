@@ -10,6 +10,8 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
+	"github.com/woodleighschool/woodstar/internal/listing"
 	"github.com/woodleighschool/woodstar/internal/santa/payloadhash"
 	"github.com/woodleighschool/woodstar/internal/santa/syncstate"
 	"github.com/woodleighschool/woodstar/internal/targeting"
@@ -56,7 +58,7 @@ func (s *Store) List(ctx context.Context, params RuleListParams) ([]Rule, int, e
 
 func (s *Store) GetByID(ctx context.Context, id int64) (*Rule, error) {
 	if id <= 0 {
-		return nil, dbutil.ErrNotFound
+		return nil, fault.ErrNotFound
 	}
 	row, err := dbutil.GetOne[ruleRow](ctx, s.db.Pool(), ruleSelectSQL()+"\nWHERE id = $1", id)
 	if err != nil {
@@ -154,7 +156,7 @@ func (s *Store) Delete(ctx context.Context, id int64) error {
 		return dbutil.DeleteConflict(err, "Santa rule is still referenced")
 	}
 	if tag.RowsAffected() == 0 {
-		return dbutil.ErrNotFound
+		return fault.ErrNotFound
 	}
 	return nil
 }
@@ -209,8 +211,8 @@ func (s *Store) ListRuleStatusesForHost(
 	hostID int64,
 	params RuleStatusListParams,
 ) ([]RuleStatus, int, error) {
-	params.ListParams = dbutil.NormalizeListParams(params.ListParams)
-	if err := dbutil.ValidateListParams(params.ListParams); err != nil {
+	params.ListParams = listing.Normalize(params.ListParams)
+	if err := listing.Validate(params.ListParams); err != nil {
 		return nil, 0, err
 	}
 
@@ -224,7 +226,7 @@ func (s *Store) ListRuleStatusesForHost(
 		return nil, 0, err
 	}
 	if !hostExists {
-		return nil, 0, dbutil.ErrNotFound
+		return nil, 0, fault.ErrNotFound
 	}
 
 	qrows, err := s.db.Pool().Query(
@@ -244,8 +246,8 @@ func (s *Store) ListRuleStatusesForHost(
 			ORDER BY rule_type_sort, identifier, rule_id
 			LIMIT $2 OFFSET $3`,
 		hostID,
-		params.PageSize,
-		params.PageIndex*params.PageSize,
+		params.ListParams.PageSize,
+		params.ListParams.PageIndex*params.ListParams.PageSize,
 	)
 	if err != nil {
 		return nil, 0, err
@@ -469,7 +471,7 @@ func validateRuleTargetingLabels(ctx context.Context, tx pgx.Tx, params RuleMuta
 		return err
 	}
 	if len(builtinIDs) > 0 {
-		return fmt.Errorf("%w: builtin labels cannot be excluded from Santa rules", dbutil.ErrInvalidInput)
+		return fmt.Errorf("%w: builtin labels cannot be excluded from Santa rules", fault.ErrInvalidInput)
 	}
 	return nil
 }
@@ -484,21 +486,21 @@ func validateBundleRuleTarget(ctx context.Context, tx pgx.Tx, params RuleMutatio
 		FROM santa_bundles
 		WHERE sha256 = $1`, params.Identifier).Scan(&complete)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return fmt.Errorf("%w: bundle reference is not collected", dbutil.ErrInvalidInput)
+		return fmt.Errorf("%w: bundle reference is not collected", fault.ErrInvalidInput)
 	}
 	if err != nil {
 		return err
 	}
 	if !complete {
-		return fmt.Errorf("%w: bundle reference is incomplete", dbutil.ErrInvalidInput)
+		return fmt.Errorf("%w: bundle reference is incomplete", fault.ErrInvalidInput)
 	}
 	return nil
 }
 
 func ruleListWhere(params RuleListParams) (string, []any) {
 	var where dbutil.WhereBuilder
-	if params.Q != "" {
-		search := where.Arg("%" + params.Q + "%")
+	if params.ListParams.Q != "" {
+		search := where.Arg("%" + params.ListParams.Q + "%")
 		where.Add(`(
 			identifier ILIKE ` + search + `
 			OR name ILIKE ` + search + `

@@ -3,7 +3,7 @@ package directory
 import (
 	"time"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/listing"
 )
 
 // Group is one directory group.
@@ -20,7 +20,7 @@ type Group struct {
 
 // GroupListParams filters paginated group lists.
 type GroupListParams struct {
-	dbutil.ListParams
+	ListParams listing.Params
 
 	Values []string
 }

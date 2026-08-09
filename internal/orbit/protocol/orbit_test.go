@@ -15,7 +15,7 @@ import (
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 
 	"github.com/woodleighschool/woodstar/internal/agentauth"
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/heartbeats"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/orbit"
@@ -47,8 +47,8 @@ func TestOrbitDeviceMappingMapsServiceErrors(t *testing.T) {
 		err        error
 		wantStatus int
 	}{
-		{name: "malformed email", err: dbutil.ErrInvalidInput, wantStatus: http.StatusBadRequest},
-		{name: "unknown node key", err: dbutil.ErrNotFound, wantStatus: http.StatusUnauthorized},
+		{name: "malformed email", err: fault.ErrInvalidInput, wantStatus: http.StatusBadRequest},
+		{name: "unknown node key", err: fault.ErrNotFound, wantStatus: http.StatusUnauthorized},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -72,8 +72,8 @@ func TestOrbitDeviceTokenMapsServiceErrors(t *testing.T) {
 		wantStatus int
 	}{
 		{name: "invalid token", err: orbit.ErrInvalidDeviceAuthToken, wantStatus: http.StatusBadRequest},
-		{name: "unknown node key", err: dbutil.ErrNotFound, wantStatus: http.StatusUnauthorized},
-		{name: "duplicate token", err: dbutil.ErrAlreadyExists, wantStatus: http.StatusConflict},
+		{name: "unknown node key", err: fault.ErrNotFound, wantStatus: http.StatusUnauthorized},
+		{name: "duplicate token", err: fault.ErrAlreadyExists, wantStatus: http.StatusConflict},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -90,7 +90,7 @@ func TestOrbitDeviceTokenMapsServiceErrors(t *testing.T) {
 func TestOrbitDevicePingRejectsUnknownToken(t *testing.T) {
 	t.Parallel()
 
-	service := &stubEnrollmentService{validateDeviceAuthTokenErr: dbutil.ErrNotFound}
+	service := &stubEnrollmentService{validateDeviceAuthTokenErr: fault.ErrNotFound}
 	doOrbitJSON(
 		t,
 		newOrbitRouter(service),
@@ -147,7 +147,7 @@ func TestOrbitConfigMapsServiceErrors(t *testing.T) {
 		err        error
 		wantStatus int
 	}{
-		{name: "unknown node key", err: dbutil.ErrNotFound, wantStatus: http.StatusUnauthorized},
+		{name: "unknown node key", err: fault.ErrNotFound, wantStatus: http.StatusUnauthorized},
 		{name: "heartbeat recorder failure", err: errors.New("heartbeat unavailable"), wantStatus: http.StatusInternalServerError},
 	}
 	for _, tt := range tests {

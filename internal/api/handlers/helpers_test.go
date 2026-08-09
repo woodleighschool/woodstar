@@ -9,8 +9,7 @@ import (
 	"testing"
 
 	"github.com/danielgtaylor/huma/v2"
-
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 )
 
 func TestResourceMutationErrorMapping(t *testing.T) {
@@ -19,9 +18,9 @@ func TestResourceMutationErrorMapping(t *testing.T) {
 		err        error
 		wantStatus int
 	}{
-		{name: "not found", err: dbutil.ErrNotFound, wantStatus: 404},
-		{name: "already exists", err: dbutil.ErrAlreadyExists, wantStatus: 409},
-		{name: "validation", err: dbutil.ErrInvalidInput, wantStatus: 400},
+		{name: "not found", err: fault.ErrNotFound, wantStatus: 404},
+		{name: "already exists", err: fault.ErrAlreadyExists, wantStatus: 409},
+		{name: "validation", err: fault.ErrInvalidInput, wantStatus: 400},
 	}
 
 	for _, tt := range tests {
@@ -42,7 +41,7 @@ func TestResourceMutationErrorMapping(t *testing.T) {
 func TestResourceMutationErrorOmitsNotFoundDetail(t *testing.T) {
 	t.Parallel()
 
-	mapped := resourceMutationError("Munki client resources", dbutil.ErrNotFound)
+	mapped := resourceMutationError("Munki client resources", fault.ErrNotFound)
 	model, ok := errors.AsType[*huma.ErrorModel](mapped)
 	if !ok {
 		t.Fatalf("error type = %T, want *huma.ErrorModel", mapped)

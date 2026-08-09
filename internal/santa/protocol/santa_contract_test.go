@@ -19,7 +19,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/woodleighschool/woodstar/internal/agentauth"
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/heartbeats"
 	"github.com/woodleighschool/woodstar/internal/santa"
 	santaevents "github.com/woodleighschool/woodstar/internal/santa/events"
@@ -595,7 +595,7 @@ func TestSantaHTTPRejectsAgentErrorsWithEmptyBodies(t *testing.T) {
 }
 
 func TestSantaHTTPMapsInvalidCursorToBadRequest(t *testing.T) {
-	service := &recordingService{err: dbutil.ErrInvalidInput}
+	service := &recordingService{err: fault.ErrInvalidInput}
 	router := newSantaContractRouter(&staticVerifier{ok: true}, service)
 	rec := httptest.NewRecorder()
 	req := santaContractRequest(t, "/santa/sync/ruledownload/machine-1",

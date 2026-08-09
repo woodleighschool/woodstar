@@ -9,7 +9,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/woodleighschool/woodstar/internal/agentauth"
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 )
 
 const (
@@ -102,7 +102,7 @@ func registerUpdateAgentSecret(api huma.API, store *agentauth.Store, logger *slo
 		if errors.Is(err, agentauth.ErrInvalidSecret) {
 			return nil, huma.Error400BadRequest("invalid agent secret")
 		}
-		if errors.Is(err, dbutil.ErrNotFound) {
+		if errors.Is(err, fault.ErrNotFound) {
 			return nil, huma.Error404NotFound("agent secret not found")
 		}
 		if err != nil {
@@ -127,7 +127,7 @@ func registerDeleteAgentSecret(api huma.API, store *agentauth.Store, logger *slo
 		Summary:     "Delete an agent secret",
 		Errors:      []int{http.StatusBadRequest, http.StatusNotFound},
 	}, func(ctx context.Context, input *agentSecretDeleteInput) (*struct{}, error) {
-		if err := store.Delete(ctx, input.ID); errors.Is(err, dbutil.ErrNotFound) {
+		if err := store.Delete(ctx, input.ID); errors.Is(err, fault.ErrNotFound) {
 			return nil, huma.Error404NotFound("agent secret not found")
 		} else if err != nil {
 			return nil, handlerError(

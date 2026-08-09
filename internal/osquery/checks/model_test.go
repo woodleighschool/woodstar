@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/targeting"
 )
 
@@ -80,7 +80,7 @@ func TestCheckMutationValidate(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			err := tt.in.Validate()
 			if tt.wantErr {
-				if !errors.Is(err, dbutil.ErrInvalidInput) {
+				if !errors.Is(err, fault.ErrInvalidInput) {
 					t.Fatalf("Validate error = %v, want ErrInvalidInput", err)
 				}
 				return
@@ -98,7 +98,7 @@ func TestValidateCheckStatusFilters(t *testing.T) {
 	if err := validateCheckStatusFilters(CheckStatusValues); err != nil {
 		t.Fatalf("validateCheckStatusFilters(%q) = %v, want nil", CheckStatusValues, err)
 	}
-	if err := validateCheckStatusFilters([]CheckStatus{"unknown"}); !errors.Is(err, dbutil.ErrInvalidInput) {
+	if err := validateCheckStatusFilters([]CheckStatus{"unknown"}); !errors.Is(err, fault.ErrInvalidInput) {
 		t.Fatalf("unknown status error = %v, want ErrInvalidInput", err)
 	}
 }

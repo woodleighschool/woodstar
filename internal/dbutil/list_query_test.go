@@ -4,10 +4,13 @@ import (
 	"errors"
 	"strings"
 	"testing"
+
+	"github.com/woodleighschool/woodstar/internal/fault"
+	"github.com/woodleighschool/woodstar/internal/listing"
 )
 
 func TestListQueryOrderByAllowlist(t *testing.T) {
-	params := NormalizeListParams(ListParams{
+	params := listing.Normalize(listing.Params{
 		PageIndex: 1,
 		PageSize:  25,
 		Sort:      "last_seen_at.desc",
@@ -41,7 +44,7 @@ func TestListQueryOrderByAllowlist(t *testing.T) {
 func TestListQueryCalculatesOffsetWithoutInt32Overflow(t *testing.T) {
 	_, args, err := ListQuery{
 		SelectSQL: "SELECT * FROM hosts",
-		Params: NormalizeListParams(ListParams{
+		Params: listing.Normalize(listing.Params{
 			PageIndex: 2_147_483_647,
 			PageSize:  1000,
 		}),
@@ -61,7 +64,7 @@ func TestListQueryUsesDefaultDescendingOrder(t *testing.T) {
 			{SQL: "occurred_at", Descending: true},
 			{SQL: "id", Descending: true},
 		},
-		Params: NormalizeListParams(ListParams{}),
+		Params: listing.Normalize(listing.Params{}),
 	}.Build()
 	if err != nil {
 		t.Fatalf("Build returned error: %v", err)
@@ -77,10 +80,10 @@ func TestListQueryRejectsUnknownSortKey(t *testing.T) {
 		OrderKeys: map[string]OrderExpr{
 			"display_name": {SQL: "lower(display_name)"},
 		},
-		Params: NormalizeListParams(ListParams{Sort: "orbit_node_key"}),
+		Params: listing.Normalize(listing.Params{Sort: "orbit_node_key"}),
 	}.Build()
-	if !errors.Is(err, ErrInvalidInput) {
-		t.Fatalf("err = %v, want ErrInvalidInput", err)
+	if !errors.Is(err, fault.ErrInvalidInput) {
+		t.Fatalf("err = %v, want fault.ErrInvalidInput", err)
 	}
 	if !strings.Contains(err.Error(), "unknown sort key") {
 		t.Fatalf("err = %v, want unknown sort key", err)
@@ -93,10 +96,10 @@ func TestListQueryRejectsMalformedSort(t *testing.T) {
 		OrderKeys: map[string]OrderExpr{
 			"display_name": {SQL: "lower(display_name)"},
 		},
-		Params: NormalizeListParams(ListParams{Sort: ".asc"}),
+		Params: listing.Normalize(listing.Params{Sort: ".asc"}),
 	}.Build()
-	if !errors.Is(err, ErrInvalidInput) {
-		t.Fatalf("err = %v, want ErrInvalidInput", err)
+	if !errors.Is(err, fault.ErrInvalidInput) {
+		t.Fatalf("err = %v, want fault.ErrInvalidInput", err)
 	}
 }
 
@@ -106,7 +109,7 @@ func TestListQueryNestedSortKey(t *testing.T) {
 		OrderKeys: map[string]OrderExpr{
 			"hardware.serial": {SQL: "lower(hardware_serial)"},
 		},
-		Params: NormalizeListParams(ListParams{Sort: "hardware.serial.desc"}),
+		Params: listing.Normalize(listing.Params{Sort: "hardware.serial.desc"}),
 	}.Build()
 	if err != nil {
 		t.Fatalf("Build returned error: %v", err)
@@ -124,12 +127,12 @@ func TestListQueryRejectsMultiColumnSort(t *testing.T) {
 			"last_seen_at": {SQL: "last_seen_at", NullOrder: NullsLast},
 		},
 		DefaultOrder: []OrderExpr{{SQL: "id"}},
-		Params: NormalizeListParams(ListParams{
+		Params: listing.Normalize(listing.Params{
 			Sort: "last_seen_at.desc,display_name.asc",
 		}),
 	}.Build()
-	if !errors.Is(err, ErrInvalidInput) {
-		t.Fatalf("err = %v, want ErrInvalidInput", err)
+	if !errors.Is(err, fault.ErrInvalidInput) {
+		t.Fatalf("err = %v, want fault.ErrInvalidInput", err)
 	}
 	if !strings.Contains(err.Error(), "multi-column sort") {
 		t.Fatalf("err = %v, want multi-column sort", err)

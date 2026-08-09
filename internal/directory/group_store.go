@@ -4,11 +4,12 @@ import (
 	"context"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/listing"
 )
 
 func (s *Store) ListGroups(ctx context.Context, params GroupListParams) ([]Group, int, error) {
-	params.ListParams = dbutil.NormalizeListParams(params.ListParams)
-	params.Values = dbutil.NormalizeListValues(params.Values)
+	params.ListParams = listing.Normalize(params.ListParams)
+	params.Values = listing.NormalizeValues(params.Values)
 	where, args := groupWhere(params)
 	return dbutil.ListWithCount[Group](ctx, s.db.Pool(), groupListQuery(params, where, args))
 }
@@ -40,8 +41,8 @@ func groupSelectSQL() string {
 
 func groupWhere(params GroupListParams) (string, []any) {
 	var where dbutil.WhereBuilder
-	if params.Q != "" {
-		search := where.Arg("%" + params.Q + "%")
+	if params.ListParams.Q != "" {
+		search := where.Arg("%" + params.ListParams.Q + "%")
 		where.Add(`(
 			g.display_name ILIKE ` + search + `
 			OR g.mail_nickname ILIKE ` + search + `
@@ -49,7 +50,7 @@ func groupWhere(params GroupListParams) (string, []any) {
 		)`)
 	}
 	if len(params.Values) > 0 {
-		values := where.Arg(dbutil.NormalizeListValues(params.Values))
+		values := where.Arg(listing.NormalizeValues(params.Values))
 		where.Add("g.external_id = ANY(" + values + "::text[])")
 	}
 	return where.Build()

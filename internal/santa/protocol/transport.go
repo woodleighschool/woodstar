@@ -12,7 +12,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/woodleighschool/woodstar/internal/agentauth"
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/httpx"
 )
 
@@ -72,7 +72,7 @@ func validateRequestMachineID(pathMachineID string, req machineIDProtoMessage) e
 	if req.GetMachineId() != pathMachineID {
 		return fmt.Errorf(
 			"%w: body machine_id %q does not match path machine_id %q",
-			dbutil.ErrInvalidInput,
+			fault.ErrInvalidInput,
 			req.GetMachineId(),
 			pathMachineID,
 		)

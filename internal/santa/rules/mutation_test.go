@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/santa/rules"
 	"github.com/woodleighschool/woodstar/internal/targeting"
 )
@@ -78,7 +78,7 @@ func TestRuleMutationValidatesCELSyntax(t *testing.T) {
 			tt.mutate(&params)
 
 			err := params.Validate()
-			if !errors.Is(err, dbutil.ErrInvalidInput) {
+			if !errors.Is(err, fault.ErrInvalidInput) {
 				t.Fatalf("Validate error = %v, want ErrInvalidInput", err)
 			}
 		})
@@ -121,7 +121,7 @@ func TestRuleMutationValidatesShapeAndTargets(t *testing.T) {
 			mutation := base
 			mutation.Targets.Include = append([]rules.RuleInclude(nil), base.Targets.Include...)
 			tt.mutate(&mutation)
-			if err := mutation.Validate(); !errors.Is(err, dbutil.ErrInvalidInput) {
+			if err := mutation.Validate(); !errors.Is(err, fault.ErrInvalidInput) {
 				t.Fatalf("Validate error = %v, want ErrInvalidInput", err)
 			}
 		})

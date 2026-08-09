@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 )
 
 func TestCursorRoundTrip(t *testing.T) {
@@ -27,7 +27,7 @@ func TestDecodeCursorRejectsInvalidValue(t *testing.T) {
 	t.Parallel()
 
 	for _, cursor := range []string{"not-base64", "bm90LWpzb24", "eyJvZmZzZXQiOi0xfQ"} {
-		if _, err := decodeCursor(cursor); !errors.Is(err, dbutil.ErrInvalidInput) {
+		if _, err := decodeCursor(cursor); !errors.Is(err, fault.ErrInvalidInput) {
 			t.Errorf("decodeCursor(%q) error = %v, want ErrInvalidInput", cursor, err)
 		}
 	}

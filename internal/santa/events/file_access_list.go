@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/listing"
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 )
 
@@ -14,7 +15,7 @@ func (s *Store) ListFileAccessEvents(
 	ctx context.Context,
 	params FileAccessEventListParams,
 ) ([]FileAccessEvent, int, error) {
-	params.ListParams = dbutil.NormalizeListParams(params.ListParams)
+	params.ListParams = listing.Normalize(params.ListParams)
 	params.Decisions = normalizeListValues(params.Decisions)
 	if err := validateFileAccessEventListParams(params); err != nil {
 		return nil, 0, err
@@ -51,8 +52,8 @@ func fileAccessEventWhere(params FileAccessEventListParams) (string, []any) {
 	if params.HostID != 0 {
 		where.Add("fae.host_id = " + where.Arg(params.HostID))
 	}
-	if params.Q != "" {
-		search := where.Arg("%" + params.Q + "%")
+	if params.ListParams.Q != "" {
+		search := where.Arg("%" + params.ListParams.Q + "%")
 		where.Add(`(
 			h.id::text ILIKE ` + search + `
 			OR h.display_name ILIKE ` + search + `

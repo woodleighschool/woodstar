@@ -3,7 +3,7 @@ package configurations
 import (
 	"fmt"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/targeting"
 )
 
@@ -15,7 +15,7 @@ type ConfigurationTargets struct {
 
 func (targets ConfigurationTargets) validate() error {
 	if err := targeting.ValidateLabelSets(targets.Include, targets.Exclude); err != nil {
-		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
+		return fmt.Errorf("%w: %w", fault.ErrInvalidInput, err)
 	}
 	return nil
 }

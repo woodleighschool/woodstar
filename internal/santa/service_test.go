@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/heartbeats"
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 	santaevents "github.com/woodleighschool/woodstar/internal/santa/events"
@@ -102,10 +102,10 @@ func TestSyncServiceDoesNotRecordUnknownMachine(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			recorder := &heartbeatRecorder{}
-			service, _ := newTestSyncService(0, dbutil.ErrNotFound, recorder)
+			service, _ := newTestSyncService(0, fault.ErrNotFound, recorder)
 			err := tc.call(service)
 
-			if !errors.Is(err, dbutil.ErrNotFound) {
+			if !errors.Is(err, fault.ErrNotFound) {
 				t.Fatalf("sync stage error = %v, want not found", err)
 			}
 			if len(recorder.records) != 0 {

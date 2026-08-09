@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 )
 
 func validPackageMutation() PackageMutation {
@@ -70,7 +70,7 @@ func TestPackageMutationValidateInstallerRelationship(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			err := tc.mutation.validate()
-			if tc.wantErr && !errors.Is(err, dbutil.ErrInvalidInput) {
+			if tc.wantErr && !errors.Is(err, fault.ErrInvalidInput) {
 				t.Fatalf("validate() error = %v, want ErrInvalidInput", err)
 			}
 			if !tc.wantErr && err != nil {
@@ -165,7 +165,7 @@ func TestPackageMutationValidateRejects(t *testing.T) {
 			t.Parallel()
 			m := validPackageMutation()
 			mutate(&m)
-			if err := m.validate(); !errors.Is(err, dbutil.ErrInvalidInput) {
+			if err := m.validate(); !errors.Is(err, fault.ErrInvalidInput) {
 				t.Fatalf("Validate() = %v, want ErrInvalidInput", err)
 			}
 		})
@@ -182,7 +182,7 @@ func TestPackageCreateMutationRejectsInvalidSoftwareID(t *testing.T) {
 			InstallerType: InstallerTypeNoPkg,
 		},
 	}
-	if err := m.validate(); !errors.Is(err, dbutil.ErrInvalidInput) {
+	if err := m.validate(); !errors.Is(err, fault.ErrInvalidInput) {
 		t.Fatalf("validate() error = %v, want ErrInvalidInput", err)
 	}
 }

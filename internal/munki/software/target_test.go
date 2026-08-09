@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/targeting"
 )
 
@@ -96,7 +96,7 @@ func TestSoftwareTargetsValidatePackageSelectorAndActionRules(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			err := Targets{Include: []Include{tc.include}}.validate()
 			if tc.wantErr {
-				if !errors.Is(err, dbutil.ErrInvalidInput) {
+				if !errors.Is(err, fault.ErrInvalidInput) {
 					t.Fatalf("validate error = %v, want ErrInvalidInput", err)
 				}
 				return
@@ -132,7 +132,7 @@ func TestSoftwareTargetsRejectDuplicateAndOverlappingLabels(t *testing.T) {
 	for name, targets := range tests {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			if err := targets.validate(); !errors.Is(err, dbutil.ErrInvalidInput) {
+			if err := targets.validate(); !errors.Is(err, fault.ErrInvalidInput) {
 				t.Fatalf("validate error = %v, want ErrInvalidInput", err)
 			}
 		})

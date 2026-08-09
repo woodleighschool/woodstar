@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 )
 
 func TestDistributionPointMutationValidate(t *testing.T) {
@@ -50,7 +50,7 @@ func TestDistributionPointMutationValidate(t *testing.T) {
 			mutation := base
 			tc.mutate(&mutation)
 			err := mutation.validate()
-			if tc.wantErr && !errors.Is(err, dbutil.ErrInvalidInput) {
+			if tc.wantErr && !errors.Is(err, fault.ErrInvalidInput) {
 				t.Fatalf("error = %v, want ErrInvalidInput", err)
 			}
 			if !tc.wantErr && err != nil {

@@ -8,7 +8,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/openapischema"
 	"github.com/woodleighschool/woodstar/internal/validation"
 )
@@ -114,7 +114,7 @@ type DesiredPackage struct {
 
 func (m *DistributionPointMutation) validate() error {
 	if err := validation.Struct(m); err != nil {
-		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
+		return fmt.Errorf("%w: %w", fault.ErrInvalidInput, err)
 	}
 	return nil
 }

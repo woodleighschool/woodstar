@@ -7,7 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
+	"github.com/woodleighschool/woodstar/internal/listing"
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
 )
 
@@ -37,8 +38,8 @@ func TestDeleteRemovesLocalUsers(t *testing.T) {
 	if err := service.Delete(ctx, user.ID); err != nil {
 		t.Fatalf("delete user: %v", err)
 	}
-	if _, err := store.GetUserByID(ctx, user.ID); !errors.Is(err, dbutil.ErrNotFound) {
-		t.Fatalf("get deleted user err = %v, want %v", err, dbutil.ErrNotFound)
+	if _, err := store.GetUserByID(ctx, user.ID); !errors.Is(err, fault.ErrNotFound) {
+		t.Fatalf("get deleted user err = %v, want %v", err, fault.ErrNotFound)
 	}
 }
 
@@ -92,8 +93,8 @@ RETURNING id`, hash, apiKey).Scan(&userID); err != nil {
 		t.Fatalf("soft delete directory user: %v", err)
 	}
 
-	if _, err := store.GetUserByID(ctx, userID); !errors.Is(err, dbutil.ErrNotFound) {
-		t.Fatalf("get deleted directory user err = %v, want %v", err, dbutil.ErrNotFound)
+	if _, err := store.GetUserByID(ctx, userID); !errors.Is(err, fault.ErrNotFound) {
+		t.Fatalf("get deleted directory user err = %v, want %v", err, fault.ErrNotFound)
 	}
 
 	var source Source
@@ -115,8 +116,8 @@ WHERE id = $1`, userID).Scan(&source, &externalID, &role, &deletedAt); err != ni
 	if deletedAt == nil {
 		t.Fatal("deleted_at is nil, want soft-deleted")
 	}
-	if _, err := store.GetUserByAPIKey(ctx, apiKey); !errors.Is(err, dbutil.ErrNotFound) {
-		t.Fatalf("get soft-deleted user by api key err = %v, want %v", err, dbutil.ErrNotFound)
+	if _, err := store.GetUserByAPIKey(ctx, apiKey); !errors.Is(err, fault.ErrNotFound) {
+		t.Fatalf("get soft-deleted user by api key err = %v, want %v", err, fault.ErrNotFound)
 	}
 }
 
@@ -170,7 +171,7 @@ WHERE external_id = 'engineering'`).Scan(&engineeringGroupID); err != nil {
 	}
 
 	users, count, err := store.ListUsers(ctx, UserListParams{
-		ListParams: dbutil.ListParams{Q: "engineering"},
+		ListParams: listing.Params{Q: "engineering"},
 		Source:     "entra",
 	})
 	if err != nil {
@@ -244,7 +245,7 @@ func TestListDepartmentsReturnsDirectoryDepartments(t *testing.T) {
 		t.Fatalf("apply entra snapshot: %v", err)
 	}
 
-	departments, count, err := store.ListDepartments(ctx, UserListParams{ListParams: dbutil.ListParams{Q: "eng"}})
+	departments, count, err := store.ListDepartments(ctx, UserListParams{ListParams: listing.Params{Q: "eng"}})
 	if err != nil {
 		t.Fatalf("list departments: %v", err)
 	}

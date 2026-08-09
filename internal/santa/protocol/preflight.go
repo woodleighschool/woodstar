@@ -5,7 +5,7 @@ import (
 
 	syncv1 "buf.build/gen/go/northpolesec/protos/protocolbuffers/go/sync"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/santa"
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 	"github.com/woodleighschool/woodstar/internal/santa/syncstate"
@@ -118,7 +118,7 @@ func protoFileAccessAction(action configurations.FileAccessAction) (syncv1.FileA
 	default:
 		return syncv1.FileAccessAction_FILE_ACCESS_ACTION_UNSPECIFIED, fmt.Errorf(
 			"%w: unsupported override_file_access_action %q",
-			dbutil.ErrInvalidInput,
+			fault.ErrInvalidInput,
 			action,
 		)
 	}
@@ -150,7 +150,7 @@ func protoClientMode(mode configurations.ClientMode) (syncv1.ClientMode, error) 
 	default:
 		return syncv1.ClientMode_UNKNOWN_CLIENT_MODE, fmt.Errorf(
 			"%w: unsupported client_mode %q",
-			dbutil.ErrInvalidInput,
+			fault.ErrInvalidInput,
 			mode,
 		)
 	}
@@ -167,7 +167,7 @@ func protoSyncType(syncType syncstate.SyncType) (syncv1.SyncType, error) {
 	default:
 		return syncv1.SyncType_SYNC_TYPE_UNSPECIFIED, fmt.Errorf(
 			"%w: unsupported sync_type %q",
-			dbutil.ErrInvalidInput,
+			fault.ErrInvalidInput,
 			syncType,
 		)
 	}

@@ -4,8 +4,7 @@ import (
 	"fmt"
 
 	"github.com/google/cel-go/cel"
-
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 )
 
 func validateCELSyntax(expression string) error {
@@ -15,7 +14,7 @@ func validateCELSyntax(expression string) error {
 	}
 	_, issues := env.Parse(expression)
 	if issues != nil && issues.Err() != nil {
-		return fmt.Errorf("%w: cel_expression is invalid: %s", dbutil.ErrInvalidInput, issues.Err().Error())
+		return fmt.Errorf("%w: cel_expression is invalid: %s", fault.ErrInvalidInput, issues.Err().Error())
 	}
 	return nil
 }

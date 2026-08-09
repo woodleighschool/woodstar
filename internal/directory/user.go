@@ -7,7 +7,8 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
+	"github.com/woodleighschool/woodstar/internal/listing"
 	"github.com/woodleighschool/woodstar/internal/openapischema"
 	"github.com/woodleighschool/woodstar/internal/validation"
 )
@@ -52,7 +53,7 @@ type Department struct {
 
 // UserListParams filters paginated user lists.
 type UserListParams struct {
-	dbutil.ListParams
+	ListParams listing.Params
 
 	Values  []string
 	Roles   []string `validate:"unique,dive,oneof=admin viewer none"`
@@ -76,15 +77,15 @@ type UserMutation struct {
 }
 
 func (params *UserListParams) normalize() {
-	params.ListParams = dbutil.NormalizeListParams(params.ListParams)
-	params.Values = dbutil.NormalizeListValues(params.Values)
-	params.Roles = dbutil.NormalizeListValues(params.Roles)
+	params.ListParams = listing.Normalize(params.ListParams)
+	params.Values = listing.NormalizeValues(params.Values)
+	params.Roles = listing.NormalizeValues(params.Roles)
 	params.Source = strings.TrimSpace(params.Source)
 }
 
 func (params *UserListParams) validate() error {
 	if err := validation.Struct(params); err != nil {
-		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
+		return fmt.Errorf("%w: %w", fault.ErrInvalidInput, err)
 	}
 	return nil
 }
@@ -97,7 +98,7 @@ func (params *UserCreate) normalize() {
 
 func (params *UserCreate) validate() error {
 	if err := validation.Struct(params); err != nil {
-		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
+		return fmt.Errorf("%w: %w", fault.ErrInvalidInput, err)
 	}
 	return nil
 }
@@ -112,7 +113,7 @@ func (params *UserMutation) normalize() {
 
 func (params *UserMutation) validate() error {
 	if err := validation.Struct(params); err != nil {
-		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
+		return fmt.Errorf("%w: %w", fault.ErrInvalidInput, err)
 	}
 	return nil
 }

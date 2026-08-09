@@ -19,7 +19,7 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	"github.com/go-chi/chi/v5"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/munki/clientresources"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
@@ -40,7 +40,7 @@ func TestMunkiPackageInstallerFileLifecycle(t *testing.T) {
 		)
 		assertStatus(t, rec, http.StatusNoContent, "cancel installer")
 		_, err := fixture.objects.GetByID(t.Context(), target.ObjectID)
-		if !errors.Is(err, dbutil.ErrNotFound) {
+		if !errors.Is(err, fault.ErrNotFound) {
 			t.Fatalf("get cancelled object error = %v, want ErrNotFound", err)
 		}
 	})
@@ -50,7 +50,7 @@ func TestMunkiPackageInstallerFileLifecycle(t *testing.T) {
 		rec := fixture.request(t, http.MethodPut, fmt.Sprintf("%s/%d", munkiPackageInstallerPath, target.ObjectID))
 		assertStatus(t, rec, http.StatusBadRequest, "missing upload")
 		_, err := fixture.objects.GetByID(t.Context(), target.ObjectID)
-		if !errors.Is(err, dbutil.ErrNotFound) {
+		if !errors.Is(err, fault.ErrNotFound) {
 			t.Fatalf("get cleaned missing upload error = %v, want ErrNotFound", err)
 		}
 	})
@@ -146,7 +146,7 @@ func TestMunkiUploadRejectsWrongPrefixAndInvalidIcon(t *testing.T) {
 		rec := fixture.requestJSON(t, http.MethodPut, attachPath, MunkiObjectMutation{ObjectID: target.ObjectID})
 		assertStatus(t, rec, http.StatusBadRequest, "invalid icon")
 		_, err := fixture.objects.GetByID(t.Context(), target.ObjectID)
-		if !errors.Is(err, dbutil.ErrNotFound) {
+		if !errors.Is(err, fault.ErrNotFound) {
 			t.Fatalf("get cleaned invalid icon error = %v, want ErrNotFound", err)
 		}
 	})

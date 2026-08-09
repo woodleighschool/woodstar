@@ -7,7 +7,8 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
+	"github.com/woodleighschool/woodstar/internal/listing"
 	"github.com/woodleighschool/woodstar/internal/openapischema"
 	"github.com/woodleighschool/woodstar/internal/validation"
 )
@@ -295,34 +296,34 @@ type Package struct {
 }
 
 type PackageListParams struct {
-	dbutil.ListParams
+	ListParams listing.Params
 
 	InstallerTypes []string `validate:"dive,oneof=pkg nopkg copy_from_dmg"`
 	SoftwareID     int64    `validate:"gte=0"`
 }
 
 func (p *PackageListParams) normalize() {
-	p.ListParams = dbutil.NormalizeListParams(p.ListParams)
-	p.InstallerTypes = dbutil.NormalizeListValues(p.InstallerTypes)
+	p.ListParams = listing.Normalize(p.ListParams)
+	p.InstallerTypes = listing.NormalizeValues(p.InstallerTypes)
 }
 
 func (p *PackageListParams) validate() error {
 	if err := validation.Struct(p); err != nil {
-		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
+		return fmt.Errorf("%w: %w", fault.ErrInvalidInput, err)
 	}
 	return nil
 }
 
 func (m *PackageMutation) validate() error {
 	if err := validation.Struct(m); err != nil {
-		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
+		return fmt.Errorf("%w: %w", fault.ErrInvalidInput, err)
 	}
 	return m.validateRelations()
 }
 
 func (m PackageCreateMutation) validate() error {
 	if err := validation.Struct(m); err != nil {
-		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
+		return fmt.Errorf("%w: %w", fault.ErrInvalidInput, err)
 	}
 	return m.validateRelations()
 }
@@ -332,32 +333,32 @@ func (m *PackageMutation) validateRelations() error {
 	switch m.InstallerType {
 	case InstallerTypeNoPkg:
 		if hasInstaller {
-			return fmt.Errorf("%w: nopkg must not reference installer_object_id", dbutil.ErrInvalidInput)
+			return fmt.Errorf("%w: nopkg must not reference installer_object_id", fault.ErrInvalidInput)
 		}
 	case InstallerTypePkg, InstallerTypeCopyFromDMG:
 		if !hasInstaller {
-			return fmt.Errorf("%w: %s requires installer_object_id", dbutil.ErrInvalidInput, m.InstallerType)
+			return fmt.Errorf("%w: %s requires installer_object_id", fault.ErrInvalidInput, m.InstallerType)
 		}
 	}
 	if m.InstallerType == InstallerTypeCopyFromDMG && len(m.ItemsToCopy) == 0 {
-		return fmt.Errorf("%w: copy_from_dmg requires items_to_copy entries", dbutil.ErrInvalidInput)
+		return fmt.Errorf("%w: copy_from_dmg requires items_to_copy entries", fault.ErrInvalidInput)
 	}
 	if m.Uninstallable {
 		if m.UninstallMethod == "" {
-			return fmt.Errorf("%w: uninstallable requires uninstall_method", dbutil.ErrInvalidInput)
+			return fmt.Errorf("%w: uninstallable requires uninstall_method", fault.ErrInvalidInput)
 		}
 		switch m.UninstallMethod {
 		case UninstallMethodRemovePackages:
 			if len(m.Receipts) == 0 {
-				return fmt.Errorf("%w: removepackages requires receipts", dbutil.ErrInvalidInput)
+				return fmt.Errorf("%w: removepackages requires receipts", fault.ErrInvalidInput)
 			}
 		case UninstallMethodRemoveCopiedItems:
 			if len(m.ItemsToCopy) == 0 {
-				return fmt.Errorf("%w: remove_copied_items requires items_to_copy entries", dbutil.ErrInvalidInput)
+				return fmt.Errorf("%w: remove_copied_items requires items_to_copy entries", fault.ErrInvalidInput)
 			}
 		case UninstallMethodUninstallScript:
 			if strings.TrimSpace(m.UninstallScript) == "" {
-				return fmt.Errorf("%w: uninstall_script requires uninstall_script", dbutil.ErrInvalidInput)
+				return fmt.Errorf("%w: uninstall_script requires uninstall_script", fault.ErrInvalidInput)
 			}
 		}
 	}
@@ -368,7 +369,7 @@ func (m *PackageMutation) validateRelations() error {
 		if _, exists := environmentNames[name]; exists {
 			return fmt.Errorf(
 				"%w: installer_environment contains duplicate name %q",
-				dbutil.ErrInvalidInput,
+				fault.ErrInvalidInput,
 				name,
 			)
 		}
@@ -377,7 +378,7 @@ func (m *PackageMutation) validateRelations() error {
 	if m.BlockingApplicationsNone && len(m.BlockingApplications) > 0 {
 		return fmt.Errorf(
 			"%w: blocking_applications_none cannot be set with blocking_applications entries",
-			dbutil.ErrInvalidInput,
+			fault.ErrInvalidInput,
 		)
 	}
 	return nil

@@ -10,8 +10,8 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/api/ctxkeys"
 	"github.com/woodleighschool/woodstar/internal/auth"
-	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/directory"
+	"github.com/woodleighschool/woodstar/internal/fault"
 )
 
 type accountOutput struct {
@@ -100,7 +100,7 @@ func registerRevokeAPIKey(api huma.API, authService *auth.Service, logger *slog.
 
 func accountMutationError(err error) error {
 	switch {
-	case errors.Is(err, dbutil.ErrAlreadyExists):
+	case errors.Is(err, fault.ErrAlreadyExists):
 		return huma.Error409Conflict("email already in use")
 	case errors.Is(err, directory.ErrWeakPassword):
 		return huma.Error400BadRequest(directory.ErrWeakPassword.Error())

@@ -21,8 +21,8 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/woodleighschool/woodstar/internal/api/ctxkeys"
-	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/directory"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/geoip"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
@@ -73,7 +73,7 @@ func TestDeleteHostsDecodesCollectionIDs(t *testing.T) {
 		t.Fatalf("DELETE status = %d, want %d; body = %q", rec.Code, http.StatusNoContent, rec.Body.String())
 	}
 	for _, host := range seeded[:2] {
-		if _, err := store.GetByID(ctx, host.ID); !errors.Is(err, dbutil.ErrNotFound) {
+		if _, err := store.GetByID(ctx, host.ID); !errors.Is(err, fault.ErrNotFound) {
 			t.Fatalf("deleted host %d error = %v, want ErrNotFound", host.ID, err)
 		}
 	}

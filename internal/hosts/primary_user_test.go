@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 )
 
 func TestValidatePrimaryUser(t *testing.T) {
@@ -28,7 +28,7 @@ func TestValidatePrimaryUser(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			if _, err := validatePrimaryUser(input.email, input.source); !errors.Is(err, dbutil.ErrInvalidInput) {
+			if _, err := validatePrimaryUser(input.email, input.source); !errors.Is(err, fault.ErrInvalidInput) {
 				t.Fatalf("validate primary user error = %v, want ErrInvalidInput", err)
 			}
 		})

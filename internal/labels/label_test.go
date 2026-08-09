@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 )
 
 func TestLabelMutationValidate(t *testing.T) {
@@ -113,7 +113,7 @@ func TestDynamicMembershipValuesRejectsDuplicateLabels(t *testing.T) {
 		{LabelID: 1, Matched: true},
 		{LabelID: 1, Matched: false},
 	})
-	if !errors.Is(err, dbutil.ErrInvalidInput) {
+	if !errors.Is(err, fault.ErrInvalidInput) {
 		t.Fatalf("dynamicMembershipValues error = %v, want ErrInvalidInput", err)
 	}
 }

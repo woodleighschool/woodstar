@@ -10,7 +10,8 @@ import (
 	"testing"
 
 	"github.com/woodleighschool/woodstar/internal/database"
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
+	"github.com/woodleighschool/woodstar/internal/listing"
 	"github.com/woodleighschool/woodstar/internal/storage"
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
 )
@@ -19,7 +20,7 @@ func TestStoreCRUDKeepsEffectiveSingleton(t *testing.T) { //nolint:cyclop,funlen
 	db, ctx := testdb.Open(t)
 	objects := storage.NewObjectStore(db, nil, slog.New(slog.DiscardHandler))
 	store := NewStore(db, objects)
-	resources, count, err := store.List(ctx, dbutil.ListParams{})
+	resources, count, err := store.List(ctx, listing.Params{})
 	if err != nil {
 		t.Fatalf("List empty: %v", err)
 	}
@@ -67,7 +68,7 @@ VALUES ($1, FALSE)`, generatedArchive.ID); err == nil {
 		generated.Builder.BannerFocalX != 50 {
 		t.Fatalf("generated builder = %+v", generated.Builder)
 	}
-	if _, err := store.Create(ctx, generatedWrite); !errors.Is(err, dbutil.ErrAlreadyExists) {
+	if _, err := store.Create(ctx, generatedWrite); !errors.Is(err, fault.ErrAlreadyExists) {
 		t.Fatalf("second Create error = %v, want ErrAlreadyExists", err)
 	}
 	if _, err := db.Pool().Exec(ctx, `
@@ -75,14 +76,14 @@ INSERT INTO munki_client_resources (id, archive_object_id, custom, banner_object
 VALUES (2, $1, FALSE, $2)`, generatedArchive.ID, banner.ID); err == nil {
 		t.Fatal("insert client resource ID 2 succeeded")
 	}
-	resources, count, err = store.List(ctx, dbutil.ListParams{})
+	resources, count, err = store.List(ctx, listing.Params{})
 	if err != nil {
 		t.Fatalf("List: %v", err)
 	}
 	if count != 1 || len(resources) != 1 || resources[0].ID != 1 {
 		t.Fatalf("List = %d/%+v, want only ID 1", count, resources)
 	}
-	if _, err := store.GetByID(ctx, 2); !errors.Is(err, dbutil.ErrNotFound) {
+	if _, err := store.GetByID(ctx, 2); !errors.Is(err, fault.ErrNotFound) {
 		t.Fatalf("GetByID(2) error = %v, want ErrNotFound", err)
 	}
 
@@ -111,7 +112,7 @@ VALUES (2, $1, FALSE, $2)`, generatedArchive.ID, banner.ID); err == nil {
 	if _, err := objects.GetByID(ctx, banner.ID); err != nil {
 		t.Fatalf("get retained banner: %v", err)
 	}
-	if _, err := objects.GetByID(ctx, generatedArchive.ID); !errors.Is(err, dbutil.ErrNotFound) {
+	if _, err := objects.GetByID(ctx, generatedArchive.ID); !errors.Is(err, fault.ErrNotFound) {
 		t.Fatalf("get replaced generated archive error = %v, want ErrNotFound", err)
 	}
 
@@ -134,20 +135,20 @@ VALUES (2, $1, FALSE, $2)`, generatedArchive.ID, banner.ID); err == nil {
 	if rebuilt.Custom || rebuilt.Builder == nil || rebuilt.Builder.BannerObjectID != banner.ID {
 		t.Fatalf("rebuilt resources = %+v", rebuilt)
 	}
-	if _, err := objects.GetByID(ctx, uploadedArchive.ID); !errors.Is(err, dbutil.ErrNotFound) {
+	if _, err := objects.GetByID(ctx, uploadedArchive.ID); !errors.Is(err, fault.ErrNotFound) {
 		t.Fatalf("get replaced uploaded archive error = %v, want ErrNotFound", err)
 	}
 
 	if err := store.Delete(ctx, generated.ID); err != nil {
 		t.Fatalf("Delete: %v", err)
 	}
-	if _, err := store.GetByID(ctx, generated.ID); !errors.Is(err, dbutil.ErrNotFound) {
+	if _, err := store.GetByID(ctx, generated.ID); !errors.Is(err, fault.ErrNotFound) {
 		t.Fatalf("GetByID after Delete error = %v, want ErrNotFound", err)
 	}
-	if _, err := objects.GetByID(ctx, rebuiltArchive.ID); !errors.Is(err, dbutil.ErrNotFound) {
+	if _, err := objects.GetByID(ctx, rebuiltArchive.ID); !errors.Is(err, fault.ErrNotFound) {
 		t.Fatalf("get undeployed archive error = %v, want ErrNotFound", err)
 	}
-	if _, err := objects.GetByID(ctx, banner.ID); !errors.Is(err, dbutil.ErrNotFound) {
+	if _, err := objects.GetByID(ctx, banner.ID); !errors.Is(err, fault.ErrNotFound) {
 		t.Fatalf("get undeployed banner error = %v, want ErrNotFound", err)
 	}
 

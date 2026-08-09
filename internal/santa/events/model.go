@@ -6,7 +6,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/listing"
 	"github.com/woodleighschool/woodstar/internal/openapischema"
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 )
@@ -125,7 +125,7 @@ func (SigningStatus) Schema(_ huma.Registry) *huma.Schema {
 
 // EventListParams contains filters shared by Santa event list endpoints.
 type EventListParams struct {
-	dbutil.ListParams
+	ListParams listing.Params
 
 	HostID int64
 	Since  time.Time

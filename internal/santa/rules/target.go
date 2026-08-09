@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/targeting"
 	"github.com/woodleighschool/woodstar/internal/validation"
 )
@@ -24,7 +24,7 @@ type RuleInclude struct {
 
 func (targets RuleTargets) validate() error {
 	if err := validation.Struct(targets); err != nil {
-		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
+		return fmt.Errorf("%w: %w", fault.ErrInvalidInput, err)
 	}
 	for _, include := range targets.Include {
 		if include.Policy == PolicyCEL {
@@ -34,7 +34,7 @@ func (targets RuleTargets) validate() error {
 		}
 	}
 	if err := targeting.ValidateTargets(targets.Include, targets.Exclude, ruleIncludeLabelID); err != nil {
-		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
+		return fmt.Errorf("%w: %w", fault.ErrInvalidInput, err)
 	}
 	return nil
 }

@@ -8,7 +8,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/munki/clientresources"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
@@ -64,7 +64,7 @@ func (h munkiContentHandler) deliver(
 	cacheControl string,
 ) {
 	object, err := h.objects.GetByID(r.Context(), objectID)
-	if errors.Is(err, dbutil.ErrNotFound) {
+	if errors.Is(err, fault.ErrNotFound) {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}

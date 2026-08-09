@@ -7,6 +7,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	"github.com/woodleighschool/woodstar/internal/targeting"
 )
@@ -86,7 +87,7 @@ func (s *Store) validatePackageSelectors(
 			return err
 		}
 		if pkg.Software.ID != softwareID {
-			return fmt.Errorf("%w: package.package_id must belong to software", dbutil.ErrInvalidInput)
+			return fmt.Errorf("%w: package.package_id must belong to software", fault.ErrInvalidInput)
 		}
 	}
 	return nil
@@ -109,7 +110,7 @@ func validateExcludedLabels(ctx context.Context, q dbutil.Queryer, excludes []ta
 		return err
 	}
 	if len(builtinIDs) > 0 {
-		return fmt.Errorf("%w: builtin labels cannot be excluded from Munki software", dbutil.ErrInvalidInput)
+		return fmt.Errorf("%w: builtin labels cannot be excluded from Munki software", fault.ErrInvalidInput)
 	}
 	return nil
 }
@@ -141,7 +142,7 @@ func actionsFromStorage(actions []string) []Action {
 // TargetsForSoftware loads include/exclude target rows for one software.
 func (s *Store) TargetsForSoftware(ctx context.Context, softwareID int64) (Targets, error) {
 	if softwareID <= 0 {
-		return Targets{}, dbutil.ErrNotFound
+		return Targets{}, fault.ErrNotFound
 	}
 	type targetRow struct {
 		Direction        string   `db:"direction"`

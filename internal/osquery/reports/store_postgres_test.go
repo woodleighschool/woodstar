@@ -12,9 +12,10 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
+	"github.com/woodleighschool/woodstar/internal/listing"
 	"github.com/woodleighschool/woodstar/internal/targeting"
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
 )
@@ -160,7 +161,7 @@ func TestCreateReportWithMissingLabelReturnsNotFound(t *testing.T) {
 		ScheduleInterval: 60,
 		Targets:          reportTargets([]int64{999_999}, nil),
 	}})
-	if !errors.Is(err, dbutil.ErrNotFound) {
+	if !errors.Is(err, fault.ErrNotFound) {
 		t.Fatalf("Create error = %v, want ErrNotFound", err)
 	}
 }
@@ -425,7 +426,7 @@ func TestSnapshotsSearchesParentAndPrunesNestedRows(t *testing.T) {
 	}
 
 	nestedMatch, count, err := store.Snapshots(ctx, report.ID, ReportSnapshotListParams{
-		ListParams: dbutil.ListParams{Q: "sudo"},
+		ListParams: listing.Params{Q: "sudo"},
 	})
 	if err != nil {
 		t.Fatalf("search report rows: %v", err)
@@ -441,7 +442,7 @@ func TestSnapshotsSearchesParentAndPrunesNestedRows(t *testing.T) {
 	}
 
 	parentMatch, count, err := store.Snapshots(ctx, report.ID, ReportSnapshotListParams{
-		ListParams: dbutil.ListParams{Q: "matching-host"},
+		ListParams: listing.Params{Q: "matching-host"},
 	})
 	if err != nil {
 		t.Fatalf("search report host: %v", err)
@@ -455,7 +456,7 @@ func TestSnapshotsSearchesParentAndPrunesNestedRows(t *testing.T) {
 	}
 
 	page, count, err := store.Snapshots(ctx, report.ID, ReportSnapshotListParams{
-		ListParams: dbutil.ListParams{PageSize: 1, Sort: "host_name.desc"},
+		ListParams: listing.Params{PageSize: 1, Sort: "host_name.desc"},
 	})
 	if err != nil {
 		t.Fatalf("paginate report snapshots: %v", err)
@@ -469,7 +470,7 @@ func TestSnapshotsRejectUnknownReport(t *testing.T) {
 	store, _, _, ctx := newPostgresReportStore(t)
 
 	_, _, err := store.Snapshots(ctx, 999_999, ReportSnapshotListParams{})
-	if !errors.Is(err, dbutil.ErrNotFound) {
+	if !errors.Is(err, fault.ErrNotFound) {
 		t.Fatalf("Snapshots error = %v, want ErrNotFound", err)
 	}
 }

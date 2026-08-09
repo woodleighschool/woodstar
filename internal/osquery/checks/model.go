@@ -7,7 +7,8 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
+	"github.com/woodleighschool/woodstar/internal/listing"
 	"github.com/woodleighschool/woodstar/internal/openapischema"
 	"github.com/woodleighschool/woodstar/internal/validation"
 )
@@ -43,7 +44,7 @@ type CheckCreateMutation struct {
 
 func (p *CheckMutation) Validate() error {
 	if err := validation.Struct(p); err != nil {
-		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
+		return fmt.Errorf("%w: %w", fault.ErrInvalidInput, err)
 	}
 	if err := p.Targets.validate(); err != nil {
 		return err
@@ -60,12 +61,12 @@ func (p *CheckMutation) normalize() {
 
 // CheckListParams filters checks.
 type CheckListParams struct {
-	dbutil.ListParams
+	ListParams listing.Params
 }
 
 // CheckResultListParams filters and paginates per-host check state.
 type CheckResultListParams struct {
-	dbutil.ListParams
+	ListParams listing.Params
 
 	Statuses []CheckStatus
 }

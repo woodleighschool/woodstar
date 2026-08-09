@@ -8,16 +8,17 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/heartbeats"
 	"github.com/woodleighschool/woodstar/internal/labels"
+	"github.com/woodleighschool/woodstar/internal/listing"
 	"github.com/woodleighschool/woodstar/internal/openapischema"
 	"github.com/woodleighschool/woodstar/internal/validation"
 )
 
 // HostListParams filters host list results.
 type HostListParams struct {
-	dbutil.ListParams
+	ListParams listing.Params
 
 	Status          HostStatus `validate:"omitempty,oneof=online offline"`
 	LabelID         int64      `validate:"gte=0"`
@@ -27,13 +28,13 @@ type HostListParams struct {
 }
 
 func (params *HostListParams) normalize() {
-	params.ListParams = dbutil.NormalizeListParams(params.ListParams)
+	params.ListParams = listing.Normalize(params.ListParams)
 	params.Status = HostStatus(strings.TrimSpace(string(params.Status)))
 }
 
 func (params *HostListParams) validate() error {
 	if err := validation.Struct(params); err != nil {
-		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
+		return fmt.Errorf("%w: %w", fault.ErrInvalidInput, err)
 	}
 	return nil
 }

@@ -4,6 +4,14 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+
+	"github.com/woodleighschool/woodstar/internal/fault"
+	"github.com/woodleighschool/woodstar/internal/listing"
+)
+
+const (
+	orderSQLAsc  = "ASC"
+	orderSQLDesc = "DESC"
 )
 
 type OrderExpr struct {
@@ -27,7 +35,7 @@ type ListQuery struct {
 	Args         []any
 	OrderKeys    map[string]OrderExpr
 	DefaultOrder []OrderExpr
-	Params       ListParams
+	Params       listing.Params
 }
 
 type WhereBuilder struct {
@@ -63,8 +71,8 @@ func (b *WhereBuilder) Build() (string, []any) {
 }
 
 func (q ListQuery) Build() (string, []any, error) {
-	params := NormalizeListParams(q.Params)
-	if err := ValidateListParams(params); err != nil {
+	params := listing.Normalize(q.Params)
+	if err := listing.Validate(params); err != nil {
 		return "", nil, err
 	}
 	orderSQL, err := OrderBy(params, q.OrderKeys, q.DefaultOrder)
@@ -102,7 +110,7 @@ func (q ListQuery) baseParts() []string {
 // OrderBy builds an ORDER BY from the requested sort column, appending
 // DefaultOrder columns that the request did not already pin. Sort is
 // a column token with an optional .asc/.desc suffix.
-func OrderBy(params ListParams, orderKeys map[string]OrderExpr, defaultOrder []OrderExpr) (string, error) {
+func OrderBy(params listing.Params, orderKeys map[string]OrderExpr, defaultOrder []OrderExpr) (string, error) {
 	col, hasSort, err := parseSortColumn(params.Sort)
 	if err != nil {
 		return "", err
@@ -114,7 +122,7 @@ func OrderBy(params ListParams, orderKeys map[string]OrderExpr, defaultOrder []O
 	if hasSort {
 		expr, ok := orderKeys[col.ID]
 		if !ok {
-			return "", fmt.Errorf("%w: unknown sort key %q", ErrInvalidInput, col.ID)
+			return "", fmt.Errorf("%w: unknown sort key %q", fault.ErrInvalidInput, col.ID)
 		}
 		used = append(used, expr.SQL)
 		parts = append(parts, orderPart(expr, col.Desc))
@@ -145,7 +153,7 @@ func parseSortColumn(sort string) (sortColumn, bool, error) {
 		return sortColumn{}, false, nil
 	}
 	if strings.Contains(trimmed, ",") {
-		return sortColumn{}, false, fmt.Errorf("%w: multi-column sort is not supported", ErrInvalidInput)
+		return sortColumn{}, false, fmt.Errorf("%w: multi-column sort is not supported", fault.ErrInvalidInput)
 	}
 	dot := strings.LastIndex(trimmed, ".")
 	if dot == -1 {

@@ -4,6 +4,8 @@ import (
 	"context"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
+	"github.com/woodleighschool/woodstar/internal/listing"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 )
 
@@ -32,12 +34,12 @@ func (s *Store) ListForHost(
 	hostID int64,
 	params HostManifestSoftwareListParams,
 ) ([]HostManifestSoftware, int, error) {
-	params.ListParams = dbutil.NormalizeListParams(params.ListParams)
+	params.ListParams = listing.Normalize(params.ListParams)
 	whereSQL := ""
 	args := []any{hostID}
-	if params.Q != "" {
+	if params.ListParams.Q != "" {
 		whereSQL = "WHERE software.name ILIKE $2"
-		args = append(args, "%"+params.Q+"%")
+		args = append(args, "%"+params.ListParams.Q+"%")
 	}
 	query := dbutil.ListQuery{
 		SelectSQL: `
@@ -89,7 +91,7 @@ LEFT JOIN munki_host_items observed
 			return nil, 0, err
 		}
 		if !hostExists {
-			return nil, 0, dbutil.ErrNotFound
+			return nil, 0, fault.ErrNotFound
 		}
 	}
 

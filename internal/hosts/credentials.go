@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 )
 
 func (s *Store) GetByOrbitNodeKey(ctx context.Context, nodeKey string) (*Host, error) {
@@ -27,7 +28,7 @@ WHERE orbit_node_key = $1 AND orbit_node_key <> ''`, nodeKey, token)
 		return dbutil.MutationError(err)
 	}
 	if tag.RowsAffected() == 0 {
-		return dbutil.ErrNotFound
+		return fault.ErrNotFound
 	}
 	return nil
 }

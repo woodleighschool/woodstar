@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 )
 
 func TestIconURLUsesStorageObjectIdentity(t *testing.T) {
@@ -27,7 +27,7 @@ func TestCreateMutationRejectsAmbiguousMunkiNames(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			mutation := CreateMutation{Name: name}
 			mutation.normalize()
-			if err := mutation.validate(); !errors.Is(err, dbutil.ErrInvalidInput) {
+			if err := mutation.validate(); !errors.Is(err, fault.ErrInvalidInput) {
 				t.Fatalf("validate() error = %v, want invalid input", err)
 			}
 		})

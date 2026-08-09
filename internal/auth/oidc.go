@@ -9,8 +9,8 @@ import (
 	"github.com/coreos/go-oidc/v3/oidc"
 	"golang.org/x/oauth2"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/directory"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/randtoken"
 )
 
@@ -142,7 +142,7 @@ func (s *Service) CompleteSSO(ctx context.Context, state, code string) (*directo
 
 func (s *Service) completeSSOLogin(ctx context.Context, email string) (*directory.User, error) {
 	user, err := s.users.GetSSOByEmail(ctx, email)
-	if errors.Is(err, dbutil.ErrNotFound) {
+	if errors.Is(err, fault.ErrNotFound) {
 		return nil, ErrSSOUnknownUser
 	}
 	if err != nil {

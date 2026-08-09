@@ -9,7 +9,9 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/listing"
 )
 
 // Store persists checks and per-host membership state.
@@ -105,7 +107,7 @@ func (s *Store) Update(ctx context.Context, id int64, in CheckMutation) (*Check,
 
 func (s *Store) GetByID(ctx context.Context, id int64) (*Check, error) {
 	if id <= 0 {
-		return nil, dbutil.ErrNotFound
+		return nil, fault.ErrNotFound
 	}
 	row, err := dbutil.GetOne[checkRow](ctx, s.db.Pool(), checkSelectSQL()+"\nWHERE c.id = $1", id)
 	if err != nil {
@@ -132,7 +134,7 @@ func (s *Store) Delete(ctx context.Context, id int64) error {
 		return dbutil.DeleteConflict(err, "Check is still referenced")
 	}
 	if tag.RowsAffected() == 0 {
-		return dbutil.ErrNotFound
+		return fault.ErrNotFound
 	}
 	return nil
 }
@@ -154,7 +156,7 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 }
 
 func (s *Store) List(ctx context.Context, params CheckListParams) ([]Check, int, error) {
-	params.ListParams = dbutil.NormalizeListParams(params.ListParams)
+	params.ListParams = listing.Normalize(params.ListParams)
 	where, args := checkListWhere(params)
 	listQuery := dbutil.ListQuery{
 		SelectSQL: checkSelectSQL(),
@@ -272,8 +274,8 @@ func (s *Store) CheckResults(
 	checkID int64,
 	params CheckResultListParams,
 ) ([]CheckHostStatus, int, error) {
-	params.ListParams = dbutil.NormalizeListParams(params.ListParams)
-	params.Statuses = dbutil.NormalizeListValues(params.Statuses)
+	params.ListParams = listing.Normalize(params.ListParams)
+	params.Statuses = listing.NormalizeValues(params.Statuses)
 	if err := validateCheckStatusFilters(params.Statuses); err != nil {
 		return nil, 0, err
 	}
@@ -321,7 +323,7 @@ func (s *Store) CheckResults(
 			return nil, 0, err
 		}
 		if !exists {
-			return nil, 0, dbutil.ErrNotFound
+			return nil, 0, fault.ErrNotFound
 		}
 	}
 	return checkHostStatusesFromRows(records), count, nil
@@ -332,8 +334,8 @@ func (s *Store) HostChecks(
 	host *hosts.Host,
 	params CheckResultListParams,
 ) ([]CheckHostStatus, int, error) {
-	params.ListParams = dbutil.NormalizeListParams(params.ListParams)
-	params.Statuses = dbutil.NormalizeListValues(params.Statuses)
+	params.ListParams = listing.Normalize(params.ListParams)
+	params.Statuses = listing.NormalizeValues(params.Statuses)
 	if err := validateCheckStatusFilters(params.Statuses); err != nil {
 		return nil, 0, err
 	}
@@ -382,8 +384,8 @@ func checkResultListWhere(
 ) (string, []any) {
 	var where dbutil.WhereBuilder
 	where.Add(scopeSQL + " = " + where.Arg(scopeID))
-	if params.Q != "" {
-		search := where.Arg("%" + params.Q + "%")
+	if params.ListParams.Q != "" {
+		search := where.Arg("%" + params.ListParams.Q + "%")
 		where.Add(nameSQL + " ILIKE " + search)
 	}
 	if len(params.Statuses) > 0 {
@@ -435,7 +437,7 @@ func validateCheckStatusFilters(statuses []CheckStatus) error {
 		switch status {
 		case CheckStatusPass, CheckStatusFail, CheckStatusPending:
 		default:
-			return dbutil.ErrInvalidInput
+			return fault.ErrInvalidInput
 		}
 	}
 	return nil
@@ -485,8 +487,8 @@ func (s *Store) loadCheckCounts(ctx context.Context, checkIDs []int64) (map[int6
 
 func checkListWhere(params CheckListParams) (string, []any) {
 	var where dbutil.WhereBuilder
-	if params.Q != "" {
-		search := where.Arg("%" + params.Q + "%")
+	if params.ListParams.Q != "" {
+		search := where.Arg("%" + params.ListParams.Q + "%")
 		where.Add("(c.name ILIKE " + search + " OR c.description ILIKE " + search + " OR c.query ILIKE " + search + ")")
 	}
 	return where.Build()

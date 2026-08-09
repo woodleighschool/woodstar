@@ -7,12 +7,13 @@ import (
 	"time"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/listing"
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 )
 
 // ListEvents returns execution events and the total count matching params.
 func (s *Store) ListEvents(ctx context.Context, params ExecutionEventListParams) ([]ExecutionEvent, int, error) {
-	params.ListParams = dbutil.NormalizeListParams(params.ListParams)
+	params.ListParams = listing.Normalize(params.ListParams)
 	params.Decisions = normalizeListValues(params.Decisions)
 	params.User = strings.TrimSpace(params.User)
 	if err := validateExecutionEventListParams(params); err != nil {
@@ -48,8 +49,8 @@ func executionEventWhere(params ExecutionEventListParams) (string, []any) {
 	if params.User != "" {
 		where.Add("ee.executing_user = " + where.Arg(params.User))
 	}
-	if params.Q != "" {
-		search := where.Arg("%" + params.Q + "%")
+	if params.ListParams.Q != "" {
+		search := where.Arg("%" + params.ListParams.Q + "%")
 		where.Add(`(
 			h.id::text ILIKE ` + search + `
 			OR h.display_name ILIKE ` + search + `

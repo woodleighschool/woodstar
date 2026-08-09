@@ -9,7 +9,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/santa/events"
 )
 
@@ -118,7 +118,7 @@ func registerGetSantaEvent(api huma.API, store *events.Store, logger *slog.Logge
 		Errors:      []int{http.StatusBadRequest, http.StatusNotFound},
 	}, func(ctx context.Context, input *santaEventGetInput) (*santaEventGetOutput, error) {
 		event, err := store.GetExecutionEvent(ctx, input.ID)
-		if errors.Is(err, dbutil.ErrNotFound) {
+		if errors.Is(err, fault.ErrNotFound) {
 			return nil, huma.Error404NotFound("Santa event not found")
 		}
 		if err != nil {
@@ -165,7 +165,7 @@ func registerGetSantaFileAccessEvent(api huma.API, store *events.Store, logger *
 		Errors:      []int{http.StatusBadRequest, http.StatusNotFound},
 	}, func(ctx context.Context, input *santaFileAccessEventGetInput) (*santaFileAccessEventGetOutput, error) {
 		event, err := store.GetFileAccessEvent(ctx, input.ID)
-		if errors.Is(err, dbutil.ErrNotFound) {
+		if errors.Is(err, fault.ErrNotFound) {
 			return nil, huma.Error404NotFound("Santa file access event not found")
 		}
 		if err != nil {

@@ -10,8 +10,8 @@ import (
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 
 	"github.com/woodleighschool/woodstar/internal/agentauth"
-	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/enrollment"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/heartbeats"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/httpx"
@@ -109,7 +109,7 @@ func orbitConfigHandler(svc enrollmentService, logger *slog.Logger) http.Handler
 		}
 		resp, err := svc.Config(r.Context(), req.OrbitNodeKey, requestContact(r))
 		switch {
-		case errors.Is(err, dbutil.ErrNotFound):
+		case errors.Is(err, fault.ErrNotFound):
 			logger.DebugContext(
 				r.Context(),
 				"orbit config rejected", "operation", "config",
@@ -138,10 +138,10 @@ func orbitDeviceMappingHandler(svc enrollmentService, logger *slog.Logger) http.
 		}
 		err = svc.SetPrimaryUser(r.Context(), req.OrbitNodeKey, req.Email, requestContact(r))
 		switch {
-		case errors.Is(err, dbutil.ErrInvalidInput):
+		case errors.Is(err, fault.ErrInvalidInput):
 			httpx.WriteError(w, http.StatusBadRequest, "invalid primary user email")
 			return
-		case errors.Is(err, dbutil.ErrNotFound):
+		case errors.Is(err, fault.ErrNotFound):
 			logger.WarnContext(
 				r.Context(),
 				"orbit device mapping rejected", "operation", "device_mapping",
@@ -176,9 +176,9 @@ func orbitDeviceTokenHandler(svc enrollmentService, logger *slog.Logger) http.Ha
 		switch {
 		case errors.Is(err, orbit.ErrInvalidDeviceAuthToken):
 			httpx.WriteError(w, http.StatusBadRequest, "invalid device auth token")
-		case errors.Is(err, dbutil.ErrNotFound):
+		case errors.Is(err, fault.ErrNotFound):
 			httpx.WriteError(w, http.StatusUnauthorized, "invalid orbit node key")
-		case errors.Is(err, dbutil.ErrAlreadyExists):
+		case errors.Is(err, fault.ErrAlreadyExists):
 			httpx.WriteError(w, http.StatusConflict, "device auth token already exists")
 		case err != nil:
 			logger.ErrorContext(
@@ -196,7 +196,7 @@ func orbitDevicePingHandler(svc enrollmentService, logger *slog.Logger) http.Han
 	return func(w http.ResponseWriter, r *http.Request) {
 		err := svc.ValidateDeviceAuthToken(r.Context(), chi.URLParam(r, "token"), requestContact(r))
 		switch {
-		case errors.Is(err, dbutil.ErrNotFound):
+		case errors.Is(err, fault.ErrNotFound):
 			httpx.WriteError(w, http.StatusUnauthorized, "invalid device auth token")
 		case err != nil:
 			logger.ErrorContext(

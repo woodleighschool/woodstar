@@ -14,7 +14,7 @@ import (
 	"github.com/coder/websocket"
 	"github.com/go-chi/chi/v5"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/httpx"
 	"github.com/woodleighschool/woodstar/internal/munki/mdp"
 	"github.com/woodleighschool/woodstar/internal/munki/mdp/wire"
@@ -193,7 +193,7 @@ func (h workerHandler) downloadURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	object, err := h.store.InstallerObject(r.Context(), packageID)
-	if errors.Is(err, dbutil.ErrNotFound) {
+	if errors.Is(err, fault.ErrNotFound) {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
@@ -223,7 +223,7 @@ func (h workerHandler) authenticate(w http.ResponseWriter, r *http.Request) (*md
 		return nil, false
 	}
 	point, err := h.store.AuthenticateWorker(r.Context(), token)
-	if errors.Is(err, dbutil.ErrNotFound) {
+	if errors.Is(err, fault.ErrNotFound) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return nil, false
 	}

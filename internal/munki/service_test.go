@@ -11,7 +11,7 @@ import (
 
 	"howett.net/plist"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/munki/clientresources"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
@@ -273,7 +273,7 @@ func TestResolveClientResourcesUsesResolvedHost(t *testing.T) {
 
 func TestResolveClientResourcesMapsUnconfiguredToNotFound(t *testing.T) {
 	service := munki.NewRepositoryService(munki.Dependencies{
-		ClientResources: serviceClientResourcesStore{err: dbutil.ErrNotFound},
+		ClientResources: serviceClientResourcesStore{err: fault.ErrNotFound},
 	})
 	if _, err := service.ResolveClientResources(
 		context.Background(),

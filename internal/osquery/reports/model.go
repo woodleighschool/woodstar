@@ -8,7 +8,8 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
+	"github.com/woodleighschool/woodstar/internal/listing"
 	"github.com/woodleighschool/woodstar/internal/openapischema"
 	"github.com/woodleighschool/woodstar/internal/validation"
 )
@@ -49,12 +50,12 @@ type ReportCreateMutation struct {
 
 func (p *ReportMutation) Validate() error {
 	if err := validation.Struct(p); err != nil {
-		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
+		return fmt.Errorf("%w: %w", fault.ErrInvalidInput, err)
 	}
 	if p.MinOsqueryVersion != nil && !osqueryVersionRE.MatchString(*p.MinOsqueryVersion) {
 		return fmt.Errorf(
 			"%w: minimum osquery version must use X.Y.Z",
-			dbutil.ErrInvalidInput,
+			fault.ErrInvalidInput,
 		)
 	}
 	if err := p.Targets.validate(); err != nil {
@@ -80,12 +81,12 @@ func (p *ReportMutation) normalize() {
 
 // ReportListParams filters reports.
 type ReportListParams struct {
-	dbutil.ListParams
+	ListParams listing.Params
 }
 
 // ReportSnapshotListParams filters and paginates report snapshot projections.
 type ReportSnapshotListParams struct {
-	dbutil.ListParams
+	ListParams listing.Params
 
 	Status ReportSnapshotStatus
 }

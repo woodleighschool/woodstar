@@ -13,7 +13,7 @@ import (
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 
 	"github.com/woodleighschool/woodstar/internal/agentauth"
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/heartbeats"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/httpx"
@@ -200,7 +200,7 @@ func (h handler) authorizedHost(w http.ResponseWriter, r *http.Request, operatio
 		return 0, false
 	}
 	host, err := h.hostResolver.GetByHardwareSerial(r.Context(), strings.TrimSpace(r.Header.Get(serialNumberHeader)))
-	if errors.Is(err, dbutil.ErrNotFound) {
+	if errors.Is(err, fault.ErrNotFound) {
 		w.WriteHeader(http.StatusNotFound)
 		return 0, false
 	}

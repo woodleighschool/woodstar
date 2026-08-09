@@ -8,6 +8,8 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
+	"github.com/woodleighschool/woodstar/internal/listing"
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
@@ -52,9 +54,9 @@ FROM munki_client_resources cr`
 
 func (s *Store) List(
 	ctx context.Context,
-	params dbutil.ListParams,
+	params listing.Params,
 ) ([]ClientResources, int, error) {
-	params = dbutil.NormalizeListParams(params)
+	params = listing.Normalize(params)
 	query := dbutil.ListQuery{
 		SelectSQL: clientResourcesSelectSQL,
 		OrderKeys: map[string]dbutil.OrderExpr{
@@ -82,7 +84,7 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*ClientResources, error)
 
 func getByID(ctx context.Context, q dbutil.Queryer, id int64) (*ClientResources, error) {
 	if id <= 0 {
-		return nil, dbutil.ErrNotFound
+		return nil, fault.ErrNotFound
 	}
 	row, err := dbutil.GetOne[clientResourcesRow](
 		ctx,
@@ -99,7 +101,7 @@ func getByID(ctx context.Context, q dbutil.Queryer, id int64) (*ClientResources,
 
 func lockByID(ctx context.Context, tx pgx.Tx, id int64) (*ClientResources, error) {
 	if id <= 0 {
-		return nil, dbutil.ErrNotFound
+		return nil, fault.ErrNotFound
 	}
 	row, err := dbutil.GetOne[clientResourcesRow](
 		ctx,

@@ -12,7 +12,8 @@ import (
 
 	"github.com/gabriel-vasile/mimetype"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
+	"github.com/woodleighschool/woodstar/internal/listing"
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
@@ -32,7 +33,7 @@ type objectIngestor interface {
 }
 
 type resourceStore interface {
-	List(ctx context.Context, params dbutil.ListParams) ([]ClientResources, int, error)
+	List(ctx context.Context, params listing.Params) ([]ClientResources, int, error)
 	GetByID(ctx context.Context, id int64) (*ClientResources, error)
 	Create(ctx context.Context, next clientResourcesWrite) (*ClientResources, error)
 	Update(ctx context.Context, id int64, next clientResourcesWrite) (*ClientResources, error)
@@ -58,7 +59,7 @@ func NewService(
 
 func (s *Service) List(
 	ctx context.Context,
-	params dbutil.ListParams,
+	params listing.Params,
 ) ([]ClientResources, int, error) {
 	return s.resources.List(ctx, params)
 }
@@ -205,7 +206,7 @@ func (s *Service) finalizeObject(
 	if object.Prefix != prefix {
 		return nil, false, fmt.Errorf(
 			"%w: object_id must reference a client resources %s",
-			dbutil.ErrInvalidInput,
+			fault.ErrInvalidInput,
 			label,
 		)
 	}
@@ -214,7 +215,7 @@ func (s *Service) finalizeObject(
 		object, err = s.ingestor.Finalize(ctx, objectID, prefix)
 		if errors.Is(err, storage.ErrObjectNotFound) {
 			return nil, true, errors.Join(
-				fmt.Errorf("%w: uploaded %s does not exist", dbutil.ErrInvalidInput, label),
+				fmt.Errorf("%w: uploaded %s does not exist", fault.ErrInvalidInput, label),
 				cleanupUploads(ctx, s.ingestor, prefix, objectID),
 			)
 		}
@@ -239,7 +240,7 @@ func (s *Service) readBanner(ctx context.Context, banner storage.Object) ([]byte
 		return nil, fmt.Errorf("read banner: %w", err)
 	}
 	if int64(len(body)) != banner.SizeBytesValue() || len(body) > MaxBannerSizeBytes {
-		return nil, fmt.Errorf("%w: stored banner size does not match its registry record", dbutil.ErrInvalidInput)
+		return nil, fmt.Errorf("%w: stored banner size does not match its registry record", fault.ErrInvalidInput)
 	}
 	if err := validateBannerBody(banner.ContentType, body); err != nil {
 		return nil, err
@@ -254,7 +255,7 @@ func (s *Service) storeArchive(ctx context.Context, body []byte) (*storage.Objec
 func validateBannerBody(contentType string, body []byte) error {
 	detected := mimetype.Lookup(contentType)
 	if detected == nil {
-		return fmt.Errorf("%w: unsupported banner content type", dbutil.ErrInvalidInput)
+		return fmt.Errorf("%w: unsupported banner content type", fault.ErrInvalidInput)
 	}
 	switch {
 	case detected.Is("image/jpeg"), detected.Is("image/png"):
@@ -266,14 +267,14 @@ func validateBannerBody(contentType string, body []byte) error {
 			config, err = png.DecodeConfig(bytes.NewReader(body))
 		}
 		if err != nil {
-			return fmt.Errorf("%w: decode banner: %w", dbutil.ErrInvalidInput, err)
+			return fmt.Errorf("%w: decode banner: %w", fault.ErrInvalidInput, err)
 		}
 		if config.Width <= 0 || config.Height <= 0 ||
 			int64(config.Width) > maxRasterPixels/int64(config.Height) {
-			return fmt.Errorf("%w: banner dimensions are invalid or too large", dbutil.ErrInvalidInput)
+			return fmt.Errorf("%w: banner dimensions are invalid or too large", fault.ErrInvalidInput)
 		}
 		return nil
 	default:
-		return fmt.Errorf("%w: unsupported banner content type", dbutil.ErrInvalidInput)
+		return fmt.Errorf("%w: unsupported banner content type", fault.ErrInvalidInput)
 	}
 }

@@ -6,8 +6,7 @@ import (
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
-
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/listing"
 )
 
 type hostPageInput struct {
@@ -25,7 +24,7 @@ func registerHostPage[T any](
 	operationID string,
 	path string,
 	summary string,
-	list func(context.Context, int64, dbutil.ListParams) ([]T, int, error),
+	list func(context.Context, int64, listing.Params) ([]T, int, error),
 	logger *slog.Logger,
 ) {
 	huma.Register(api, huma.Operation{

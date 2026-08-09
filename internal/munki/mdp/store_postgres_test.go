@@ -12,7 +12,7 @@ import (
 	"testing"
 
 	"github.com/woodleighschool/woodstar/internal/database"
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/munki/mdp"
 	"github.com/woodleighschool/woodstar/internal/storage"
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
@@ -361,7 +361,7 @@ func TestReorderRequiresExactSet(t *testing.T) {
 	b := mustCreate(t, ctx, store, "B")
 	c := mustCreate(t, ctx, store, "C")
 
-	if err := store.Reorder(ctx, []int64{a, b}); !errors.Is(err, dbutil.ErrInvalidInput) {
+	if err := store.Reorder(ctx, []int64{a, b}); !errors.Is(err, fault.ErrInvalidInput) {
 		t.Fatalf("partial reorder error = %v, want ErrInvalidInput", err)
 	}
 	if err := store.Reorder(ctx, []int64{c, b, a}); err != nil {

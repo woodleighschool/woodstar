@@ -6,8 +6,7 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
-
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 )
 
 func (s *Store) PromotePending(
@@ -36,7 +35,7 @@ FOR UPDATE`, hostID).Scan(
 			&state.PreflightRulesHash,
 		)
 		if errors.Is(err, pgx.ErrNoRows) {
-			validationErr = fmt.Errorf("%w: no pending Santa sync", dbutil.ErrInvalidInput)
+			validationErr = fmt.Errorf("%w: no pending Santa sync", fault.ErrInvalidInput)
 			return nil
 		}
 		if err != nil {
@@ -131,19 +130,19 @@ func validatePostflight(
 	rulesHash string,
 ) error {
 	if state.PendingPreflightAt == nil {
-		return fmt.Errorf("%w: no pending Santa sync", dbutil.ErrInvalidInput)
+		return fmt.Errorf("%w: no pending Santa sync", fault.ErrInvalidInput)
 	}
 	validSyncType := syncType == SyncTypeNormal
 	if state.PendingFullSync {
 		validSyncType = syncType == SyncTypeClean || syncType == SyncTypeCleanAll
 	}
 	if !validSyncType {
-		return fmt.Errorf("%w: sync_type %q does not match pending sync", dbutil.ErrInvalidInput, syncType)
+		return fmt.Errorf("%w: sync_type %q does not match pending sync", fault.ErrInvalidInput, syncType)
 	}
 	if rulesReceived != state.PendingPayloadRuleCount || rulesProcessed != state.PendingPayloadRuleCount {
 		return fmt.Errorf(
 			"%w: rules_received and rules_processed must equal pending rule count %d",
-			dbutil.ErrInvalidInput,
+			fault.ErrInvalidInput,
 			state.PendingPayloadRuleCount,
 		)
 	}
@@ -151,7 +150,7 @@ func validatePostflight(
 		return err
 	}
 	if state.PendingPayloadRuleCount == 0 && rulesHash != state.PreflightRulesHash {
-		return fmt.Errorf("%w: rules_hash changed during an empty sync", dbutil.ErrInvalidInput)
+		return fmt.Errorf("%w: rules_hash changed during an empty sync", fault.ErrInvalidInput)
 	}
 	return nil
 }

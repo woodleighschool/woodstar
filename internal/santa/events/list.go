@@ -1,13 +1,16 @@
 package events
 
-import "github.com/woodleighschool/woodstar/internal/dbutil"
+import (
+	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/listing"
+)
 
 func normalizeListValues[T ~string](items []T) []T {
 	raw := make([]string, len(items))
 	for i, item := range items {
 		raw[i] = string(item)
 	}
-	values := dbutil.NormalizeListValues(raw)
+	values := listing.NormalizeValues(raw)
 	out := make([]T, len(values))
 	for i, value := range values {
 		out[i] = T(value)

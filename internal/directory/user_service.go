@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 )
 
 // UserService owns user management and app-access policy.
@@ -104,7 +104,7 @@ func (s *UserService) SetRoleByEmail(ctx context.Context, email string, role Rol
 	email = strings.TrimSpace(email)
 	role = Role(strings.TrimSpace(string(role)))
 	if role != RoleAdmin && role != RoleViewer {
-		return nil, fmt.Errorf("%w: role must be one of admin viewer", dbutil.ErrInvalidInput)
+		return nil, fmt.Errorf("%w: role must be one of admin viewer", fault.ErrInvalidInput)
 	}
 	return s.store.setUserRoleByEmail(ctx, email, role)
 }

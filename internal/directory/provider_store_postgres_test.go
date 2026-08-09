@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
 )
 
@@ -79,8 +79,8 @@ func TestSSOLookupDoesNotUseUPNAsAlternateAccountIdentifier(t *testing.T) {
 		t.Fatalf("grant app role: %v", err)
 	}
 
-	if _, err := service.GetSSOByEmail(ctx, "alternate@example.test"); !errors.Is(err, dbutil.ErrNotFound) {
-		t.Fatalf("SSO lookup by UPN error = %v, want %v", err, dbutil.ErrNotFound)
+	if _, err := service.GetSSOByEmail(ctx, "alternate@example.test"); !errors.Is(err, fault.ErrNotFound) {
+		t.Fatalf("SSO lookup by UPN error = %v, want %v", err, fault.ErrNotFound)
 	}
 	user, err := service.GetSSOByEmail(ctx, "canonical@example.test")
 	if err != nil {

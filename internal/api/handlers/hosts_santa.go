@@ -6,7 +6,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/listing"
 	"github.com/woodleighschool/woodstar/internal/santa"
 	"github.com/woodleighschool/woodstar/internal/santa/rules"
 )
@@ -39,7 +39,7 @@ func registerHostSantaRules(api huma.API, ruleStore *rules.Store, logger *slog.L
 		func(
 			ctx context.Context,
 			hostID int64,
-			params dbutil.ListParams,
+			params listing.Params,
 		) ([]rules.RuleStatus, int, error) {
 			return ruleStore.ListRuleStatusesForHost(ctx, hostID, rules.RuleStatusListParams{
 				ListParams: params,

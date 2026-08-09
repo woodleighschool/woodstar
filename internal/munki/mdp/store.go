@@ -11,6 +11,8 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
+	"github.com/woodleighschool/woodstar/internal/listing"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
@@ -39,7 +41,7 @@ func (s *Store) List(
 	ctx context.Context,
 	params DistributionPointListParams,
 ) ([]DistributionPoint, int, error) {
-	params.ListParams = dbutil.NormalizeListParams(params.ListParams)
+	params.ListParams = listing.Normalize(params.ListParams)
 	where, args := distributionPointListWhere(params)
 	listQuery := distributionPointListQuery(params, where, args)
 
@@ -236,7 +238,7 @@ func (s *Store) Delete(ctx context.Context, id int64) error {
 		return dbutil.DeleteConflict(err, "distribution point is still referenced")
 	}
 	if tag.RowsAffected() == 0 {
-		return dbutil.ErrNotFound
+		return fault.ErrNotFound
 	}
 	return nil
 }
@@ -253,7 +255,7 @@ func (s *Store) RotateKey(ctx context.Context, id int64, key string) error {
 		return dbutil.MutationError(err)
 	}
 	if tag.RowsAffected() == 0 {
-		return dbutil.ErrNotFound
+		return fault.ErrNotFound
 	}
 	return nil
 }
@@ -297,7 +299,7 @@ SELECT (SELECT count(*) FROM updated), (SELECT total FROM stats)`,
 		if updated != total {
 			return fmt.Errorf(
 				"%w: ordered_ids must exactly match existing distribution point IDs",
-				dbutil.ErrInvalidInput,
+				fault.ErrInvalidInput,
 			)
 		}
 		_, err := tx.Exec(ctx, `UPDATE munki_distribution_points SET position = -position - 1`)
@@ -510,7 +512,7 @@ WHERE id = $1`, packageID).Scan(&objectID)
 		return storage.Object{}, dbutil.GetError(err)
 	}
 	if objectID == nil {
-		return storage.Object{}, dbutil.ErrNotFound
+		return storage.Object{}, fault.ErrNotFound
 	}
 	object, err := s.objects.GetByID(ctx, *objectID)
 	if err != nil {

@@ -6,7 +6,8 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
+	"github.com/woodleighschool/woodstar/internal/listing"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	"github.com/woodleighschool/woodstar/internal/openapischema"
 	"github.com/woodleighschool/woodstar/internal/targeting"
@@ -111,7 +112,7 @@ type HostManifestSoftwareObservation struct {
 
 // HostManifestSoftwareListParams controls the desired software page for one host.
 type HostManifestSoftwareListParams struct {
-	dbutil.ListParams
+	ListParams listing.Params
 }
 
 // Schema returns the OpenAPI schema for PackageStrategy.
@@ -160,10 +161,10 @@ func emptyTargets() Targets {
 
 func (targets Targets) validate() error {
 	if err := validation.Struct(targets); err != nil {
-		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
+		return fmt.Errorf("%w: %w", fault.ErrInvalidInput, err)
 	}
 	if err := targeting.ValidateTargets(targets.Include, targets.Exclude, includeLabelID); err != nil {
-		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
+		return fmt.Errorf("%w: %w", fault.ErrInvalidInput, err)
 	}
 	return nil
 }

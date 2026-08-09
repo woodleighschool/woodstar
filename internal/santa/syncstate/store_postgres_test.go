@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/woodleighschool/woodstar/internal/database"
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/santa/syncstate"
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
@@ -256,7 +256,7 @@ func TestPromotePendingRecordsAttemptsAndOnlyPromotesProcessedPayload(t *testing
 		0,
 		syncstate.SyncTypeClean,
 		syncedRulesHash,
-	); !errors.Is(err, dbutil.ErrInvalidInput) {
+	); !errors.Is(err, fault.ErrInvalidInput) {
 		t.Fatalf("mismatch promote error = %v, want invalid input", err)
 	}
 	if got := countRows(t, ctx, db, "santa_sync_targets", host.ID, "phase = 'applied'"); got != 0 {
@@ -307,7 +307,7 @@ func TestPromotePendingRecordsAttemptsAndOnlyPromotesProcessedPayload(t *testing
 				attempt.syncType,
 				attempt.rulesHash,
 			)
-			if !errors.Is(err, dbutil.ErrInvalidInput) {
+			if !errors.Is(err, fault.ErrInvalidInput) {
 				t.Fatalf("promote error = %v, want invalid input", err)
 			}
 		})
@@ -424,7 +424,7 @@ func TestPromotePendingValidatesEmptySyncHashAndPendingState(t *testing.T) {
 		0,
 		syncstate.SyncTypeNormal,
 		"22222222222222222222222222222222",
-	); !errors.Is(err, dbutil.ErrInvalidInput) {
+	); !errors.Is(err, fault.ErrInvalidInput) {
 		t.Fatalf("changed hash error = %v, want invalid input", err)
 	}
 	if err := store.PromotePending(
@@ -444,7 +444,7 @@ func TestPromotePendingValidatesEmptySyncHashAndPendingState(t *testing.T) {
 		0,
 		syncstate.SyncTypeNormal,
 		syncedRulesHash,
-	); !errors.Is(err, dbutil.ErrInvalidInput) {
+	); !errors.Is(err, fault.ErrInvalidInput) {
 		t.Fatalf("postflight without pending error = %v, want invalid input", err)
 	}
 }

@@ -6,7 +6,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
 )
 
@@ -253,8 +253,8 @@ func TestSetAndClearAccountAPIKey(t *testing.T) {
 	if cleared.APIKeyCreatedAt != nil {
 		t.Fatalf("cleared api key created at = %v, want nil", cleared.APIKeyCreatedAt)
 	}
-	if _, err := service.GetByAPIKey(ctx, apiKey); !errors.Is(err, dbutil.ErrNotFound) {
-		t.Fatalf("get cleared api key err = %v, want %v", err, dbutil.ErrNotFound)
+	if _, err := service.GetByAPIKey(ctx, apiKey); !errors.Is(err, fault.ErrNotFound) {
+		t.Fatalf("get cleared api key err = %v, want %v", err, fault.ErrNotFound)
 	}
 }
 

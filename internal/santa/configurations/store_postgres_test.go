@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/woodleighschool/woodstar/internal/database"
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
@@ -21,7 +21,7 @@ func TestConfigurationStoreRejectsMissingLabel(t *testing.T) {
 
 	mutation := baseline("Missing label")
 	mutation.Targets = configurationTargets(labelRefs(999_999), nil)
-	if _, err := store.Create(ctx, mutation); !errors.Is(err, dbutil.ErrNotFound) {
+	if _, err := store.Create(ctx, mutation); !errors.Is(err, fault.ErrNotFound) {
 		t.Fatalf("Create error = %v, want ErrNotFound", err)
 	}
 }
@@ -174,7 +174,7 @@ func TestConfigurationResolverUsesFirstMatchingPosition(t *testing.T) {
 	}
 
 	err = store.ReorderConfigurations(ctx, []int64{secondConfig.ID})
-	if !errors.Is(err, dbutil.ErrInvalidInput) {
+	if !errors.Is(err, fault.ErrInvalidInput) {
 		t.Fatalf("partial reorder error = %v, want ErrInvalidInput", err)
 	}
 

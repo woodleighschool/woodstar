@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 )
 
 func TestClientResourcesMutationRequiresOneSource(t *testing.T) {
@@ -35,7 +35,7 @@ func TestClientResourcesMutationRequiresOneSource(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			test.mutation.normalize()
 			err := test.mutation.validate()
-			if test.wantErr && !errors.Is(err, dbutil.ErrInvalidInput) {
+			if test.wantErr && !errors.Is(err, fault.ErrInvalidInput) {
 				t.Fatalf("validate() error = %v, want ErrInvalidInput", err)
 			}
 			if !test.wantErr && err != nil {

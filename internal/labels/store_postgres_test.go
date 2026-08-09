@@ -14,6 +14,7 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
 )
 
@@ -181,7 +182,7 @@ func TestCreateManualLabelWithMissingHostReturnsNotFound(t *testing.T) {
 		LabelMembershipType: LabelMembershipTypeManual,
 		HostIDs:             []int64{0},
 	})
-	if !errors.Is(err, dbutil.ErrNotFound) {
+	if !errors.Is(err, fault.ErrNotFound) {
 		t.Fatalf("Create error = %v, want ErrNotFound", err)
 	}
 }

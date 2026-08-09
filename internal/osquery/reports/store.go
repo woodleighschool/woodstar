@@ -8,7 +8,9 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/listing"
 )
 
 // Store persists saved reports and their per-host result snapshots.
@@ -119,7 +121,7 @@ func (s *Store) Update(ctx context.Context, id int64, params ReportMutation) (*R
 
 func (s *Store) GetByID(ctx context.Context, id int64) (*Report, error) {
 	if id <= 0 {
-		return nil, dbutil.ErrNotFound
+		return nil, fault.ErrNotFound
 	}
 	row, err := dbutil.GetOne[reportRow](ctx, s.db.Pool(), reportSelectSQL()+"\nWHERE r.id = $1", id)
 	if err != nil {
@@ -139,7 +141,7 @@ func (s *Store) Delete(ctx context.Context, id int64) error {
 		return dbutil.DeleteConflict(err, "Report is still referenced")
 	}
 	if tag.RowsAffected() == 0 {
-		return dbutil.ErrNotFound
+		return fault.ErrNotFound
 	}
 	return nil
 }
@@ -165,7 +167,7 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 }
 
 func (s *Store) List(ctx context.Context, params ReportListParams) ([]Report, int, error) {
-	params.ListParams = dbutil.NormalizeListParams(params.ListParams)
+	params.ListParams = listing.Normalize(params.ListParams)
 	where, args := reportListWhere(params)
 	listQuery := dbutil.ListQuery{
 		SelectSQL:    reportSelectSQL(),
@@ -215,8 +217,8 @@ func (s *Store) ScheduledForHost(ctx context.Context, host *hosts.Host) ([]Repor
 
 func reportListWhere(params ReportListParams) (string, []any) {
 	var where dbutil.WhereBuilder
-	if params.Q != "" {
-		search := where.Arg("%" + params.Q + "%")
+	if params.ListParams.Q != "" {
+		search := where.Arg("%" + params.ListParams.Q + "%")
 		where.Add(`(r.name ILIKE ` + search + ` OR r.description ILIKE ` + search + `)`)
 	}
 	return where.Build()

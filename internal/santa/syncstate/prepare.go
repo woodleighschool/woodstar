@@ -6,8 +6,7 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
-
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 )
 
 func (s *Store) PreparePending(
@@ -208,7 +207,7 @@ func rewritePendingState(
 
 func validateRuleCounts(counts RuleCounts) error {
 	if counts.Transitive > counts.Binary {
-		return fmt.Errorf("%w: invalid Santa rule counts", dbutil.ErrInvalidInput)
+		return fmt.Errorf("%w: invalid Santa rule counts", fault.ErrInvalidInput)
 	}
 	return nil
 }

@@ -9,7 +9,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/listing"
 	"github.com/woodleighschool/woodstar/internal/munki/clientresources"
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
@@ -75,7 +75,7 @@ type MunkiClientResourcesBuilder struct {
 	FooterLinks  []clientresources.Link    `json:"footer_links"`
 }
 
-func (input clientResourcesListInput) params() dbutil.ListParams {
+func (input clientResourcesListInput) params() listing.Params {
 	return ListQueryInput{
 		Page:    input.Page,
 		PerPage: input.PerPage,

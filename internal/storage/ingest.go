@@ -11,8 +11,7 @@ import (
 	"strings"
 
 	"github.com/gabriel-vasile/mimetype"
-
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 )
 
 // Ingestor reserves, uploads, classifies, and finalizes storage objects.
@@ -129,7 +128,7 @@ func (s *Ingestor) Finalize(
 		return nil, err
 	}
 	if object.Prefix != prefix {
-		return nil, fmt.Errorf("%w: object has the wrong storage prefix", dbutil.ErrInvalidInput)
+		return nil, fmt.Errorf("%w: object has the wrong storage prefix", fault.ErrInvalidInput)
 	}
 	if object.Available() {
 		return object, nil
@@ -139,7 +138,7 @@ func (s *Ingestor) Finalize(
 		return nil, err
 	}
 	if object.MultipartUploadID != nil {
-		return nil, fmt.Errorf("%w: multipart upload must be completed before finalization", dbutil.ErrInvalidInput)
+		return nil, fmt.Errorf("%w: multipart upload must be completed before finalization", fault.ErrInvalidInput)
 	}
 
 	metadata, err := s.inspect(ctx, object.Key())
@@ -175,7 +174,7 @@ func (s *Ingestor) CreateMultipart(
 	if objectExists {
 		return MultipartUpload{}, fmt.Errorf(
 			"%w: multipart upload is already completed and ready to finalize",
-			dbutil.ErrInvalidInput,
+			fault.ErrInvalidInput,
 		)
 	}
 	uploadID, err := backend.CreateMultipartUpload(ctx, object.Key())
@@ -203,14 +202,14 @@ func (s *Ingestor) PresignMultipartPart(
 	partNumber int32,
 ) (UploadTarget, error) {
 	if partNumber < 1 || partNumber > 10_000 {
-		return UploadTarget{}, fmt.Errorf("%w: part_number must be between 1 and 10000", dbutil.ErrInvalidInput)
+		return UploadTarget{}, fmt.Errorf("%w: part_number must be between 1 and 10000", fault.ErrInvalidInput)
 	}
 	object, backend, err := s.multipartObject(ctx, objectID, prefix)
 	if err != nil {
 		return UploadTarget{}, err
 	}
 	if object.MultipartUploadID == nil {
-		return UploadTarget{}, fmt.Errorf("%w: multipart upload has not been created", dbutil.ErrInvalidInput)
+		return UploadTarget{}, fmt.Errorf("%w: multipart upload has not been created", fault.ErrInvalidInput)
 	}
 	return backend.PresignMultipartPart(ctx, object.Key(), *object.MultipartUploadID, partNumber, 0)
 }
@@ -237,7 +236,7 @@ func (s *Ingestor) CompleteMultipart(
 		if exists {
 			return nil
 		}
-		return fmt.Errorf("%w: multipart upload has not been created", dbutil.ErrInvalidInput)
+		return fmt.Errorf("%w: multipart upload has not been created", fault.ErrInvalidInput)
 	}
 	uploadID := *object.MultipartUploadID
 	err = backend.CompleteMultipartUpload(ctx, object.Key(), uploadID, parts)
@@ -262,7 +261,7 @@ func (s *Ingestor) Delete(ctx context.Context, objectID int64, prefix string) er
 		return err
 	}
 	if object.Prefix != prefix {
-		return fmt.Errorf("%w: object has the wrong storage prefix", dbutil.ErrInvalidInput)
+		return fmt.Errorf("%w: object has the wrong storage prefix", fault.ErrInvalidInput)
 	}
 	if !object.Available() {
 		object, err = s.objects.RefreshPending(ctx, object.ID)
@@ -302,10 +301,10 @@ func (s *Ingestor) multipartObject(
 		return nil, nil, err
 	}
 	if object.Prefix != prefix {
-		return nil, nil, fmt.Errorf("%w: object has the wrong storage prefix", dbutil.ErrInvalidInput)
+		return nil, nil, fmt.Errorf("%w: object has the wrong storage prefix", fault.ErrInvalidInput)
 	}
 	if object.Available() {
-		return nil, nil, fmt.Errorf("%w: storage object is already finalized", dbutil.ErrInvalidInput)
+		return nil, nil, fmt.Errorf("%w: storage object is already finalized", fault.ErrInvalidInput)
 	}
 	object, err = s.objects.RefreshPending(ctx, object.ID)
 	if err != nil {
@@ -317,7 +316,7 @@ func (s *Ingestor) multipartObject(
 func (s *Ingestor) multipartBackend() (MultipartBackend, error) {
 	backend, ok := s.backend.(MultipartBackend)
 	if !ok {
-		return nil, fmt.Errorf("%w: multipart uploads require S3 storage", dbutil.ErrInvalidInput)
+		return nil, fmt.Errorf("%w: multipart uploads require S3 storage", fault.ErrInvalidInput)
 	}
 	return backend, nil
 }
@@ -338,18 +337,18 @@ func (s *Ingestor) objectExists(ctx context.Context, key string) (bool, error) {
 
 func validateCompletedParts(parts []CompletedPart) error {
 	if len(parts) == 0 {
-		return fmt.Errorf("%w: multipart completion requires at least one part", dbutil.ErrInvalidInput)
+		return fmt.Errorf("%w: multipart completion requires at least one part", fault.ErrInvalidInput)
 	}
 	var previous int32
 	for _, part := range parts {
 		if part.PartNumber < 1 || part.PartNumber > 10_000 {
-			return fmt.Errorf("%w: part_number must be between 1 and 10000", dbutil.ErrInvalidInput)
+			return fmt.Errorf("%w: part_number must be between 1 and 10000", fault.ErrInvalidInput)
 		}
 		if part.PartNumber <= previous {
-			return fmt.Errorf("%w: multipart parts must be strictly ascending", dbutil.ErrInvalidInput)
+			return fmt.Errorf("%w: multipart parts must be strictly ascending", fault.ErrInvalidInput)
 		}
 		if strings.TrimSpace(part.ETag) == "" {
-			return fmt.Errorf("%w: multipart part etag must not be blank", dbutil.ErrInvalidInput)
+			return fmt.Errorf("%w: multipart part etag must not be blank", fault.ErrInvalidInput)
 		}
 		previous = part.PartNumber
 	}

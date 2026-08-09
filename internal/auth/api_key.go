@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/directory"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/randtoken"
 )
 
@@ -45,7 +45,7 @@ func (s *Service) userByAPIKey(ctx context.Context, token string) (*directory.Us
 		return nil, ErrNotAuthenticated
 	}
 	user, err := s.users.GetByAPIKey(ctx, token)
-	if errors.Is(err, dbutil.ErrNotFound) {
+	if errors.Is(err, fault.ErrNotFound) {
 		return nil, ErrNotAuthenticated
 	}
 	if err != nil {

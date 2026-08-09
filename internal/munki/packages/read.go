@@ -4,11 +4,12 @@ import (
 	"context"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 )
 
 func (s *Store) GetByID(ctx context.Context, id int64) (*Package, error) {
 	if id <= 0 {
-		return nil, dbutil.ErrNotFound
+		return nil, fault.ErrNotFound
 	}
 	row, err := dbutil.GetOne[packageRow](ctx, s.db.Pool(), packageSelectSQL()+"\nWHERE p.id = $1", id)
 	if err != nil {
@@ -87,8 +88,8 @@ func packageListWhere(params PackageListParams) (string, []any) {
 	if len(params.InstallerTypes) > 0 {
 		where.Add("p.installer_type = ANY(" + where.Arg(params.InstallerTypes) + "::text[])")
 	}
-	if params.Q != "" {
-		search := where.Arg("%" + params.Q + "%")
+	if params.ListParams.Q != "" {
+		search := where.Arg("%" + params.ListParams.Q + "%")
 		where.Add(`(
 			p.version ILIKE ` + search + `
 			OR p.installer_type ILIKE ` + search + `

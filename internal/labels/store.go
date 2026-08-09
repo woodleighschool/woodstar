@@ -9,6 +9,7 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 )
 
 // Store persists labels.
@@ -160,7 +161,7 @@ func (s *Store) Delete(ctx context.Context, id int64) error {
 		return dbutil.DeleteConflict(err, "Label is still referenced")
 	}
 	if tag.RowsAffected() == 0 {
-		return dbutil.ErrNotFound
+		return fault.ErrNotFound
 	}
 	return nil
 }
@@ -221,7 +222,7 @@ func dynamicMembershipValues(memberships []DynamicMembership) ([]int64, []bool, 
 		if _, ok := seen[membership.LabelID]; ok {
 			return nil, nil, fmt.Errorf(
 				"%w: duplicate dynamic label result %d",
-				dbutil.ErrInvalidInput,
+				fault.ErrInvalidInput,
 				membership.LabelID,
 			)
 		}
@@ -279,8 +280,8 @@ ORDER BY id`)
 
 func labelListWhere(params LabelListParams) (string, []any) {
 	var where dbutil.WhereBuilder
-	if params.Q != "" {
-		where.Addf("(l.name ILIKE %s OR l.description ILIKE %s)", "%"+params.Q+"%", "%"+params.Q+"%")
+	if params.ListParams.Q != "" {
+		where.Addf("(l.name ILIKE %s OR l.description ILIKE %s)", "%"+params.ListParams.Q+"%", "%"+params.ListParams.Q+"%")
 	}
 	if params.LabelType != "" {
 		where.Addf("l.label_type = %s", string(params.LabelType))
@@ -363,7 +364,7 @@ func newLabelWrite(params LabelMutation) labelWrite {
 
 func getLabelByID(ctx context.Context, q dbutil.Queryer, id int64) (*Label, error) {
 	if id <= 0 {
-		return nil, dbutil.ErrNotFound
+		return nil, fault.ErrNotFound
 	}
 	row, err := dbutil.GetOne[labelRow](ctx, q, labelSelectSQL()+"\nWHERE l.id = $1\nGROUP BY l.id", id)
 	if err != nil {
@@ -451,7 +452,7 @@ func refreshDerivedMembership(ctx context.Context, tx pgx.Tx, labelID int64, cri
 		_, err := tx.Exec(ctx, insertUserMembershipSQL(), labelID, values)
 		return err
 	default:
-		return fmt.Errorf("%w: unknown derived label attribute", dbutil.ErrInvalidInput)
+		return fmt.Errorf("%w: unknown derived label attribute", fault.ErrInvalidInput)
 	}
 }
 

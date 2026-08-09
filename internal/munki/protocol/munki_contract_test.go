@@ -15,7 +15,7 @@ import (
 	"howett.net/plist"
 
 	"github.com/woodleighschool/woodstar/internal/agentauth"
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/heartbeats"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/munki"
@@ -904,7 +904,7 @@ func (r staticHostResolver) GetByHardwareSerial(_ context.Context, serial string
 		return nil, r.err
 	}
 	if serial != r.serial {
-		return nil, dbutil.ErrNotFound
+		return nil, fault.ErrNotFound
 	}
 	return &hosts.Host{
 		ID:          r.hostID,

@@ -7,7 +7,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/listing"
 	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
@@ -56,7 +56,7 @@ type munkiSoftwareDetail struct {
 	Targets  munkisoftware.Targets `json:"targets"`
 }
 
-func (input munkiSoftwareListInput) params() dbutil.ListParams {
+func (input munkiSoftwareListInput) params() listing.Params {
 	return input.ListQueryInput.params()
 }
 
@@ -237,7 +237,7 @@ func loadMunkiSoftwareDetail(
 		return nil, resourceError(ctx, logger, operation, munkiSoftwareLabel, err, "software_id", id)
 	}
 	packageRows, _, err := packageService.List(ctx, packages.PackageListParams{
-		ListParams: dbutil.ListParams{PageSize: 1000},
+		ListParams: listing.Params{PageSize: 1000},
 		SoftwareID: id,
 	})
 	if err != nil {

@@ -9,9 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/heartbeats"
 	"github.com/woodleighschool/woodstar/internal/labels"
+	"github.com/woodleighschool/woodstar/internal/listing"
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
 )
 
@@ -199,11 +200,11 @@ func TestPrimaryUserStoreReturnsNotFoundForMissingHost(t *testing.T) {
 		PrimaryUserSourceManual,
 	); !errors.Is(
 		err,
-		dbutil.ErrNotFound,
+		fault.ErrNotFound,
 	) {
 		t.Fatalf("Upsert missing host error = %v, want ErrNotFound", err)
 	}
-	if err := primaryUsers.Delete(ctx, 999999, PrimaryUserSourceManual); !errors.Is(err, dbutil.ErrNotFound) {
+	if err := primaryUsers.Delete(ctx, 999999, PrimaryUserSourceManual); !errors.Is(err, fault.ErrNotFound) {
 		t.Fatalf("Delete missing host error = %v, want ErrNotFound", err)
 	}
 }
@@ -301,7 +302,7 @@ func TestReenrollRotatesHostID(t *testing.T) {
 		if reenrolled.ID == previousID {
 			t.Fatalf("re-enrolled host ID = %d, want a new ID", reenrolled.ID)
 		}
-		if _, err := store.GetByID(ctx, previousID); !errors.Is(err, dbutil.ErrNotFound) {
+		if _, err := store.GetByID(ctx, previousID); !errors.Is(err, fault.ErrNotFound) {
 			t.Fatalf("get previous host %d error = %v, want ErrNotFound", previousID, err)
 		}
 	}
@@ -501,7 +502,7 @@ func TestHostListFiltersAndSortsByFlattenedContactFields(t *testing.T) {
 		{sort: "public_ip.asc", want: offline.ID},
 	}
 	for _, test := range tests {
-		rows, _, err := store.List(ctx, HostListParams{ListParams: dbutil.ListParams{Sort: test.sort}})
+		rows, _, err := store.List(ctx, HostListParams{ListParams: listing.Params{Sort: test.sort}})
 		if err != nil {
 			t.Fatalf("sort %q: %v", test.sort, err)
 		}
@@ -598,7 +599,7 @@ VALUES (
 	}
 	for _, query := range queries {
 		rows, count, err := store.List(ctx, HostListParams{
-			ListParams: dbutil.ListParams{Q: query},
+			ListParams: listing.Params{Q: query},
 		})
 		if err != nil {
 			t.Fatalf("search %q: %v", query, err)

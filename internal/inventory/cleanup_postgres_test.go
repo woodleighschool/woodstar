@@ -10,7 +10,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
 )
@@ -77,7 +77,7 @@ WHERE bundle_identifier = 'com.example.cleanup'`).Scan(&titleID); err != nil {
 	if result.SoftwareVersions != 1 || result.SoftwareTitles != 1 {
 		t.Fatalf("final cleanup = %+v, want one version and one title", result)
 	}
-	if _, err := store.GetTitle(ctx, titleID); !errors.Is(err, dbutil.ErrNotFound) {
+	if _, err := store.GetTitle(ctx, titleID); !errors.Is(err, fault.ErrNotFound) {
 		t.Fatalf("load pruned title error = %v, want ErrNotFound", err)
 	}
 	result, err = store.PruneUnreferencedSoftware(ctx)
@@ -149,7 +149,7 @@ func TestPruneUnreferencedSoftwareAfterHostDeletion(t *testing.T) {
 	if result.SoftwareVersions != 1 || result.SoftwareTitles != 1 {
 		t.Fatalf("deleted host cleanup = %+v, want one version and one title", result)
 	}
-	if _, err := store.GetTitle(ctx, titleID); !errors.Is(err, dbutil.ErrNotFound) {
+	if _, err := store.GetTitle(ctx, titleID); !errors.Is(err, fault.ErrNotFound) {
 		t.Fatalf("load deleted host title error = %v, want ErrNotFound", err)
 	}
 }

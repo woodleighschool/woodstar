@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 )
 
 func TestNormalizeUploadFilename(t *testing.T) {
@@ -39,7 +39,7 @@ func TestValidateUploadFilenameRejects(t *testing.T) {
 		"invalid-\xff.pkg",
 	} {
 		name := normalizeUploadFilename(in)
-		if err := validateUploadFilename(name); !errors.Is(err, dbutil.ErrInvalidInput) {
+		if err := validateUploadFilename(name); !errors.Is(err, fault.ErrInvalidInput) {
 			t.Errorf("validateUploadFilename(%q) error = %v, want ErrInvalidInput", name, err)
 		}
 	}

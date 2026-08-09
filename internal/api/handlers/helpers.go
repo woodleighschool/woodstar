@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
-
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
+	"github.com/woodleighschool/woodstar/internal/listing"
 )
 
 func handlerError(ctx context.Context, logger *slog.Logger, operation string, err error, attrs ...any) error {
@@ -48,17 +48,17 @@ func resourceError(
 // resourceMutationError translates store errors into HTTP errors.
 func resourceMutationError(resource string, err error) error {
 	switch {
-	case errors.Is(err, dbutil.ErrNotFound):
+	case errors.Is(err, fault.ErrNotFound):
 		return huma.Error404NotFound("")
-	case errors.Is(err, dbutil.ErrAlreadyExists):
+	case errors.Is(err, fault.ErrAlreadyExists):
 		return huma.Error409Conflict(resource + " already exists")
-	case errors.Is(err, dbutil.ErrConflict):
+	case errors.Is(err, fault.ErrConflict):
 		return huma.Error409Conflict(
-			strings.TrimPrefix(err.Error(), dbutil.ErrConflict.Error()+": "),
+			strings.TrimPrefix(err.Error(), fault.ErrConflict.Error()+": "),
 		)
-	case errors.Is(err, dbutil.ErrInvalidInput):
+	case errors.Is(err, fault.ErrInvalidInput):
 		return huma.Error400BadRequest(
-			strings.TrimPrefix(err.Error(), dbutil.ErrInvalidInput.Error()+": "),
+			strings.TrimPrefix(err.Error(), fault.ErrInvalidInput.Error()+": "),
 		)
 	default:
 		return err
@@ -85,12 +85,12 @@ type ListQueryInput struct {
 	Sort    string `query:"sort,omitempty"`
 }
 
-func (input ListQueryInput) params() dbutil.ListParams {
+func (input ListQueryInput) params() listing.Params {
 	var pageIndex int32
 	if input.Page > 1 {
 		pageIndex = input.Page - 1
 	}
-	return dbutil.NormalizeListParams(dbutil.ListParams{
+	return listing.Normalize(listing.Params{
 		Q:         input.Q,
 		PageIndex: pageIndex,
 		PageSize:  input.PerPage,

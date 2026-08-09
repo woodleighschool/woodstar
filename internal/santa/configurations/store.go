@@ -10,6 +10,8 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
+	"github.com/woodleighschool/woodstar/internal/listing"
 	"github.com/woodleighschool/woodstar/internal/targeting"
 )
 
@@ -25,7 +27,7 @@ func (s *Store) List(
 	ctx context.Context,
 	params ConfigurationListParams,
 ) ([]Configuration, int, error) {
-	params.ListParams = dbutil.NormalizeListParams(params.ListParams)
+	params.ListParams = listing.Normalize(params.ListParams)
 	where, args := configurationListWhere(params)
 	listQuery := dbutil.ListQuery{
 		SelectSQL:    configurationSelectSQL(),
@@ -55,7 +57,7 @@ func (s *Store) List(
 
 func (s *Store) GetByID(ctx context.Context, id int64) (*Configuration, error) {
 	if id <= 0 {
-		return nil, dbutil.ErrNotFound
+		return nil, fault.ErrNotFound
 	}
 	row, err := dbutil.GetOne[configurationRow](
 		ctx,
@@ -186,7 +188,7 @@ func (s *Store) Delete(ctx context.Context, id int64) error {
 		return dbutil.DeleteConflict(err, "Santa configuration is still referenced")
 	}
 	if tag.RowsAffected() == 0 {
-		return dbutil.ErrNotFound
+		return fault.ErrNotFound
 	}
 	return nil
 }
@@ -246,7 +248,7 @@ SELECT (SELECT count(*) FROM updated), (SELECT total FROM stats)`,
 			return err
 		}
 		if updated != total {
-			return fmt.Errorf("%w: ordered_ids must exactly match existing configuration IDs", dbutil.ErrInvalidInput)
+			return fmt.Errorf("%w: ordered_ids must exactly match existing configuration IDs", fault.ErrInvalidInput)
 		}
 		_, err := tx.Exec(ctx, `UPDATE santa_configurations SET position = -position - 1`)
 		return err
@@ -429,7 +431,7 @@ func (s *Store) attachConfigurationTargets(
 			case targeting.Exclude:
 				targetSet.Exclude = append(targetSet.Exclude, ref)
 			default:
-				return fmt.Errorf("%w: unsupported target direction %q", dbutil.ErrInvalidInput, row.Direction)
+				return fmt.Errorf("%w: unsupported target direction %q", fault.ErrInvalidInput, row.Direction)
 			}
 			configurations[i].Targets = targetSet
 		}
@@ -439,8 +441,8 @@ func (s *Store) attachConfigurationTargets(
 
 func configurationListWhere(params ConfigurationListParams) (string, []any) {
 	var where dbutil.WhereBuilder
-	if params.Q != "" {
-		search := where.Arg("%" + params.Q + "%")
+	if params.ListParams.Q != "" {
+		search := where.Arg("%" + params.ListParams.Q + "%")
 		where.Add(`(
 			c.name ILIKE ` + search + `
 			OR c.description ILIKE ` + search + `

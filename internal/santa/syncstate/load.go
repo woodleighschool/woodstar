@@ -7,8 +7,7 @@ import (
 	"errors"
 
 	"github.com/jackc/pgx/v5"
-
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 )
 
 type PayloadRulePage struct {
@@ -27,7 +26,7 @@ func (s *Store) LoadPendingPayloadPage(
 	limit int32,
 ) (PayloadRulePage, error) {
 	if limit <= 0 {
-		return PayloadRulePage{}, dbutil.ErrInvalidInput
+		return PayloadRulePage{}, fault.ErrInvalidInput
 	}
 	limitRows := int(limit)
 	offset, err := decodeCursor(cursor)
@@ -85,14 +84,14 @@ func decodeCursor(cursor string) (int32, error) {
 	}
 	payload, err := base64.RawURLEncoding.DecodeString(cursor)
 	if err != nil {
-		return 0, dbutil.ErrInvalidInput
+		return 0, fault.ErrInvalidInput
 	}
 	var decoded pageCursor
 	if err := json.Unmarshal(payload, &decoded); err != nil {
-		return 0, dbutil.ErrInvalidInput
+		return 0, fault.ErrInvalidInput
 	}
 	if decoded.Offset < 0 {
-		return 0, dbutil.ErrInvalidInput
+		return 0, fault.ErrInvalidInput
 	}
 	return decoded.Offset, nil
 }

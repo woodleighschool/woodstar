@@ -8,7 +8,8 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
+	"github.com/woodleighschool/woodstar/internal/listing"
 	"github.com/woodleighschool/woodstar/internal/openapischema"
 	"github.com/woodleighschool/woodstar/internal/validation"
 )
@@ -71,19 +72,19 @@ func (Policy) Schema(_ huma.Registry) *huma.Schema {
 }
 
 type RuleListParams struct {
-	dbutil.ListParams
+	ListParams listing.Params
 
 	RuleTypes []RuleType `validate:"unique,dive,oneof=binary certificate teamid signingid cdhash bundle"`
 }
 
 func (params *RuleListParams) normalize() {
-	params.ListParams = dbutil.NormalizeListParams(params.ListParams)
-	params.RuleTypes = dbutil.NormalizeListValues(params.RuleTypes)
+	params.ListParams = listing.Normalize(params.ListParams)
+	params.RuleTypes = listing.NormalizeValues(params.RuleTypes)
 }
 
 func (params *RuleListParams) validate() error {
 	if err := validation.Struct(params); err != nil {
-		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
+		return fmt.Errorf("%w: %w", fault.ErrInvalidInput, err)
 	}
 	return nil
 }
@@ -100,7 +101,7 @@ type RuleMutation struct {
 
 func (p *RuleMutation) Validate() error {
 	if err := validation.Struct(p); err != nil {
-		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
+		return fmt.Errorf("%w: %w", fault.ErrInvalidInput, err)
 	}
 	if err := validateRuleIdentifier(p.RuleType, p.Identifier); err != nil {
 		return err
@@ -125,33 +126,33 @@ func validateRuleIdentifier(ruleType RuleType, identifier string) error {
 	switch ruleType {
 	case RuleTypeBinary:
 		if !sha256IdentifierRE.MatchString(identifier) {
-			return fmt.Errorf("%w: identifier must be a 64 character SHA-256 hex hash", dbutil.ErrInvalidInput)
+			return fmt.Errorf("%w: identifier must be a 64 character SHA-256 hex hash", fault.ErrInvalidInput)
 		}
 	case RuleTypeCertificate:
 		if !sha256IdentifierRE.MatchString(identifier) {
 			return fmt.Errorf(
 				"%w: identifier must be a 64 character certificate SHA-256 hex fingerprint",
-				dbutil.ErrInvalidInput,
+				fault.ErrInvalidInput,
 			)
 		}
 	case RuleTypeBundle:
 		if !sha256IdentifierRE.MatchString(identifier) {
-			return fmt.Errorf("%w: identifier must be a 64 character bundle SHA-256 hex hash", dbutil.ErrInvalidInput)
+			return fmt.Errorf("%w: identifier must be a 64 character bundle SHA-256 hex hash", fault.ErrInvalidInput)
 		}
 	case RuleTypeCDHash:
 		if !cdhashIdentifierRE.MatchString(identifier) {
-			return fmt.Errorf("%w: identifier must be a 40 character CDHash hex value", dbutil.ErrInvalidInput)
+			return fmt.Errorf("%w: identifier must be a 40 character CDHash hex value", fault.ErrInvalidInput)
 		}
 	case RuleTypeSigningID:
 		if !signingIDIdentifierRE.MatchString(identifier) {
 			return fmt.Errorf(
 				"%w: identifier must be TEAMID:signing.identifier or platform:signing.identifier",
-				dbutil.ErrInvalidInput,
+				fault.ErrInvalidInput,
 			)
 		}
 	case RuleTypeTeamID:
 		if !teamIDIdentifierRE.MatchString(identifier) {
-			return fmt.Errorf("%w: identifier must be a 10 character uppercase Team ID", dbutil.ErrInvalidInput)
+			return fmt.Errorf("%w: identifier must be a 10 character uppercase Team ID", fault.ErrInvalidInput)
 		}
 	}
 	return nil
@@ -190,5 +191,5 @@ type RuleStatus struct {
 }
 
 type RuleStatusListParams struct {
-	dbutil.ListParams
+	ListParams listing.Params
 }

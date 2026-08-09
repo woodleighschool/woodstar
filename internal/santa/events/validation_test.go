@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 )
 
 func TestValidateEventInputsRequiresOccurrenceTime(t *testing.T) {
@@ -39,7 +39,7 @@ func TestValidateEventInputsRequiresOccurrenceTime(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			if err := validateEventInputs(tt.execution, tt.fileAccess, tt.standalone); !errors.Is(err, dbutil.ErrInvalidInput) {
+			if err := validateEventInputs(tt.execution, tt.fileAccess, tt.standalone); !errors.Is(err, fault.ErrInvalidInput) {
 				t.Fatalf("validateEventInputs error = %v, want ErrInvalidInput", err)
 			}
 		})

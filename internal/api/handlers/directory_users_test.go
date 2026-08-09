@@ -6,8 +6,8 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/directory"
+	"github.com/woodleighschool/woodstar/internal/fault"
 )
 
 func TestUserMutationErrorMapping(t *testing.T) {
@@ -16,8 +16,8 @@ func TestUserMutationErrorMapping(t *testing.T) {
 		err        error
 		wantStatus int
 	}{
-		{name: "not found", err: dbutil.ErrNotFound, wantStatus: 404},
-		{name: "already exists", err: dbutil.ErrAlreadyExists, wantStatus: 409},
+		{name: "not found", err: fault.ErrNotFound, wantStatus: 404},
+		{name: "already exists", err: fault.ErrAlreadyExists, wantStatus: 409},
 		{name: "weak password", err: directory.ErrWeakPassword, wantStatus: 400},
 	}
 

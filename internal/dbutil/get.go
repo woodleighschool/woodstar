@@ -6,7 +6,7 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// GetOne scans exactly one row into T by column name, or ErrNotFound if no rows exist.
+// GetOne scans exactly one row into T by column name, or fault.ErrNotFound if no rows exist.
 // q may be a *pgxpool.Pool or a pgx.Tx.
 func GetOne[T any](ctx context.Context, q Queryer, sql string, args ...any) (T, error) {
 	var zero T

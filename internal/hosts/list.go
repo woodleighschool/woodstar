@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 )
 
 func (s *Store) List(ctx context.Context, params HostListParams) ([]Host, int, error) {
@@ -46,7 +47,7 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Host, error) {
 func (s *Store) GetByHardwareSerial(ctx context.Context, serial string) (*Host, error) {
 	serial = strings.TrimSpace(serial)
 	if serial == "" {
-		return nil, dbutil.ErrNotFound
+		return nil, fault.ErrNotFound
 	}
 	rows, err := s.db.Pool().Query(ctx, hostSelectSQL()+`
 WHERE hardware_serial = $1 AND hardware_serial <> ''
@@ -61,7 +62,7 @@ LIMIT 2`, serial)
 	}
 	switch len(records) {
 	case 0:
-		return nil, dbutil.ErrNotFound
+		return nil, fault.ErrNotFound
 	case 1:
 		host := hostFromRow(records[0], time.Now())
 		return &host, nil
@@ -96,8 +97,8 @@ func hostListQuery(params HostListParams, where string, args []any) dbutil.ListQ
 
 func hostListWhere(params HostListParams) (string, []any) {
 	var where dbutil.WhereBuilder
-	if params.Q != "" {
-		search := where.Arg("%" + params.Q + "%")
+	if params.ListParams.Q != "" {
+		search := where.Arg("%" + params.ListParams.Q + "%")
 		where.Add(`(
 			display_name ILIKE ` + search + `
 			OR hostname ILIKE ` + search + `

@@ -6,7 +6,7 @@ import (
 	"net/netip"
 
 	"github.com/woodleighschool/woodstar/internal/database"
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 )
 
 // Store persists the most recent heartbeat for each host and source.
@@ -20,15 +20,15 @@ func NewStore(db *database.DB) *Store {
 
 func (s *Store) Record(ctx context.Context, hostID int64, source Source, contact Contact) error {
 	if hostID <= 0 {
-		return fmt.Errorf("host ID: %w", dbutil.ErrInvalidInput)
+		return fmt.Errorf("host ID: %w", fault.ErrInvalidInput)
 	}
 	if !source.valid() {
-		return fmt.Errorf("source: %w", dbutil.ErrInvalidInput)
+		return fmt.Errorf("source: %w", fault.ErrInvalidInput)
 	}
 	if contact.RemoteIP != "" {
 		remoteIP, err := netip.ParseAddr(contact.RemoteIP)
 		if err != nil || remoteIP.Zone() != "" {
-			return fmt.Errorf("remote IP %q: %w", contact.RemoteIP, dbutil.ErrInvalidInput)
+			return fmt.Errorf("remote IP %q: %w", contact.RemoteIP, fault.ErrInvalidInput)
 		}
 	}
 

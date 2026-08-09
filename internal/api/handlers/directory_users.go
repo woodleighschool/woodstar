@@ -8,8 +8,9 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/directory"
+	"github.com/woodleighschool/woodstar/internal/fault"
+	"github.com/woodleighschool/woodstar/internal/listing"
 )
 
 const (
@@ -81,7 +82,7 @@ func RegisterDirectory(
 func (i userListInput) params() directory.UserListParams {
 	return directory.UserListParams{
 		ListParams: i.ListQueryInput.params(),
-		Values:     dbutil.NormalizeListValues(i.Values),
+		Values:     listing.NormalizeValues(i.Values),
 		Roles:      i.Role,
 		Source:     i.Source,
 		GroupID:    i.GroupID,
@@ -91,7 +92,7 @@ func (i userListInput) params() directory.UserListParams {
 func (i departmentListInput) params() directory.UserListParams {
 	return directory.UserListParams{
 		ListParams: i.ListQueryInput.params(),
-		Values:     dbutil.NormalizeListValues(i.Values),
+		Values:     listing.NormalizeValues(i.Values),
 	}
 }
 
@@ -207,7 +208,7 @@ func registerDeleteUser(api huma.API, userService *directory.UserService, logger
 
 func userMutationError(err error) error {
 	switch {
-	case errors.Is(err, dbutil.ErrAlreadyExists):
+	case errors.Is(err, fault.ErrAlreadyExists):
 		return huma.Error409Conflict("email already in use")
 	case errors.Is(err, directory.ErrWeakPassword):
 		return huma.Error400BadRequest(directory.ErrWeakPassword.Error())

@@ -8,7 +8,7 @@ import (
 
 	"howett.net/plist"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/munki/clientresources"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
@@ -216,7 +216,7 @@ func (s *RepositoryService) ResolveClientResources(
 ) (storage.Object, error) {
 	const effectiveClientResourcesID int64 = 1
 	resource, err := s.deps.ClientResources.GetByID(ctx, effectiveClientResourcesID)
-	if errors.Is(err, dbutil.ErrNotFound) {
+	if errors.Is(err, fault.ErrNotFound) {
 		return storage.Object{}, ErrNotFound
 	}
 	if err != nil {

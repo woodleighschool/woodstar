@@ -6,7 +6,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
 )
@@ -16,7 +16,7 @@ func TestListForHostMissingHost(t *testing.T) {
 	store := NewStore(db)
 
 	_, _, err := store.ListForHost(ctx, 999999, HostSoftwareListParams{})
-	if !errors.Is(err, dbutil.ErrNotFound) {
+	if !errors.Is(err, fault.ErrNotFound) {
 		t.Fatalf("ListForHost missing host error = %v, want ErrNotFound", err)
 	}
 }

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 )
 
 func TestValidateCompletedPartsRequiresStrictAscendingNonemptyParts(t *testing.T) {
@@ -25,7 +25,7 @@ func TestValidateCompletedPartsRequiresStrictAscendingNonemptyParts(t *testing.T
 		"descending": {{PartNumber: 2, ETag: `"two"`}, {PartNumber: 1, ETag: `"one"`}},
 	} {
 		t.Run(name, func(t *testing.T) {
-			if err := validateCompletedParts(parts); !errors.Is(err, dbutil.ErrInvalidInput) {
+			if err := validateCompletedParts(parts); !errors.Is(err, fault.ErrInvalidInput) {
 				t.Fatalf("validate parts error = %v, want ErrInvalidInput", err)
 			}
 		})

@@ -7,11 +7,12 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/listing"
 )
 
 func (s *Store) ListTitles(ctx context.Context, params SoftwareTitleListParams) ([]SoftwareTitle, int, error) {
-	params.ListParams = dbutil.NormalizeListParams(params.ListParams)
-	params.SoftwareSources = dbutil.NormalizeListValues(params.SoftwareSources)
+	params.ListParams = listing.Normalize(params.ListParams)
+	params.SoftwareSources = listing.NormalizeValues(params.SoftwareSources)
 	whereSQL, args := softwareTitleWhere(params)
 	listQuery := softwareTitleListQuery(params.ListParams, whereSQL, args)
 
@@ -48,8 +49,8 @@ func (s *Store) GetTitle(ctx context.Context, id int64) (*SoftwareTitle, error) 
 
 func softwareTitleWhere(params SoftwareTitleListParams) (string, []any) {
 	var where dbutil.WhereBuilder
-	if params.Q != "" {
-		search := where.Arg("%" + params.Q + "%")
+	if params.ListParams.Q != "" {
+		search := where.Arg("%" + params.ListParams.Q + "%")
 		where.Add(`(
 			st.name ILIKE ` + search + `
 			OR st.bundle_identifier ILIKE ` + search + `
@@ -77,7 +78,7 @@ func softwareTitleWhere(params SoftwareTitleListParams) (string, []any) {
 	return where.Build()
 }
 
-func softwareTitleListQuery(params dbutil.ListParams, whereSQL string, args []any) dbutil.ListQuery {
+func softwareTitleListQuery(params listing.Params, whereSQL string, args []any) dbutil.ListQuery {
 	return dbutil.ListQuery{
 		SelectSQL:  softwareTitleSelectSQL,
 		WhereSQL:   whereSQL,

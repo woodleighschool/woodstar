@@ -8,6 +8,8 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
+	"github.com/woodleighschool/woodstar/internal/listing"
 )
 
 func (s *Store) ListForHost(
@@ -15,8 +17,8 @@ func (s *Store) ListForHost(
 	hostID int64,
 	params HostSoftwareListParams,
 ) ([]HostSoftware, int, error) {
-	params.ListParams = dbutil.NormalizeListParams(params.ListParams)
-	params.SoftwareSources = dbutil.NormalizeListValues(params.SoftwareSources)
+	params.ListParams = listing.Normalize(params.ListParams)
+	params.SoftwareSources = listing.NormalizeValues(params.SoftwareSources)
 	whereSQL, args := hostSoftwareWhere(hostID, params)
 	listQuery := hostSoftwareTitleListQuery(whereSQL, args, params)
 
@@ -31,7 +33,7 @@ func (s *Store) ListForHost(
 			return nil, 0, err
 		}
 		if !exists {
-			return nil, 0, dbutil.ErrNotFound
+			return nil, 0, fault.ErrNotFound
 		}
 	}
 
@@ -222,8 +224,8 @@ JOIN software_titles st ON st.id = s.title_id`,
 func hostSoftwareWhere(hostID int64, params HostSoftwareListParams) (string, []any) {
 	var where dbutil.WhereBuilder
 	where.Add("hs.host_id = " + where.Arg(hostID))
-	if params.Q != "" {
-		search := where.Arg("%" + params.Q + "%")
+	if params.ListParams.Q != "" {
+		search := where.Arg("%" + params.ListParams.Q + "%")
 		where.Add(`(
 			st.name ILIKE ` + search + `
 			OR st.source ILIKE ` + search + `

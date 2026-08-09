@@ -16,6 +16,8 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
+	"github.com/woodleighschool/woodstar/internal/listing"
 )
 
 // Object is a row in the storage registry: one stored (or pending) blob. The
@@ -99,7 +101,7 @@ func NewObjectStore(db *database.DB, backend objectBackend, logger *slog.Logger)
 // CreatePending reserves an object in the registry without classifying content.
 func (s *ObjectStore) CreatePending(ctx context.Context, prefix, filename string) (*Object, error) {
 	if !prefixPattern.MatchString(prefix) {
-		return nil, fmt.Errorf("%w: invalid storage prefix %q", dbutil.ErrInvalidInput, prefix)
+		return nil, fmt.Errorf("%w: invalid storage prefix %q", fault.ErrInvalidInput, prefix)
 	}
 	filename = normalizeUploadFilename(filename)
 	if err := validateUploadFilename(filename); err != nil {
@@ -204,7 +206,7 @@ RETURNING multipart_upload_id`, id, uploadID).Scan(&recorded)
 	if object.MultipartUploadID != nil {
 		return *object.MultipartUploadID, false, nil
 	}
-	return "", false, fmt.Errorf("%w: storage object is already finalized", dbutil.ErrInvalidInput)
+	return "", false, fmt.Errorf("%w: storage object is already finalized", fault.ErrInvalidInput)
 }
 
 // ClearMultipartUploadID closes the recorded provider upload after assembly.
@@ -229,7 +231,7 @@ WHERE id = $1
 	if object.MultipartUploadID == nil {
 		return nil
 	}
-	return fmt.Errorf("%w: multipart upload ID changed", dbutil.ErrConflict)
+	return fmt.Errorf("%w: multipart upload ID changed", fault.ErrConflict)
 }
 
 // GetByID returns one object.
@@ -271,9 +273,9 @@ func (s *ObjectStore) ListByIDs(ctx context.Context, ids []int64) (map[int64]Obj
 func (s *ObjectStore) ListByPrefix(
 	ctx context.Context,
 	prefix string,
-	params dbutil.ListParams,
+	params listing.Params,
 ) ([]Object, int, error) {
-	params = dbutil.NormalizeListParams(params)
+	params = listing.Normalize(params)
 	listQuery := dbutil.ListQuery{
 		SelectSQL: objectSelectSQL,
 		WhereSQL:  "WHERE prefix = $1 AND available_at IS NOT NULL AND expired_at IS NULL",
@@ -311,7 +313,7 @@ func (s *ObjectStore) DeleteUnreferenced(ctx context.Context, ids ...int64) {
 		switch {
 		case err == nil:
 			s.deleteBytes(cleanupCtx, object)
-		case errors.Is(err, dbutil.ErrNotFound), errors.Is(err, dbutil.ErrConflict):
+		case errors.Is(err, fault.ErrNotFound), errors.Is(err, fault.ErrConflict):
 		default:
 			s.logger.WarnContext(cleanupCtx, "storage object cleanup failed", "object_id", id, "err", err)
 		}
@@ -348,11 +350,11 @@ func (s *ObjectStore) deleteBytes(ctx context.Context, object *Object) {
 func normalizeContentType(value string) (string, error) {
 	mediaType, params, err := mime.ParseMediaType(value)
 	if err != nil {
-		return "", fmt.Errorf("%w: invalid content type: %w", dbutil.ErrInvalidInput, err)
+		return "", fmt.Errorf("%w: invalid content type: %w", fault.ErrInvalidInput, err)
 	}
 	value = mime.FormatMediaType(mediaType, params)
 	if value == "" {
-		return "", fmt.Errorf("%w: invalid content type", dbutil.ErrInvalidInput)
+		return "", fmt.Errorf("%w: invalid content type", fault.ErrInvalidInput)
 	}
 	return value, nil
 }
@@ -360,14 +362,14 @@ func normalizeContentType(value string) (string, error) {
 func normalizeMultipartUploadID(value string) (string, error) {
 	value = strings.TrimSpace(value)
 	if value == "" {
-		return "", fmt.Errorf("%w: multipart upload ID is blank", dbutil.ErrInvalidInput)
+		return "", fmt.Errorf("%w: multipart upload ID is blank", fault.ErrInvalidInput)
 	}
 	return value, nil
 }
 
 func validateAvailableObjectMetadata(sizeBytes int64, sha256sum string) error {
 	if sizeBytes < 0 || strings.TrimSpace(sha256sum) == "" {
-		return fmt.Errorf("%w: incomplete storage object metadata", dbutil.ErrInvalidInput)
+		return fmt.Errorf("%w: incomplete storage object metadata", fault.ErrInvalidInput)
 	}
 	return nil
 }
@@ -384,11 +386,11 @@ func normalizeUploadFilename(name string) string {
 
 func validateUploadFilename(name string) error {
 	if name == "" || name == "." || name == ".." || name == "/" || !utf8.ValidString(name) {
-		return fmt.Errorf("%w: invalid upload filename", dbutil.ErrInvalidInput)
+		return fmt.Errorf("%w: invalid upload filename", fault.ErrInvalidInput)
 	}
 	for _, r := range name {
 		if r < 0x20 || r == 0x7f {
-			return fmt.Errorf("%w: invalid upload filename", dbutil.ErrInvalidInput)
+			return fmt.Errorf("%w: invalid upload filename", fault.ErrInvalidInput)
 		}
 	}
 	return nil

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 )
 
 const uploadCleanupTimeout = 15 * time.Second
@@ -19,8 +19,8 @@ func cleanupUploads(ctx context.Context, uploads uploadCleaner, prefix string, i
 	defer cancel()
 	for _, id := range ids {
 		if err := uploads.Delete(cleanupCtx, id, prefix); err != nil &&
-			!errors.Is(err, dbutil.ErrConflict) &&
-			!errors.Is(err, dbutil.ErrNotFound) {
+			!errors.Is(err, fault.ErrConflict) &&
+			!errors.Is(err, fault.ErrNotFound) {
 			return err
 		}
 	}

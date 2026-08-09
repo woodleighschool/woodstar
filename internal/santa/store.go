@@ -9,6 +9,7 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 )
 
@@ -120,7 +121,7 @@ func (s *Store) LoadObservedHostState(ctx context.Context, hostID int64) (*HostS
 		FROM santa_hosts sh
 		LEFT JOIN santa_sync_state ss ON ss.host_id = sh.host_id
 		WHERE sh.host_id = $1`, hostID)
-	if errors.Is(err, dbutil.ErrNotFound) {
+	if errors.Is(err, fault.ErrNotFound) {
 		return nil, nil
 	}
 	if err != nil {

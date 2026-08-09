@@ -7,6 +7,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/targeting"
 )
 
@@ -75,7 +76,7 @@ func replaceCheckTargets(ctx context.Context, tx pgx.Tx, checkID int64, targets 
 
 func (targets CheckTargets) validate() error {
 	if err := targeting.ValidateLabelSets(targets.Include, targets.Exclude); err != nil {
-		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
+		return fmt.Errorf("%w: %w", fault.ErrInvalidInput, err)
 	}
 	return nil
 }

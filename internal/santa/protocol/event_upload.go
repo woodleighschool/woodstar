@@ -8,7 +8,7 @@ import (
 	syncv1 "buf.build/gen/go/northpolesec/protos/protocolbuffers/go/sync"
 	"google.golang.org/protobuf/encoding/protojson"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/santa"
 	santaevents "github.com/woodleighschool/woodstar/internal/santa/events"
 )
@@ -108,14 +108,14 @@ func standaloneRuleCreationEventFromProto(
 	if event == nil {
 		return santaevents.StandaloneRuleCreationEventInput{}, fmt.Errorf(
 			"%w: audit event is required",
-			dbutil.ErrInvalidInput,
+			fault.ErrInvalidInput,
 		)
 	}
 	creation := event.GetStandaloneModeRuleCreation()
 	if creation == nil {
 		return santaevents.StandaloneRuleCreationEventInput{}, fmt.Errorf(
 			"%w: unsupported audit event",
-			dbutil.ErrInvalidInput,
+			fault.ErrInvalidInput,
 		)
 	}
 	occurredAt, err := requiredUnixSecondsToTime(float64(creation.GetTimestamp()), "audit_event.timestamp")
@@ -172,7 +172,7 @@ func fileAccessEventFromProto(event *syncv1.FileAccessEvent) (santaevents.FileAc
 
 func requiredUnixSecondsToTime(seconds float64, field string) (time.Time, error) {
 	if seconds <= 0 || math.IsNaN(seconds) || math.IsInf(seconds, 0) {
-		return time.Time{}, fmt.Errorf("%w: %s is required", dbutil.ErrInvalidInput, field)
+		return time.Time{}, fmt.Errorf("%w: %s is required", fault.ErrInvalidInput, field)
 	}
 	return unixSecondsToTime(seconds), nil
 }

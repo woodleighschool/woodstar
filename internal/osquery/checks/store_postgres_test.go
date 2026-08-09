@@ -11,9 +11,10 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
+	"github.com/woodleighschool/woodstar/internal/listing"
 	"github.com/woodleighschool/woodstar/internal/targeting"
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
 )
@@ -412,7 +413,7 @@ func TestCreateCheckWithMissingLabelReturnsNotFound(t *testing.T) {
 		Query:   "select 1;",
 		Targets: checkTargets([]int64{999_999}, nil),
 	}))
-	if !errors.Is(err, dbutil.ErrNotFound) {
+	if !errors.Is(err, fault.ErrNotFound) {
 		t.Fatalf("Create error = %v, want ErrNotFound", err)
 	}
 }
@@ -596,7 +597,7 @@ func TestCheckResultsAndHostChecksSearchAndPaginate(t *testing.T) {
 	otherHost := enrollTestHostDetail(t, ctx, hostStore, "check-search-other-host")
 
 	hostResults, count, err := store.CheckResults(ctx, firstCheck.ID, CheckResultListParams{
-		ListParams: dbutil.ListParams{
+		ListParams: listing.Params{
 			Q:        "matching-host",
 			PageSize: 1,
 			Sort:     "host_name.desc",
@@ -610,7 +611,7 @@ func TestCheckResultsAndHostChecksSearchAndPaginate(t *testing.T) {
 	}
 
 	hostResults, count, err = store.CheckResults(ctx, firstCheck.ID, CheckResultListParams{
-		ListParams: dbutil.ListParams{PageSize: 1, Sort: "host_name.desc"},
+		ListParams: listing.Params{PageSize: 1, Sort: "host_name.desc"},
 	})
 	if err != nil {
 		t.Fatalf("paginate check results: %v", err)
@@ -620,7 +621,7 @@ func TestCheckResultsAndHostChecksSearchAndPaginate(t *testing.T) {
 	}
 
 	checkResults, count, err := store.HostChecks(ctx, matchingHost, CheckResultListParams{
-		ListParams: dbutil.ListParams{Q: "Alpha"},
+		ListParams: listing.Params{Q: "Alpha"},
 	})
 	if err != nil {
 		t.Fatalf("search host checks: %v", err)

@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/woodleighschool/woodstar/internal/database"
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
 )
 
@@ -111,10 +111,10 @@ func TestRecordRejectsInvalidHostAndSource(t *testing.T) {
 	store, db, ctx := newPostgresHeartbeatStore(t)
 	hostID := insertHeartbeatHost(t, ctx, db, "validation")
 
-	if err := store.Record(ctx, 0, SourceOrbit, Contact{}); !errors.Is(err, dbutil.ErrInvalidInput) {
+	if err := store.Record(ctx, 0, SourceOrbit, Contact{}); !errors.Is(err, fault.ErrInvalidInput) {
 		t.Fatalf("Record invalid host error = %v, want ErrInvalidInput", err)
 	}
-	if err := store.Record(ctx, hostID, Source("other"), Contact{}); !errors.Is(err, dbutil.ErrInvalidInput) {
+	if err := store.Record(ctx, hostID, Source("other"), Contact{}); !errors.Is(err, fault.ErrInvalidInput) {
 		t.Fatalf("Record invalid source error = %v, want ErrInvalidInput", err)
 	}
 }
@@ -125,7 +125,7 @@ func TestRecordRejectsInvalidRemoteIP(t *testing.T) {
 
 	for _, remoteIP := range []string{"not-an-ip", "192.0.2.1/24", "fe80::1%en0"} {
 		err := store.Record(ctx, hostID, SourceOrbit, Contact{RemoteIP: remoteIP})
-		if !errors.Is(err, dbutil.ErrInvalidInput) {
+		if !errors.Is(err, fault.ErrInvalidInput) {
 			t.Fatalf("Record remote IP %q error = %v, want ErrInvalidInput", remoteIP, err)
 		}
 	}

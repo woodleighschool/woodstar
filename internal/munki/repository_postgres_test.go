@@ -15,8 +15,10 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
+	"github.com/woodleighschool/woodstar/internal/listing"
 	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
@@ -114,7 +116,7 @@ func TestMunkiSoftwareIdentityIsUniqueAndSeparateFromDisplayName(t *testing.T) {
 		)
 	}
 	packageRows, count, err := stores.packages.List(ctx, packages.PackageListParams{
-		ListParams: dbutil.ListParams{Q: "Vendor App"},
+		ListParams: listing.Params{Q: "Vendor App"},
 	})
 	if err != nil {
 		t.Fatalf("search packages by visible software name: %v", err)
@@ -127,7 +129,7 @@ func TestMunkiSoftwareIdentityIsUniqueAndSeparateFromDisplayName(t *testing.T) {
 		Name:        "com.vendor.app",
 		DisplayName: "Duplicate Vendor App",
 	})
-	if !errors.Is(err, dbutil.ErrAlreadyExists) {
+	if !errors.Is(err, fault.ErrAlreadyExists) {
 		t.Fatalf("duplicate canonical name error = %v, want already exists", err)
 	}
 }
@@ -280,7 +282,7 @@ func TestPackageInstallerObjectValidationOwnershipAndTransitions(t *testing.T) {
 			InstallerObjectID: &pending.ID,
 		},
 	})
-	requireErrorIs(t, "create with pending installer", err, dbutil.ErrInvalidInput)
+	requireErrorIs(t, "create with pending installer", err, fault.ErrInvalidInput)
 
 	firstObject := createMunkiPackageObject(t, ctx, stores, "first.pkg", "1")
 	first, err := stores.packages.Create(ctx, packages.PackageCreateMutation{
@@ -300,7 +302,7 @@ func TestPackageInstallerObjectValidationOwnershipAndTransitions(t *testing.T) {
 			InstallerObjectID: &firstObject.ID,
 		},
 	})
-	requireErrorIs(t, "create with owned installer", err, dbutil.ErrConflict)
+	requireErrorIs(t, "create with owned installer", err, fault.ErrConflict)
 
 	secondObject := createMunkiPackageObject(t, ctx, stores, "second.pkg", "2")
 	second, err := stores.packages.Create(ctx, packages.PackageCreateMutation{
@@ -319,13 +321,13 @@ func TestPackageInstallerObjectValidationOwnershipAndTransitions(t *testing.T) {
 		firstObject.ID,
 		second.ID,
 	)
-	requireErrorIs(t, "database unique owner", dbutil.MutationError(err), dbutil.ErrAlreadyExists)
+	requireErrorIs(t, "database unique owner", dbutil.MutationError(err), fault.ErrAlreadyExists)
 
 	_, err = stores.packages.Update(ctx, first.ID, packages.PackageMutation{
 		Version:       first.Version,
 		InstallerType: packages.InstallerTypePkg,
 	})
-	requireErrorIs(t, "update without explicit installer", err, dbutil.ErrInvalidInput)
+	requireErrorIs(t, "update without explicit installer", err, fault.ErrInvalidInput)
 	unchanged, err := stores.packages.GetByID(ctx, first.ID)
 	if err != nil {
 		t.Fatalf("get unchanged package: %v", err)
@@ -437,7 +439,7 @@ func TestCreatePackageRejectsIconObjectAsInstaller(t *testing.T) {
 			InstallerObjectID: &iconObject.ID,
 		}},
 	)
-	if !errors.Is(err, dbutil.ErrInvalidInput) {
+	if !errors.Is(err, fault.ErrInvalidInput) {
 		t.Fatalf("CreatePackage error = %v, want invalid input", err)
 	}
 }
@@ -910,7 +912,7 @@ func TestCreatePackageMissingRelationTargetFallsThroughToNotFound(t *testing.T) 
 			},
 		}},
 	)
-	if !errors.Is(err, dbutil.ErrNotFound) {
+	if !errors.Is(err, fault.ErrNotFound) {
 		t.Fatalf("CreatePackage error = %v, want ErrNotFound", err)
 	}
 }
@@ -949,10 +951,10 @@ func TestBulkDeletePackagesIgnoresMissingIDsAndRemovesSelectedRelations(t *testi
 	if deleted != 2 {
 		t.Fatalf("bulk deleted = %d, want 2", deleted)
 	}
-	if _, err := stores.packages.GetByID(ctx, targetPackage.ID); !errors.Is(err, dbutil.ErrNotFound) {
+	if _, err := stores.packages.GetByID(ctx, targetPackage.ID); !errors.Is(err, fault.ErrNotFound) {
 		t.Fatalf("target package after bulk delete error = %v, want ErrNotFound", err)
 	}
-	if _, err := stores.packages.GetByID(ctx, dependentPackage.ID); !errors.Is(err, dbutil.ErrNotFound) {
+	if _, err := stores.packages.GetByID(ctx, dependentPackage.ID); !errors.Is(err, fault.ErrNotFound) {
 		t.Fatalf("dependent package after bulk delete error = %v, want ErrNotFound", err)
 	}
 }
@@ -981,7 +983,7 @@ func TestBulkDeletePackagesReportsConflictWhileReferenced(t *testing.T) {
 		t.Fatalf("create dependent package: %v", err)
 	}
 
-	if _, err := stores.packages.DeleteMany(ctx, []int64{targetPackage.ID}); !errors.Is(err, dbutil.ErrConflict) {
+	if _, err := stores.packages.DeleteMany(ctx, []int64{targetPackage.ID}); !errors.Is(err, fault.ErrConflict) {
 		t.Fatalf("bulk delete referenced package error = %v, want ErrConflict", err)
 	}
 }
@@ -1013,7 +1015,7 @@ func TestDeleteObjectReportsConflictWhileReferencedByPackage(t *testing.T) {
 		{name: "installer", id: installerObject.ID},
 	}
 	for _, ref := range references {
-		if err := stores.objects.Delete(ctx, ref.id); !errors.Is(err, dbutil.ErrConflict) {
+		if err := stores.objects.Delete(ctx, ref.id); !errors.Is(err, fault.ErrConflict) {
 			t.Fatalf("delete referenced %s object error = %v, want ErrConflict", ref.name, err)
 		}
 	}
@@ -1147,7 +1149,7 @@ func TestSoftwareTargetsRejectPinnedPackageFromAnotherSoftware(t *testing.T) {
 		},
 		nil,
 	))
-	if !errors.Is(err, dbutil.ErrInvalidInput) {
+	if !errors.Is(err, fault.ErrInvalidInput) {
 		t.Fatalf("Update software target error = %v, want invalid input", err)
 	}
 }
@@ -1175,7 +1177,7 @@ func TestSoftwareTargetsRejectBuiltinExclude(t *testing.T) {
 		Targets: munkisoftware.Targets{
 			Exclude: labelRefs([]int64{allHostsLabelID(t, ctx, labelStore)}),
 		},
-	}); !errors.Is(err, dbutil.ErrInvalidInput) {
+	}); !errors.Is(err, fault.ErrInvalidInput) {
 		t.Fatalf("Update software builtin exclude error = %v, want ErrInvalidInput", err)
 	}
 	if _, err := stores.software.Update(ctx, title.ID, munkisoftware.UpdateMutation{
@@ -1209,12 +1211,12 @@ func TestDeleteMunkiSoftwareCleansPackagesTargetsAndIgnoresMissingBulkIDs(t *tes
 	if err := stores.software.Delete(ctx, first.ID); err != nil {
 		t.Fatalf("delete first software: %v", err)
 	}
-	if _, err := stores.software.GetByID(ctx, first.ID); !errors.Is(err, dbutil.ErrNotFound) {
+	if _, err := stores.software.GetByID(ctx, first.ID); !errors.Is(err, fault.ErrNotFound) {
 		t.Fatalf("GetByID after delete error = %v, want ErrNotFound", err)
 	}
 	assertObjectDeleted(t, ctx, stores.objects, firstIcon.ID)
 	assertNoMunkiChildren(t, ctx, stores, first.ID)
-	if err := stores.software.Delete(ctx, first.ID); !errors.Is(err, dbutil.ErrNotFound) {
+	if err := stores.software.Delete(ctx, first.ID); !errors.Is(err, fault.ErrNotFound) {
 		t.Fatalf("repeat delete error = %v, want ErrNotFound", err)
 	}
 
@@ -1239,7 +1241,7 @@ func TestDeleteMunkiSoftwareCleansPackagesTargetsAndIgnoresMissingBulkIDs(t *tes
 		t.Fatalf("bulk deleted = %d, want 2", deleted)
 	}
 	assertNoMunkiChildren(t, ctx, stores, second.ID)
-	if _, err := stores.software.GetByID(ctx, third.ID); !errors.Is(err, dbutil.ErrNotFound) {
+	if _, err := stores.software.GetByID(ctx, third.ID); !errors.Is(err, fault.ErrNotFound) {
 		t.Fatalf("GetByID third after bulk delete error = %v, want ErrNotFound", err)
 	}
 }
@@ -1262,7 +1264,7 @@ func TestTargetMissingLabelFallsThroughToNotFound(t *testing.T) {
 		},
 		nil,
 	))
-	if !errors.Is(err, dbutil.ErrNotFound) {
+	if !errors.Is(err, fault.ErrNotFound) {
 		t.Fatalf("Update software target error = %v, want ErrNotFound", err)
 	}
 }
@@ -1634,7 +1636,7 @@ func assertObjectDeleted(
 	objectID int64,
 ) {
 	t.Helper()
-	if _, err := objects.GetByID(ctx, objectID); !errors.Is(err, dbutil.ErrNotFound) {
+	if _, err := objects.GetByID(ctx, objectID); !errors.Is(err, fault.ErrNotFound) {
 		t.Fatalf("get deleted object %d error = %v, want ErrNotFound", objectID, err)
 	}
 }

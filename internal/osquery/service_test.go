@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/woodleighschool/woodstar/internal/agentauth"
-	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/enrollment"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/heartbeats"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
@@ -181,7 +181,7 @@ func TestAgentServiceDoesNotRecordUnauthenticatedContact(t *testing.T) {
 
 	hostStore = &fakeHostStore{host: &hosts.Host{ID: 42}}
 	service = newTestAgentService(recorder, hostStore)
-	hostStore.getErr = dbutil.ErrNotFound
+	hostStore.getErr = fault.ErrNotFound
 	resp, err := service.Config(t.Context(), "bad", heartbeats.Contact{})
 	if err != nil || !resp.NodeInvalid {
 		t.Fatalf("Config = %#v, %v; want invalid node without error", resp, err)

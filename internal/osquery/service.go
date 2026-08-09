@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/woodleighschool/woodstar/internal/agentauth"
-	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/enrollment"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/heartbeats"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
@@ -279,7 +279,7 @@ func (s *AgentService) Log(ctx context.Context, nodeKey string, contact heartbea
 
 func (s *AgentService) hostByNodeKey(ctx context.Context, nodeKey string, contact heartbeats.Contact) (*hosts.Host, bool, error) {
 	host, err := s.deps.HostStore.GetByOsqueryNodeKey(ctx, nodeKey)
-	if errors.Is(err, dbutil.ErrNotFound) {
+	if errors.Is(err, fault.ErrNotFound) {
 		return nil, false, nil
 	}
 	if err != nil {

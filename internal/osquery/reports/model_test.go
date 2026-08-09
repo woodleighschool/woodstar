@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/targeting"
 )
 
@@ -120,7 +120,7 @@ func TestReportMutationValidate(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			err := tt.in.Validate()
 			if tt.wantErr {
-				if !errors.Is(err, dbutil.ErrInvalidInput) {
+				if !errors.Is(err, fault.ErrInvalidInput) {
 					t.Fatalf("Validate error = %v, want ErrInvalidInput", err)
 				}
 				return

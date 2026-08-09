@@ -10,6 +10,8 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
+	"github.com/woodleighschool/woodstar/internal/listing"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
@@ -119,7 +121,7 @@ RETURNING id`, pgx.StructArgs(write)).Scan(&updatedID); err != nil {
 
 func (s *Store) GetByID(ctx context.Context, id int64) (*Software, error) {
 	if id <= 0 {
-		return nil, dbutil.ErrNotFound
+		return nil, fault.ErrNotFound
 	}
 	return getSoftwareByID(ctx, s.db.Pool(), id)
 }
@@ -137,7 +139,7 @@ func (s *Store) Delete(ctx context.Context, id int64) error {
 			return dbutil.DeleteConflict(err, "Munki software is still referenced")
 		}
 		if tag.RowsAffected() == 0 {
-			return dbutil.ErrNotFound
+			return fault.ErrNotFound
 		}
 		return nil
 	})
@@ -179,8 +181,8 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 	return deleted, nil
 }
 
-func (s *Store) List(ctx context.Context, params dbutil.ListParams) ([]Software, int, error) {
-	params = dbutil.NormalizeListParams(params)
+func (s *Store) List(ctx context.Context, params listing.Params) ([]Software, int, error) {
+	params = listing.Normalize(params)
 	where, args := softwareListWhere(params)
 	listQuery := dbutil.ListQuery{
 		SelectSQL:    softwareSelectSQL(),
@@ -230,7 +232,7 @@ func (s *Store) SetIcon(ctx context.Context, softwareID, objectID int64) error {
 			return dbutil.MutationError(err)
 		}
 		if tag.RowsAffected() == 0 {
-			return dbutil.ErrNotFound
+			return fault.ErrNotFound
 		}
 		return nil
 	})
@@ -247,13 +249,13 @@ func (s *Store) requireIcon(ctx context.Context, objectID int64) error {
 		return err
 	}
 	if object.Prefix != IconObjectPrefix {
-		return fmt.Errorf("%w: icon_object_id must reference an icon", dbutil.ErrInvalidInput)
+		return fmt.Errorf("%w: icon_object_id must reference an icon", fault.ErrInvalidInput)
 	}
 	if !object.Available() {
-		return fmt.Errorf("%w: icon_object_id must reference an uploaded icon", dbutil.ErrInvalidInput)
+		return fmt.Errorf("%w: icon_object_id must reference an uploaded icon", fault.ErrInvalidInput)
 	}
 	if !supportedIconContentType(object.ContentType) {
-		return fmt.Errorf("%w: icon must be a PNG, JPEG, WebP, or ICNS image", dbutil.ErrInvalidInput)
+		return fmt.Errorf("%w: icon must be a PNG, JPEG, WebP, or ICNS image", fault.ErrInvalidInput)
 	}
 	return nil
 }
@@ -286,7 +288,7 @@ func softwareOrderKeys() map[string]dbutil.OrderExpr {
 	}
 }
 
-func softwareListWhere(params dbutil.ListParams) (string, []any) {
+func softwareListWhere(params listing.Params) (string, []any) {
 	var where dbutil.WhereBuilder
 	if params.Q != "" {
 		search := where.Arg("%" + params.Q + "%")

@@ -5,7 +5,7 @@ import (
 
 	syncv1 "buf.build/gen/go/northpolesec/protos/protocolbuffers/go/sync"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/santa"
 	"github.com/woodleighschool/woodstar/internal/santa/syncstate"
 )
@@ -41,5 +41,5 @@ func syncTypeFromProto(value syncv1.SyncType) (syncstate.SyncType, error) {
 		syncv1.SyncType_CLEAN_FILE_ACCESS_RULES:
 	default:
 	}
-	return "", fmt.Errorf("%w: unsupported sync_type %q", dbutil.ErrInvalidInput, value)
+	return "", fmt.Errorf("%w: unsupported sync_type %q", fault.ErrInvalidInput, value)
 }

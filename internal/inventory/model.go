@@ -3,7 +3,7 @@ package inventory
 import (
 	"time"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/listing"
 )
 
 // Source values come from osquery table names.
@@ -110,14 +110,14 @@ type SoftwareTitle struct {
 
 // SoftwareTitleListParams controls software title list filtering and sorting.
 type SoftwareTitleListParams struct {
-	dbutil.ListParams
+	ListParams listing.Params
 
 	SoftwareSources []string
 }
 
 // HostSoftwareListParams controls software installed on one host.
 type HostSoftwareListParams struct {
-	dbutil.ListParams
+	ListParams listing.Params
 
 	SoftwareSources []string
 }

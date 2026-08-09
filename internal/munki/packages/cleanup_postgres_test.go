@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/woodleighschool/woodstar/internal/database"
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/storage"
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
 )
@@ -55,7 +55,7 @@ func TestPackageUpdateSucceedsWhenReplacedInstallerBytesCannotBeRemoved(t *testi
 	if requestCtx.Err() == nil {
 		t.Fatal("cleanup did not cancel the request context")
 	}
-	if _, err := registry.GetByID(ctx, oldInstaller.ID); !errors.Is(err, dbutil.ErrNotFound) {
+	if _, err := registry.GetByID(ctx, oldInstaller.ID); !errors.Is(err, fault.ErrNotFound) {
 		t.Fatalf("get replaced installer error = %v, want ErrNotFound", err)
 	}
 	if _, err := registry.GetByID(ctx, replacement.ID); err != nil {

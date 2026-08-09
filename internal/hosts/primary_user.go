@@ -11,6 +11,7 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/openapischema"
 	"github.com/woodleighschool/woodstar/internal/validation"
@@ -98,7 +99,7 @@ func deletePrimaryUser(ctx context.Context, tx pgx.Tx, hostID int64, source Prim
 		return err
 	}
 	if !exists {
-		return dbutil.ErrNotFound
+		return fault.ErrNotFound
 	}
 	return nil
 }
@@ -112,7 +113,7 @@ func validatePrimaryUser(email string, source PrimaryUserSource) (string, error)
 	email = strings.TrimSpace(email)
 	mutation := primaryUserMutation{Email: email, Source: source}
 	if err := validation.Struct(mutation); err != nil {
-		return "", fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
+		return "", fmt.Errorf("%w: %w", fault.ErrInvalidInput, err)
 	}
 	return email, nil
 }
@@ -121,7 +122,7 @@ func validatePrimaryUserSource(source PrimaryUserSource) error {
 	if err := validation.Struct(struct {
 		Source PrimaryUserSource `validate:"required,oneof=manual orbit_profile"`
 	}{Source: source}); err != nil {
-		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
+		return fmt.Errorf("%w: %w", fault.ErrInvalidInput, err)
 	}
 	return nil
 }

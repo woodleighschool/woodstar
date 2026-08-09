@@ -9,7 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
+	"github.com/woodleighschool/woodstar/internal/listing"
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
 )
 
@@ -60,7 +61,7 @@ func TestListByPrefixReturnsAvailableObjectsNewestFirst(t *testing.T) {
 		t.Fatalf("finalize other-prefix object: %v", err)
 	}
 
-	objects, count, err := store.ListByPrefix(ctx, "munki/icons", dbutil.ListParams{})
+	objects, count, err := store.ListByPrefix(ctx, "munki/icons", listing.Params{})
 	if err != nil {
 		t.Fatalf("list objects: %v", err)
 	}
@@ -116,7 +117,7 @@ func TestMultipartUploadMustBeClosedBeforeAvailability(t *testing.T) {
 		"application/octet-stream",
 		strings.Repeat("a", 64),
 	)
-	if !errors.Is(err, dbutil.ErrInvalidInput) {
+	if !errors.Is(err, fault.ErrInvalidInput) {
 		t.Fatalf("finalize open multipart error = %v, want ErrInvalidInput", err)
 	}
 	if err := store.ClearMultipartUploadID(ctx, object.ID, uploadID); err != nil {
@@ -149,7 +150,7 @@ func TestDeleteRemovesRegistryWhenBackendDeletionFails(t *testing.T) {
 	if err := store.Delete(ctx, object.ID); err != nil {
 		t.Fatalf("delete: %v", err)
 	}
-	if _, err := store.GetByID(ctx, object.ID); !errors.Is(err, dbutil.ErrNotFound) {
+	if _, err := store.GetByID(ctx, object.ID); !errors.Is(err, fault.ErrNotFound) {
 		t.Fatalf("get deleted object error = %v, want ErrNotFound", err)
 	}
 	if backend.calls != 1 {
@@ -169,7 +170,7 @@ func TestDeleteUnreferencedUsesDetachedContext(t *testing.T) {
 	cancelRequest()
 
 	store.DeleteUnreferenced(requestCtx, object.ID)
-	if _, err := store.GetByID(ctx, object.ID); !errors.Is(err, dbutil.ErrNotFound) {
+	if _, err := store.GetByID(ctx, object.ID); !errors.Is(err, fault.ErrNotFound) {
 		t.Fatalf("get object after cleanup error = %v, want ErrNotFound", err)
 	}
 	if backend.sawCanceledContext {
@@ -194,7 +195,7 @@ INSERT INTO munki_software (name, display_name, icon_object_id)
 VALUES ('Referenced', 'Referenced', $1)`, object.ID); err != nil {
 		t.Fatalf("reference object: %v", err)
 	}
-	if err := store.Delete(ctx, object.ID); !errors.Is(err, dbutil.ErrConflict) {
+	if err := store.Delete(ctx, object.ID); !errors.Is(err, fault.ErrConflict) {
 		t.Fatalf("delete referenced object error = %v, want ErrConflict", err)
 	}
 	if _, err := store.GetByID(ctx, object.ID); err != nil {
@@ -209,7 +210,7 @@ VALUES ('Referenced', 'Referenced', $1)`, object.ID); err != nil {
 	if err := store.Delete(ctx, object.ID); err != nil {
 		t.Fatalf("delete after removing reference: %v", err)
 	}
-	if _, err := store.GetByID(ctx, object.ID); !errors.Is(err, dbutil.ErrNotFound) {
+	if _, err := store.GetByID(ctx, object.ID); !errors.Is(err, fault.ErrNotFound) {
 		t.Fatalf("get object after final reference removal error = %v, want ErrNotFound", err)
 	}
 	if backend.calls != 1 {

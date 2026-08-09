@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 )
 
 func TestNormalizeContentType(t *testing.T) {
@@ -18,7 +18,7 @@ func TestNormalizeContentType(t *testing.T) {
 		t.Fatalf("content type = %q, want normalized media type", got)
 	}
 
-	if _, err := normalizeContentType("not a content type"); !errors.Is(err, dbutil.ErrInvalidInput) {
+	if _, err := normalizeContentType("not a content type"); !errors.Is(err, fault.ErrInvalidInput) {
 		t.Fatalf("normalize invalid content type error = %v, want ErrInvalidInput", err)
 	}
 }
@@ -34,7 +34,7 @@ func TestNormalizeMultipartUploadID(t *testing.T) {
 		t.Fatalf("multipart upload ID = %q, want upload-1", got)
 	}
 
-	if _, err := normalizeMultipartUploadID("  "); !errors.Is(err, dbutil.ErrInvalidInput) {
+	if _, err := normalizeMultipartUploadID("  "); !errors.Is(err, fault.ErrInvalidInput) {
 		t.Fatalf("normalize blank multipart upload ID error = %v, want ErrInvalidInput", err)
 	}
 }
@@ -54,7 +54,7 @@ func TestValidateAvailableObjectMetadata(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			if err := validateAvailableObjectMetadata(input.sizeBytes, input.sha256sum); !errors.Is(err, dbutil.ErrInvalidInput) {
+			if err := validateAvailableObjectMetadata(input.sizeBytes, input.sha256sum); !errors.Is(err, fault.ErrInvalidInput) {
 				t.Fatalf("validate metadata error = %v, want ErrInvalidInput", err)
 			}
 		})

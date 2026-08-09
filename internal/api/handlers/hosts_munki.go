@@ -6,7 +6,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/listing"
 	"github.com/woodleighschool/woodstar/internal/munki"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
 )
@@ -43,7 +43,7 @@ func registerHostMunkiSoftware(
 		func(
 			ctx context.Context,
 			hostID int64,
-			params dbutil.ListParams,
+			params listing.Params,
 		) ([]munkisoftware.HostManifestSoftware, int, error) {
 			return store.ListForHost(ctx, hostID, munkisoftware.HostManifestSoftwareListParams{
 				ListParams: params,

@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/woodleighschool/woodstar/internal/database"
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/santa/rules"
@@ -33,7 +33,7 @@ func TestRuleStorePersistsAndReplacesEditableShape(t *testing.T) {
 			allHostsLabelID,
 		),
 	})
-	if !errors.Is(err, dbutil.ErrInvalidInput) {
+	if !errors.Is(err, fault.ErrInvalidInput) {
 		t.Fatalf("create rule with builtin exclusion error = %v, want ErrInvalidInput", err)
 	}
 
@@ -69,7 +69,7 @@ func TestRuleStorePersistsAndReplacesEditableShape(t *testing.T) {
 		Identifier: binaryIdentifier,
 		Name:       "Duplicate",
 	})
-	if !errors.Is(err, dbutil.ErrAlreadyExists) {
+	if !errors.Is(err, fault.ErrAlreadyExists) {
 		t.Fatalf("duplicate CreateRule error = %v, want ErrAlreadyExists", err)
 	}
 
@@ -115,7 +115,7 @@ func TestRuleMissingLabelFallsThroughToNotFound(t *testing.T) {
 		Name:       "Missing Include Label",
 		Targets:    ruleTargets([]rules.RuleInclude{{Policy: rules.PolicyAllowlist, LabelID: 999_999}}),
 	})
-	if !errors.Is(err, dbutil.ErrNotFound) {
+	if !errors.Is(err, fault.ErrNotFound) {
 		t.Fatalf("missing include label error = %v, want ErrNotFound", err)
 	}
 
@@ -126,7 +126,7 @@ func TestRuleMissingLabelFallsThroughToNotFound(t *testing.T) {
 		Name:       "Missing Exclude Label",
 		Targets:    ruleTargets([]rules.RuleInclude{{Policy: rules.PolicyAllowlist, LabelID: labelID}}, 999_999),
 	})
-	if !errors.Is(err, dbutil.ErrNotFound) {
+	if !errors.Is(err, fault.ErrNotFound) {
 		t.Fatalf("missing exclude label error = %v, want ErrNotFound", err)
 	}
 }
@@ -233,7 +233,7 @@ func TestListRuleStatusesForHostMissingHost(t *testing.T) {
 	store := rules.NewStore(db)
 
 	_, _, err := store.ListRuleStatusesForHost(ctx, 999999, rules.RuleStatusListParams{})
-	if !errors.Is(err, dbutil.ErrNotFound) {
+	if !errors.Is(err, fault.ErrNotFound) {
 		t.Fatalf("ListRuleStatusesForHost missing host error = %v, want ErrNotFound", err)
 	}
 }
@@ -397,7 +397,7 @@ func TestRuleStoreBulkDeleteIgnoresMissingIDs(t *testing.T) {
 	if deleted != 1 {
 		t.Fatalf("deleted = %d, want 1", deleted)
 	}
-	if _, err := store.GetByID(ctx, first.ID); !errors.Is(err, dbutil.ErrNotFound) {
+	if _, err := store.GetByID(ctx, first.ID); !errors.Is(err, fault.ErrNotFound) {
 		t.Fatalf("deleted rule lookup error = %v, want ErrNotFound", err)
 	}
 	if _, err := store.GetByID(ctx, second.ID); err != nil {

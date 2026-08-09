@@ -12,7 +12,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
 )
 
@@ -32,7 +32,7 @@ func TestUploadCleanupRemovesAbandonedDirectUpload(t *testing.T) {
 
 	sweepExpiredUploads(ctx, ingestor, minimumPendingUploadMaxAge, testLogger())
 
-	if _, err := objects.GetByID(ctx, object.ID); !errors.Is(err, dbutil.ErrNotFound) {
+	if _, err := objects.GetByID(ctx, object.ID); !errors.Is(err, fault.ErrNotFound) {
 		t.Fatalf("get expired upload error = %v, want ErrNotFound", err)
 	}
 	if _, _, err := backend.Open(ctx, object.Key()); !errors.Is(err, ErrObjectNotFound) {
@@ -129,11 +129,11 @@ func TestUploadCleanupRetriesMultipartFailure(t *testing.T) {
 
 	sweepExpiredUploads(ctx, ingestor, minimumPendingUploadMaxAge, testLogger())
 
-	if _, err := objects.GetByID(ctx, object.ID); !errors.Is(err, dbutil.ErrNotFound) {
+	if _, err := objects.GetByID(ctx, object.ID); !errors.Is(err, fault.ErrNotFound) {
 		t.Fatalf("get claimed upload error = %v, want ErrNotFound", err)
 	}
 	assertStorageObjectCount(t, ctx, db.Pool(), object.ID, 1)
-	if _, err := objects.MarkAvailable(ctx, object.ID, 9, "application/octet-stream", validHash); !errors.Is(err, dbutil.ErrNotFound) {
+	if _, err := objects.MarkAvailable(ctx, object.ID, 9, "application/octet-stream", validHash); !errors.Is(err, fault.ErrNotFound) {
 		t.Fatalf("finalize claimed upload error = %v, want ErrNotFound", err)
 	}
 

@@ -10,6 +10,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/labels"
+	"github.com/woodleighschool/woodstar/internal/listing"
 )
 
 // Store persists directory users, groups, memberships, and source snapshots.
@@ -436,8 +437,8 @@ func userWhere(params UserListParams) (string, []any) {
 	if params.GroupID > 0 {
 		where.Addf("gm.group_id = %s", params.GroupID)
 	}
-	if params.Q != "" {
-		search := where.Arg("%" + params.Q + "%")
+	if params.ListParams.Q != "" {
+		search := where.Arg("%" + params.ListParams.Q + "%")
 		where.Add(`(
 			u.email ILIKE ` + search + `
 			OR u.user_principal_name ILIKE ` + search + `
@@ -449,7 +450,7 @@ func userWhere(params UserListParams) (string, []any) {
 		)`)
 	}
 	if len(params.Values) > 0 {
-		where.Addf("u.id::text = ANY(%s::text[])", dbutil.NormalizeListValues(params.Values))
+		where.Addf("u.id::text = ANY(%s::text[])", listing.NormalizeValues(params.Values))
 	}
 	if len(params.Roles) > 0 {
 		roles := where.Arg(params.Roles)
@@ -472,12 +473,12 @@ func departmentWhere(params UserListParams) (string, []any) {
 	where.Add("source <> 'local'")
 	where.Add("deleted_at IS NULL")
 	where.Add("NULLIF(btrim(department), '') IS NOT NULL")
-	if params.Q != "" {
-		search := where.Arg("%" + params.Q + "%")
+	if params.ListParams.Q != "" {
+		search := where.Arg("%" + params.ListParams.Q + "%")
 		where.Add("department ILIKE " + search)
 	}
 	if len(params.Values) > 0 {
-		where.Addf("department = ANY(%s::text[])", dbutil.NormalizeListValues(params.Values))
+		where.Addf("department = ANY(%s::text[])", listing.NormalizeValues(params.Values))
 	}
 	return where.Build()
 }

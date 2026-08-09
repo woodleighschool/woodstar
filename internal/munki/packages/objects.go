@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 )
 
 // ObjectPrefix namespaces package installer objects in storage.
@@ -35,10 +36,10 @@ FOR UPDATE`, *objectID).Scan(&prefix, &sizeBytes, &sha256sum, &availableAt); err
 		return dbutil.GetError(err)
 	}
 	if prefix != ObjectPrefix {
-		return fmt.Errorf("%w: installer_object_id must reference a package installer", dbutil.ErrInvalidInput)
+		return fmt.Errorf("%w: installer_object_id must reference a package installer", fault.ErrInvalidInput)
 	}
 	if availableAt == nil || sizeBytes == nil || sha256sum == nil {
-		return fmt.Errorf("%w: installer_object_id must reference a finalized object", dbutil.ErrInvalidInput)
+		return fmt.Errorf("%w: installer_object_id must reference a finalized object", fault.ErrInvalidInput)
 	}
 	var ownerID int64
 	err := tx.QueryRow(ctx, `
@@ -48,7 +49,7 @@ WHERE installer_object_id = $1
   AND id <> $2
 LIMIT 1`, *objectID, packageID).Scan(&ownerID)
 	if err == nil {
-		return fmt.Errorf("%w: installer object is already owned by package %d", dbutil.ErrConflict, ownerID)
+		return fmt.Errorf("%w: installer object is already owned by package %d", fault.ErrConflict, ownerID)
 	}
 	if !errors.Is(err, pgx.ErrNoRows) {
 		return err

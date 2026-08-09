@@ -5,8 +5,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 )
 
 var (
@@ -30,9 +29,9 @@ func statusCodeForError(err error) int {
 		return http.StatusUnsupportedMediaType
 	case errors.Is(err, errInvalidSyncBody),
 		errors.Is(err, errRequestBodyTooBig),
-		errors.Is(err, dbutil.ErrInvalidInput):
+		errors.Is(err, fault.ErrInvalidInput):
 		return http.StatusBadRequest
-	case errors.Is(err, dbutil.ErrNotFound):
+	case errors.Is(err, fault.ErrNotFound):
 		return http.StatusNotFound
 	default:
 		return http.StatusInternalServerError

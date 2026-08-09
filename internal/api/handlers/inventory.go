@@ -8,7 +8,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/inventory"
 )
 
@@ -76,7 +76,7 @@ func registerGetInventorySoftware(api huma.API, softwareStore *inventory.Store, 
 		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *inventorySoftwareGetInput) (*inventorySoftwareGetOutput, error) {
 		title, err := softwareStore.GetTitle(ctx, input.ID)
-		if errors.Is(err, dbutil.ErrNotFound) {
+		if errors.Is(err, fault.ErrNotFound) {
 			return nil, huma.Error404NotFound("software title not found")
 		}
 		if err != nil {

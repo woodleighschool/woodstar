@@ -7,8 +7,8 @@ import (
 
 	"github.com/alexedwards/scs/v2"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/directory"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/httpx"
 )
 
@@ -63,7 +63,7 @@ func (s *Service) CurrentUser(ctx context.Context) (*directory.User, error) {
 	}
 
 	user, err := s.users.Get(ctx, userID)
-	if errors.Is(err, dbutil.ErrNotFound) {
+	if errors.Is(err, fault.ErrNotFound) {
 		s.destroyInvalidSession(ctx)
 		return nil, ErrNotAuthenticated
 	}

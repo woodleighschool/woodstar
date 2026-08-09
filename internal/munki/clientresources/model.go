@@ -11,7 +11,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/gabriel-vasile/mimetype"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/openapischema"
 )
 
@@ -85,11 +85,11 @@ func (m *ClientResourcesMutation) normalize() {
 func (m *ClientResourcesMutation) validate() error {
 	switch {
 	case m.Builder != nil && m.ArchiveObjectID != nil:
-		return fmt.Errorf("%w: provide builder or archive_object_id, not both", dbutil.ErrInvalidInput)
+		return fmt.Errorf("%w: provide builder or archive_object_id, not both", fault.ErrInvalidInput)
 	case m.Builder == nil && m.ArchiveObjectID == nil:
-		return fmt.Errorf("%w: builder or archive_object_id is required", dbutil.ErrInvalidInput)
+		return fmt.Errorf("%w: builder or archive_object_id is required", fault.ErrInvalidInput)
 	case m.ArchiveObjectID != nil && *m.ArchiveObjectID <= 0:
-		return fmt.Errorf("%w: archive_object_id must be positive", dbutil.ErrInvalidInput)
+		return fmt.Errorf("%w: archive_object_id must be positive", fault.ErrInvalidInput)
 	case m.Builder != nil:
 		return m.Builder.validate()
 	default:
@@ -115,16 +115,16 @@ func (b *Builder) normalize() {
 
 func (b *Builder) validate() error {
 	if b.BannerObjectID <= 0 {
-		return fmt.Errorf("%w: banner_object_id is required", dbutil.ErrInvalidInput)
+		return fmt.Errorf("%w: banner_object_id is required", fault.ErrInvalidInput)
 	}
 	if b.BannerFit != BannerFitHeight && b.BannerFit != BannerFitCover {
-		return fmt.Errorf("%w: banner_fit must be height or cover", dbutil.ErrInvalidInput)
+		return fmt.Errorf("%w: banner_fit must be height or cover", fault.ErrInvalidInput)
 	}
 	if b.BannerFocalX < 0 || b.BannerFocalX > 100 {
-		return fmt.Errorf("%w: banner_focal_x must be between 0 and 100", dbutil.ErrInvalidInput)
+		return fmt.Errorf("%w: banner_focal_x must be between 0 and 100", fault.ErrInvalidInput)
 	}
 	if utf8.RuneCountInString(b.FooterText) > maxFooterTextLength {
-		return fmt.Errorf("%w: footer_text is too long", dbutil.ErrInvalidInput)
+		return fmt.Errorf("%w: footer_text is too long", fault.ErrInvalidInput)
 	}
 	if err := validateLinks("links", b.Links); err != nil {
 		return err
@@ -139,23 +139,23 @@ func (l *Link) normalize() {
 
 func validateLinks(field string, links []Link) error {
 	if len(links) > maxLinks {
-		return fmt.Errorf("%w: %s cannot contain more than %d links", dbutil.ErrInvalidInput, field, maxLinks)
+		return fmt.Errorf("%w: %s cannot contain more than %d links", fault.ErrInvalidInput, field, maxLinks)
 	}
 	labels := make(map[string]struct{}, len(links))
 	for i, link := range links {
 		if link.Label == "" {
-			return fmt.Errorf("%w: %s[%d].label is required", dbutil.ErrInvalidInput, field, i)
+			return fmt.Errorf("%w: %s[%d].label is required", fault.ErrInvalidInput, field, i)
 		}
 		if utf8.RuneCountInString(link.Label) > maxLinkLabelLength {
-			return fmt.Errorf("%w: %s[%d].label is too long", dbutil.ErrInvalidInput, field, i)
+			return fmt.Errorf("%w: %s[%d].label is too long", fault.ErrInvalidInput, field, i)
 		}
 		labelKey := strings.ToLower(link.Label)
 		if _, exists := labels[labelKey]; exists {
-			return fmt.Errorf("%w: %s contains duplicate label %q", dbutil.ErrInvalidInput, field, link.Label)
+			return fmt.Errorf("%w: %s contains duplicate label %q", fault.ErrInvalidInput, field, link.Label)
 		}
 		labels[labelKey] = struct{}{}
 		if err := validateLinkTarget(link); err != nil {
-			return fmt.Errorf("%w: %s[%d].target %w", dbutil.ErrInvalidInput, field, i, err)
+			return fmt.Errorf("%w: %s[%d].target %w", fault.ErrInvalidInput, field, i, err)
 		}
 	}
 	return nil
@@ -204,10 +204,10 @@ func bannerExtension(contentType string) (string, bool) {
 
 func validateBanner(contentType string, sizeBytes int64) error {
 	if _, ok := bannerExtension(contentType); !ok {
-		return fmt.Errorf("%w: banner must be a JPEG or PNG image", dbutil.ErrInvalidInput)
+		return fmt.Errorf("%w: banner must be a JPEG or PNG image", fault.ErrInvalidInput)
 	}
 	if sizeBytes <= 0 || sizeBytes > MaxBannerSizeBytes {
-		return fmt.Errorf("%w: banner must be between 1 byte and 5 MiB", dbutil.ErrInvalidInput)
+		return fmt.Errorf("%w: banner must be between 1 byte and 5 MiB", fault.ErrInvalidInput)
 	}
 	return nil
 }

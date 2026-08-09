@@ -5,7 +5,7 @@ import (
 
 	syncv1 "buf.build/gen/go/northpolesec/protos/protocolbuffers/go/sync"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/santa"
 	santarules "github.com/woodleighschool/woodstar/internal/santa/rules"
 	"github.com/woodleighschool/woodstar/internal/santa/syncstate"
@@ -61,12 +61,12 @@ func protoRuleType(ruleType string) (syncv1.RuleType, error) {
 	case santarules.RuleTypeBundle:
 		return syncv1.RuleType_RULETYPE_UNKNOWN, fmt.Errorf(
 			"%w: bundle rules must be expanded before download",
-			dbutil.ErrInvalidInput,
+			fault.ErrInvalidInput,
 		)
 	default:
 		return syncv1.RuleType_RULETYPE_UNKNOWN, fmt.Errorf(
 			"%w: unsupported rule type %q",
-			dbutil.ErrInvalidInput,
+			fault.ErrInvalidInput,
 			ruleType,
 		)
 	}

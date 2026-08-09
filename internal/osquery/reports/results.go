@@ -9,7 +9,9 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/listing"
 )
 
 // OverwriteSnapshot replaces a host's latest snapshot when the report query
@@ -104,7 +106,7 @@ func (s *Store) Snapshots(
 			return nil, 0, err
 		}
 		if !exists {
-			return nil, 0, dbutil.ErrNotFound
+			return nil, 0, fault.ErrNotFound
 		}
 	}
 	return rows, count, nil
@@ -139,7 +141,7 @@ func (s *Store) listSnapshots(
 	nameOrderSQL string,
 	stableOrderSQL string,
 ) ([]ReportSnapshot, int, error) {
-	params.ListParams = dbutil.NormalizeListParams(params.ListParams)
+	params.ListParams = listing.Normalize(params.ListParams)
 	if err := validateReportSnapshotStatusFilter(params.Status); err != nil {
 		return nil, 0, err
 	}
@@ -154,8 +156,8 @@ func (s *Store) listSnapshots(
 	}
 
 	searchPattern := ""
-	if params.Q != "" {
-		searchPattern = where.Arg("%" + params.Q + "%")
+	if params.ListParams.Q != "" {
+		searchPattern = where.Arg("%" + params.ListParams.Q + "%")
 		where.Add(
 			"(" + parentSearchSQL + " ILIKE " + searchPattern +
 				" OR matched_rows.returned_row_count > 0)",
@@ -293,7 +295,7 @@ func validateReportSnapshotStatusFilter(status ReportSnapshotStatus) error {
 	case "", ReportSnapshotStatusCollected, ReportSnapshotStatusPending:
 		return nil
 	default:
-		return dbutil.ErrInvalidInput
+		return fault.ErrInvalidInput
 	}
 }
 

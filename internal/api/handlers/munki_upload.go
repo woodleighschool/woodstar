@@ -8,7 +8,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
@@ -173,7 +173,7 @@ func finalizeMunkiUpload(
 	object, err := ingestor.Finalize(ctx, objectID, prefix)
 	if errors.Is(err, storage.ErrObjectNotFound) {
 		return nil, errors.Join(
-			fmt.Errorf("%w: uploaded object does not exist", dbutil.ErrInvalidInput),
+			fmt.Errorf("%w: uploaded object does not exist", fault.ErrInvalidInput),
 			cleanupMunkiUpload(ctx, ingestor, objectID, prefix),
 		)
 	}
@@ -204,7 +204,7 @@ func cleanupMunkiUpload(
 	prefix string,
 ) error {
 	err := ingestor.Delete(ctx, objectID, prefix)
-	if errors.Is(err, dbutil.ErrConflict) || errors.Is(err, dbutil.ErrNotFound) {
+	if errors.Is(err, fault.ErrConflict) || errors.Is(err, fault.ErrNotFound) {
 		return nil
 	}
 	return err

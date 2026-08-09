@@ -1,16 +1,19 @@
 package mdp
 
-import "github.com/woodleighschool/woodstar/internal/dbutil"
+import (
+	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/listing"
+)
 
 // DistributionPointListParams is the list contract for distribution points.
 type DistributionPointListParams struct {
-	dbutil.ListParams
+	ListParams listing.Params
 }
 
 func distributionPointListWhere(params DistributionPointListParams) (string, []any) {
 	var where dbutil.WhereBuilder
-	if params.Q != "" {
-		search := where.Arg("%" + params.Q + "%")
+	if params.ListParams.Q != "" {
+		search := where.Arg("%" + params.ListParams.Q + "%")
 		where.Add(`(
 			c.name ILIKE ` + search + `
 			OR c.client_base_url ILIKE ` + search + `
