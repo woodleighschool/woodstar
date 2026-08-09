@@ -1,5 +1,6 @@
 import { useRouterState } from "@tanstack/react-router";
 import { ChevronRight, ChevronsUpDown, LogOut, User as UserIcon } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import { type NavItem, type NavMenu, navSections } from "@components/layout/nav-config";
 import { Link } from "@components/link";
@@ -24,6 +25,7 @@ import {
   SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
+  SidebarMenuAction,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSub,
@@ -86,21 +88,48 @@ function SidebarNavGroup({ section, pathname }: { section: NavMenu; pathname: st
 function SidebarNavItem({ item, pathname }: { item: NavItem; pathname: string }) {
   const Icon = item.icon;
   const active = isActivePath(pathname, item);
+  const [open, setOpen] = useState(active);
+
+  useEffect(() => {
+    if (active) setOpen(true);
+  }, [active]);
+
   if (item.items?.length) {
     return (
-      <Collapsible defaultOpen={active} className="group/collapsible" render={<SidebarMenuItem />}>
-        <CollapsibleTrigger render={<SidebarMenuButton tooltip={item.label} isActive={active} />}>
-          {Icon ? <Icon /> : null}
-          <span>{item.label}</span>
-          <ChevronRight className="ml-auto transition-transform duration-200 group-data-open/collapsible:rotate-90" />
-        </CollapsibleTrigger>
+      <Collapsible
+        open={open}
+        onOpenChange={setOpen}
+        className="group/collapsible"
+        render={<SidebarMenuItem />}
+      >
+        {item.to && !item.disabled ? (
+          <>
+            <SidebarMenuButton
+              render={<Link to={item.to} activeOptions={item.activeOptions} />}
+              tooltip={item.label}
+              isActive={active}
+            >
+              {Icon ? <Icon /> : null}
+              <span>{item.label}</span>
+            </SidebarMenuButton>
+            <CollapsibleTrigger render={<SidebarMenuAction aria-label={`Toggle ${item.label}`} />}>
+              <ChevronRight className="transition-transform duration-200 group-data-open/collapsible:rotate-90" />
+            </CollapsibleTrigger>
+          </>
+        ) : (
+          <CollapsibleTrigger render={<SidebarMenuButton tooltip={item.label} isActive={active} />}>
+            {Icon ? <Icon /> : null}
+            <span>{item.label}</span>
+            <ChevronRight className="ml-auto transition-transform duration-200 group-data-open/collapsible:rotate-90" />
+          </CollapsibleTrigger>
+        )}
         <CollapsibleContent className="h-(--collapsible-panel-height) overflow-hidden opacity-100 transition-[height,opacity] duration-200 ease-out data-ending-style:h-0 data-ending-style:opacity-0 data-starting-style:h-0 data-starting-style:opacity-0 motion-reduce:transition-none">
           <SidebarMenuSub>
             {item.items.map((child) => (
               <SidebarMenuSubItem key={child.to ?? child.label}>
                 {child.to ? (
                   <SidebarMenuSubButton
-                    render={<Link to={child.to} />}
+                    render={<Link to={child.to} activeOptions={child.activeOptions} />}
                     isActive={isActivePath(pathname, child)}
                   >
                     <span>{child.label}</span>
@@ -120,7 +149,11 @@ function SidebarNavItem({ item, pathname }: { item: NavItem; pathname: string })
   return (
     <SidebarMenuItem>
       <SidebarMenuButton
-        render={item.to && !item.disabled ? <Link to={item.to} /> : undefined}
+        render={
+          item.to && !item.disabled ? (
+            <Link to={item.to} activeOptions={item.activeOptions} />
+          ) : undefined
+        }
         tooltip={item.label}
         isActive={active}
         disabled={item.disabled}
@@ -211,6 +244,7 @@ function SidebarUserAvatar() {
   );
 }
 function isActivePath(pathname: string, item: NavItem): boolean {
-  if (item.to && (pathname === item.to || pathname.startsWith(`${item.to}/`))) return true;
+  if (item.to && pathname === item.to) return true;
+  if (item.to && !item.activeOptions?.exact && pathname.startsWith(`${item.to}/`)) return true;
   return item.items?.some((child) => isActivePath(pathname, child)) ?? false;
 }

@@ -1387,6 +1387,26 @@ export type SoftwareVersionList = {
     items: Array<SoftwareVersion>;
 };
 
+export type SyncRun = {
+    duration_ms?: number;
+    error?: string;
+    finished_at?: string;
+    groups?: number;
+    id: number;
+    outcome?: 'succeeded' | 'failed';
+    queued_at: string;
+    started_at?: string;
+    trigger: 'scheduled' | 'manual';
+    users?: number;
+};
+
+export type SyncStatus = {
+    activity: 'idle' | 'queued' | 'running';
+    current_run?: SyncRun;
+    enabled: boolean;
+    last_run?: SyncRun;
+};
+
 export type User = {
     can_login: boolean;
     created_at: string;
@@ -1776,6 +1796,72 @@ export type UpdateAgentSecretResponses = {
 };
 
 export type UpdateAgentSecretResponse = UpdateAgentSecretResponses[keyof UpdateAgentSecretResponses];
+
+export type GetDirectorySyncData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/directory/sync';
+};
+
+export type GetDirectorySyncErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type GetDirectorySyncError = GetDirectorySyncErrors[keyof GetDirectorySyncErrors];
+
+export type GetDirectorySyncResponses = {
+    /**
+     * OK
+     */
+    200: SyncStatus;
+};
+
+export type GetDirectorySyncResponse = GetDirectorySyncResponses[keyof GetDirectorySyncResponses];
+
+export type TriggerDirectorySyncData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/directory/sync';
+};
+
+export type TriggerDirectorySyncErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Conflict
+     */
+    409: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type TriggerDirectorySyncError = TriggerDirectorySyncErrors[keyof TriggerDirectorySyncErrors];
+
+export type TriggerDirectorySyncResponses = {
+    /**
+     * Accepted
+     */
+    202: SyncStatus;
+};
+
+export type TriggerDirectorySyncResponse = TriggerDirectorySyncResponses[keyof TriggerDirectorySyncResponses];
 
 export type ListGroupsData = {
     body?: never;

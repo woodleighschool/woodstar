@@ -1,3 +1,4 @@
+import { linkOptions, type ActiveOptions } from "@tanstack/react-router";
 import {
   Database,
   KeyRound,
@@ -13,23 +14,24 @@ import {
 export interface NavItem {
   label: string;
   to?: string;
+  activeOptions?: ActiveOptions;
   icon?: LucideIcon;
   disabled?: boolean;
-  items?: NavItem[];
+  items?: readonly NavItem[];
 }
 
 export interface NavMenu {
   label: string;
-  items: NavItem[];
+  items: readonly NavItem[];
 }
 
 export const navSections: NavMenu[] = [
   {
     label: "Inventory",
-    items: [
+    items: linkOptions([
       { label: "Hosts", to: "/hosts", icon: ServerCog },
       { label: "Software", to: "/software", icon: Package },
-    ],
+    ]),
   },
   {
     label: "Integrations",
@@ -37,29 +39,29 @@ export const navSections: NavMenu[] = [
       {
         label: "Osquery",
         icon: Database,
-        items: [
+        items: linkOptions([
           { label: "Reports", to: "/osquery/reports" },
           { label: "Checks", to: "/osquery/checks" },
-        ],
+        ]),
       },
       {
         label: "Santa",
         icon: ShieldCheck,
-        items: [
+        items: linkOptions([
           { label: "Configurations", to: "/santa/configurations" },
           { label: "Rules", to: "/santa/rules" },
           { label: "Events", to: "/santa/events" },
-        ],
+        ]),
       },
       {
         label: "Munki",
         icon: PackageSearch,
-        items: [
+        items: linkOptions([
           { label: "Software", to: "/munki/software" },
           { label: "Packages", to: "/munki/packages" },
           { label: "Distribution Points", to: "/munki/distribution-points" },
           { label: "Client Resources", to: "/munki/client-resources" },
-        ],
+        ]),
       },
     ],
   },
@@ -68,22 +70,25 @@ export const navSections: NavMenu[] = [
     items: [
       {
         label: "Directory",
+        to: "/directory",
+        activeOptions: { exact: true },
         icon: UsersRound,
-        items: [
+        items: linkOptions([
+          { label: "Overview", to: "/directory", activeOptions: { exact: true } },
           { label: "Users", to: "/directory/users" },
           { label: "Groups", to: "/directory/groups" },
-        ],
+        ]),
       },
       {
         label: "Enrollments",
         icon: KeyRound,
-        items: [
+        items: linkOptions([
           { label: "Orbit", to: "/enrollments/orbit" },
           { label: "Munki", to: "/enrollments/munki" },
           { label: "Santa", to: "/enrollments/santa" },
-        ],
+        ]),
       },
-      { label: "Labels", to: "/labels", icon: Tag },
+      linkOptions({ label: "Labels", to: "/labels", icon: Tag }),
     ],
   },
 ];

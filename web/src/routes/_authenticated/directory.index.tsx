@@ -1,7 +1,7 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
+
+import { DirectoryOverviewPage } from "@features/directory/sync/page";
 
 export const Route = createFileRoute("/_authenticated/directory/")({
-  beforeLoad: () => {
-    throw redirect({ to: "/directory/users" });
-  },
+  component: DirectoryOverviewPage,
 });
