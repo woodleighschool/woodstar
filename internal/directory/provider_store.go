@@ -7,7 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/postgres"
 )
 
 // ApplyProviderSnapshot reconciles a source-owned snapshot and derived label
@@ -43,7 +43,7 @@ ON CONFLICT (source, external_id) DO UPDATE SET
     display_name = EXCLUDED.display_name,
     mail_nickname = EXCLUDED.mail_nickname,
     updated_at = now()`,
-			string(source), g.ExternalID, g.DisplayName, dbutil.NullString(g.MailNickname),
+			string(source), g.ExternalID, g.DisplayName, postgres.NullString(g.MailNickname),
 		); err != nil {
 			return err
 		}
@@ -102,7 +102,7 @@ WHERE (
 	      source = $1::directory_source AND deleted_at IS NOT NULL
 	  )
   AND email = COALESCE($3::text, $4::text)`,
-			string(source), u.ExternalID, dbutil.NullString(u.Mail), u.UserPrincipalName,
+			string(source), u.ExternalID, postgres.NullString(u.Mail), u.UserPrincipalName,
 		); err != nil {
 			return err
 		}
@@ -140,13 +140,13 @@ ON CONFLICT (source, external_id) DO UPDATE SET
     deleted_at = EXCLUDED.deleted_at,
     updated_at = now()
 RETURNING id`,
-		dbutil.NullString(u.Mail), u.UserPrincipalName,
+		postgres.NullString(u.Mail), u.UserPrincipalName,
 		u.DisplayName,
 		string(source), u.ExternalID,
-		dbutil.NullString(u.MailNickname),
-		dbutil.NullString(u.GivenName),
-		dbutil.NullString(u.FamilyName),
-		dbutil.NullString(u.Department),
+		postgres.NullString(u.MailNickname),
+		postgres.NullString(u.GivenName),
+		postgres.NullString(u.FamilyName),
+		postgres.NullString(u.Department),
 		u.Enabled,
 	).Scan(&userID)
 	if err != nil {
@@ -176,7 +176,7 @@ WHERE u.source = 'local'
   )
 ORDER BY CASE WHEN l.external_id = $2 THEN 0 ELSE 1 END, u.id
 LIMIT 1`,
-		string(source), u.ExternalID, dbutil.NullString(u.Mail), u.UserPrincipalName,
+		string(source), u.ExternalID, postgres.NullString(u.Mail), u.UserPrincipalName,
 	).Scan(&userID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return false, nil
@@ -209,10 +209,10 @@ SET
 WHERE id = $1`,
 		userID,
 		u.UserPrincipalName,
-		dbutil.NullString(u.MailNickname),
-		dbutil.NullString(u.GivenName),
-		dbutil.NullString(u.FamilyName),
-		dbutil.NullString(u.Department),
+		postgres.NullString(u.MailNickname),
+		postgres.NullString(u.GivenName),
+		postgres.NullString(u.FamilyName),
+		postgres.NullString(u.Department),
 	); err != nil {
 		return false, err
 	}

@@ -6,8 +6,6 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-
-	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
 type Store struct {
@@ -79,9 +77,9 @@ ON CONFLICT (host_id) DO UPDATE SET
 			"host_id":          observation.HostID,
 			"version":          observation.Version,
 			"manifest_name":    observation.ManifestName,
-			"errors":           dbutil.NonNilSlice(observation.Errors),
-			"warnings":         dbutil.NonNilSlice(observation.Warnings),
-			"problem_installs": dbutil.NonNilSlice(observation.ProblemInstalls),
+			"errors":           nonNilStrings(observation.Errors),
+			"warnings":         nonNilStrings(observation.Warnings),
+			"problem_installs": nonNilStrings(observation.ProblemInstalls),
 			"run_started_at":   observation.RunStartedAt,
 			"run_ended_at":     observation.RunEndedAt,
 		})
@@ -160,8 +158,15 @@ func (s *Store) LoadHostState(ctx context.Context, hostID int64) (*HostState, er
 	if err != nil {
 		return nil, err
 	}
-	state.Errors = dbutil.NonNilSlice(state.Errors)
-	state.Warnings = dbutil.NonNilSlice(state.Warnings)
-	state.ProblemInstalls = dbutil.NonNilSlice(state.ProblemInstalls)
+	state.Errors = nonNilStrings(state.Errors)
+	state.Warnings = nonNilStrings(state.Warnings)
+	state.ProblemInstalls = nonNilStrings(state.ProblemInstalls)
 	return &state, nil
+}
+
+func nonNilStrings(values []string) []string {
+	if values == nil {
+		return []string{}
+	}
+	return values
 }

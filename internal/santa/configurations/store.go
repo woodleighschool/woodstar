@@ -9,9 +9,9 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/listing"
+	"github.com/woodleighschool/woodstar/internal/postgres"
 	"github.com/woodleighschool/woodstar/internal/targeting"
 )
 
@@ -29,16 +29,16 @@ func (s *Store) List(
 ) ([]Configuration, int, error) {
 	params.ListParams = listing.Normalize(params.ListParams)
 	where, args := configurationListWhere(params)
-	listQuery := dbutil.ListQuery{
+	listQuery := postgres.ListQuery{
 		SelectSQL:    configurationSelectSQL(),
 		WhereSQL:     where,
 		Args:         args,
 		OrderKeys:    configurationOrderKeys(),
-		DefaultOrder: []dbutil.OrderExpr{{SQL: "c.position"}, {SQL: "c.id"}},
+		DefaultOrder: []postgres.OrderExpr{{SQL: "c.position"}, {SQL: "c.id"}},
 		Params:       params.ListParams,
 	}
 
-	rows, count, err := dbutil.ListWithCount[configurationRow](ctx, s.pool, listQuery)
+	rows, count, err := postgres.ListWithCount[configurationRow](ctx, s.pool, listQuery)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -59,7 +59,7 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Configuration, error) {
 	if id <= 0 {
 		return nil, fault.ErrNotFound
 	}
-	row, err := dbutil.GetOne[configurationRow](
+	row, err := postgres.GetOne[configurationRow](
 		ctx,
 		s.pool,
 		configurationSelectSQL()+"\nWHERE c.id = $1",
@@ -128,7 +128,7 @@ func (s *Store) Create(ctx context.Context, params ConfigurationMutation) (*Conf
 				@event_detail_text
 			)
 			RETURNING id`, pgx.StructArgs(write)).Scan(&id); err != nil {
-			return dbutil.MutationError(err)
+			return postgres.MutationError(err)
 		}
 		return replaceConfigurationTargets(ctx, tx, id, params.Targets)
 	})
@@ -172,7 +172,7 @@ func (s *Store) Update(ctx context.Context, id int64, params ConfigurationMutati
 				updated_at = now()
 			WHERE id = @id
 			RETURNING id`, pgx.StructArgs(write)).Scan(&updatedID); err != nil {
-			return dbutil.MutationError(err)
+			return postgres.MutationError(err)
 		}
 		return replaceConfigurationTargets(ctx, tx, id, params.Targets)
 	})
@@ -185,7 +185,7 @@ func (s *Store) Update(ctx context.Context, id int64, params ConfigurationMutati
 func (s *Store) Delete(ctx context.Context, id int64) error {
 	tag, err := s.pool.Exec(ctx, `DELETE FROM santa_configurations WHERE id = $1`, id)
 	if err != nil {
-		return dbutil.DeleteConflict(err, "Santa configuration is still referenced")
+		return postgres.DeleteConflict(err, "Santa configuration is still referenced")
 	}
 	if tag.RowsAffected() == 0 {
 		return fault.ErrNotFound
@@ -374,14 +374,14 @@ func replaceConfigurationTargets(
 			Position:        int32(i),
 		})
 	}
-	if err := dbutil.ReplaceChildren(
+	if err := postgres.ReplaceChildren(
 		ctx, tx,
 		`DELETE FROM santa_configuration_targets WHERE configuration_id = $1`, []any{configurationID},
 		`
 			INSERT INTO santa_configuration_targets (configuration_id, label_id, direction, position)
 			VALUES (@configuration_id, @label_id, @direction::target_direction, @position)`, rows,
 	); err != nil {
-		return dbutil.MutationError(err)
+		return postgres.MutationError(err)
 	}
 	return nil
 }
@@ -440,7 +440,7 @@ func (s *Store) attachConfigurationTargets(
 }
 
 func configurationListWhere(params ConfigurationListParams) (string, []any) {
-	var where dbutil.WhereBuilder
+	var where postgres.WhereBuilder
 	if params.ListParams.Q != "" {
 		search := where.Arg("%" + params.ListParams.Q + "%")
 		where.Add(`(
@@ -457,8 +457,8 @@ func configurationListWhere(params ConfigurationListParams) (string, []any) {
 	return where.Build()
 }
 
-func configurationOrderKeys() map[string]dbutil.OrderExpr {
-	return map[string]dbutil.OrderExpr{
+func configurationOrderKeys() map[string]postgres.OrderExpr {
+	return map[string]postgres.OrderExpr{
 		"name":        {SQL: "lower(c.name)"},
 		"description": {SQL: "lower(c.description)"},
 		"position":    {SQL: "c.position"},

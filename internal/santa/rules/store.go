@@ -9,9 +9,9 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/listing"
+	"github.com/woodleighschool/woodstar/internal/postgres"
 	"github.com/woodleighschool/woodstar/internal/santa/payloadhash"
 	"github.com/woodleighschool/woodstar/internal/santa/syncstate"
 	"github.com/woodleighschool/woodstar/internal/targeting"
@@ -32,15 +32,15 @@ func (s *Store) List(ctx context.Context, params RuleListParams) ([]Rule, int, e
 		return nil, 0, err
 	}
 	where, args := ruleListWhere(params)
-	listQuery := dbutil.ListQuery{
+	listQuery := postgres.ListQuery{
 		SelectSQL:    ruleSelectSQL(),
 		WhereSQL:     where,
 		Args:         args,
 		OrderKeys:    ruleOrderKeys(),
-		DefaultOrder: []dbutil.OrderExpr{{SQL: "rule_type_sort"}, {SQL: "identifier"}, {SQL: "id"}},
+		DefaultOrder: []postgres.OrderExpr{{SQL: "rule_type_sort"}, {SQL: "identifier"}, {SQL: "id"}},
 		Params:       params.ListParams,
 	}
-	rows, count, err := dbutil.ListWithCount[ruleRow](ctx, s.pool, listQuery)
+	rows, count, err := postgres.ListWithCount[ruleRow](ctx, s.pool, listQuery)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -60,7 +60,7 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Rule, error) {
 	if id <= 0 {
 		return nil, fault.ErrNotFound
 	}
-	row, err := dbutil.GetOne[ruleRow](ctx, s.pool, ruleSelectSQL()+"\nWHERE id = $1", id)
+	row, err := postgres.GetOne[ruleRow](ctx, s.pool, ruleSelectSQL()+"\nWHERE id = $1", id)
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +103,7 @@ func (s *Store) Create(ctx context.Context, params RuleMutation) (*Rule, error) 
 				@custom_url
 			)
 			RETURNING id`, pgx.StructArgs(write)).Scan(&ruleID); err != nil {
-			return dbutil.MutationError(err)
+			return postgres.MutationError(err)
 		}
 		return replaceRuleTargets(ctx, tx, ruleID, params.Targets)
 	})
@@ -140,7 +140,7 @@ func (s *Store) Update(ctx context.Context, id int64, params RuleMutation) (*Rul
 				updated_at = now()
 			WHERE id = @id
 			RETURNING id`, pgx.StructArgs(write)).Scan(&updatedID); err != nil {
-			return dbutil.MutationError(err)
+			return postgres.MutationError(err)
 		}
 		return replaceRuleTargets(ctx, tx, id, params.Targets)
 	})
@@ -153,7 +153,7 @@ func (s *Store) Update(ctx context.Context, id int64, params RuleMutation) (*Rul
 func (s *Store) Delete(ctx context.Context, id int64) error {
 	tag, err := s.pool.Exec(ctx, `DELETE FROM santa_rules WHERE id = $1`, id)
 	if err != nil {
-		return dbutil.DeleteConflict(err, "Santa rule is still referenced")
+		return postgres.DeleteConflict(err, "Santa rule is still referenced")
 	}
 	if tag.RowsAffected() == 0 {
 		return fault.ErrNotFound
@@ -379,7 +379,7 @@ func replaceRuleTargets(
 			LabelID:   exclude.LabelID,
 		})
 	}
-	if err := dbutil.ReplaceChildren(
+	if err := postgres.ReplaceChildren(
 		ctx, tx,
 		`DELETE FROM santa_rule_targets WHERE rule_id = $1`, []any{ruleID},
 		`
@@ -393,7 +393,7 @@ func replaceRuleTargets(
 				NULLIF(@cel_expression, '')
 			)`, rows,
 	); err != nil {
-		return dbutil.MutationError(err)
+		return postgres.MutationError(err)
 	}
 	return nil
 }
@@ -498,7 +498,7 @@ func validateBundleRuleTarget(ctx context.Context, tx pgx.Tx, params RuleMutatio
 }
 
 func ruleListWhere(params RuleListParams) (string, []any) {
-	var where dbutil.WhereBuilder
+	var where postgres.WhereBuilder
 	if params.ListParams.Q != "" {
 		search := where.Arg("%" + params.ListParams.Q + "%")
 		where.Add(`(
@@ -513,8 +513,8 @@ func ruleListWhere(params RuleListParams) (string, []any) {
 	return where.Build()
 }
 
-func ruleOrderKeys() map[string]dbutil.OrderExpr {
-	return map[string]dbutil.OrderExpr{
+func ruleOrderKeys() map[string]postgres.OrderExpr {
+	return map[string]postgres.OrderExpr{
 		"rule_type":   {SQL: "rule_type_sort"},
 		"identifier":  {SQL: "identifier"},
 		"name":        {SQL: "lower(name)"},

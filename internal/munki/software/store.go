@@ -9,10 +9,10 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/listing"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
+	"github.com/woodleighschool/woodstar/internal/postgres"
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
@@ -62,7 +62,7 @@ INSERT INTO munki_software (
 	@icon_object_id
 )
 RETURNING id`, pgx.StructArgs(write)).Scan(&id); err != nil {
-			return dbutil.MutationError(err)
+			return postgres.MutationError(err)
 		}
 		return s.replaceTargets(ctx, tx, id, params.Targets)
 	})
@@ -101,7 +101,7 @@ SET
 	updated_at = now()
 WHERE id = @id
 RETURNING id`, pgx.StructArgs(write)).Scan(&updatedID); err != nil {
-			return dbutil.MutationError(err)
+			return postgres.MutationError(err)
 		}
 		if err := s.replaceTargets(ctx, tx, id, params.Targets); err != nil {
 			return err
@@ -136,7 +136,7 @@ func (s *Store) Delete(ctx context.Context, id int64) error {
 		}
 		tag, err := tx.Exec(ctx, `DELETE FROM munki_software WHERE id = $1`, id)
 		if err != nil {
-			return dbutil.DeleteConflict(err, "Munki software is still referenced")
+			return postgres.DeleteConflict(err, "Munki software is still referenced")
 		}
 		if tag.RowsAffected() == 0 {
 			return fault.ErrNotFound
@@ -165,11 +165,11 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 		}
 		rows, err := tx.Query(ctx, `DELETE FROM munki_software WHERE id = ANY($1::bigint[]) RETURNING id`, ids)
 		if err != nil {
-			return dbutil.DeleteConflict(err, "Munki software is still referenced")
+			return postgres.DeleteConflict(err, "Munki software is still referenced")
 		}
 		deletedIDs, err := pgx.CollectRows(rows, pgx.RowTo[int64])
 		if err != nil {
-			return dbutil.DeleteConflict(err, "Munki software is still referenced")
+			return postgres.DeleteConflict(err, "Munki software is still referenced")
 		}
 		deleted = len(deletedIDs)
 		return nil
@@ -184,15 +184,15 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 func (s *Store) List(ctx context.Context, params listing.Params) ([]Software, int, error) {
 	params = listing.Normalize(params)
 	where, args := softwareListWhere(params)
-	listQuery := dbutil.ListQuery{
+	listQuery := postgres.ListQuery{
 		SelectSQL:    softwareSelectSQL(),
 		WhereSQL:     where,
 		Args:         args,
 		OrderKeys:    softwareOrderKeys(),
-		DefaultOrder: []dbutil.OrderExpr{{SQL: "lower(st.name)"}, {SQL: "st.id"}},
+		DefaultOrder: []postgres.OrderExpr{{SQL: "lower(st.name)"}, {SQL: "st.id"}},
 		Params:       params,
 	}
-	rows, count, err := dbutil.ListWithCount[softwareRow](ctx, s.pool, listQuery)
+	rows, count, err := postgres.ListWithCount[softwareRow](ctx, s.pool, listQuery)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -229,7 +229,7 @@ func (s *Store) SetIcon(ctx context.Context, softwareID, objectID int64) error {
 			&objectID,
 		)
 		if err != nil {
-			return dbutil.MutationError(err)
+			return postgres.MutationError(err)
 		}
 		if tag.RowsAffected() == 0 {
 			return fault.ErrNotFound
@@ -278,8 +278,8 @@ func replacedObjectID(oldID, newID *int64) []int64 {
 	return []int64{*oldID}
 }
 
-func softwareOrderKeys() map[string]dbutil.OrderExpr {
-	return map[string]dbutil.OrderExpr{
+func softwareOrderKeys() map[string]postgres.OrderExpr {
+	return map[string]postgres.OrderExpr{
 		"name":         {SQL: "lower(st.name)"},
 		"display_name": {SQL: "lower(st.display_name)"},
 		"category":     {SQL: "lower(st.category)"},
@@ -289,7 +289,7 @@ func softwareOrderKeys() map[string]dbutil.OrderExpr {
 }
 
 func softwareListWhere(params listing.Params) (string, []any) {
-	var where dbutil.WhereBuilder
+	var where postgres.WhereBuilder
 	if params.Q != "" {
 		search := where.Arg("%" + params.Q + "%")
 		where.Add(`(
@@ -303,7 +303,7 @@ func softwareListWhere(params listing.Params) (string, []any) {
 	return where.Build()
 }
 
-func softwareObjectIDs(ctx context.Context, q dbutil.Queryer, ids []int64) ([]int64, error) {
+func softwareObjectIDs(ctx context.Context, q postgres.Queryer, ids []int64) ([]int64, error) {
 	rows, err := q.Query(ctx, `
 		SELECT DISTINCT refs.object_id::bigint AS object_id
 		FROM munki_software s
@@ -332,7 +332,7 @@ type softwareWrite struct {
 func newSoftwareWrite(params CreateMutation) softwareWrite {
 	return softwareWrite{
 		Name:         params.Name,
-		DisplayName:  dbutil.NullString(params.DisplayName),
+		DisplayName:  postgres.NullString(params.DisplayName),
 		Description:  params.Description,
 		Category:     params.Category,
 		Developer:    params.Developer,
@@ -342,7 +342,7 @@ func newSoftwareWrite(params CreateMutation) softwareWrite {
 
 func newSoftwareUpdateWrite(params UpdateMutation) softwareWrite {
 	return softwareWrite{
-		DisplayName:  dbutil.NullString(params.DisplayName),
+		DisplayName:  postgres.NullString(params.DisplayName),
 		Description:  params.Description,
 		Category:     params.Category,
 		Developer:    params.Developer,
@@ -384,8 +384,8 @@ type softwareRow struct {
 	UpdatedAt     time.Time `db:"updated_at"`
 }
 
-func getSoftwareByID(ctx context.Context, q dbutil.Queryer, id int64) (*Software, error) {
-	row, err := dbutil.GetOne[softwareRow](ctx, q, softwareSelectSQL()+"\nWHERE st.id = $1", id)
+func getSoftwareByID(ctx context.Context, q postgres.Queryer, id int64) (*Software, error) {
+	row, err := postgres.GetOne[softwareRow](ctx, q, softwareSelectSQL()+"\nWHERE st.id = $1", id)
 	if err != nil {
 		return nil, err
 	}

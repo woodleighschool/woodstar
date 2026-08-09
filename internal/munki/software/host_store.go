@@ -3,10 +3,10 @@ package software
 import (
 	"context"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/listing"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
+	"github.com/woodleighschool/woodstar/internal/postgres"
 )
 
 type hostSoftwareRow struct {
@@ -41,7 +41,7 @@ func (s *Store) ListForHost(
 		whereSQL = "WHERE software.name ILIKE $2"
 		args = append(args, "%"+params.ListParams.Q+"%")
 	}
-	query := dbutil.ListQuery{
+	query := postgres.ListQuery{
 		SelectSQL: `
 SELECT
 	resolved.software_id,
@@ -68,16 +68,16 @@ LEFT JOIN munki_host_items observed
 	AND observed.name = resolved.name`,
 		WhereSQL: whereSQL,
 		Args:     args,
-		OrderKeys: map[string]dbutil.OrderExpr{
+		OrderKeys: map[string]postgres.OrderExpr{
 			"name": {SQL: "lower(software.name)"},
 		},
-		DefaultOrder: []dbutil.OrderExpr{
+		DefaultOrder: []postgres.OrderExpr{
 			{SQL: "lower(software.name)"},
 			{SQL: "resolved.software_id"},
 		},
 		Params: params.ListParams,
 	}
-	rows, count, err := dbutil.ListWithCount[hostSoftwareRow](ctx, s.pool, query)
+	rows, count, err := postgres.ListWithCount[hostSoftwareRow](ctx, s.pool, query)
 	if err != nil {
 		return nil, 0, err
 	}

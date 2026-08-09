@@ -8,8 +8,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/fault"
+	"github.com/woodleighschool/woodstar/internal/postgres"
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 )
 
@@ -103,7 +103,7 @@ func (s *Store) UpsertHostObservation(ctx context.Context, observation HostObser
 func (s *Store) hostIDByMachineID(ctx context.Context, machineID string) (int64, error) {
 	var id int64
 	err := s.pool.QueryRow(ctx, `SELECT id FROM hosts WHERE hardware_uuid = $1`, machineID).Scan(&id)
-	return id, dbutil.GetError(err)
+	return id, postgres.GetError(err)
 }
 
 type observedSantaHostStateRow struct {
@@ -113,7 +113,7 @@ type observedSantaHostStateRow struct {
 }
 
 func (s *Store) LoadObservedHostState(ctx context.Context, hostID int64) (*HostState, error) {
-	row, err := dbutil.GetOne[observedSantaHostStateRow](ctx, s.pool, `
+	row, err := postgres.GetOne[observedSantaHostStateRow](ctx, s.pool, `
 		SELECT
 			sh.santa_version,
 			sh.client_mode_reported::text AS client_mode_reported,

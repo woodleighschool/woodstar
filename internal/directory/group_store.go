@@ -3,19 +3,19 @@ package directory
 import (
 	"context"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/listing"
+	"github.com/woodleighschool/woodstar/internal/postgres"
 )
 
 func (s *Store) ListGroups(ctx context.Context, params GroupListParams) ([]Group, int, error) {
 	params.ListParams = listing.Normalize(params.ListParams)
 	params.Values = listing.NormalizeValues(params.Values)
 	where, args := groupWhere(params)
-	return dbutil.ListWithCount[Group](ctx, s.pool, groupListQuery(params, where, args))
+	return postgres.ListWithCount[Group](ctx, s.pool, groupListQuery(params, where, args))
 }
 
 func (s *Store) GetGroupByID(ctx context.Context, id int64) (*Group, error) {
-	group, err := dbutil.GetOne[Group](ctx, s.pool, groupSelectSQL()+`WHERE g.id = $1
+	group, err := postgres.GetOne[Group](ctx, s.pool, groupSelectSQL()+`WHERE g.id = $1
 GROUP BY g.id`, id)
 	if err != nil {
 		return nil, err
@@ -40,7 +40,7 @@ func groupSelectSQL() string {
 }
 
 func groupWhere(params GroupListParams) (string, []any) {
-	var where dbutil.WhereBuilder
+	var where postgres.WhereBuilder
 	if params.ListParams.Q != "" {
 		search := where.Arg("%" + params.ListParams.Q + "%")
 		where.Add(`(
@@ -56,19 +56,19 @@ func groupWhere(params GroupListParams) (string, []any) {
 	return where.Build()
 }
 
-func groupListQuery(params GroupListParams, where string, args []any) dbutil.ListQuery {
-	return dbutil.ListQuery{
+func groupListQuery(params GroupListParams, where string, args []any) postgres.ListQuery {
+	return postgres.ListQuery{
 		SelectSQL:  groupSelectSQL(),
 		WhereSQL:   where,
 		GroupBySQL: "GROUP BY g.id",
 		Args:       args,
-		OrderKeys: map[string]dbutil.OrderExpr{
+		OrderKeys: map[string]postgres.OrderExpr{
 			"display_name":  {SQL: "lower(g.display_name)"},
-			"mail_nickname": {SQL: "lower(g.mail_nickname)", NullOrder: dbutil.NullsLast},
+			"mail_nickname": {SQL: "lower(g.mail_nickname)", NullOrder: postgres.NullsLast},
 			"member_count":  {SQL: "member_count"},
 			"source":        {SQL: "g.source"},
 		},
-		DefaultOrder: []dbutil.OrderExpr{{SQL: "lower(g.display_name)"}, {SQL: "g.id"}},
+		DefaultOrder: []postgres.OrderExpr{{SQL: "lower(g.display_name)"}, {SQL: "g.id"}},
 		Params:       params.ListParams,
 	}
 }

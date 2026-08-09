@@ -7,9 +7,9 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/listing"
+	"github.com/woodleighschool/woodstar/internal/postgres"
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
@@ -23,18 +23,18 @@ func NewStore(pool *pgxpool.Pool, objects *storage.ObjectStore) *Store {
 }
 
 type clientResourcesRow struct {
-	ID              int64                  `db:"id"`
-	ArchiveObjectID int64                  `db:"archive_object_id"`
-	Custom          bool                   `db:"custom"`
-	HasBuilder      bool                   `db:"has_builder"`
-	BannerObjectID  int64                  `db:"banner_object_id"`
-	BannerFit       BannerFit              `db:"banner_fit"`
-	BannerFocalX    int                    `db:"banner_focal_x"`
-	Links           dbutil.JSONSlice[Link] `db:"links"`
-	FooterText      string                 `db:"footer_text"`
-	FooterLinks     dbutil.JSONSlice[Link] `db:"footer_links"`
-	CreatedAt       time.Time              `db:"created_at"`
-	UpdatedAt       time.Time              `db:"updated_at"`
+	ID              int64                    `db:"id"`
+	ArchiveObjectID int64                    `db:"archive_object_id"`
+	Custom          bool                     `db:"custom"`
+	HasBuilder      bool                     `db:"has_builder"`
+	BannerObjectID  int64                    `db:"banner_object_id"`
+	BannerFit       BannerFit                `db:"banner_fit"`
+	BannerFocalX    int                      `db:"banner_focal_x"`
+	Links           postgres.JSONSlice[Link] `db:"links"`
+	FooterText      string                   `db:"footer_text"`
+	FooterLinks     postgres.JSONSlice[Link] `db:"footer_links"`
+	CreatedAt       time.Time                `db:"created_at"`
+	UpdatedAt       time.Time                `db:"updated_at"`
 }
 
 const clientResourcesSelectSQL = `SELECT
@@ -57,17 +57,17 @@ func (s *Store) List(
 	params listing.Params,
 ) ([]ClientResources, int, error) {
 	params = listing.Normalize(params)
-	query := dbutil.ListQuery{
+	query := postgres.ListQuery{
 		SelectSQL: clientResourcesSelectSQL,
-		OrderKeys: map[string]dbutil.OrderExpr{
+		OrderKeys: map[string]postgres.OrderExpr{
 			"id":         {SQL: "cr.id"},
 			"created_at": {SQL: "cr.created_at"},
 			"updated_at": {SQL: "cr.updated_at"},
 		},
-		DefaultOrder: []dbutil.OrderExpr{{SQL: "cr.id"}},
+		DefaultOrder: []postgres.OrderExpr{{SQL: "cr.id"}},
 		Params:       params,
 	}
-	rows, count, err := dbutil.ListWithCount[clientResourcesRow](ctx, s.pool, query)
+	rows, count, err := postgres.ListWithCount[clientResourcesRow](ctx, s.pool, query)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -82,11 +82,11 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*ClientResources, error)
 	return getByID(ctx, s.pool, id)
 }
 
-func getByID(ctx context.Context, q dbutil.Queryer, id int64) (*ClientResources, error) {
+func getByID(ctx context.Context, q postgres.Queryer, id int64) (*ClientResources, error) {
 	if id <= 0 {
 		return nil, fault.ErrNotFound
 	}
-	row, err := dbutil.GetOne[clientResourcesRow](
+	row, err := postgres.GetOne[clientResourcesRow](
 		ctx,
 		q,
 		clientResourcesSelectSQL+"\nWHERE cr.id = $1",
@@ -103,7 +103,7 @@ func lockByID(ctx context.Context, tx pgx.Tx, id int64) (*ClientResources, error
 	if id <= 0 {
 		return nil, fault.ErrNotFound
 	}
-	row, err := dbutil.GetOne[clientResourcesRow](
+	row, err := postgres.GetOne[clientResourcesRow](
 		ctx,
 		tx,
 		clientResourcesSelectSQL+"\nWHERE cr.id = $1\nFOR UPDATE OF cr",
@@ -145,7 +145,7 @@ INSERT INTO munki_client_resources (
     @footer_links::jsonb
 )
 RETURNING id`, clientResourcesWriteArgs(next)).Scan(&id); err != nil {
-		return nil, dbutil.MutationError(err)
+		return nil, postgres.MutationError(err)
 	}
 	return s.GetByID(ctx, id)
 }
@@ -179,7 +179,7 @@ SET
     updated_at = now()
 WHERE id = @id
 RETURNING id`, args).Scan(&updatedID); err != nil {
-			return dbutil.MutationError(err)
+			return postgres.MutationError(err)
 		}
 		return nil
 	})
@@ -209,9 +209,9 @@ func clientResourcesWriteArgs(next clientResourcesWrite) pgx.NamedArgs {
 		"banner_object_id":  builder.BannerObjectID,
 		"banner_fit":        builder.BannerFit,
 		"banner_focal_x":    builder.BannerFocalX,
-		"links":             dbutil.JSONSlice[Link](builder.Links),
+		"links":             postgres.JSONSlice[Link](builder.Links),
 		"footer_text":       builder.FooterText,
-		"footer_links":      dbutil.JSONSlice[Link](builder.FooterLinks),
+		"footer_links":      postgres.JSONSlice[Link](builder.FooterLinks),
 	}
 }
 
@@ -222,7 +222,7 @@ func (s *Store) Delete(ctx context.Context, id int64) error {
 DELETE FROM munki_client_resources
 WHERE id = $1
 RETURNING archive_object_id, banner_object_id`, id).Scan(&archiveObjectID, &bannerObjectID); err != nil {
-		return dbutil.MutationError(err)
+		return postgres.MutationError(err)
 	}
 	objectIDs := []int64{archiveObjectID}
 	if bannerObjectID != nil {

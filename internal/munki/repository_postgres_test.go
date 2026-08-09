@@ -14,7 +14,6 @@ import (
 	"howett.net/plist"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
@@ -22,6 +21,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
+	"github.com/woodleighschool/woodstar/internal/postgres"
 	"github.com/woodleighschool/woodstar/internal/storage"
 	"github.com/woodleighschool/woodstar/internal/targeting"
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
@@ -321,7 +321,7 @@ func TestPackageInstallerObjectValidationOwnershipAndTransitions(t *testing.T) {
 		firstObject.ID,
 		second.ID,
 	)
-	requireErrorIs(t, "database unique owner", dbutil.MutationError(err), fault.ErrAlreadyExists)
+	requireErrorIs(t, "database unique owner", postgres.MutationError(err), fault.ErrAlreadyExists)
 
 	_, err = stores.packages.Update(ctx, first.ID, packages.PackageMutation{
 		Version:       first.Version,

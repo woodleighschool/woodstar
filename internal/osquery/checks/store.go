@@ -8,10 +8,10 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/listing"
+	"github.com/woodleighschool/woodstar/internal/postgres"
 )
 
 // Store persists checks and per-host membership state.
@@ -37,7 +37,7 @@ func (s *Store) Create(ctx context.Context, in CheckCreateMutation) (*Check, err
 			INSERT INTO osquery_checks (name, description, query, created_by_user_id)
 			VALUES (@name, @description, @query, @created_by_user_id)
 			RETURNING id`, pgx.StructArgs(write)).Scan(&id); err != nil {
-			return dbutil.MutationError(err)
+			return postgres.MutationError(err)
 		}
 		return replaceCheckTargets(ctx, tx, id, in.Targets)
 	})
@@ -75,7 +75,7 @@ func (s *Store) Update(ctx context.Context, id int64, in CheckMutation) (*Check,
 			RETURNING current.query IS DISTINCT FROM @query`,
 			pgx.StructArgs(write),
 		).Scan(&queryChanged); err != nil {
-			return dbutil.MutationError(err)
+			return postgres.MutationError(err)
 		}
 		if err := replaceCheckTargets(ctx, tx, id, in.Targets); err != nil {
 			return err
@@ -109,7 +109,7 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Check, error) {
 	if id <= 0 {
 		return nil, fault.ErrNotFound
 	}
-	row, err := dbutil.GetOne[checkRow](ctx, s.pool, checkSelectSQL()+"\nWHERE c.id = $1", id)
+	row, err := postgres.GetOne[checkRow](ctx, s.pool, checkSelectSQL()+"\nWHERE c.id = $1", id)
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +131,7 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Check, error) {
 func (s *Store) Delete(ctx context.Context, id int64) error {
 	tag, err := s.pool.Exec(ctx, `DELETE FROM osquery_checks WHERE id = $1`, id)
 	if err != nil {
-		return dbutil.DeleteConflict(err, "Check is still referenced")
+		return postgres.DeleteConflict(err, "Check is still referenced")
 	}
 	if tag.RowsAffected() == 0 {
 		return fault.ErrNotFound
@@ -158,18 +158,18 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 func (s *Store) List(ctx context.Context, params CheckListParams) ([]Check, int, error) {
 	params.ListParams = listing.Normalize(params.ListParams)
 	where, args := checkListWhere(params)
-	listQuery := dbutil.ListQuery{
+	listQuery := postgres.ListQuery{
 		SelectSQL: checkSelectSQL(),
 		WhereSQL:  where,
 		Args:      args,
 		OrderKeys: checkOrderKeys(),
-		DefaultOrder: []dbutil.OrderExpr{
+		DefaultOrder: []postgres.OrderExpr{
 			{SQL: "c.updated_at"},
 			{SQL: "c.id"},
 		},
 		Params: params.ListParams,
 	}
-	rows, count, err := dbutil.ListWithCount[checkRow](ctx, s.pool, listQuery)
+	rows, count, err := postgres.ListWithCount[checkRow](ctx, s.pool, listQuery)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -280,7 +280,7 @@ func (s *Store) CheckResults(
 		return nil, 0, err
 	}
 	where, args := checkResultListWhere(params, "c.id", checkID, "h.display_name")
-	listQuery := dbutil.ListQuery{
+	listQuery := postgres.ListQuery{
 		SelectSQL: `
 		SELECT
 			c.id AS check_id,
@@ -297,19 +297,19 @@ func (s *Store) CheckResults(
 		   AND m.check_id = c.id`,
 		WhereSQL: where,
 		Args:     args,
-		OrderKeys: map[string]dbutil.OrderExpr{
+		OrderKeys: map[string]postgres.OrderExpr{
 			"host_name":  {SQL: "lower(h.display_name)"},
 			"status":     {SQL: checkStatusOrderSQL()},
-			"updated_at": {SQL: "m.updated_at", NullOrder: dbutil.NullsLast},
+			"updated_at": {SQL: "m.updated_at", NullOrder: postgres.NullsLast},
 		},
-		DefaultOrder: []dbutil.OrderExpr{
+		DefaultOrder: []postgres.OrderExpr{
 			{SQL: checkStatusOrderSQL()},
 			{SQL: "lower(h.display_name)"},
 			{SQL: "h.id"},
 		},
 		Params: params.ListParams,
 	}
-	records, count, err := dbutil.ListWithCount[checkHostStatusRow](ctx, s.pool, listQuery)
+	records, count, err := postgres.ListWithCount[checkHostStatusRow](ctx, s.pool, listQuery)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -340,7 +340,7 @@ func (s *Store) HostChecks(
 		return nil, 0, err
 	}
 	where, args := checkResultListWhere(params, "h.id", host.ID, "c.name")
-	listQuery := dbutil.ListQuery{
+	listQuery := postgres.ListQuery{
 		SelectSQL: `
 		SELECT
 			c.id AS check_id,
@@ -357,19 +357,19 @@ func (s *Store) HostChecks(
 		   AND m.check_id = c.id`,
 		WhereSQL: where,
 		Args:     args,
-		OrderKeys: map[string]dbutil.OrderExpr{
+		OrderKeys: map[string]postgres.OrderExpr{
 			"check_name": {SQL: "lower(c.name)"},
 			"status":     {SQL: checkStatusOrderSQL()},
-			"updated_at": {SQL: "m.updated_at", NullOrder: dbutil.NullsLast},
+			"updated_at": {SQL: "m.updated_at", NullOrder: postgres.NullsLast},
 		},
-		DefaultOrder: []dbutil.OrderExpr{
+		DefaultOrder: []postgres.OrderExpr{
 			{SQL: checkStatusOrderSQL()},
 			{SQL: "lower(c.name)"},
 			{SQL: "c.id"},
 		},
 		Params: params.ListParams,
 	}
-	records, count, err := dbutil.ListWithCount[checkHostStatusRow](ctx, s.pool, listQuery)
+	records, count, err := postgres.ListWithCount[checkHostStatusRow](ctx, s.pool, listQuery)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -382,7 +382,7 @@ func checkResultListWhere(
 	scopeID int64,
 	nameSQL string,
 ) (string, []any) {
-	var where dbutil.WhereBuilder
+	var where postgres.WhereBuilder
 	where.Add(scopeSQL + " = " + where.Arg(scopeID))
 	if params.ListParams.Q != "" {
 		search := where.Arg("%" + params.ListParams.Q + "%")
@@ -486,7 +486,7 @@ func (s *Store) loadCheckCounts(ctx context.Context, checkIDs []int64) (map[int6
 }
 
 func checkListWhere(params CheckListParams) (string, []any) {
-	var where dbutil.WhereBuilder
+	var where postgres.WhereBuilder
 	if params.ListParams.Q != "" {
 		search := where.Arg("%" + params.ListParams.Q + "%")
 		where.Add("(c.name ILIKE " + search + " OR c.description ILIKE " + search + " OR c.query ILIKE " + search + ")")
@@ -494,8 +494,8 @@ func checkListWhere(params CheckListParams) (string, []any) {
 	return where.Build()
 }
 
-func checkOrderKeys() map[string]dbutil.OrderExpr {
-	return map[string]dbutil.OrderExpr{
+func checkOrderKeys() map[string]postgres.OrderExpr {
+	return map[string]postgres.OrderExpr{
 		"name":       {SQL: "c.name"},
 		"created_at": {SQL: "c.created_at"},
 		"updated_at": {SQL: "c.updated_at"},

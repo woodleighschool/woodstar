@@ -45,14 +45,14 @@ type Service struct {
 	resources resourceStore
 	objects   registry
 	ingestor  objectIngestor
-	backend   storage.Store
+	backend   storage.BlobStore
 }
 
 func NewService(
 	resources resourceStore,
 	objects registry,
 	ingestor objectIngestor,
-	backend storage.Store,
+	backend storage.BlobStore,
 ) *Service {
 	return &Service{resources: resources, objects: objects, ingestor: ingestor, backend: backend}
 }

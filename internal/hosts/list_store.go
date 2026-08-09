@@ -1,0 +1,203 @@
+package hosts
+
+import (
+	"context"
+	"fmt"
+	"strings"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+
+	"github.com/woodleighschool/woodstar/internal/fault"
+	"github.com/woodleighschool/woodstar/internal/postgres"
+)
+
+func (s *Store) List(ctx context.Context, params HostListParams) ([]Host, int, error) {
+	params.normalize()
+	if err := params.validate(); err != nil {
+		return nil, 0, err
+	}
+	where, args := hostListWhere(params)
+	listQuery := hostListQuery(params, where, args)
+	rows, count, err := postgres.ListWithCount[hostRow](ctx, s.pool, listQuery)
+	if err != nil {
+		return nil, 0, err
+	}
+	now := time.Now()
+	hosts := make([]Host, len(rows))
+	for i, row := range rows {
+		hosts[i] = hostFromRow(row, now)
+	}
+	if err := s.attachPrimaryUser(ctx, hosts); err != nil {
+		return nil, 0, err
+	}
+	return hosts, count, nil
+}
+
+func (s *Store) GetByID(ctx context.Context, id int64) (*Host, error) {
+	row, err := postgres.GetOne[hostRow](ctx, s.pool, hostSelectSQL()+"\nWHERE id = $1", id)
+	if err != nil {
+		return nil, err
+	}
+	host := hostFromRow(row, time.Now())
+	return &host, nil
+}
+
+// GetByHardwareSerial returns the existing host with serial.
+func (s *Store) GetByHardwareSerial(ctx context.Context, serial string) (*Host, error) {
+	serial = strings.TrimSpace(serial)
+	if serial == "" {
+		return nil, fault.ErrNotFound
+	}
+	rows, err := s.pool.Query(ctx, hostSelectSQL()+`
+WHERE hardware_serial = $1 AND hardware_serial <> ''
+ORDER BY updated_at DESC, id DESC
+LIMIT 2`, serial)
+	if err != nil {
+		return nil, err
+	}
+	records, err := pgx.CollectRows(rows, pgx.RowToStructByName[hostRow])
+	if err != nil {
+		return nil, err
+	}
+	switch len(records) {
+	case 0:
+		return nil, fault.ErrNotFound
+	case 1:
+		host := hostFromRow(records[0], time.Now())
+		return &host, nil
+	default:
+		return nil, fmt.Errorf("multiple hosts have hardware serial %q", serial)
+	}
+}
+
+func hostListQuery(params HostListParams, where string, args []any) postgres.ListQuery {
+	return postgres.ListQuery{
+		SelectSQL: hostSelectSQL(),
+		WhereSQL:  where,
+		Args:      args,
+		OrderKeys: map[string]postgres.OrderExpr{
+			"display_name":                        {SQL: "lower(display_name)"},
+			"hardware.serial":                     {SQL: "lower(hardware_serial)"},
+			"hardware.model_identifier":           {SQL: "lower(hardware_model_identifier)"},
+			"hardware.uuid":                       {SQL: "hardware_uuid"},
+			"os.version":                          {SQL: "lower(os_version)"},
+			"agents.osquery.version":              {SQL: "lower(osquery_version)"},
+			"last_contact":                        {SQL: "last_contact", NullOrder: postgres.NullsLast},
+			"last_restarted_at":                   {SQL: "last_restarted_at", NullOrder: postgres.NullsLast},
+			"storage.boot_volume.available_bytes": {SQL: "boot_volume_available_bytes", NullOrder: postgres.NullsLast},
+			"hardware.memory_bytes":               {SQL: "memory_bytes"},
+			"network.primary_ip":                  {SQL: "primary_ip", NullOrder: postgres.NullsLast},
+			"public_ip":                           {SQL: "public_ip", NullOrder: postgres.NullsLast},
+		},
+		DefaultOrder: []postgres.OrderExpr{{SQL: "lower(display_name)"}, {SQL: "id"}},
+		Params:       params.ListParams,
+	}
+}
+
+func hostListWhere(params HostListParams) (string, []any) {
+	var where postgres.WhereBuilder
+	if params.ListParams.Q != "" {
+		search := where.Arg("%" + params.ListParams.Q + "%")
+		where.Add(`(
+			display_name ILIKE ` + search + `
+			OR hostname ILIKE ` + search + `
+			OR computer_name ILIKE ` + search + `
+			OR hardware_serial ILIKE ` + search + `
+			OR hardware_uuid ILIKE ` + search + `
+			OR hardware_vendor ILIKE ` + search + `
+			OR hardware_model_identifier ILIKE ` + search + `
+			OR cpu_type ILIKE ` + search + `
+			OR cpu_subtype ILIKE ` + search + `
+			OR cpu_brand ILIKE ` + search + `
+			OR os_platform ILIKE ` + search + `
+			OR os_name ILIKE ` + search + `
+			OR os_version ILIKE ` + search + `
+			OR os_build ILIKE ` + search + `
+			OR os_kernel_version ILIKE ` + search + `
+			OR enrollment_agent ILIKE ` + search + `
+			OR osquery_version ILIKE ` + search + `
+			OR orbit_version ILIKE ` + search + `
+			OR primary_ip::text ILIKE ` + search + `
+			OR primary_mac ILIKE ` + search + `
+			OR EXISTS (
+				SELECT 1
+				FROM host_heartbeats hh
+				WHERE hh.host_id = hosts.id
+				  AND hh.source = 'osquery'
+				  AND hh.remote_ip::text ILIKE ` + search + `
+			)
+			OR EXISTS (
+				SELECT 1
+				FROM LATERAL (
+					SELECT s.email
+					FROM host_primary_user_sources s
+					WHERE s.host_id = hosts.id
+					ORDER BY ` + primaryUserSourceOrderSQL + `, source
+					LIMIT 1
+				) preferred
+				LEFT JOIN LATERAL (
+					SELECT u.mail_nickname, u.name, u.department
+					FROM users u
+					WHERE u.deleted_at IS NULL
+					  AND (
+						u.email = preferred.email
+						OR u.user_principal_name = preferred.email
+					  )
+					ORDER BY CASE WHEN u.email = preferred.email THEN 0 ELSE 1 END, u.id
+					LIMIT 1
+				) resolved ON true
+				WHERE preferred.email ILIKE ` + search + `
+				   OR resolved.mail_nickname ILIKE ` + search + `
+				   OR resolved.name ILIKE ` + search + `
+				   OR resolved.department ILIKE ` + search + `
+			)
+			)`)
+	}
+	if len(params.IDs) > 0 {
+		where.Addf("id = ANY(%s::bigint[])", params.IDs)
+	}
+	switch params.Status {
+	case "":
+	case HostStatusOnline:
+		where.Add(`EXISTS (
+			SELECT 1
+			FROM host_heartbeats hh
+			WHERE hh.host_id = hosts.id
+			  AND hh.source = 'osquery'
+			  AND hh.last_seen_at >= now() - interval '5 minutes'
+		)`)
+	case HostStatusOffline:
+		where.Add(`NOT EXISTS (
+			SELECT 1
+			FROM host_heartbeats hh
+			WHERE hh.host_id = hosts.id
+			  AND hh.source = 'osquery'
+			  AND hh.last_seen_at >= now() - interval '5 minutes'
+		)`)
+	}
+	if params.LabelID != 0 {
+		labelID := where.Arg(params.LabelID)
+		where.Add(`EXISTS (
+			SELECT 1 FROM label_membership lm
+			WHERE lm.host_id = hosts.id AND lm.label_id = ` + labelID + `::bigint
+		)`)
+	}
+	if params.SoftwareID != 0 {
+		softwareID := where.Arg(params.SoftwareID)
+		where.Add(`EXISTS (
+			SELECT 1 FROM host_software hs
+			WHERE hs.host_id = hosts.id AND hs.software_id = ` + softwareID + `::bigint
+		)`)
+	}
+	if params.SoftwareTitleID != 0 {
+		softwareTitleID := where.Arg(params.SoftwareTitleID)
+		where.Add(`EXISTS (
+			SELECT 1
+			FROM host_software hs
+			JOIN software s ON s.id = hs.software_id
+			WHERE hs.host_id = hosts.id AND s.title_id = ` + softwareTitleID + `::bigint
+		)`)
+	}
+	return where.Build()
+}

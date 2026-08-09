@@ -7,10 +7,10 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/listing"
+	"github.com/woodleighschool/woodstar/internal/postgres"
 )
 
 // Store persists saved reports and their per-host result snapshots.
@@ -48,7 +48,7 @@ func (s *Store) Create(ctx context.Context, in ReportCreateMutation) (*Report, e
 				@created_by_user_id
 			)
 			RETURNING id`, pgx.StructArgs(write)).Scan(&id); err != nil {
-			return dbutil.MutationError(err)
+			return postgres.MutationError(err)
 		}
 		return replaceReportTargets(ctx, tx, id, in.Targets)
 	})
@@ -89,7 +89,7 @@ func (s *Store) Update(ctx context.Context, id int64, params ReportMutation) (*R
 				OR current.min_osquery_version IS DISTINCT FROM @min_osquery_version`,
 			pgx.StructArgs(write),
 		).Scan(&resultsInvalidated); err != nil {
-			return dbutil.MutationError(err)
+			return postgres.MutationError(err)
 		}
 		if err := replaceReportTargets(ctx, tx, id, params.Targets); err != nil {
 			return err
@@ -123,7 +123,7 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Report, error) {
 	if id <= 0 {
 		return nil, fault.ErrNotFound
 	}
-	row, err := dbutil.GetOne[reportRow](ctx, s.pool, reportSelectSQL()+"\nWHERE r.id = $1", id)
+	row, err := postgres.GetOne[reportRow](ctx, s.pool, reportSelectSQL()+"\nWHERE r.id = $1", id)
 	if err != nil {
 		return nil, err
 	}
@@ -138,7 +138,7 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Report, error) {
 func (s *Store) Delete(ctx context.Context, id int64) error {
 	tag, err := s.pool.Exec(ctx, `DELETE FROM osquery_reports WHERE id = $1`, id)
 	if err != nil {
-		return dbutil.DeleteConflict(err, "Report is still referenced")
+		return postgres.DeleteConflict(err, "Report is still referenced")
 	}
 	if tag.RowsAffected() == 0 {
 		return fault.ErrNotFound
@@ -169,15 +169,15 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 func (s *Store) List(ctx context.Context, params ReportListParams) ([]Report, int, error) {
 	params.ListParams = listing.Normalize(params.ListParams)
 	where, args := reportListWhere(params)
-	listQuery := dbutil.ListQuery{
+	listQuery := postgres.ListQuery{
 		SelectSQL:    reportSelectSQL(),
 		WhereSQL:     where,
 		Args:         args,
 		OrderKeys:    reportOrderKeys(),
-		DefaultOrder: []dbutil.OrderExpr{{SQL: "r.updated_at"}, {SQL: "r.id"}},
+		DefaultOrder: []postgres.OrderExpr{{SQL: "r.updated_at"}, {SQL: "r.id"}},
 		Params:       params.ListParams,
 	}
-	rows, count, err := dbutil.ListWithCount[reportRow](ctx, s.pool, listQuery)
+	rows, count, err := postgres.ListWithCount[reportRow](ctx, s.pool, listQuery)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -216,7 +216,7 @@ func (s *Store) ScheduledForHost(ctx context.Context, host *hosts.Host) ([]Repor
 }
 
 func reportListWhere(params ReportListParams) (string, []any) {
-	var where dbutil.WhereBuilder
+	var where postgres.WhereBuilder
 	if params.ListParams.Q != "" {
 		search := where.Arg("%" + params.ListParams.Q + "%")
 		where.Add(`(r.name ILIKE ` + search + ` OR r.description ILIKE ` + search + `)`)
@@ -224,8 +224,8 @@ func reportListWhere(params ReportListParams) (string, []any) {
 	return where.Build()
 }
 
-func reportOrderKeys() map[string]dbutil.OrderExpr {
-	return map[string]dbutil.OrderExpr{
+func reportOrderKeys() map[string]postgres.OrderExpr {
+	return map[string]postgres.OrderExpr{
 		"name":              {SQL: "lower(r.name)"},
 		"created_at":        {SQL: "r.created_at"},
 		"updated_at":        {SQL: "r.updated_at"},

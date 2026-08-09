@@ -6,9 +6,9 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/labels"
+	"github.com/woodleighschool/woodstar/internal/postgres"
 )
 
 // Store persists hosts.
@@ -28,7 +28,7 @@ func NewStore(pool *pgxpool.Pool) *Store {
 func (s *Store) Delete(ctx context.Context, id int64) error {
 	tag, err := s.pool.Exec(ctx, `DELETE FROM hosts WHERE id = $1`, id)
 	if err != nil {
-		return dbutil.GetError(err)
+		return postgres.GetError(err)
 	}
 	if tag.RowsAffected() == 0 {
 		return fault.ErrNotFound

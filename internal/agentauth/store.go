@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/postgres"
 )
 
 // SecretVerifier reports whether a shared secret is valid for an agent.
@@ -39,7 +39,7 @@ func agentSecretFromRow(row agentSecretRow) AgentSecret {
 }
 
 func (s *Store) List(ctx context.Context) ([]AgentSecret, error) {
-	rows, err := dbutil.GetAll[agentSecretRow](ctx, s.pool, `
+	rows, err := postgres.GetAll[agentSecretRow](ctx, s.pool, `
 SELECT id, agent, value, created_at, deleted_at
 FROM agent_secrets
 WHERE deleted_at IS NULL
@@ -59,14 +59,14 @@ func (s *Store) Create(ctx context.Context, params AgentSecretCreate) (*AgentSec
 	if err := params.validate(); err != nil {
 		return nil, err
 	}
-	row, err := dbutil.GetOne[agentSecretRow](ctx, s.pool, `
+	row, err := postgres.GetOne[agentSecretRow](ctx, s.pool, `
 INSERT INTO agent_secrets (agent, value)
 VALUES ($1::agent, $2)
 RETURNING id, agent, value, created_at, deleted_at`,
 		string(params.Agent), params.Value,
 	)
 	if err != nil {
-		return nil, dbutil.MutationError(err)
+		return nil, postgres.MutationError(err)
 	}
 	out := agentSecretFromRow(row)
 	return &out, nil
@@ -76,7 +76,7 @@ func (s *Store) Update(ctx context.Context, id int64, params AgentSecretMutation
 	if err := params.validate(); err != nil {
 		return nil, err
 	}
-	row, err := dbutil.GetOne[agentSecretRow](ctx, s.pool, `
+	row, err := postgres.GetOne[agentSecretRow](ctx, s.pool, `
 UPDATE agent_secrets
 SET value = $1
 WHERE id = $2
@@ -85,7 +85,7 @@ RETURNING id, agent, value, created_at, deleted_at`,
 		params.Value, id,
 	)
 	if err != nil {
-		return nil, dbutil.GetError(err)
+		return nil, postgres.GetError(err)
 	}
 	out := agentSecretFromRow(row)
 	return &out, nil
@@ -115,5 +115,5 @@ SET deleted_at = now()
 WHERE id = $1
   AND deleted_at IS NULL
 RETURNING id`, id).Scan(&deletedID)
-	return dbutil.GetError(err)
+	return postgres.GetError(err)
 }

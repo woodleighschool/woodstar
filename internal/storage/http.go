@@ -35,7 +35,7 @@ func (s *fileStore) registerTransferRoutes(r chi.Router, logger *slog.Logger) {
 func (*s3Store) registerTransferRoutes(chi.Router, *slog.Logger) {}
 
 type transferHandler struct {
-	store  Store
+	store  BlobStore
 	key    []byte
 	logger *slog.Logger
 }

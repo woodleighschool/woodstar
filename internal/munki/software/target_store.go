@@ -6,9 +6,9 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
+	"github.com/woodleighschool/woodstar/internal/postgres"
 	"github.com/woodleighschool/woodstar/internal/targeting"
 )
 
@@ -53,7 +53,7 @@ func (s *Store) replaceTargets(
 			LabelID:    exclude.LabelID,
 		})
 	}
-	if err := dbutil.ReplaceChildren(
+	if err := postgres.ReplaceChildren(
 		ctx, tx,
 		`DELETE FROM munki_software_targets WHERE software_id = $1`, []any{softwareID},
 		`
@@ -68,7 +68,7 @@ VALUES (
 	@pinned_package_id
 )`, rows,
 	); err != nil {
-		return dbutil.MutationError(err)
+		return postgres.MutationError(err)
 	}
 	return nil
 }
@@ -93,7 +93,7 @@ func (s *Store) validatePackageSelectors(
 	return nil
 }
 
-func validateExcludedLabels(ctx context.Context, q dbutil.Queryer, excludes []targeting.LabelRef) error {
+func validateExcludedLabels(ctx context.Context, q postgres.Queryer, excludes []targeting.LabelRef) error {
 	if len(excludes) == 0 {
 		return nil
 	}

@@ -13,8 +13,8 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/fault"
+	"github.com/woodleighschool/woodstar/internal/postgres"
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
 )
 
@@ -344,7 +344,7 @@ func insertUser(t *testing.T, db *pgxpool.Pool, externalID string, email string,
 	if err := db.QueryRow(context.Background(), `
 INSERT INTO users (email, name, source, external_id, user_principal_name, department)
 VALUES ($1, $1, 'entra', $2, $1, $3)
-RETURNING id`, email, externalID, dbutil.NullString(department)).Scan(&id); err != nil {
+RETURNING id`, email, externalID, postgres.NullString(department)).Scan(&id); err != nil {
 		t.Fatalf("insert user: %v", err)
 	}
 	return id

@@ -8,9 +8,9 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/listing"
+	"github.com/woodleighschool/woodstar/internal/postgres"
 )
 
 // Store persists directory users, groups, memberships, and source snapshots.
@@ -150,11 +150,11 @@ RETURNING `+userColumnsSQL(""),
 			params.Email, params.Name, params.PasswordHash, string(params.Role),
 		)
 		if err != nil {
-			return dbutil.MutationError(err)
+			return postgres.MutationError(err)
 		}
 		row, err := pgx.CollectExactlyOneRow(qrows, pgx.RowToStructByName[userRow])
 		if err != nil {
-			return dbutil.MutationError(err)
+			return postgres.MutationError(err)
 		}
 		user = userFromRow(row)
 		return s.labels.RefreshDerivedTx(ctx, tx)
@@ -182,20 +182,20 @@ WHERE deleted_at IS NULL
 }
 
 func (s *Store) getUserByEmail(ctx context.Context, email string, whereSQL string) (*User, error) {
-	row, err := dbutil.GetOne[userRow](ctx, s.pool, userSelectSQL()+whereSQL, email)
+	row, err := postgres.GetOne[userRow](ctx, s.pool, userSelectSQL()+whereSQL, email)
 	if err != nil {
-		return nil, dbutil.GetError(err)
+		return nil, postgres.GetError(err)
 	}
 	out := userFromRow(row)
 	return &out, nil
 }
 
 func (s *Store) GetUserByID(ctx context.Context, id int64) (*User, error) {
-	row, err := dbutil.GetOne[userRow](ctx, s.pool, userSelectSQL()+`
+	row, err := postgres.GetOne[userRow](ctx, s.pool, userSelectSQL()+`
 WHERE id = $1
   AND deleted_at IS NULL`, id)
 	if err != nil {
-		return nil, dbutil.GetError(err)
+		return nil, postgres.GetError(err)
 	}
 	out := userFromRow(row)
 	return &out, nil
@@ -203,11 +203,11 @@ WHERE id = $1
 
 // GetAccountByID returns the signed-in user's self-view, including API key fields.
 func (s *Store) GetAccountByID(ctx context.Context, id int64) (*Account, error) {
-	row, err := dbutil.GetOne[userRow](ctx, s.pool, userSelectSQL()+`
+	row, err := postgres.GetOne[userRow](ctx, s.pool, userSelectSQL()+`
 WHERE id = $1
   AND deleted_at IS NULL`, id)
 	if err != nil {
-		return nil, dbutil.GetError(err)
+		return nil, postgres.GetError(err)
 	}
 	out := accountFromRow(row)
 	return &out, nil
@@ -215,7 +215,7 @@ WHERE id = $1
 
 func (s *Store) ListUsers(ctx context.Context, params UserListParams) ([]User, int, error) {
 	where, args := userWhere(params)
-	rows, count, err := dbutil.ListWithCount[userRow](ctx, s.pool, userListQuery(params, where, args))
+	rows, count, err := postgres.ListWithCount[userRow](ctx, s.pool, userListQuery(params, where, args))
 	if err != nil {
 		return nil, 0, err
 	}
@@ -228,7 +228,7 @@ func (s *Store) ListUsers(ctx context.Context, params UserListParams) ([]User, i
 
 func (s *Store) ListDepartments(ctx context.Context, params UserListParams) ([]Department, int, error) {
 	where, args := departmentWhere(params)
-	return dbutil.ListWithCount[Department](ctx, s.pool, departmentListQuery(params, where, args))
+	return postgres.ListWithCount[Department](ctx, s.pool, departmentListQuery(params, where, args))
 }
 
 type userUpdateRecord struct {
@@ -258,11 +258,11 @@ WHERE id = $4
 RETURNING `+userColumnsSQL(""),
 		params.Name, roleStr, params.PasswordHash, id)
 	if err != nil {
-		return nil, dbutil.MutationError(err)
+		return nil, postgres.MutationError(err)
 	}
 	row, err := pgx.CollectExactlyOneRow(qrows, pgx.RowToStructByName[userRow])
 	if err != nil {
-		return nil, dbutil.MutationError(err)
+		return nil, postgres.MutationError(err)
 	}
 	user := userFromRow(row)
 	return &user, nil
@@ -283,11 +283,11 @@ WHERE email = $2
   AND deleted_at IS NULL
 RETURNING `+userColumnsSQL(""), passwordHash, email)
 	if err != nil {
-		return nil, dbutil.MutationError(err)
+		return nil, postgres.MutationError(err)
 	}
 	row, err := pgx.CollectExactlyOneRow(qrows, pgx.RowToStructByName[userRow])
 	if err != nil {
-		return nil, dbutil.MutationError(err)
+		return nil, postgres.MutationError(err)
 	}
 	user := userFromRow(row)
 	return &user, nil
@@ -303,11 +303,11 @@ WHERE email = $2
   AND deleted_at IS NULL
 RETURNING `+userColumnsSQL(""), string(role), email)
 	if err != nil {
-		return nil, dbutil.MutationError(err)
+		return nil, postgres.MutationError(err)
 	}
 	row, err := pgx.CollectExactlyOneRow(qrows, pgx.RowToStructByName[userRow])
 	if err != nil {
-		return nil, dbutil.MutationError(err)
+		return nil, postgres.MutationError(err)
 	}
 	user := userFromRow(row)
 	return &user, nil
@@ -327,11 +327,11 @@ WHERE id = $3
 RETURNING `+userColumnsSQL(""),
 		params.Name, params.PasswordHash, id)
 	if err != nil {
-		return nil, dbutil.MutationError(err)
+		return nil, postgres.MutationError(err)
 	}
 	row, err := pgx.CollectExactlyOneRow(qrows, pgx.RowToStructByName[userRow])
 	if err != nil {
-		return nil, dbutil.MutationError(err)
+		return nil, postgres.MutationError(err)
 	}
 	out := accountFromRow(row)
 	return &out, nil
@@ -349,7 +349,7 @@ FROM users
 WHERE id = $1
   AND deleted_at IS NULL
 FOR UPDATE`, id).Scan(&source); err != nil {
-			return dbutil.GetError(err)
+			return postgres.GetError(err)
 		}
 
 		var deletedID int64
@@ -358,7 +358,7 @@ FOR UPDATE`, id).Scan(&source); err != nil {
 DELETE FROM users
 WHERE id = $1
 RETURNING id`, id).Scan(&deletedID); err != nil {
-				return dbutil.MutationError(err)
+				return postgres.MutationError(err)
 			}
 		} else {
 			if err := tx.QueryRow(ctx, `
@@ -368,7 +368,7 @@ SET
     updated_at = now()
 WHERE id = $1
 RETURNING id`, id).Scan(&deletedID); err != nil {
-				return dbutil.MutationError(err)
+				return postgres.MutationError(err)
 			}
 		}
 		return s.labels.RefreshDerivedTx(ctx, tx)
@@ -376,12 +376,12 @@ RETURNING id`, id).Scan(&deletedID); err != nil {
 }
 
 func (s *Store) GetUserByAPIKey(ctx context.Context, key string) (*User, error) {
-	row, err := dbutil.GetOne[userRow](ctx, s.pool, userSelectSQL()+`
+	row, err := postgres.GetOne[userRow](ctx, s.pool, userSelectSQL()+`
 WHERE api_key = $1
   AND deleted_at IS NULL
   AND role IS NOT NULL`, key)
 	if err != nil {
-		return nil, dbutil.GetError(err)
+		return nil, postgres.GetError(err)
 	}
 	out := userFromRow(row)
 	return &out, nil
@@ -400,11 +400,11 @@ WHERE id = $2
 RETURNING `+userColumnsSQL(""),
 		key, id)
 	if err != nil {
-		return nil, dbutil.MutationError(err)
+		return nil, postgres.MutationError(err)
 	}
 	row, err := pgx.CollectExactlyOneRow(qrows, pgx.RowToStructByName[userRow])
 	if err != nil {
-		return nil, dbutil.MutationError(err)
+		return nil, postgres.MutationError(err)
 	}
 	out := accountFromRow(row)
 	return &out, nil
@@ -421,18 +421,18 @@ WHERE id = $1
 RETURNING `+userColumnsSQL(""),
 		id)
 	if err != nil {
-		return nil, dbutil.MutationError(err)
+		return nil, postgres.MutationError(err)
 	}
 	row, err := pgx.CollectExactlyOneRow(qrows, pgx.RowToStructByName[userRow])
 	if err != nil {
-		return nil, dbutil.MutationError(err)
+		return nil, postgres.MutationError(err)
 	}
 	out := accountFromRow(row)
 	return &out, nil
 }
 
 func userWhere(params UserListParams) (string, []any) {
-	var where dbutil.WhereBuilder
+	var where postgres.WhereBuilder
 	where.Add("u.deleted_at IS NULL")
 	if params.GroupID > 0 {
 		where.Addf("gm.group_id = %s", params.GroupID)
@@ -469,7 +469,7 @@ func userWhere(params UserListParams) (string, []any) {
 }
 
 func departmentWhere(params UserListParams) (string, []any) {
-	var where dbutil.WhereBuilder
+	var where postgres.WhereBuilder
 	where.Add("source <> 'local'")
 	where.Add("deleted_at IS NULL")
 	where.Add("NULLIF(btrim(department), '') IS NOT NULL")
@@ -483,20 +483,20 @@ func departmentWhere(params UserListParams) (string, []any) {
 	return where.Build()
 }
 
-func userListQuery(params UserListParams, where string, args []any) dbutil.ListQuery {
-	return dbutil.ListQuery{
+func userListQuery(params UserListParams, where string, args []any) postgres.ListQuery {
+	return postgres.ListQuery{
 		SelectSQL: userListSelectSQL(params),
 		WhereSQL:  where,
 		Args:      args,
-		OrderKeys: map[string]dbutil.OrderExpr{
+		OrderKeys: map[string]postgres.OrderExpr{
 			"name":       {SQL: "lower(u.name)"},
 			"email":      {SQL: "lower(u.email)"},
-			"role":       {SQL: "u.role", NullOrder: dbutil.NullsLast},
-			"department": {SQL: "lower(u.department)", NullOrder: dbutil.NullsLast},
+			"role":       {SQL: "u.role", NullOrder: postgres.NullsLast},
+			"department": {SQL: "lower(u.department)", NullOrder: postgres.NullsLast},
 			"created_at": {SQL: "u.created_at"},
 			"updated_at": {SQL: "u.updated_at"},
 		},
-		DefaultOrder: []dbutil.OrderExpr{{SQL: "lower(u.name)"}, {SQL: "lower(u.email)"}, {SQL: "u.id"}},
+		DefaultOrder: []postgres.OrderExpr{{SQL: "lower(u.name)"}, {SQL: "lower(u.email)"}, {SQL: "u.id"}},
 		Params:       params.ListParams,
 	}
 }
@@ -511,15 +511,15 @@ FROM users u`
 JOIN directory_group_memberships gm ON gm.user_id = u.id`
 }
 
-func departmentListQuery(params UserListParams, where string, args []any) dbutil.ListQuery {
-	return dbutil.ListQuery{
+func departmentListQuery(params UserListParams, where string, args []any) postgres.ListQuery {
+	return postgres.ListQuery{
 		SelectSQL: "SELECT DISTINCT department AS value FROM users",
 		WhereSQL:  where,
 		Args:      args,
-		OrderKeys: map[string]dbutil.OrderExpr{
+		OrderKeys: map[string]postgres.OrderExpr{
 			"value": {SQL: "department"},
 		},
-		DefaultOrder: []dbutil.OrderExpr{{SQL: "department"}},
+		DefaultOrder: []postgres.OrderExpr{{SQL: "department"}},
 		Params:       params.ListParams,
 	}
 }

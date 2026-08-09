@@ -8,8 +8,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/fault"
+	"github.com/woodleighschool/woodstar/internal/postgres"
 )
 
 // Store persists labels.
@@ -27,16 +27,16 @@ func (s *Store) List(ctx context.Context, params LabelListParams) ([]Label, int,
 		return nil, 0, err
 	}
 	where, args := labelListWhere(params)
-	listQuery := dbutil.ListQuery{
+	listQuery := postgres.ListQuery{
 		SelectSQL:    labelSelectSQL(),
 		WhereSQL:     where,
 		GroupBySQL:   "GROUP BY l.id",
 		Args:         args,
 		OrderKeys:    labelOrderKeys(),
-		DefaultOrder: []dbutil.OrderExpr{{SQL: "lower(l.name)"}, {SQL: "l.id"}},
+		DefaultOrder: []postgres.OrderExpr{{SQL: "lower(l.name)"}, {SQL: "l.id"}},
 		Params:       params.ListParams,
 	}
-	rows, count, err := dbutil.ListWithCount[labelRow](ctx, s.pool, listQuery)
+	rows, count, err := postgres.ListWithCount[labelRow](ctx, s.pool, listQuery)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -99,7 +99,7 @@ func (s *Store) Create(ctx context.Context, params LabelMutation) (*Label, error
 				@label_membership_type
 			)
 			RETURNING id`, pgx.StructArgs(write)).Scan(&id); err != nil {
-			return dbutil.MutationError(err)
+			return postgres.MutationError(err)
 		}
 		if err := replaceMembership(ctx, tx, id, params); err != nil {
 			return err
@@ -136,7 +136,7 @@ func (s *Store) Update(ctx context.Context, id int64, params LabelMutation) (*La
 				updated_at = now()
 			WHERE id = @id AND label_type = 'regular'
 			RETURNING id`, pgx.StructArgs(write)).Scan(&updatedID); err != nil {
-			return dbutil.MutationError(err)
+			return postgres.MutationError(err)
 		}
 		if err := replaceMembership(ctx, tx, updatedID, params); err != nil {
 			return err
@@ -158,7 +158,7 @@ func (s *Store) Delete(ctx context.Context, id int64) error {
 		id,
 	)
 	if err != nil {
-		return dbutil.DeleteConflict(err, "Label is still referenced")
+		return postgres.DeleteConflict(err, "Label is still referenced")
 	}
 	if tag.RowsAffected() == 0 {
 		return fault.ErrNotFound
@@ -167,7 +167,7 @@ func (s *Store) Delete(ctx context.Context, id int64) error {
 }
 
 func (s *Store) ListApplicableDynamic(ctx context.Context) ([]DynamicLabel, error) {
-	return dbutil.GetAll[DynamicLabel](ctx, s.pool, `
+	return postgres.GetAll[DynamicLabel](ctx, s.pool, `
 SELECT l.id, l.query
 FROM labels l
 WHERE l.label_membership_type = 'dynamic'
@@ -279,7 +279,7 @@ ORDER BY id`)
 }
 
 func labelListWhere(params LabelListParams) (string, []any) {
-	var where dbutil.WhereBuilder
+	var where postgres.WhereBuilder
 	if params.ListParams.Q != "" {
 		where.Addf("(l.name ILIKE %s OR l.description ILIKE %s)", "%"+params.ListParams.Q+"%", "%"+params.ListParams.Q+"%")
 	}
@@ -292,8 +292,8 @@ func labelListWhere(params LabelListParams) (string, []any) {
 	return where.Build()
 }
 
-func labelOrderKeys() map[string]dbutil.OrderExpr {
-	return map[string]dbutil.OrderExpr{
+func labelOrderKeys() map[string]postgres.OrderExpr {
+	return map[string]postgres.OrderExpr{
 		"name":                  {SQL: "lower(l.name)"},
 		"label_type":            {SQL: "l.label_type"},
 		"label_membership_type": {SQL: "l.label_membership_type"},
@@ -362,11 +362,11 @@ func newLabelWrite(params LabelMutation) labelWrite {
 	}
 }
 
-func getLabelByID(ctx context.Context, q dbutil.Queryer, id int64) (*Label, error) {
+func getLabelByID(ctx context.Context, q postgres.Queryer, id int64) (*Label, error) {
 	if id <= 0 {
 		return nil, fault.ErrNotFound
 	}
-	row, err := dbutil.GetOne[labelRow](ctx, q, labelSelectSQL()+"\nWHERE l.id = $1\nGROUP BY l.id", id)
+	row, err := postgres.GetOne[labelRow](ctx, q, labelSelectSQL()+"\nWHERE l.id = $1\nGROUP BY l.id", id)
 	if err != nil {
 		return nil, err
 	}
@@ -381,7 +381,7 @@ func getLabelByID(ctx context.Context, q dbutil.Queryer, id int64) (*Label, erro
 	return &label, nil
 }
 
-func manualLabelHostIDs(ctx context.Context, q dbutil.Queryer, labelID int64) ([]int64, error) {
+func manualLabelHostIDs(ctx context.Context, q postgres.Queryer, labelID int64) ([]int64, error) {
 	rows, err := q.Query(ctx, `
 SELECT host_id
 FROM label_membership lm
@@ -422,7 +422,7 @@ func replaceManualMembership(ctx context.Context, tx pgx.Tx, labelID int64, host
 	if _, err := tx.Exec(ctx, `
 INSERT INTO label_membership (label_id, host_id)
 SELECT $1, unnest($2::bigint[])`, labelID, hostIDs); err != nil {
-		return dbutil.MutationError(err)
+		return postgres.MutationError(err)
 	}
 	return nil
 }

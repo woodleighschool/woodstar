@@ -15,8 +15,8 @@ var ErrObjectNotFound = errors.New("storage object not found")
 // ErrMultipartUploadNotFound reports that a provider no longer has an upload ID.
 var ErrMultipartUploadNotFound = errors.New("storage multipart upload not found")
 
-// Store reads and writes blobs by key. Backends: file, s3.
-type Store interface {
+// BlobStore reads and writes blobs by key. Backends: file, s3.
+type BlobStore interface {
 	Open(ctx context.Context, key string) (ObjectReader, ObjectInfo, error)
 	Put(ctx context.Context, key string, r io.Reader, opts PutOptions) error
 	Delete(ctx context.Context, key string) error
@@ -32,7 +32,7 @@ type ObjectReader interface {
 // Backend is a configured storage backend. All runtime backends can read/write
 // bytes and mint direct transfer URLs.
 type Backend interface {
-	Store
+	BlobStore
 	Presigner
 	transferRouteRegistrar
 	PresignPut(ctx context.Context, key string, ttl time.Duration) (UploadTarget, error)

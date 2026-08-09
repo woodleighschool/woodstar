@@ -10,10 +10,10 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/listing"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
+	"github.com/woodleighschool/woodstar/internal/postgres"
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
@@ -45,7 +45,7 @@ func (s *Store) List(
 	where, args := distributionPointListWhere(params)
 	listQuery := distributionPointListQuery(params, where, args)
 
-	records, count, err := dbutil.ListWithCount[distributionPointRow](
+	records, count, err := postgres.ListWithCount[distributionPointRow](
 		ctx,
 		s.pool,
 		listQuery,
@@ -63,7 +63,7 @@ func (s *Store) List(
 
 // GetByID returns one distribution point with its per-package mirror state.
 func (s *Store) GetByID(ctx context.Context, id int64) (*DistributionPointDetail, error) {
-	row, err := dbutil.GetOne[distributionPointRow](
+	row, err := postgres.GetOne[distributionPointRow](
 		ctx,
 		s.pool,
 		distributionPointSelectSQL()+"\nWHERE c.id = $1",
@@ -140,7 +140,7 @@ func (s *Store) Create(
 		ClientBaseURL: mutation.ClientBaseURL,
 		Key:           key,
 	}
-	row, err := dbutil.GetOne[distributionPointRow](
+	row, err := postgres.GetOne[distributionPointRow](
 		ctx,
 		s.pool,
 		`
@@ -173,7 +173,7 @@ RETURNING
 		pgx.StructArgs(write),
 	)
 	if err != nil {
-		return nil, dbutil.MutationError(err)
+		return nil, postgres.MutationError(err)
 	}
 	point := s.distributionPointFromRow(row)
 	return &point, nil
@@ -196,7 +196,7 @@ func (s *Store) Update(
 		ClientCidrs:   clientCIDRs(mutation.ClientCIDRs),
 		ClientBaseURL: mutation.ClientBaseURL,
 	}
-	row, err := dbutil.GetOne[distributionPointRow](
+	row, err := postgres.GetOne[distributionPointRow](
 		ctx,
 		s.pool,
 		`
@@ -221,7 +221,7 @@ RETURNING
 		pgx.StructArgs(write),
 	)
 	if err != nil {
-		return nil, dbutil.MutationError(err)
+		return nil, postgres.MutationError(err)
 	}
 	point := s.distributionPointFromRow(row)
 	return &point, nil
@@ -235,7 +235,7 @@ func (s *Store) Delete(ctx context.Context, id int64) error {
 		id,
 	)
 	if err != nil {
-		return dbutil.DeleteConflict(err, "distribution point is still referenced")
+		return postgres.DeleteConflict(err, "distribution point is still referenced")
 	}
 	if tag.RowsAffected() == 0 {
 		return fault.ErrNotFound
@@ -252,7 +252,7 @@ func (s *Store) RotateKey(ctx context.Context, id int64, key string) error {
 		id,
 	)
 	if err != nil {
-		return dbutil.MutationError(err)
+		return postgres.MutationError(err)
 	}
 	if tag.RowsAffected() == 0 {
 		return fault.ErrNotFound
@@ -309,7 +309,7 @@ SELECT (SELECT count(*) FROM updated), (SELECT total FROM stats)`,
 
 // AuthenticateWorker resolves a bearer key to its distribution point identity.
 func (s *Store) AuthenticateWorker(ctx context.Context, key string) (*DistributionPoint, error) {
-	row, err := dbutil.GetOne[distributionPointRow](
+	row, err := postgres.GetOne[distributionPointRow](
 		ctx,
 		s.pool,
 		distributionPointSelectSQL()+"\nWHERE c.\"key\" = $1",
@@ -509,7 +509,7 @@ SELECT installer_object_id
 FROM munki_packages
 WHERE id = $1`, packageID).Scan(&objectID)
 	if err != nil {
-		return storage.Object{}, dbutil.GetError(err)
+		return storage.Object{}, postgres.GetError(err)
 	}
 	if objectID == nil {
 		return storage.Object{}, fault.ErrNotFound
