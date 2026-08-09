@@ -16,6 +16,7 @@ deploy/docker/*.dockerignore
 *.log
 
 **/node_modules/
+web/dist/
 web/.vite/
 web/*.tsbuildinfo
 web/vite.config.js
