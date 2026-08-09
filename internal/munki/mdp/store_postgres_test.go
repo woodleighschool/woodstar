@@ -18,11 +18,10 @@ import (
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
 )
 
-// newStore returns a store and the presence set the hub would normally write, so
-// tests can connect a point without standing up a live worker.
-func newStore(db *pgxpool.Pool) (*mdp.Store, *mdp.Presence) {
-	store := mdp.NewStore(db, storage.NewObjectStore(db, nil, discardLogger()), discardLogger())
-	return store, store.Presence()
+const testConnectionID = "test-connection"
+
+func newStore(db *pgxpool.Pool) *mdp.Store {
+	return mdp.NewStore(db, storage.NewObjectStore(db, nil, discardLogger()), discardLogger())
 }
 
 func testWorker() mdp.DistributionPointWorker {
@@ -94,15 +93,30 @@ func recordCurrent(
 ) {
 	t.Helper()
 	if err := store.RecordPackageState(
-		ctx, dpID, packageID, mdp.PackageStatusCurrent, sha256, "",
+		ctx, dpID, testConnectionID, packageID, mdp.PackageStatusCurrent, sha256, "",
 	); err != nil {
 		t.Fatalf("RecordPackageState current: %v", err)
 	}
 }
 
+func claimWorker(
+	t *testing.T,
+	ctx context.Context,
+	store *mdp.Store,
+	pointID int64,
+	key string,
+) {
+	t.Helper()
+	if err := store.ClaimWorkerSession(
+		ctx, pointID, key, testConnectionID, testWorker(),
+	); err != nil {
+		t.Fatalf("ClaimWorkerSession: %v", err)
+	}
+}
+
 func TestGetByIDDerivesPackageStatusFromDesiredAndMirrorState(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	store, _ := newStore(db)
+	store := newStore(db)
 	shaA := strings.Repeat("a", 64)
 	shaB := strings.Repeat("b", 64)
 	pkgA := seedAvailablePackage(t, ctx, db, "Chrome", shaA, 4096)
@@ -112,6 +126,7 @@ func TestGetByIDDerivesPackageStatusFromDesiredAndMirrorState(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
+	claimWorker(t, ctx, store, point.ID, "key-mel")
 
 	states := packageStates(t, ctx, store, point.ID)
 	if states[pkgA].Status != mdp.PackageStatusPending || states[pkgB].Status != mdp.PackageStatusPending {
@@ -144,16 +159,17 @@ func TestGetByIDDerivesPackageStatusFromDesiredAndMirrorState(t *testing.T) {
 
 func TestGetByIDSurfacesPackageError(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	store, _ := newStore(db)
+	store := newStore(db)
 	sha := strings.Repeat("a", 64)
 	pkg := seedAvailablePackage(t, ctx, db, "Chrome", sha, 4096)
 	point, err := store.Create(ctx, pointMutation("Melbourne", []string{"10.0.0.0/8"}), "key-mel")
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
+	claimWorker(t, ctx, store, point.ID, "key-mel")
 
 	if err := store.RecordPackageState(
-		ctx, point.ID, pkg, mdp.PackageStatusError, "", "package 7 verify: sha256 mismatch",
+		ctx, point.ID, testConnectionID, pkg, mdp.PackageStatusError, "", "package 7 verify: sha256 mismatch",
 	); err != nil {
 		t.Fatalf("RecordPackageState error: %v", err)
 	}
@@ -166,7 +182,8 @@ func TestGetByIDSurfacesPackageError(t *testing.T) {
 
 func TestListIncludesLiveWorkerMetadata(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	store, presence := newStore(db)
+	store := newStore(db)
+	otherStore := newStore(db)
 
 	pointID := mustCreate(t, ctx, store, "Melbourne")
 	points, _, err := store.List(ctx, mdp.DistributionPointListParams{})
@@ -174,11 +191,11 @@ func TestListIncludesLiveWorkerMetadata(t *testing.T) {
 		t.Fatalf("List: %v", err)
 	}
 	if points[0].Worker != nil {
-		t.Fatalf("Worker = %+v without presence, want nil", points[0].Worker)
+		t.Fatalf("Worker = %+v without a session, want nil", points[0].Worker)
 	}
 
-	presence.Connect(pointID, testWorker())
-	points, _, err = store.List(ctx, mdp.DistributionPointListParams{})
+	claimWorker(t, ctx, store, pointID, "key-Melbourne")
+	points, _, err = otherStore.List(ctx, mdp.DistributionPointListParams{})
 	if err != nil {
 		t.Fatalf("List connected: %v", err)
 	}
@@ -187,9 +204,137 @@ func TestListIncludesLiveWorkerMetadata(t *testing.T) {
 	}
 }
 
+func TestWorkerStateIsSharedAndKeepsRejectionPrecedence(t *testing.T) {
+	db, ctx := testdb.Open(t)
+	store := newStore(db)
+	otherStore := newStore(db)
+	pointID := mustCreate(t, ctx, store, "Melbourne")
+	rejected := mdp.DistributionPointWorker{
+		ProtocolVersion: new(2),
+		BuildVersion:    "worker-next",
+	}
+
+	if err := store.ObserveRejectedWorker(ctx, pointID, "key-Melbourne", rejected); err != nil {
+		t.Fatalf("ObserveRejectedWorker: %v", err)
+	}
+	assertWorker(t, ctx, otherStore, pointID, &rejected)
+
+	claimWorker(t, ctx, store, pointID, "key-Melbourne")
+	if err := store.ObserveRejectedWorker(ctx, pointID, "key-Melbourne", rejected); err != nil {
+		t.Fatalf("ObserveRejectedWorker while connected: %v", err)
+	}
+	connected := testWorker()
+	assertWorker(t, ctx, otherStore, pointID, &connected)
+
+	if err := store.ReleaseWorkerSession(ctx, pointID, testConnectionID); err != nil {
+		t.Fatalf("ReleaseWorkerSession: %v", err)
+	}
+	assertWorker(t, ctx, otherStore, pointID, &rejected)
+
+	claimWorker(t, ctx, store, pointID, "key-Melbourne")
+	if err := store.ReleaseWorkerSession(ctx, pointID, testConnectionID); err != nil {
+		t.Fatalf("release replacement session: %v", err)
+	}
+	assertWorker(t, ctx, otherStore, pointID, nil)
+
+	if err := store.ObserveRejectedWorker(ctx, pointID, "key-Melbourne", rejected); err != nil {
+		t.Fatalf("observe expiring rejection: %v", err)
+	}
+	if _, err := db.Exec(ctx, `
+UPDATE munki_distribution_worker_rejections
+SET expires_at = now() - interval '1 second'
+WHERE distribution_point_id = $1`, pointID); err != nil {
+		t.Fatalf("expire rejected worker: %v", err)
+	}
+	assertWorker(t, ctx, otherStore, pointID, nil)
+}
+
+func TestWorkerSessionReplacementRejectsStaleState(t *testing.T) {
+	db, ctx := testdb.Open(t)
+	store := newStore(db)
+	sha := strings.Repeat("a", 64)
+	pkg := seedAvailablePackage(t, ctx, db, "Chrome", sha, 4096)
+	point, err := store.Create(
+		ctx,
+		pointMutation("Melbourne", []string{"10.0.0.0/8"}),
+		"key-mel",
+	)
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	worker := testWorker()
+	if err := store.ClaimWorkerSession(ctx, point.ID, "key-mel", "old", worker); err != nil {
+		t.Fatalf("claim old session: %v", err)
+	}
+	if err := store.ClaimWorkerSession(ctx, point.ID, "key-mel", "new", worker); err != nil {
+		t.Fatalf("claim replacement session: %v", err)
+	}
+
+	if err := store.RecordPackageState(
+		ctx, point.ID, "old", pkg, mdp.PackageStatusCurrent, sha, "",
+	); !errors.Is(err, mdp.ErrWorkerSessionInvalid) {
+		t.Fatalf("old session RecordPackageState error = %v, want ErrWorkerSessionInvalid", err)
+	}
+	if err := store.ReleaseWorkerSession(ctx, point.ID, "old"); err != nil {
+		t.Fatalf("release old session: %v", err)
+	}
+	if err := store.RecordPackageState(
+		ctx, point.ID, "new", pkg, mdp.PackageStatusCurrent, sha, "",
+	); err != nil {
+		t.Fatalf("replacement RecordPackageState: %v", err)
+	}
+	assertWorker(t, ctx, store, point.ID, &worker)
+}
+
+func TestWorkerSessionExpiryDisableAndRotationInvalidateAuthority(t *testing.T) {
+	db, ctx := testdb.Open(t)
+	store := newStore(db)
+	point, err := store.Create(ctx, pointMutation("Melbourne", nil), "key-mel")
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	claimWorker(t, ctx, store, point.ID, "key-mel")
+	if _, err := db.Exec(ctx, `
+UPDATE munki_distribution_worker_sessions
+SET expires_at = now() - interval '1 second'
+WHERE distribution_point_id = $1`, point.ID); err != nil {
+		t.Fatalf("expire worker session: %v", err)
+	}
+	assertWorker(t, ctx, store, point.ID, nil)
+	if err := store.RenewWorkerSession(ctx, point.ID, testConnectionID); !errors.Is(err, mdp.ErrWorkerSessionInvalid) {
+		t.Fatalf("expired RenewWorkerSession error = %v, want ErrWorkerSessionInvalid", err)
+	}
+
+	claimWorker(t, ctx, store, point.ID, "key-mel")
+	if err := store.RotateKey(ctx, point.ID, "key-new"); err != nil {
+		t.Fatalf("RotateKey: %v", err)
+	}
+	assertWorker(t, ctx, store, point.ID, nil)
+	if err := store.RenewWorkerSession(ctx, point.ID, testConnectionID); !errors.Is(err, mdp.ErrWorkerSessionInvalid) {
+		t.Fatalf("rotated RenewWorkerSession error = %v, want ErrWorkerSessionInvalid", err)
+	}
+	if _, err := store.AuthenticateWorker(ctx, "key-mel"); !errors.Is(err, fault.ErrNotFound) {
+		t.Fatalf("old-key AuthenticateWorker error = %v, want ErrNotFound", err)
+	}
+
+	claimWorker(t, ctx, store, point.ID, "key-new")
+	if _, err := store.Update(ctx, point.ID, mdp.DistributionPointMutation{
+		Name:          point.Name,
+		Enabled:       false,
+		ClientCIDRs:   point.ClientCIDRs,
+		ClientBaseURL: point.ClientBaseURL,
+	}); err != nil {
+		t.Fatalf("disable point: %v", err)
+	}
+	assertWorker(t, ctx, store, point.ID, nil)
+	if _, err := store.AuthenticateWorker(ctx, "key-new"); !errors.Is(err, fault.ErrNotFound) {
+		t.Fatalf("disabled AuthenticateWorker error = %v, want ErrNotFound", err)
+	}
+}
+
 func TestCandidatesForClientsReturnsOrderedEnabledCIDRMatches(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	store, _ := newStore(db)
+	store := newStore(db)
 
 	broad, err := store.Create(ctx, pointMutation("Broad", []string{"10.0.0.0/8"}), "key-broad")
 	if err != nil {
@@ -235,7 +380,7 @@ func TestCandidatesForClientsReturnsOrderedEnabledCIDRMatches(t *testing.T) {
 
 func TestResolveForClientHonorsEveryGate(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	store, presence := newStore(db)
+	store := newStore(db)
 	sha := strings.Repeat("a", 64)
 	pkg := seedAvailablePackage(t, ctx, db, "Chrome", sha, 4096)
 
@@ -243,8 +388,8 @@ func TestResolveForClientHonorsEveryGate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
+	claimWorker(t, ctx, store, point.ID, "key-mel")
 	recordCurrent(t, ctx, store, point.ID, pkg, sha)
-	presence.Connect(point.ID, testWorker())
 
 	inside := mustAddr(t, "10.1.2.3")
 	resolved, err := store.ResolveForClient(ctx, inside, pkg)
@@ -264,7 +409,7 @@ func TestResolveForClientHonorsEveryGate(t *testing.T) {
 
 	// A stale hash means the distribution point is not current for this installer.
 	if err := store.RecordPackageState(
-		ctx, point.ID, pkg, mdp.PackageStatusCurrent, strings.Repeat("f", 64), "",
+		ctx, point.ID, testConnectionID, pkg, mdp.PackageStatusCurrent, strings.Repeat("f", 64), "",
 	); err != nil {
 		t.Fatalf("stale RecordPackageState: %v", err)
 	}
@@ -274,7 +419,7 @@ func TestResolveForClientHonorsEveryGate(t *testing.T) {
 	recordCurrent(t, ctx, store, point.ID, pkg, sha)
 
 	if err := store.RecordPackageState(
-		ctx, point.ID, pkg, mdp.PackageStatusError, sha, "package 7 download: unavailable",
+		ctx, point.ID, testConnectionID, pkg, mdp.PackageStatusError, sha, "package 7 download: unavailable",
 	); err != nil {
 		t.Fatalf("error RecordPackageState: %v", err)
 	}
@@ -283,15 +428,19 @@ func TestResolveForClientHonorsEveryGate(t *testing.T) {
 	}
 	recordCurrent(t, ctx, store, point.ID, pkg, sha)
 
-	presence.Disconnect(point.ID)
+	if err := store.ReleaseWorkerSession(ctx, point.ID, testConnectionID); err != nil {
+		t.Fatalf("ReleaseWorkerSession: %v", err)
+	}
 	if got := resolveOrNil(t, ctx, store, inside, pkg); got != nil {
 		t.Fatalf("offline point resolved %+v, want nil", got)
 	}
-	presence.Reject(point.ID, mdp.DistributionPointWorker{})
+	if err := store.ObserveRejectedWorker(ctx, point.ID, "key-mel", mdp.DistributionPointWorker{}); err != nil {
+		t.Fatalf("ObserveRejectedWorker: %v", err)
+	}
 	if got := resolveOrNil(t, ctx, store, inside, pkg); got != nil {
 		t.Fatalf("incompatible point resolved %+v, want nil", got)
 	}
-	presence.Connect(point.ID, testWorker())
+	claimWorker(t, ctx, store, point.ID, "key-mel")
 
 	if _, err := store.Update(ctx, point.ID, mdp.DistributionPointMutation{
 		Name:          "Melbourne",
@@ -308,7 +457,7 @@ func TestResolveForClientHonorsEveryGate(t *testing.T) {
 
 func TestResolveForClientSkipsEmptyClientBaseURL(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	store, presence := newStore(db)
+	store := newStore(db)
 	sha := strings.Repeat("a", 64)
 	pkg := seedAvailablePackage(t, ctx, db, "Chrome", sha, 4096)
 
@@ -321,8 +470,8 @@ func TestResolveForClientSkipsEmptyClientBaseURL(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
+	claimWorker(t, ctx, store, point.ID, "key-mel")
 	recordCurrent(t, ctx, store, point.ID, pkg, sha)
-	presence.Connect(point.ID, testWorker())
 
 	if got := resolveOrNil(t, ctx, store, mustAddr(t, "10.1.2.3"), pkg); got != nil {
 		t.Fatalf("point with empty client_base_url resolved %+v, want nil", got)
@@ -331,7 +480,7 @@ func TestResolveForClientSkipsEmptyClientBaseURL(t *testing.T) {
 
 func TestResolveForClientContinuesThroughOrderedCandidates(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	store, presence := newStore(db)
+	store := newStore(db)
 	sha := strings.Repeat("a", 64)
 	pkg := seedAvailablePackage(t, ctx, db, "Chrome", sha, 4096)
 
@@ -343,10 +492,16 @@ func TestResolveForClientContinuesThroughOrderedCandidates(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create second point: %v", err)
 	}
+	claimWorker(t, ctx, store, first.ID, "key-first")
 	recordCurrent(t, ctx, store, first.ID, pkg, sha)
+	if err := store.ReleaseWorkerSession(ctx, first.ID, testConnectionID); err != nil {
+		t.Fatalf("release first worker: %v", err)
+	}
+	if err := store.ObserveRejectedWorker(ctx, first.ID, "key-first", mdp.DistributionPointWorker{}); err != nil {
+		t.Fatalf("reject first worker: %v", err)
+	}
+	claimWorker(t, ctx, store, second.ID, "key-second")
 	recordCurrent(t, ctx, store, second.ID, pkg, sha)
-	presence.Reject(first.ID, mdp.DistributionPointWorker{})
-	presence.Connect(second.ID, testWorker())
 
 	resolved := resolveOrNil(t, ctx, store, mustAddr(t, "10.1.2.3"), pkg)
 	if resolved == nil || resolved.ID != second.ID || resolved.Key != "key-second" {
@@ -356,7 +511,7 @@ func TestResolveForClientContinuesThroughOrderedCandidates(t *testing.T) {
 
 func TestReorderRequiresExactSet(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	store, _ := newStore(db)
+	store := newStore(db)
 	a := mustCreate(t, ctx, store, "A")
 	b := mustCreate(t, ctx, store, "B")
 	c := mustCreate(t, ctx, store, "C")
@@ -427,4 +582,21 @@ func packageStates(
 		byID[state.PackageID] = state
 	}
 	return byID
+}
+
+func assertWorker(
+	t *testing.T,
+	ctx context.Context,
+	store *mdp.Store,
+	pointID int64,
+	want *mdp.DistributionPointWorker,
+) {
+	t.Helper()
+	detail, err := store.GetByID(ctx, pointID)
+	if err != nil {
+		t.Fatalf("GetByID worker state: %v", err)
+	}
+	if !reflect.DeepEqual(detail.Worker, want) {
+		t.Fatalf("Worker = %+v, want %+v", detail.Worker, want)
+	}
 }

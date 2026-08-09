@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"reflect"
 	"strconv"
 	"strings"
@@ -45,8 +46,7 @@ func discardLogger() *slog.Logger {
 	return slog.New(slog.DiscardHandler)
 }
 
-// agentRouter wires the MDP protocol routes with a hub that writes the shared
-// presence set. The hub is closed when the test ends.
+// agentRouter wires the MDP protocol routes and closes its hub when the test ends.
 func agentRouter(
 	t *testing.T,
 	store *mdp.Store,
@@ -64,9 +64,29 @@ func agentRouter(
 	return r
 }
 
-func newStore(db *pgxpool.Pool) (*mdp.Store, *mdp.Presence) {
-	store := mdp.NewStore(db, storage.NewObjectStore(db, nil, discardLogger()), discardLogger())
-	return store, store.Presence()
+func startProtocolServer(
+	t *testing.T,
+	store *mdp.Store,
+) (*mdpprotocol.Server, *httptest.Server) {
+	t.Helper()
+	protocol, err := mdpprotocol.NewServer(
+		t.Context(), store, fakeDelivery{}, testServerVersion, discardLogger(),
+	)
+	if err != nil {
+		t.Fatalf("NewServer: %v", err)
+	}
+	router := chi.NewRouter()
+	protocol.RegisterRoutes(router, router)
+	server := httptest.NewServer(router)
+	t.Cleanup(func() {
+		protocol.Close()
+		server.Close()
+	})
+	return protocol, server
+}
+
+func newStore(db *pgxpool.Pool) *mdp.Store {
+	return mdp.NewStore(db, storage.NewObjectStore(db, nil, discardLogger()), discardLogger())
 }
 
 func pointMutation(cidrs []string) mdp.DistributionPointMutation {
@@ -114,7 +134,7 @@ func seedAvailablePackage(
 
 func TestConnectRejectsMissingAndUnknownKey(t *testing.T) {
 	db, _ := testdb.Open(t)
-	store, _ := newStore(db)
+	store := newStore(db)
 	router := agentRouter(t, store)
 
 	cases := []struct {
@@ -141,7 +161,7 @@ func TestConnectRejectsMissingAndUnknownKey(t *testing.T) {
 
 func TestConnectRejectsIncompatibleProtocol(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	store, presence := newStore(db)
+	store := newStore(db)
 	point, err := store.Create(ctx, pointMutation(nil), "worker-key")
 	if err != nil {
 		t.Fatalf("Create: %v", err)
@@ -197,7 +217,6 @@ func TestConnectRejectsIncompatibleProtocol(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			presence.Disconnect(point.ID)
 			req := httptest.NewRequestWithContext(
 				t.Context(), http.MethodGet, "/api/munki/distribution/connect", nil,
 			)
@@ -219,13 +238,17 @@ func TestConnectRejectsIncompatibleProtocol(t *testing.T) {
 			if got := rec.Header().Get(wire.BuildVersionHeader); got != testServerVersion {
 				t.Fatalf("server version = %q, want %q", got, testServerVersion)
 			}
-			worker, observed := presence.Worker(point.ID)
+			detail, err := store.GetByID(t.Context(), point.ID)
+			if err != nil {
+				t.Fatalf("GetByID: %v", err)
+			}
+			worker := detail.Worker
 			if tc.wantWorker == nil {
-				if observed {
-					t.Fatalf("worker = %+v, want no classified worker", worker)
+				if worker != nil {
+					t.Fatalf("worker = %+v, want no classified worker", *worker)
 				}
-			} else if !observed || !reflect.DeepEqual(worker, *tc.wantWorker) {
-				t.Fatalf("worker = (%+v, %t), want %+v", worker, observed, *tc.wantWorker)
+			} else if worker == nil || !reflect.DeepEqual(*worker, *tc.wantWorker) {
+				t.Fatalf("worker = %+v, want %+v", worker, *tc.wantWorker)
 			}
 		})
 	}
@@ -233,7 +256,7 @@ func TestConnectRejectsIncompatibleProtocol(t *testing.T) {
 
 func TestConnectRejectsUnexpectedMessage(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	store, presence := newStore(db)
+	store := newStore(db)
 	point, err := store.Create(ctx, pointMutation([]string{"10.0.0.0/8"}), "worker-key")
 	if err != nil {
 		t.Fatalf("Create: %v", err)
@@ -244,7 +267,7 @@ func TestConnectRejectsUnexpectedMessage(t *testing.T) {
 	defer srv.Close()
 
 	ws, response, err := dialWorker( //nolint:bodyclose // websocket.Dial always closes the handshake response body.
-		ctx, wsURL(srv.URL), "worker-key",
+		ctx, wsURL(srv.URL),
 	)
 	if err != nil {
 		t.Fatalf("dial: %v", err)
@@ -252,8 +275,12 @@ func TestConnectRejectsUnexpectedMessage(t *testing.T) {
 	defer func() { _ = ws.Close(websocket.StatusNormalClosure, "") }()
 	assertNegotiated(t, ws, response)
 	readJSON(t, ctx, ws, new(struct{}))
-	eventually(t, func() bool { return connected(presence, point.ID) })
-	worker, _ := presence.Worker(point.ID)
+	eventually(t, func() bool { return connected(ctx, store, point.ID) })
+	detail, err := store.GetByID(ctx, point.ID)
+	if err != nil {
+		t.Fatalf("GetByID: %v", err)
+	}
+	worker := *detail.Worker
 	if !worker.Compatible || worker.ProtocolVersion == nil ||
 		*worker.ProtocolVersion != wire.ProtocolVersion ||
 		worker.BuildVersion != testWorkerVersion {
@@ -268,12 +295,12 @@ func TestConnectRejectsUnexpectedMessage(t *testing.T) {
 	if err := ws.Write(ctx, websocket.MessageText, []byte(`{"type":"not-an-event"}`)); err != nil {
 		t.Fatalf("write unexpected message: %v", err)
 	}
-	eventually(t, func() bool { return !connected(presence, point.ID) })
+	eventually(t, func() bool { return !connected(ctx, store, point.ID) })
 }
 
-func TestDisconnectDropsCurrentWorkerAndPresence(t *testing.T) {
+func TestDisconnectDropsCurrentWorkerSession(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	store, presence := newStore(db)
+	store := newStore(db)
 	point, err := store.Create(ctx, pointMutation(nil), "worker-key")
 	if err != nil {
 		t.Fatalf("Create: %v", err)
@@ -292,7 +319,7 @@ func TestDisconnectDropsCurrentWorkerAndPresence(t *testing.T) {
 	defer httpServer.Close()
 
 	ws, response, err := dialWorker( //nolint:bodyclose // websocket.Dial always closes the handshake response body.
-		ctx, wsURL(httpServer.URL), "worker-key",
+		ctx, wsURL(httpServer.URL),
 	)
 	if err != nil {
 		t.Fatalf("dial: %v", err)
@@ -301,10 +328,10 @@ func TestDisconnectDropsCurrentWorkerAndPresence(t *testing.T) {
 	assertNegotiated(t, ws, response)
 	readJSON(t, ctx, ws, new(struct{}))
 	readJSON(t, ctx, ws, new(struct{}))
-	eventually(t, func() bool { return connected(presence, point.ID) })
+	eventually(t, func() bool { return connected(ctx, store, point.ID) })
 
 	protocol.Disconnect(point.ID)
-	eventually(t, func() bool { return !connected(presence, point.ID) })
+	eventually(t, func() bool { return !connected(ctx, store, point.ID) })
 	readCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 	if _, _, err := ws.Read(readCtx); websocket.CloseStatus(err) != websocket.StatusPolicyViolation {
@@ -312,9 +339,174 @@ func TestDisconnectDropsCurrentWorkerAndPresence(t *testing.T) {
 	}
 }
 
+func TestReplicasShareAndReplaceWorkerSession(t *testing.T) {
+	db, ctx := testdb.Open(t)
+	storeA := newStore(db)
+	storeB := newStore(db)
+	point, err := storeA.Create(
+		ctx,
+		pointMutation([]string{"10.0.0.0/8"}),
+		"worker-key",
+	)
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	_, serverA := startProtocolServer(t, storeA)
+	_, serverB := startProtocolServer(t, storeB)
+	workerA, responseA, err := dialWorker( //nolint:bodyclose // websocket.Dial closes the handshake body.
+		ctx, wsURL(serverA.URL),
+	)
+	if err != nil {
+		t.Fatalf("dial server A: %v", err)
+	}
+	defer func() { _ = workerA.CloseNow() }()
+	assertNegotiated(t, workerA, responseA)
+	readJSON(t, ctx, workerA, new(struct{}))
+	readJSON(t, ctx, workerA, new(struct{}))
+	eventually(t, func() bool { return connected(ctx, storeB, point.ID) })
+
+	sha := strings.Repeat("a", 64)
+	packageID := seedAvailablePackage(t, ctx, db, "Chrome", sha, 4096)
+	writePackageEvent(t, ctx, workerA, wire.PackageEvent{
+		Type: wire.EventPackageCurrent, PackageID: packageID, SHA256: sha,
+	})
+	eventually(t, func() bool {
+		resolved, resolveErr := storeB.ResolveForClient(ctx, netip.MustParseAddr("10.1.2.3"), packageID)
+		return resolveErr == nil && resolved != nil && resolved.ID == point.ID
+	})
+
+	workerB, responseB, err := dialWorker( //nolint:bodyclose // websocket.Dial closes the handshake body.
+		ctx, wsURL(serverB.URL),
+	)
+	if err != nil {
+		t.Fatalf("dial server B: %v", err)
+	}
+	defer func() { _ = workerB.CloseNow() }()
+	assertNegotiated(t, workerB, responseB)
+	readJSON(t, ctx, workerB, new(struct{}))
+	readJSON(t, ctx, workerB, new(struct{}))
+
+	writePackageEvent(t, ctx, workerA, wire.PackageEvent{
+		Type: wire.EventPackageError, PackageID: packageID, Error: "stale worker",
+	})
+	readCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	if _, _, err := workerA.Read(readCtx); websocket.CloseStatus(err) != websocket.StatusPolicyViolation {
+		t.Fatalf("old connection read error = %v, want policy violation close", err)
+	}
+	states, err := storeB.GetByID(ctx, point.ID)
+	if err != nil {
+		t.Fatalf("GetByID: %v", err)
+	}
+	if len(states.Packages) != 1 || states.Packages[0].Status != mdp.PackageStatusCurrent {
+		t.Fatalf("package state after stale write = %+v, want current", states.Packages)
+	}
+
+	if err := workerB.Close(websocket.StatusNormalClosure, ""); err != nil {
+		t.Fatalf("close replacement worker: %v", err)
+	}
+	eventually(t, func() bool { return !connected(ctx, storeA, point.ID) })
+}
+
+func TestReplicaPollConvergesDesiredPackages(t *testing.T) {
+	db, ctx := testdb.Open(t)
+	storeA := newStore(db)
+	storeB := newStore(db)
+	if _, err := storeA.Create(ctx, pointMutation(nil), "worker-key"); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	_, serverA := startProtocolServer(t, storeA)
+	protocolB, _ := startProtocolServer(t, storeB)
+	worker, response, err := dialWorker( //nolint:bodyclose // websocket.Dial closes the handshake body.
+		ctx, wsURL(serverA.URL),
+	)
+	if err != nil {
+		t.Fatalf("dial server A: %v", err)
+	}
+	defer func() { _ = worker.CloseNow() }()
+	assertNegotiated(t, worker, response)
+	readJSON(t, ctx, worker, new(wire.ServerMessage))
+	readJSON(t, ctx, worker, new(wire.ServerMessage))
+
+	sha := strings.Repeat("a", 64)
+	packageID := seedAvailablePackage(t, ctx, db, "Chrome", sha, 4096)
+	protocolB.RefreshDesiredPackages()
+
+	readCtx, cancel := context.WithTimeout(ctx, 25*time.Second)
+	defer cancel()
+	var desired wire.ServerMessage
+	_, data, err := worker.Read(readCtx)
+	if err != nil {
+		t.Fatalf("read replica-polled desired set: %v", err)
+	}
+	if err := json.Unmarshal(data, &desired); err != nil {
+		t.Fatalf("decode replica-polled desired set: %v", err)
+	}
+	if desired.Type != wire.MessageDesiredSet || len(desired.Packages) != 1 ||
+		desired.Packages[0].PackageID != packageID || desired.Packages[0].SHA256 != sha {
+		t.Fatalf("replica-polled desired set = %+v, want package %d", desired, packageID)
+	}
+}
+
+func TestReplicaMutationsInvalidateWorkerConnection(t *testing.T) {
+	tests := map[string]func(context.Context, *mdp.Store, *mdp.DistributionPoint) error{
+		"disable": func(ctx context.Context, store *mdp.Store, point *mdp.DistributionPoint) error {
+			_, err := store.Update(ctx, point.ID, mdp.DistributionPointMutation{
+				Name:          point.Name,
+				Enabled:       false,
+				ClientCIDRs:   point.ClientCIDRs,
+				ClientBaseURL: point.ClientBaseURL,
+			})
+			return err
+		},
+		"delete": func(ctx context.Context, store *mdp.Store, point *mdp.DistributionPoint) error {
+			return store.Delete(ctx, point.ID)
+		},
+		"rotate key": func(ctx context.Context, store *mdp.Store, point *mdp.DistributionPoint) error {
+			return store.RotateKey(ctx, point.ID, "replacement-key")
+		},
+	}
+	for name, mutate := range tests {
+		t.Run(name, func(t *testing.T) {
+			db, ctx := testdb.Open(t)
+			storeA := newStore(db)
+			storeB := newStore(db)
+			point, err := storeA.Create(ctx, pointMutation(nil), "worker-key")
+			if err != nil {
+				t.Fatalf("Create: %v", err)
+			}
+			_, serverA := startProtocolServer(t, storeA)
+			worker, response, err := dialWorker( //nolint:bodyclose // websocket.Dial closes the handshake body.
+				ctx, wsURL(serverA.URL),
+			)
+			if err != nil {
+				t.Fatalf("dial server A: %v", err)
+			}
+			defer func() { _ = worker.CloseNow() }()
+			assertNegotiated(t, worker, response)
+			readJSON(t, ctx, worker, new(struct{}))
+			readJSON(t, ctx, worker, new(struct{}))
+			if err := mutate(ctx, storeB, point); err != nil {
+				t.Fatalf("mutate through server B store: %v", err)
+			}
+
+			writePackageEvent(t, ctx, worker, wire.PackageEvent{
+				Type: wire.EventPackageError, PackageID: 1, Error: "stale worker",
+			})
+			readCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+			defer cancel()
+			if _, _, err := worker.Read(readCtx); websocket.CloseStatus(err) != websocket.StatusPolicyViolation {
+				t.Fatalf("invalidated connection read error = %v, want policy violation close", err)
+			}
+		})
+	}
+}
+
 func TestDownloadURLRejectsMissingAndUnknownKey(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	store, _ := newStore(db)
+	store := newStore(db)
 	sha := strings.Repeat("a", 64)
 	pkg := seedAvailablePackage(t, ctx, db, "Chrome", sha, 4096)
 	var nopkgID int64
@@ -381,11 +573,10 @@ func wsURL(httpURL string) string {
 func dialWorker(
 	ctx context.Context,
 	url string,
-	key string,
 ) (*websocket.Conn, *http.Response, error) {
 	return websocket.Dial(ctx, url, &websocket.DialOptions{
 		HTTPHeader: http.Header{
-			"Authorization":         {"Bearer " + key},
+			"Authorization":         {"Bearer worker-key"},
 			wire.BuildVersionHeader: {testWorkerVersion},
 		},
 		Subprotocols: []string{wire.Subprotocol},
@@ -402,9 +593,9 @@ func assertNegotiated(t *testing.T, ws *websocket.Conn, response *http.Response)
 	}
 }
 
-func connected(presence *mdp.Presence, id int64) bool {
-	worker, ok := presence.Worker(id)
-	return ok && worker.Compatible
+func connected(ctx context.Context, store *mdp.Store, id int64) bool {
+	detail, err := store.GetByID(ctx, id)
+	return err == nil && detail.Worker != nil && detail.Worker.Compatible
 }
 
 func readJSON(t *testing.T, ctx context.Context, ws *websocket.Conn, v any) {
@@ -417,6 +608,22 @@ func readJSON(t *testing.T, ctx context.Context, ws *websocket.Conn, v any) {
 	}
 	if err := json.Unmarshal(data, v); err != nil {
 		t.Fatalf("decode message: %v", err)
+	}
+}
+
+func writePackageEvent(
+	t *testing.T,
+	ctx context.Context,
+	ws *websocket.Conn,
+	event wire.PackageEvent,
+) {
+	t.Helper()
+	data, err := json.Marshal(event)
+	if err != nil {
+		t.Fatalf("encode package event: %v", err)
+	}
+	if err := ws.Write(ctx, websocket.MessageText, data); err != nil {
+		t.Fatalf("write package event: %v", err)
 	}
 }
 

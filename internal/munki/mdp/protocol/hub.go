@@ -1,6 +1,7 @@
 package protocol
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -13,11 +14,14 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/munki/mdp"
 	"github.com/woodleighschool/woodstar/internal/munki/mdp/wire"
+	"github.com/woodleighschool/woodstar/internal/randtoken"
 )
 
 const (
-	pingInterval = 20 * time.Second
-	pingTimeout  = 10 * time.Second
+	pingInterval        = 20 * time.Second
+	pingTimeout         = 10 * time.Second
+	desiredPollInterval = 20 * time.Second
+	connectionIDBytes   = 16
 
 	// sendBuffer absorbs a burst of desired-set pushes without dropping a
 	// momentarily-busy worker. A worker whose buffer still overflows is genuinely
@@ -28,12 +32,11 @@ const (
 // errHubClosed is returned by Serve when the hub is shutting down.
 var errHubClosed = errors.New("hub closed")
 
-// Hub tracks live distribution point connections. It is the writer of presence
-// and the ordered fan-out for desired-set changes.
+// Hub owns this process's WebSocket connections and ordered desired-set fan-out.
+// PostgreSQL owns worker session authority across processes.
 type Hub struct {
-	store    *mdp.Store
-	presence presenceWriter
-	logger   *slog.Logger
+	store  *mdp.Store
+	logger *slog.Logger
 
 	mu     sync.Mutex
 	conns  map[int64]*connection
@@ -44,30 +47,24 @@ type Hub struct {
 	cancel context.CancelFunc
 }
 
-type presenceWriter interface {
-	Connect(pointID int64, worker mdp.DistributionPointWorker)
-	Disconnect(pointID int64)
-	Clear(pointID int64)
-}
-
 type connection struct {
-	ws   *websocket.Conn
-	send chan []byte
+	id      string
+	ws      *websocket.Conn
+	send    chan []byte
+	desired []byte
 }
 
-// newHub returns a connection hub backed by store, writing presence as workers
-// connect and disconnect. It runs one fan-out goroutine so desired-set pushes
-// reach every worker in a single, ordered sequence.
-func newHub(ctx context.Context, store *mdp.Store, presence *mdp.Presence, logger *slog.Logger) *Hub {
+// newHub returns a connection hub backed by store. One fan-out goroutine keeps
+// local workers converged with the authoritative desired package set.
+func newHub(ctx context.Context, store *mdp.Store, logger *slog.Logger) *Hub {
 	ctx, cancel := context.WithCancel(ctx)
 	h := &Hub{
-		store:    store,
-		presence: presence,
-		logger:   logger,
-		conns:    map[int64]*connection{},
-		wake:     make(chan struct{}, 1),
-		done:     make(chan struct{}),
-		cancel:   cancel,
+		store:  store,
+		logger: logger,
+		conns:  map[int64]*connection{},
+		wake:   make(chan struct{}, 1),
+		done:   make(chan struct{}),
+		cancel: cancel,
 	}
 	go h.fanoutLoop(ctx)
 	return h
@@ -102,31 +99,44 @@ func (h *Hub) Serve(
 	parent context.Context,
 	ws *websocket.Conn,
 	dp *mdp.DistributionPoint,
+	key string,
 	worker mdp.DistributionPointWorker,
 ) error {
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
 
-	if err := h.sendHello(ctx, ws, dp); err != nil {
+	connectionID, err := randtoken.Generate(connectionIDBytes)
+	if err != nil {
+		return err
+	}
+	if err := h.store.ClaimWorkerSession(ctx, dp.ID, key, connectionID, worker); err != nil {
+		_ = ws.Close(websocket.StatusPolicyViolation, "distribution point session rejected")
 		return err
 	}
 
-	conn := &connection{ws: ws, send: make(chan []byte, sendBuffer)}
-	if !h.register(dp.ID, conn, worker) {
+	conn := &connection{id: connectionID, ws: ws, send: make(chan []byte, sendBuffer)}
+	if !h.register(dp.ID, conn) {
+		releaseCtx, releaseCancel := context.WithTimeout(context.Background(), pingTimeout)
+		_ = h.store.ReleaseWorkerSession(releaseCtx, dp.ID, connectionID)
+		releaseCancel()
 		return errHubClosed
 	}
 	defer h.unregister(dp.ID, conn)
 
-	go h.writeLoop(ctx, cancel, conn)
+	if err := h.sendHello(ctx, ws, dp); err != nil {
+		return err
+	}
+
+	go h.writeLoop(ctx, cancel, dp.ID, conn)
 
 	if msg, err := h.desiredSetBytes(ctx); err != nil {
 		h.logger.WarnContext(ctx, "munki distribution desired set failed",
 			"operation", "desired_set", "distribution_point_id", dp.ID, "err", err)
 	} else {
-		h.enqueue(conn, msg)
+		h.enqueueDesired(conn, msg)
 	}
 
-	return h.readLoop(ctx, ws, dp.ID)
+	return h.readLoop(ctx, ws, dp.ID, connectionID)
 }
 
 func (h *Hub) sendHello(ctx context.Context, ws *websocket.Conn, dp *mdp.DistributionPoint) error {
@@ -136,7 +146,7 @@ func (h *Hub) sendHello(ctx context.Context, ws *websocket.Conn, dp *mdp.Distrib
 	})
 }
 
-func (h *Hub) readLoop(ctx context.Context, ws *websocket.Conn, dpID int64) error {
+func (h *Hub) readLoop(ctx context.Context, ws *websocket.Conn, dpID int64, connectionID string) error {
 	for {
 		_, data, err := ws.Read(ctx)
 		if err != nil {
@@ -151,8 +161,12 @@ func (h *Hub) readLoop(ctx context.Context, ws *websocket.Conn, dpID int64) erro
 			return fmt.Errorf("unexpected message type %q", event.Type)
 		}
 		if err := h.store.RecordPackageState(
-			ctx, dpID, event.PackageID, status, event.SHA256, event.Error,
+			ctx, dpID, connectionID, event.PackageID, status, event.SHA256, event.Error,
 		); err != nil {
+			if errors.Is(err, mdp.ErrWorkerSessionInvalid) {
+				_ = ws.Close(websocket.StatusPolicyViolation, "distribution point session replaced")
+				return err
+			}
 			// A record failure (e.g. the package was just deleted) is the worker's
 			// problem to retry, not a reason to drop an otherwise healthy connection.
 			h.logger.WarnContext(ctx, "munki distribution record state failed",
@@ -162,7 +176,12 @@ func (h *Hub) readLoop(ctx context.Context, ws *websocket.Conn, dpID int64) erro
 	}
 }
 
-func (h *Hub) writeLoop(ctx context.Context, cancel context.CancelFunc, conn *connection) {
+func (h *Hub) writeLoop(
+	ctx context.Context,
+	cancel context.CancelFunc,
+	dpID int64,
+	conn *connection,
+) {
 	defer cancel()
 	ping := time.NewTicker(pingInterval)
 	defer ping.Stop()
@@ -176,9 +195,18 @@ func (h *Hub) writeLoop(ctx context.Context, cancel context.CancelFunc, conn *co
 			}
 		case <-ping.C:
 			pingCtx, pingCancel := context.WithTimeout(ctx, pingTimeout)
-			err := conn.ws.Ping(pingCtx)
+			err := h.store.RenewWorkerSession(pingCtx, dpID, conn.id)
+			if err == nil {
+				err = conn.ws.Ping(pingCtx)
+			}
 			pingCancel()
 			if err != nil {
+				if errors.Is(err, mdp.ErrWorkerSessionInvalid) {
+					_ = conn.ws.Close(websocket.StatusPolicyViolation, "distribution point session replaced")
+				} else if ctx.Err() == nil {
+					h.logger.WarnContext(ctx, "munki distribution session renewal failed",
+						"operation", "renew", "distribution_point_id", dpID, "err", err)
+				}
 				return
 			}
 		}
@@ -197,14 +225,26 @@ func (h *Hub) refreshDesiredPackages() {
 
 func (h *Hub) fanoutLoop(ctx context.Context) {
 	defer close(h.done)
+	poll := time.NewTicker(desiredPollInterval)
+	defer poll.Stop()
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-h.wake:
 			h.broadcastDesired(ctx)
+		case <-poll.C:
+			if h.hasConnections() {
+				h.broadcastDesired(ctx)
+			}
 		}
 	}
+}
+
+func (h *Hub) hasConnections() bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return len(h.conns) > 0
 }
 
 func (h *Hub) broadcastDesired(ctx context.Context) {
@@ -224,7 +264,7 @@ func (h *Hub) broadcastDesired(ctx context.Context) {
 	}
 	h.mu.Unlock()
 	for _, c := range conns {
-		h.enqueue(c, msg)
+		h.enqueueDesired(c, msg)
 	}
 }
 
@@ -250,11 +290,18 @@ func (h *Hub) enqueue(c *connection, msg []byte) {
 	}
 }
 
-func (h *Hub) register(
-	id int64,
-	conn *connection,
-	worker mdp.DistributionPointWorker,
-) bool {
+func (h *Hub) enqueueDesired(c *connection, msg []byte) {
+	h.mu.Lock()
+	if bytes.Equal(c.desired, msg) {
+		h.mu.Unlock()
+		return
+	}
+	c.desired = bytes.Clone(msg)
+	h.mu.Unlock()
+	h.enqueue(c, msg)
+}
+
+func (h *Hub) register(id int64, conn *connection) bool {
 	h.mu.Lock()
 	if h.closed {
 		h.mu.Unlock()
@@ -262,7 +309,6 @@ func (h *Hub) register(
 	}
 	old := h.conns[id]
 	h.conns[id] = conn
-	h.presence.Connect(id, worker)
 	h.mu.Unlock()
 	if old != nil {
 		_ = old.ws.Close(websocket.StatusPolicyViolation, "replaced by a new connection")
@@ -272,14 +318,16 @@ func (h *Hub) register(
 
 func (h *Hub) unregister(id int64, conn *connection) {
 	h.mu.Lock()
-	removed := h.conns[id] == conn
-	if removed {
+	if h.conns[id] == conn {
 		delete(h.conns, id)
-		h.presence.Disconnect(id)
 	}
 	h.mu.Unlock()
-	// Only a replaced or genuinely-closed current connection clears presence; a
-	// superseded old connection's late unregister must not knock the new one out.
+	releaseCtx, cancel := context.WithTimeout(context.Background(), pingTimeout)
+	defer cancel()
+	if err := h.store.ReleaseWorkerSession(releaseCtx, id, conn.id); err != nil {
+		h.logger.WarnContext(releaseCtx, "munki distribution session release failed",
+			"operation", "release", "distribution_point_id", id, "err", err)
+	}
 }
 
 // Disconnect drops the current connection for one distribution point. Key
@@ -289,12 +337,10 @@ func (h *Hub) Disconnect(id int64) {
 	h.mu.Lock()
 	conn := h.conns[id]
 	if conn == nil {
-		h.presence.Clear(id)
 		h.mu.Unlock()
 		return
 	}
 	delete(h.conns, id)
-	h.presence.Clear(id)
 	h.mu.Unlock()
 	_ = conn.ws.Close(websocket.StatusPolicyViolation, "distribution point credentials changed")
 }
