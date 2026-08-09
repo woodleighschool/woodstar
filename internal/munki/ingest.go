@@ -6,16 +6,11 @@ import (
 	"time"
 )
 
-// hostStateStore persists observed Munki host state.
 type hostStateStore interface {
-	UpsertHostObservation(ctx context.Context, observation HostObservation) error
-	ClearHostObservation(ctx context.Context, hostID int64) error
-	ReplaceHostItems(ctx context.Context, hostID int64, items []ItemObservation) error
+	applyCollection(ctx context.Context, update collectionUpdate) error
 }
 
-// DetailIngestor projects osquery munki_info and munki_installs detail rows into
-// observed host state. It is registered onto the osquery projector from the
-// wiring layer so the projector core stays free of Munki types.
+// DetailIngestor stores the Munki query family as one collection attempt.
 type DetailIngestor struct {
 	store hostStateStore
 }
@@ -25,28 +20,34 @@ func NewDetailIngestor(store hostStateStore) *DetailIngestor {
 	return &DetailIngestor{store: store}
 }
 
-// IngestInfo records a host's munki_info observation, clearing it when the host
-// reports no Munki data.
-func (i *DetailIngestor) IngestInfo(ctx context.Context, hostID int64, rows []map[string]string) error {
-	status, ok := hostStatusFromInfoRows(hostID, rows)
-	if !ok {
-		return i.store.ClearHostObservation(ctx, hostID)
+// IngestCollection replaces the last successful Munki snapshot.
+func (i *DetailIngestor) IngestCollection(ctx context.Context, hostID int64, collection Collection) error {
+	if !collectionAuthoritative(collection) {
+		return nil
 	}
-	return i.store.UpsertHostObservation(ctx, status)
+
+	update := collectionUpdate{HostID: hostID}
+	update.Observation, update.HasReport = hostStatusFromInfoRows(collection.Info.Rows)
+	if update.HasReport {
+		update.Items = itemsFromInstallRows(collection.Installs.Rows)
+	}
+	return i.store.applyCollection(ctx, update)
 }
 
-// IngestInstalls records the managed-install items a host reports.
-func (i *DetailIngestor) IngestInstalls(ctx context.Context, hostID int64, rows []map[string]string) error {
-	return i.store.ReplaceHostItems(ctx, hostID, itemsFromInstallRows(hostID, rows))
+func collectionAuthoritative(collection Collection) bool {
+	if !collection.Info.Present && !collection.Installs.Present {
+		return true
+	}
+	return collection.Info.Present && collection.Info.Successful &&
+		collection.Installs.Present && collection.Installs.Successful
 }
 
-func hostStatusFromInfoRows(hostID int64, rows []map[string]string) (HostObservation, bool) {
+func hostStatusFromInfoRows(rows []map[string]string) (hostObservation, bool) {
 	if len(rows) == 0 {
-		return HostObservation{}, false
+		return hostObservation{}, false
 	}
 	row := rows[0]
-	return HostObservation{
-		HostID:          hostID,
+	return hostObservation{
 		Version:         row["version"],
 		ManifestName:    row["manifest_name"],
 		Errors:          splitMunkiList(row["errors"]),
@@ -57,11 +58,10 @@ func hostStatusFromInfoRows(hostID int64, rows []map[string]string) (HostObserva
 	}, true
 }
 
-func itemsFromInstallRows(hostID int64, rows []map[string]string) []ItemObservation {
-	items := make([]ItemObservation, 0, len(rows))
+func itemsFromInstallRows(rows []map[string]string) []itemObservation {
+	items := make([]itemObservation, 0, len(rows))
 	for _, row := range rows {
-		items = append(items, ItemObservation{
-			HostID:           hostID,
+		items = append(items, itemObservation{
 			Name:             row["name"],
 			DisplayName:      row["display_name"],
 			Installed:        row["installed"] == "true",

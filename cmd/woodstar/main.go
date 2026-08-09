@@ -41,7 +41,6 @@ import (
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
 	"github.com/woodleighschool/woodstar/internal/orbit"
 	"github.com/woodleighschool/woodstar/internal/osquery"
-	"github.com/woodleighschool/woodstar/internal/osquery/catalog"
 	"github.com/woodleighschool/woodstar/internal/osquery/checks"
 	"github.com/woodleighschool/woodstar/internal/osquery/ingest"
 	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
@@ -271,12 +270,11 @@ func buildDependencies(
 		logger.With("component", "inventory"),
 	)
 	munkiIngestor := munki.NewDetailIngestor(munkiHostState)
-	inventoryProjector.RegisterDetailHandler(catalog.IngestMunkiInfo, munkiIngestor.IngestInfo)
-	inventoryProjector.RegisterDetailHandler(catalog.IngestMunkiInstalls, munkiIngestor.IngestInstalls)
 	labelEvaluator := ingest.NewLabelEvaluator(labelStore, logger.With("component", "labels"))
 	osqueryAgent := osquery.NewAgentService(osquery.Dependencies{
 		HostStore:          hostStore,
 		InventoryProjector: inventoryProjector,
+		MunkiCollector:     munkiIngestor,
 		LabelEvaluator:     labelEvaluator,
 		ReportStore:        reportStore,
 		CheckStore:         checkStore,

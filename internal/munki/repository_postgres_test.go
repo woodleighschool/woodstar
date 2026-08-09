@@ -1269,7 +1269,7 @@ func TestTargetMissingLabelFallsThroughToNotFound(t *testing.T) {
 	}
 }
 
-func TestHostMunkiStateKeepsDesiredSoftwareSeparateFromExactObservations(t *testing.T) { //nolint:cyclop,funlen // One desired/observed database lifecycle.
+func TestHostMunkiStateKeepsDesiredSoftwareSeparateFromExactObservations(t *testing.T) { //nolint:cyclop,funlen,gocognit // One desired/observed database lifecycle.
 	db, ctx := testdb.Open(t)
 	hostStore := hosts.NewStore(db)
 	labelStore := labels.NewStore(db)
@@ -1327,33 +1327,34 @@ func TestHostMunkiStateKeepsDesiredSoftwareSeparateFromExactObservations(t *test
 
 	runStartedAt := time.Date(2026, 5, 31, 9, 23, 0, 0, time.UTC)
 	runEndedAt := time.Date(2026, 5, 31, 9, 24, 14, 0, time.UTC)
-	if err := stores.hoststate.UpsertHostObservation(ctx, munki.HostObservation{
-		HostID:          host.ID,
-		Version:         "7.1.2.5700",
-		ManifestName:    "site_default",
-		Errors:          []string{"first error"},
-		Warnings:        []string{"first warning"},
-		ProblemInstalls: []string{"Broken App"},
-		RunStartedAt:    &runStartedAt,
-		RunEndedAt:      &runEndedAt,
+	infoRows := []map[string]string{{
+		"version":          "7.1.2.5700",
+		"manifest_name":    "site_default",
+		"errors":           "first error",
+		"warnings":         "first warning",
+		"problem_installs": "Broken App",
+		"start_time":       runStartedAt.Format("2006-01-02 15:04:05 -0700"),
+		"end_time":         runEndedAt.Format("2006-01-02 15:04:05 -0700"),
+	}}
+	collector := munki.NewDetailIngestor(stores.hoststate)
+	if err := collector.IngestCollection(ctx, host.ID, munki.Collection{
+		Info: munki.QueryResult{Present: true, Successful: true, Rows: infoRows},
+		Installs: munki.QueryResult{Present: true, Successful: true, Rows: []map[string]string{
+			{
+				"name":               "NotGoogleChrome",
+				"display_name":       "GoogleChrome",
+				"version_to_install": "148.0",
+			},
+			{
+				"name":               "VisualStudioCode",
+				"display_name":       "Visual Studio Code",
+				"installed":          "false",
+				"installed_version":  "",
+				"version_to_install": "1.130.0",
+			},
+		}},
 	}); err != nil {
-		t.Fatalf("upsert munki host status: %v", err)
-	}
-	if err := stores.hoststate.ReplaceHostItems(ctx, host.ID, []munki.ItemObservation{
-		{
-			Name:          "NotGoogleChrome",
-			DisplayName:   "GoogleChrome",
-			TargetVersion: "148.0",
-		},
-		{
-			Name:             "VisualStudioCode",
-			DisplayName:      "Visual Studio Code",
-			Installed:        false,
-			InstalledVersion: "",
-			TargetVersion:    "1.130.0",
-		},
-	}); err != nil {
-		t.Fatalf("replace munki host items: %v", err)
+		t.Fatalf("ingest Munki collection: %v", err)
 	}
 
 	detail, err := stores.hoststate.LoadHostState(ctx, host.ID)
@@ -1366,9 +1367,11 @@ func TestHostMunkiStateKeepsDesiredSoftwareSeparateFromExactObservations(t *test
 	if detail.Version != "7.1.2.5700" || detail.ManifestName != "site_default" {
 		t.Fatalf("detail = %+v, want version and manifest", detail)
 	}
-	if detail.RunStartedAt == nil || !detail.RunStartedAt.Equal(runStartedAt) ||
-		detail.RunEndedAt == nil || !detail.RunEndedAt.Equal(runEndedAt) {
-		t.Fatalf("detail run times = %v/%v, want stored timestamps", detail.RunStartedAt, detail.RunEndedAt)
+	if !slices.Equal(detail.ProblemInstalls, []string{"Broken App"}) {
+		t.Fatalf("problem installs = %v, want [Broken App]", detail.ProblemInstalls)
+	}
+	if detail.RunAt == nil || !detail.RunAt.Equal(runEndedAt) {
+		t.Fatalf("detail run time = %v, want completion time %v", detail.RunAt, runEndedAt)
 	}
 
 	desired, count, err := stores.software.ListForHost(
@@ -1404,6 +1407,35 @@ func TestHostMunkiStateKeepsDesiredSoftwareSeparateFromExactObservations(t *test
 		t.Fatalf("VisualStudioCode = %+v, want exact pending update observation", vscodeState)
 	}
 
+	lastRunAt := *detail.RunAt
+	if err := collector.IngestCollection(ctx, host.ID, munki.Collection{
+		Info: munki.QueryResult{Present: true, Successful: true, Rows: infoRows},
+	}); err != nil {
+		t.Fatalf("ingest incomplete Munki collection: %v", err)
+	}
+	detail, err = stores.hoststate.LoadHostState(ctx, host.ID)
+	if err != nil {
+		t.Fatalf("load failed Munki collection: %v", err)
+	}
+	if detail == nil || detail.RunAt == nil || !detail.RunAt.Equal(lastRunAt) ||
+		detail.Version != "7.1.2.5700" {
+		t.Fatalf("failed collection state = %+v, want retained successful report", detail)
+	}
+	if !slices.Equal(detail.ProblemInstalls, []string{"Broken App"}) {
+		t.Fatalf("problem installs after failed collection = %v, want retained report", detail.ProblemInstalls)
+	}
+	var observedCount int
+	if err := stores.db.QueryRow(
+		ctx,
+		`SELECT count(*) FROM munki_host_items WHERE host_id = $1`,
+		host.ID,
+	).Scan(&observedCount); err != nil {
+		t.Fatalf("count observations after failed collection: %v", err)
+	}
+	if observedCount != 2 {
+		t.Fatalf("observations after failed collection = %d, want 2", observedCount)
+	}
+
 	nextVSCodePackage := createMunkiPackage(t, ctx, stores, vscode.ID, vscode.Name, "1.131.0")
 	replaceTargets(t, ctx, stores, vscode, []munkisoftware.Include{
 		includeSpecificTarget(
@@ -1412,13 +1444,16 @@ func TestHostMunkiStateKeepsDesiredSoftwareSeparateFromExactObservations(t *test
 			nextVSCodePackage.ID,
 		),
 	})
-	if err := stores.hoststate.ReplaceHostItems(ctx, host.ID, []munki.ItemObservation{{
-		Name:             "VisualStudioCode",
-		DisplayName:      "Visual Studio Code",
-		Installed:        true,
-		InstalledVersion: "1.130.0",
-	}}); err != nil {
-		t.Fatalf("replace Munki items with satisfied prior target: %v", err)
+	if err := collector.IngestCollection(ctx, host.ID, munki.Collection{
+		Info: munki.QueryResult{Present: true, Successful: true, Rows: infoRows},
+		Installs: munki.QueryResult{Present: true, Successful: true, Rows: []map[string]string{{
+			"name":              "VisualStudioCode",
+			"display_name":      "Visual Studio Code",
+			"installed":         "true",
+			"installed_version": "1.130.0",
+		}}},
+	}); err != nil {
+		t.Fatalf("ingest updated Munki collection: %v", err)
 	}
 	desired, _, err = stores.software.ListForHost(
 		ctx,
@@ -1441,13 +1476,13 @@ func TestHostMunkiStateKeepsDesiredSoftwareSeparateFromExactObservations(t *test
 		)
 	}
 
-	if err := stores.hoststate.ClearHostObservation(ctx, host.ID); err != nil {
-		t.Fatalf("clear munki host status: %v", err)
+	if err := collector.IngestCollection(ctx, host.ID, munki.Collection{}); err != nil {
+		t.Fatalf("ingest no-report Munki collection: %v", err)
 	}
 	if detail, err := stores.hoststate.LoadHostState(ctx, host.ID); err != nil {
-		t.Fatalf("load cleared munki detail: %v", err)
+		t.Fatalf("load no-report Munki detail: %v", err)
 	} else if detail != nil {
-		t.Fatalf("cleared munki detail = %+v, want nil", detail)
+		t.Fatalf("no-report Munki detail = %+v, want none", detail)
 	}
 	desired, _, err = stores.software.ListForHost(
 		ctx,

@@ -1774,8 +1774,7 @@ type MunkiHostState struct {
 	Errors          []string   `json:"errors"`
 	ManifestName    string     `json:"manifest_name"`
 	ProblemInstalls []string   `json:"problem_installs"`
-	RunEndedAt      *time.Time `json:"run_ended_at,omitempty"`
-	RunStartedAt    *time.Time `json:"run_started_at,omitempty"`
+	RunAt           *time.Time `json:"run_at,omitempty"`
 	Version         string     `json:"version"`
 	Warnings        []string   `json:"warnings"`
 }

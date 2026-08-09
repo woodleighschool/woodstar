@@ -1,27 +1,17 @@
-import {
-  CircleCheck,
-  Clock3,
-  Download,
-  PackageOpen,
-  RefreshCw,
-  type LucideIcon,
-} from "lucide-react";
-
 import { DataTableStatic } from "@components/data-table/data-table-static";
 import type { DataTableColumnDef } from "@components/data-table/types";
 import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { Link } from "@components/link";
 import { PanelEmptyState } from "@components/panel-empty-state";
 import { QueryError } from "@components/query-error";
+import { RelativeTime } from "@components/relative-time";
 import { Badge } from "@components/ui/badge";
 import { Separator } from "@components/ui/separator";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@components/ui/tooltip";
 import { useHostMunkiSoftware } from "@features/hosts/queries";
 import { MUNKI_SOFTWARE_ACTIONS, type MunkiSoftwareAction } from "@features/munki/software/actions";
 import { SoftwareArtwork } from "@features/software/software-icon";
 import type { ApiError, MunkiHostManifestSoftware, MunkiHostState } from "@lib/api";
 import { MAX_PAGE_SIZE } from "@lib/pagination";
-import { formatRelative } from "@lib/utils";
 
 const softwareColumns: DataTableColumnDef<MunkiHostManifestSoftware>[] = [
   {
@@ -51,7 +41,7 @@ const softwareColumns: DataTableColumnDef<MunkiHostManifestSoftware>[] = [
   {
     id: "target_version",
     header: () => "Target Version",
-    cell: ({ row }) => row.original.observation?.target_version,
+    cell: ({ row }) => row.original.observation?.target_version ?? "-",
     size: 136,
     minSize: 136,
     maxSize: 136,
@@ -60,7 +50,7 @@ const softwareColumns: DataTableColumnDef<MunkiHostManifestSoftware>[] = [
   {
     id: "status",
     header: () => "Status",
-    cell: ({ row }) => <MunkiSoftwareStatusBadge software={row.original} />,
+    cell: ({ row }) => munkiSoftwareStatus(row.original) ?? "-",
     size: 200,
     minSize: 200,
     maxSize: 200,
@@ -95,6 +85,7 @@ interface HostMunkiTabProps {
 
 export function HostMunkiTab({ hostId, munki, stateError, onStateRetry }: HostMunkiTabProps) {
   const software = useHostMunkiSoftware(hostId, { per_page: MAX_PAGE_SIZE });
+  const hasReport = Boolean(munki && (munki.run_at || munki.version || munki.manifest_name));
   const problems = munki
     ? [
         ...problemRows("Errors", munki.errors),
@@ -107,17 +98,19 @@ export function HostMunkiTab({ hostId, munki, stateError, onStateRetry }: HostMu
     <div className="flex flex-col gap-4">
       {stateError ? (
         <QueryError title="Failed to load Munki state" error={stateError} onRetry={onStateRetry} />
-      ) : munki === null ? (
-        <PanelEmptyState>No Munki run reported</PanelEmptyState>
-      ) : munki ? (
+      ) : munki && hasReport ? (
         <KeyValueSection title="Overview">
-          <KeyValueRow label="Version" value={munki.version} />
-          <KeyValueRow label="Manifest" value={munki.manifest_name} />
-          <KeyValueRow label="Status" value={<MunkiStatusBadge munki={munki} />} />
-          <KeyValueRow label="Last Run Started" value={formatRelative(munki.run_started_at)} />
-          <KeyValueRow label="Last Run Ended" value={formatRelative(munki.run_ended_at)} />
+          {munki.version ? <KeyValueRow label="Version" value={munki.version} /> : null}
+          {munki.manifest_name ? (
+            <KeyValueRow label="Manifest" value={munki.manifest_name} />
+          ) : null}
+          {munki.run_at ? (
+            <KeyValueRow label="Last Run" value={<RelativeTime value={munki.run_at} />} />
+          ) : null}
         </KeyValueSection>
-      ) : null}
+      ) : (
+        <PanelEmptyState>No Munki report</PanelEmptyState>
+      )}
 
       {problems.length > 0 ? (
         <DataTableStatic heading="Problems" columns={problemColumns} data={problems} />
@@ -176,112 +169,19 @@ function MunkiActionBadge({ action }: { action: MunkiSoftwareAction }) {
   );
 }
 
-function MunkiSoftwareStatusBadge({ software }: { software: MunkiHostManifestSoftware }) {
-  const status = munkiSoftwareStatus(software);
-  const Icon = status.icon;
-  const badge = (
-    <Badge variant={status.variant}>
-      <Icon data-icon="inline-start" />
-      {status.label}
-    </Badge>
-  );
-
-  return (
-    <Tooltip>
-      <TooltipTrigger render={badge} />
-      <TooltipContent className="max-w-72 text-left">{status.description}</TooltipContent>
-    </Tooltip>
-  );
-}
-
-interface StatusPresentation {
-  label: string;
-  description: string;
-  icon: LucideIcon;
-  variant: "outline" | "secondary";
-}
-
-function munkiSoftwareStatus(software: MunkiHostManifestSoftware): StatusPresentation {
+function munkiSoftwareStatus(software: MunkiHostManifestSoftware): string | null {
   const observation = software.observation;
-  if (!observation) {
-    return {
-      label: "No report",
-      description: "No exact-name result was present in the latest Munki software report.",
-      icon: Clock3,
-      variant: "outline",
-    };
+  if (!observation) return null;
+
+  if (observation.target_version) {
+    return "Pending";
   }
 
   if (observation.installed) {
-    return {
-      label: observation.installed_version
-        ? `Installed ${observation.installed_version}`
-        : "Installed",
-      description: observation.installed_version
-        ? `Munki reported version ${observation.installed_version} as installed.`
-        : "Munki reported its required version or a newer version as installed without a version value.",
-      icon: CircleCheck,
-      variant: "outline",
-    };
+    return "Installed";
   }
 
-  if (
-    software.actions.includes("managed_updates") &&
-    software.package.strategy === "specific" &&
-    observation.target_version === software.package.version
-  ) {
-    return {
-      label: "Update pending",
-      description: "Munki reported that the currently pinned update version is not installed.",
-      icon: RefreshCw,
-      variant: "secondary",
-    };
-  }
-
-  if (software.actions.includes("managed_installs")) {
-    return {
-      label: "Pending",
-      description:
-        "Munki reported that its required version was not installed; this does not distinguish missing from outdated software.",
-      icon: Download,
-      variant: "secondary",
-    };
-  }
-
-  if (
-    software.actions.includes("optional_installs") ||
-    software.actions.includes("featured_items") ||
-    software.actions.includes("default_installs")
-  ) {
-    return {
-      label: "Available",
-      description:
-        "Munki reported that the offered version was not installed; an older version may still be present.",
-      icon: PackageOpen,
-      variant: "outline",
-    };
-  }
-
-  return {
-    label: "Pending",
-    description:
-      "Munki reported that its required version was not installed; the report does not prove the current desired action has completed.",
-    icon: Clock3,
-    variant: "secondary",
-  };
-}
-
-function MunkiStatusBadge({ munki }: { munki: MunkiHostState }) {
-  if (munki.errors.length > 0) {
-    return <Badge variant="destructive">Failed</Badge>;
-  }
-  if (munki.problem_installs.length > 0) {
-    return <Badge variant="secondary">Problems</Badge>;
-  }
-  if (munki.warnings.length > 0) {
-    return <Badge variant="secondary">Warnings</Badge>;
-  }
-  return <Badge variant="outline">OK</Badge>;
+  return null;
 }
 
 function problemRows(kind: string, values: string[]): ProblemRow[] {

@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/osquery/catalog"
 	"github.com/woodleighschool/woodstar/internal/osquery/ingest"
 	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
@@ -204,7 +205,11 @@ func (s *AgentService) handleDetailResult(
 	message string,
 	pass *detailDispatchPass,
 ) error {
-	pass.results[suffix] = detailResult{rows: rows, status: status, hasStatus: hasStatus}
+	pass.results[suffix] = detailResult{
+		rows:      rows,
+		status:    status,
+		hasStatus: hasStatus,
+	}
 
 	query, ok := pass.registry[suffix]
 	if !ok {
@@ -240,19 +245,66 @@ func (s *AgentService) finalizeDetailPass(
 			return fmt.Errorf("ingest software inventory: %w", err)
 		}
 	}
-	if !pass.allSucceeded || !sawEveryRequiredDetailQuery(pass) {
+	if pass.allSucceeded && sawEveryRequiredDetailQuery(pass) {
+		if err := s.deps.InventoryProjector.MarkFresh(ctx, host.ID); err != nil {
+			return err
+		}
+		s.deps.Logger.DebugContext(
+			ctx,
+			"osquery detail inventory refreshed", "operation", "inventory_refresh",
+			"host_id", host.ID,
+			"query_count", len(pass.results),
+		)
+	}
+	return s.finalizeMunkiCollection(ctx, host.ID, pass)
+}
+
+func (s *AgentService) finalizeMunkiCollection(
+	ctx context.Context,
+	hostID int64,
+	pass *detailDispatchPass,
+) error {
+	info, hasInfo := pass.results[catalog.QueryMunkiInfo]
+	installs, hasInstalls := pass.results[catalog.QueryMunkiInstalls]
+	if !hasInfo && !hasInstalls && !sawKnownDetailResult(pass) {
 		return nil
 	}
-	if err := s.deps.InventoryProjector.MarkFresh(ctx, host.ID); err != nil {
-		return err
+	if hasInfo != hasInstalls {
+		s.deps.Logger.WarnContext(
+			ctx,
+			"incomplete Munki detail collection", "operation", "munki_collection",
+			"host_id", hostID,
+			"info_present", hasInfo,
+			"installs_present", hasInstalls,
+		)
 	}
-	s.deps.Logger.DebugContext(
-		ctx,
-		"osquery detail inventory refreshed", "operation", "inventory_refresh",
-		"host_id", host.ID,
-		"query_count", len(pass.results),
-	)
-	return nil
+	if s.deps.MunkiCollector == nil {
+		return fmt.Errorf("munki collector is not configured")
+	}
+	return s.deps.MunkiCollector.IngestCollection(ctx, hostID, munki.Collection{
+		Info:     munkiQueryResult(hasInfo, info),
+		Installs: munkiQueryResult(hasInstalls, installs),
+	})
+}
+
+func sawKnownDetailResult(pass *detailDispatchPass) bool {
+	for name := range pass.results {
+		if _, ok := pass.registry[name]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+func munkiQueryResult(present bool, result detailResult) munki.QueryResult {
+	queryResult := munki.QueryResult{Present: present, Rows: result.rows}
+	if !present {
+		return queryResult
+	}
+	if distributedStatusOK(result.status, result.hasStatus) {
+		queryResult.Successful = true
+	}
+	return queryResult
 }
 
 func successfulSoftwareRows(

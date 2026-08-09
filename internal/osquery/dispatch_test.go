@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/osquery/catalog"
 	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
 )
@@ -187,51 +188,108 @@ func TestHandleLiveResultReplacesHostSnapshot(t *testing.T) {
 	}
 }
 
-func TestFinalizeDetailPassPreservesMunkiWithoutSuccessfulObservation(t *testing.T) {
-	projector := &recordingInventoryProjector{}
-	pass := &detailDispatchPass{
-		registry: map[string]catalog.DetailQuery{
-			"required":                 {Ingest: catalog.IngestHostDetail},
-			catalog.QueryMunkiInfo:     {Optional: true, Ingest: catalog.IngestMunkiInfo},
-			catalog.QueryMunkiInstalls: {Optional: true, Ingest: catalog.IngestMunkiInstalls},
-		},
-		results: map[string]detailResult{
-			"required": {
-				status:    json.RawMessage(`0`),
-				hasStatus: true,
-			},
-			catalog.QueryMunkiInfo: {status: json.RawMessage(`1`), hasStatus: true},
-		},
-		allSucceeded: true,
+func TestFinalizeDetailPassSendsMunkiQueryFamilyTogether(t *testing.T) {
+	registry := map[string]catalog.DetailQuery{
+		"required":                 {Ingest: catalog.IngestHostDetail},
+		catalog.QueryMunkiInfo:     {Optional: true, Ingest: catalog.IngestMunkiInfo},
+		catalog.QueryMunkiInstalls: {Optional: true, Ingest: catalog.IngestMunkiInstalls},
 	}
 
-	s := &AgentService{deps: Dependencies{Logger: testLogger(), InventoryProjector: projector}}
-	if err := s.finalizeDetailPass(context.Background(), testHost(42), pass); err != nil {
-		t.Fatalf("finalize detail pass: %v", err)
-	}
-	if len(projector.cleared) > 0 {
-		t.Fatalf("cleared = %#v, want none", projector.cleared)
-	}
-	if !projector.markedFresh {
-		t.Fatal("optional Munki failure blocked inventory freshness")
-	}
+	t.Run("partial family", func(t *testing.T) {
+		projector := &recordingInventoryProjector{}
+		collector := &recordingMunkiCollector{}
+		pass := &detailDispatchPass{
+			registry: registry,
+			results: map[string]detailResult{
+				"required": {
+					status:    json.RawMessage(`0`),
+					hasStatus: true,
+				},
+				catalog.QueryMunkiInfo: {
+					status:    json.RawMessage(`1`),
+					hasStatus: true,
+				},
+			},
+			allSucceeded: true,
+		}
+
+		s := &AgentService{deps: Dependencies{
+			Logger:             testLogger(),
+			InventoryProjector: projector,
+			MunkiCollector:     collector,
+		}}
+		if err := s.finalizeDetailPass(context.Background(), testHost(42), pass); err != nil {
+			t.Fatalf("finalize detail pass: %v", err)
+		}
+		if !projector.markedFresh {
+			t.Fatal("optional Munki failure blocked inventory freshness")
+		}
+		if len(collector.collections) != 1 {
+			t.Fatalf("collections = %d, want one", len(collector.collections))
+		}
+		collection := collector.collections[0]
+		if !collection.Info.Present || collection.Info.Successful {
+			t.Fatalf("info result = %+v, want failed result", collection.Info)
+		}
+		if collection.Installs.Present {
+			t.Fatalf("installs result = %+v, want missing result", collection.Installs)
+		}
+	})
+
+	t.Run("queries unavailable", func(t *testing.T) {
+		collector := &recordingMunkiCollector{}
+		pass := &detailDispatchPass{
+			registry: registry,
+			results: map[string]detailResult{
+				"required": {status: json.RawMessage(`0`), hasStatus: true},
+			},
+			allSucceeded: true,
+		}
+		s := &AgentService{deps: Dependencies{
+			Logger:             testLogger(),
+			InventoryProjector: &recordingInventoryProjector{},
+			MunkiCollector:     collector,
+		}}
+		if err := s.finalizeDetailPass(context.Background(), testHost(42), pass); err != nil {
+			t.Fatalf("finalize detail pass: %v", err)
+		}
+		if len(collector.collections) != 1 {
+			t.Fatalf("collections = %d, want one", len(collector.collections))
+		}
+		collection := collector.collections[0]
+		if collection.Info.Present || collection.Installs.Present {
+			t.Fatalf("collection = %+v, want authoritative no-report input", collection)
+		}
+	})
+
+	t.Run("no detail results", func(t *testing.T) {
+		collector := &recordingMunkiCollector{}
+		pass := &detailDispatchPass{registry: registry, results: map[string]detailResult{}, allSucceeded: true}
+		s := &AgentService{deps: Dependencies{
+			Logger:             testLogger(),
+			InventoryProjector: &recordingInventoryProjector{},
+			MunkiCollector:     collector,
+		}}
+		if err := s.finalizeDetailPass(context.Background(), testHost(42), pass); err != nil {
+			t.Fatalf("finalize detail pass: %v", err)
+		}
+		if len(collector.collections) != 0 {
+			t.Fatalf("collections = %d, want none", len(collector.collections))
+		}
+	})
 }
 
 type recordingInventoryProjector struct {
-	cleared     []string
 	markedFresh bool
 }
 
 func (p *recordingInventoryProjector) IngestDetail(
 	_ context.Context,
 	_ catalog.DetailQuery,
-	name string,
+	_ string,
 	_ int64,
-	rows []map[string]string,
+	_ []map[string]string,
 ) error {
-	if rows == nil {
-		p.cleared = append(p.cleared, name)
-	}
 	return nil
 }
 
@@ -245,6 +303,19 @@ func (p *recordingInventoryProjector) IngestSoftware(
 
 func (p *recordingInventoryProjector) MarkFresh(context.Context, int64) error {
 	p.markedFresh = true
+	return nil
+}
+
+type recordingMunkiCollector struct {
+	collections []munki.Collection
+}
+
+func (c *recordingMunkiCollector) IngestCollection(
+	_ context.Context,
+	_ int64,
+	collection munki.Collection,
+) error {
+	c.collections = append(c.collections, collection)
 	return nil
 }
 

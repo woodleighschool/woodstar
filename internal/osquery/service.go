@@ -13,6 +13,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/heartbeats"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
+	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/osquery/catalog"
 	"github.com/woodleighschool/woodstar/internal/osquery/checks"
 	"github.com/woodleighschool/woodstar/internal/osquery/ingest"
@@ -28,6 +29,7 @@ type AgentService struct {
 type Dependencies struct {
 	HostStore          hostStore
 	InventoryProjector inventoryProjector
+	MunkiCollector     munkiCollector
 	LabelEvaluator     labelEvaluator
 	ReportStore        reportStore
 	CheckStore         checkStore
@@ -35,6 +37,10 @@ type Dependencies struct {
 	SecretStore        agentauth.SecretVerifier
 	Heartbeats         heartbeatRecorder
 	Logger             *slog.Logger
+}
+
+type munkiCollector interface {
+	IngestCollection(ctx context.Context, hostID int64, collection munki.Collection) error
 }
 
 type hostStore interface {

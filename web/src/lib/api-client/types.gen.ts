@@ -463,8 +463,7 @@ export type MunkiHostState = {
     errors: Array<string>;
     manifest_name: string;
     problem_installs: Array<string>;
-    run_ended_at?: string;
-    run_started_at?: string;
+    run_at?: string;
     version: string;
     warnings: Array<string>;
 };

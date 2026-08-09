@@ -2,9 +2,7 @@ package munki
 
 import "time"
 
-// HostObservation is Munki state observed for an existing host.
-type HostObservation struct {
-	HostID          int64
+type hostObservation struct {
 	Version         string
 	ManifestName    string
 	Errors          []string
@@ -14,9 +12,7 @@ type HostObservation struct {
 	RunEndedAt      *time.Time
 }
 
-// ItemObservation is one Munki-managed item reported by a host.
-type ItemObservation struct {
-	HostID           int64
+type itemObservation struct {
 	Name             string
 	DisplayName      string
 	Installed        bool
@@ -24,13 +20,32 @@ type ItemObservation struct {
 	TargetVersion    string
 }
 
-// HostState is the latest Munki run summary reported for a host.
+// QueryResult is one member of the Munki detail-query collection.
+type QueryResult struct {
+	Present    bool
+	Successful bool
+	Rows       []map[string]string
+}
+
+// Collection contains the Munki detail-query results from one osquery write.
+type Collection struct {
+	Info     QueryResult
+	Installs QueryResult
+}
+
+type collectionUpdate struct {
+	HostID      int64
+	HasReport   bool
+	Observation hostObservation
+	Items       []itemObservation
+}
+
+// HostState is the latest Munki report for a host.
 type HostState struct {
 	Version         string     `db:"version"          json:"version"`
 	ManifestName    string     `db:"manifest_name"    json:"manifest_name"`
 	Errors          []string   `db:"errors"           json:"errors"`
 	Warnings        []string   `db:"warnings"         json:"warnings"`
 	ProblemInstalls []string   `db:"problem_installs" json:"problem_installs"`
-	RunStartedAt    *time.Time `db:"run_started_at"   json:"run_started_at,omitempty"`
-	RunEndedAt      *time.Time `db:"run_ended_at"     json:"run_ended_at,omitempty"`
+	RunAt           *time.Time `db:"run_at"           json:"run_at,omitempty"`
 }

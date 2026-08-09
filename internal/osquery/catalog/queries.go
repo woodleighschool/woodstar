@@ -84,7 +84,10 @@ const (
 )
 
 func (q DetailQuery) Deferred() bool {
-	return q.Ingest == IngestSoftwareBase || q.Ingest == IngestSoftwareEnrichment
+	return q.Ingest == IngestMunkiInfo ||
+		q.Ingest == IngestMunkiInstalls ||
+		q.Ingest == IngestSoftwareBase ||
+		q.Ingest == IngestSoftwareEnrichment
 }
 
 // DueDetailQueries is due osquery work.
