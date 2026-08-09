@@ -1,6 +1,6 @@
 ---
 # yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
-name: Tests
+name: CI
 
 on:
   push:
@@ -8,18 +8,20 @@ on:
       - main
     paths-ignore:
       - "**.md"
+      - "docs/**"
       - ".release-please-manifest.json"
   pull_request:
     branches:
       - main
     paths-ignore:
       - "**.md"
+      - "docs/**"
       - ".release-please-manifest.json"
   workflow_dispatch:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -29,9 +31,24 @@ env:
   MISE_TASK_RUN_AUTO_INSTALL: "false"
 
 jobs:
-  go-test:
-    name: Go Tests
+  backend:
+    name: Backend
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: woodstar
+          POSTGRES_PASSWORD: woodstar
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U woodstar -d postgres"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -42,7 +59,7 @@ jobs:
         uses: jdx/mise-action@7e36c90d9ab29c415a2384db3006f3ec8a8cc654 # v4.2.4
         with:
           experimental: true
-          install_args: --locked go
+          install_args: --locked go golangci-lint zizmor
 
       - name: Cache Go modules and build
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -53,15 +70,105 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('go.sum') }}
           restore-keys: ${{ runner.os }}-go-
 
+      - name: Cache golangci-lint
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/golangci-lint
+          key: ${{ runner.os }}-golangci-lint-${{ hashFiles('go.sum', '.golangci.yml') }}
+          restore-keys: ${{ runner.os }}-golangci-lint-
+
+      - name: Check Go formatting
+        run: mise run go-fmt-check
+
       - name: Check Go module tidiness
         run: mise run tidy-check
+
+      - name: Run Go lint
+        run: mise run go-lint
+
+      - name: Lint workflows
+        run: mise run workflow-lint
 
       - name: Run dependency-free Go checks
         run: mise run test
 
-  postgres:
-    name: PostgreSQL Component Tests
+      - name: Run PostgreSQL component tests
+        run: mise run test-postgres
+
+      - name: Run storage integration
+        run: mise run test-integration-storage
+
+  frontend:
+    name: Frontend and Docs
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Mise
+        uses: jdx/mise-action@7e36c90d9ab29c415a2384db3006f3ec8a8cc654 # v4.2.4
+        with:
+          experimental: true
+          install_args: --locked go node pnpm oxfmt oxlint
+
+      - name: Cache Go modules and build
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('go.sum') }}
+          restore-keys: ${{ runner.os }}-go-
+
+      - name: Resolve pnpm store
+        id: pnpm
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache pnpm store
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.pnpm.outputs.path }}
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('web/pnpm-lock.yaml', 'docs/pnpm-lock.yaml') }}
+          restore-keys: ${{ runner.os }}-pnpm-
+
+      - name: Check frontend and docs formatting
+        run: |
+          mise run //web:fmt-check
+          mise run //docs:fmt-check
+
+      - name: Lint frontend and docs
+        run: |
+          mise run //web:lint
+          mise run //docs:lint
+
+      - name: Regenerate API contracts
+        run: mise run generate
+
+      - name: Check generated contracts are committed
+        run: |
+          generated_status=$(git status --short --untracked-files=all -- \
+            web/openapi.yaml \
+            web/src/lib/api-client \
+            test/e2e/adminapi/client.gen.go)
+          test -z "$generated_status" || {
+            printf '%s\n' "$generated_status"
+            git diff -- web/openapi.yaml web/src/lib/api-client test/e2e/adminapi/client.gen.go
+            exit 1
+          }
+
+      - name: Build application
+        run: mise run build
+
+      - name: Build docs site
+        run: mise run //docs:build
+
+  e2e:
+    name: E2E
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
     services:
       postgres:
         image: postgres:18
@@ -97,85 +204,5 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('go.sum') }}
           restore-keys: ${{ runner.os }}-go-
 
-      - name: Run PostgreSQL component tests
-        run: mise run test-postgres
-
-  build:
-    name: Build and Generated Contracts
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Setup Mise
-        uses: jdx/mise-action@7e36c90d9ab29c415a2384db3006f3ec8a8cc654 # v4.2.4
-        with:
-          experimental: true
-          install_args: --locked go node pnpm
-
-      - name: Cache Go modules and build
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('go.sum') }}
-          restore-keys: ${{ runner.os }}-go-
-
-      - name: Resolve pnpm store
-        id: pnpm
-        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
-
-      - name: Cache pnpm store
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ steps.pnpm.outputs.path }}
-          key: ${{ runner.os }}-pnpm-${{ hashFiles('web/pnpm-lock.yaml') }}
-          restore-keys: ${{ runner.os }}-pnpm-
-
-      - name: Regenerate API contracts
-        run: mise run generate
-
-      - name: Check generated contracts are committed
-        run: |
-          generated_status=$(git status --short --untracked-files=all -- \
-            web/openapi.yaml \
-            web/src/lib/api-client \
-            test/e2e/adminapi/client.gen.go)
-          test -z "$generated_status" || {
-            printf '%s\n' "$generated_status"
-            git diff -- web/openapi.yaml web/src/lib/api-client test/e2e/adminapi/client.gen.go
-            exit 1
-          }
-
-      - name: Build application
-        run: mise run build
-
-  storage-integration:
-    name: Storage Integration
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Setup Mise
-        uses: jdx/mise-action@7e36c90d9ab29c415a2384db3006f3ec8a8cc654 # v4.2.4
-        with:
-          experimental: true
-          install_args: --locked go
-
-      - name: Cache Go modules and build
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('go.sum') }}
-          restore-keys: ${{ runner.os }}-go-
-
-      - name: Run storage integration
-        run: mise run test-integration-storage
+      - name: Run end-to-end lifecycles
+        run: mise run test-e2e
