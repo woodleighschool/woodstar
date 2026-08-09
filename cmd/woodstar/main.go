@@ -16,11 +16,13 @@ import (
 	"github.com/alexedwards/scs/pgxstore"
 	"github.com/alexedwards/scs/v2"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/riverqueue/river"
 	"github.com/spf13/cobra"
 
 	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/api"
 	"github.com/woodleighschool/woodstar/internal/auth"
+	"github.com/woodleighschool/woodstar/internal/backgroundjobs"
 	"github.com/woodleighschool/woodstar/internal/buildinfo"
 	"github.com/woodleighschool/woodstar/internal/config"
 	"github.com/woodleighschool/woodstar/internal/directory"
@@ -164,7 +166,10 @@ func run(parent context.Context, cfg config.Config) error {
 		return fmt.Errorf("listen %s: %w", server.Addr(), err)
 	}
 
-	stopJobs := start(ctx, starters...)
+	stopJobs, err := start(ctx, starters...)
+	if err != nil {
+		return fmt.Errorf("start background services: %w", err)
+	}
 	defer stopJobs()
 
 	return runServer(ctx, server, listener)
@@ -318,6 +323,18 @@ func buildDependencies(
 	})
 	santaState := santa.NewHostStateService(santaHostStore, configurationStore)
 
+	jobs, directorySync, err := newBackgroundJobs(
+		cfg,
+		pool,
+		directoryStore,
+		inventoryStore,
+		eventStore,
+		logger,
+	)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	deps := &api.Dependencies{
 		Config:         cfg,
 		Ready:          pool.Ping,
@@ -331,15 +348,16 @@ func buildDependencies(
 			Logger:    logger.With("component", "web"),
 		}),
 		App: api.AppDependencies{
-			AuthService: authService,
-			Users:       userService,
-			Directory:   directoryStore,
-			Hosts:       hostStore,
-			PrimaryUser: primaryUsers,
-			Secrets:     secretStore,
-			Software:    inventoryStore,
-			Labels:      labelStore,
-			GeoIP:       geoLookup,
+			AuthService:   authService,
+			Users:         userService,
+			Directory:     directoryStore,
+			DirectorySync: directorySync,
+			Hosts:         hostStore,
+			PrimaryUser:   primaryUsers,
+			Secrets:       secretStore,
+			Software:      inventoryStore,
+			Labels:        labelStore,
+			GeoIP:         geoLookup,
 
 			Reports:     reportStore,
 			Checks:      checkStore,
@@ -377,18 +395,89 @@ func buildDependencies(
 			Santa: santaSync,
 		},
 	}
-	entraStarter, err := entraSyncStarter(cfg, directoryStore, logger)
-	if err != nil {
-		return nil, nil, err
-	}
 	starters := []starter{
 		storageUploadCleanupStarter(storageIngestor, cfg.StorageTransferTTL, storageLogger),
-		inventoryCleanupStarter(inventoryStore, logger),
-		santaCleanupStarter(cfg, eventStore, logger),
-		entraStarter,
+		backgroundJobsStarter(jobs, logger.With("component", "background_jobs")),
 	}
 
 	return deps, starters, nil
+}
+
+func newBackgroundJobs(
+	cfg config.Config,
+	pool *pgxpool.Pool,
+	directoryStore *directory.Store,
+	inventoryStore *inventory.Store,
+	eventStore *events.Store,
+	logger *slog.Logger,
+) (*backgroundjobs.Runtime, *entra.SyncJobs, error) {
+	jobWorkers := river.NewWorkers()
+	if err := river.AddWorkerSafely(
+		jobWorkers,
+		inventory.NewCleanupWorker(inventoryStore, logger.With("component", "inventory")),
+	); err != nil {
+		return nil, nil, fmt.Errorf("register inventory cleanup worker: %w", err)
+	}
+	if err := river.AddWorkerSafely(
+		jobWorkers,
+		events.NewCleanupWorker(eventStore, logger.With("component", "santa")),
+	); err != nil {
+		return nil, nil, fmt.Errorf("register Santa cleanup worker: %w", err)
+	}
+	periodicJobs := []*river.PeriodicJob{
+		periodicJob(
+			inventory.CleanupJobKind,
+			inventory.CleanupJobInterval,
+			func() river.JobArgs {
+				return inventory.CleanupJobArgs{Trigger: backgroundjobs.TriggerScheduled}
+			},
+		),
+		periodicJob(
+			events.CleanupJobKind,
+			cfg.SantaEventSweepInterval,
+			func() river.JobArgs {
+				return events.CleanupJobArgs{
+					Trigger:       backgroundjobs.TriggerScheduled,
+					RetentionDays: cfg.SantaEventRetentionDays,
+				}
+			},
+		),
+	}
+
+	entraService, err := newEntraSyncService(cfg, directoryStore, logger)
+	if err != nil {
+		return nil, nil, err
+	}
+	if entraService != nil {
+		if err := river.AddWorkerSafely(
+			jobWorkers,
+			entra.NewSyncWorker(
+				entraService,
+				postgres.NewSessionLocker(pool, entra.SyncAdvisoryLockID),
+			),
+		); err != nil {
+			return nil, nil, fmt.Errorf("register Entra sync worker: %w", err)
+		}
+		periodicJobs = append(periodicJobs, periodicJob(
+			entra.SyncJobKind,
+			cfg.EntraSyncInterval,
+			func() river.JobArgs {
+				return entra.SyncJobArgs{Trigger: backgroundjobs.TriggerScheduled}
+			},
+		))
+	}
+
+	jobs, err := backgroundjobs.New(
+		pool,
+		jobWorkers,
+		periodicJobs,
+		logger.With("component", "background_jobs"),
+	)
+	if err != nil {
+		return nil, nil, err
+	}
+	directorySync := entra.NewSyncJobs(entraService != nil, jobs)
+	return jobs, directorySync, nil
 }
 
 func newHostStores(pool *pgxpool.Pool) (*hosts.Store, *heartbeats.Store) {
@@ -400,16 +489,9 @@ func storageUploadCleanupStarter(
 	transferTTL time.Duration,
 	logger *slog.Logger,
 ) starter {
-	return func(ctx context.Context) func() {
+	return func(ctx context.Context) (func(), error) {
 		cleanup := storage.StartUploadCleanup(ctx, ingestor, transferTTL, logger)
-		return cleanup.Stop
-	}
-}
-
-func inventoryCleanupStarter(store *inventory.Store, logger *slog.Logger) starter {
-	return func(ctx context.Context) func() {
-		cleanup := inventory.StartCleanup(ctx, store, logger.With("component", "inventory"))
-		return cleanup.Stop
+		return cleanup.Stop, nil
 	}
 }
 
@@ -461,29 +543,11 @@ func storageConfig(cfg config.Config) storage.Config {
 	}
 }
 
-func santaCleanupStarter(
-	cfg config.Config,
-	store *events.Store,
-	logger *slog.Logger,
-) starter {
-	return func(ctx context.Context) func() {
-		cleanup := events.StartCleanup(
-			ctx,
-			store,
-			cfg.SantaEventRetentionDays,
-			cfg.SantaEventSweepInterval,
-			logger.With("component", "santa"),
-		)
-
-		return cleanup.Stop
-	}
-}
-
-func entraSyncStarter(
+func newEntraSyncService(
 	cfg config.Config,
 	directoryStore *directory.Store,
 	logger *slog.Logger,
-) (starter, error) {
+) (*entra.Service, error) {
 	if !cfg.EntraEnabled() {
 		return nil, nil
 	}
@@ -498,21 +562,17 @@ func entraSyncStarter(
 		return nil, fmt.Errorf("configure Entra sync: %w", err)
 	}
 
-	service := entra.NewService(
+	return entra.NewService(
 		directoryStore,
 		client,
 		logger.With("component", "entra"),
-	)
-
-	return func(ctx context.Context) func() {
-		return service.StartScheduler(ctx, cfg.EntraSyncInterval)
-	}, nil
+	), nil
 }
 
 // A nil starter means the capability is disabled by configuration.
-type starter func(context.Context) func()
+type starter func(context.Context) (func(), error)
 
-func start(ctx context.Context, starts ...starter) func() {
+func start(ctx context.Context, starts ...starter) (func(), error) {
 	var stops []func()
 
 	for _, start := range starts {
@@ -520,7 +580,13 @@ func start(ctx context.Context, starts ...starter) func() {
 			continue
 		}
 
-		stop := start(ctx)
+		stop, err := start(ctx)
+		if err != nil {
+			for _, stop := range slices.Backward(stops) {
+				stop()
+			}
+			return nil, err
+		}
 		if stop != nil {
 			stops = append(stops, stop)
 		}
@@ -530,6 +596,33 @@ func start(ctx context.Context, starts ...starter) func() {
 		for _, stop := range slices.Backward(stops) {
 			stop()
 		}
+	}, nil
+}
+
+func periodicJob(
+	id string,
+	interval time.Duration,
+	args func() river.JobArgs,
+) *river.PeriodicJob {
+	return river.NewPeriodicJob(
+		river.PeriodicInterval(interval),
+		func() (river.JobArgs, *river.InsertOpts) { return args(), nil },
+		&river.PeriodicJobOpts{ID: id, RunOnStart: true},
+	)
+}
+
+func backgroundJobsStarter(jobs *backgroundjobs.Runtime, logger *slog.Logger) starter {
+	return func(ctx context.Context) (func(), error) {
+		if err := jobs.Start(ctx); err != nil {
+			return nil, err
+		}
+		return func() {
+			stopCtx, cancel := context.WithTimeout(context.Background(), gracefulShutdownTimeout)
+			defer cancel()
+			if err := jobs.Stop(stopCtx); err != nil {
+				logger.WarnContext(stopCtx, "stop background jobs", "err", err)
+			}
+		}, nil
 	}
 }
 

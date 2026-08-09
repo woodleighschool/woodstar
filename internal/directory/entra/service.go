@@ -19,11 +19,18 @@ type SnapshotApplier interface {
 	ApplyProviderSnapshot(ctx context.Context, source directory.Source, snapshot directory.ProviderSnapshot) error
 }
 
-// Service runs sync passes on demand and on a fixed interval.
+// Service fetches and applies full Entra snapshots.
 type Service struct {
 	applier SnapshotApplier
 	fetcher Fetcher
 	logger  *slog.Logger
+}
+
+// SyncResult summarizes one applied provider snapshot.
+type SyncResult struct {
+	Users      int `json:"users"`
+	Groups     int `json:"groups"`
+	DurationMS int `json:"duration_ms"`
 }
 
 // NewService composes an Entra fetcher with directory reconciliation.
@@ -37,63 +44,31 @@ func NewService(
 
 // Sync performs a single full reconciliation. Errors from either the fetch or
 // database reconciliation phase abort the pass and are returned for logging.
-func (s *Service) Sync(ctx context.Context) error {
+func (s *Service) Sync(ctx context.Context) (SyncResult, error) {
 	if s.fetcher == nil {
-		return errors.New("entra: no fetcher configured")
+		return SyncResult{}, errors.New("entra: no fetcher configured")
 	}
 	if s.applier == nil {
-		return errors.New("entra: no snapshot applier configured")
+		return SyncResult{}, errors.New("entra: no snapshot applier configured")
 	}
 	started := time.Now()
 	snapshot, err := s.fetcher.Fetch(ctx)
 	if err != nil {
-		return err
+		return SyncResult{}, err
 	}
 	if err := s.applier.ApplyProviderSnapshot(ctx, directory.SourceEntra, snapshot); err != nil {
-		return err
+		return SyncResult{}, err
+	}
+	result := SyncResult{
+		Users:      len(snapshot.Users),
+		Groups:     len(snapshot.Groups),
+		DurationMS: int(time.Since(started).Milliseconds()),
 	}
 	s.logger.InfoContext(ctx, "entra sync complete",
 		"operation", "sync",
-		"users", len(snapshot.Users),
-		"groups", len(snapshot.Groups),
-		"duration_ms", time.Since(started).Milliseconds(),
+		"users", result.Users,
+		"groups", result.Groups,
+		"duration_ms", result.DurationMS,
 	)
-	return nil
-}
-
-// StartScheduler runs Sync once immediately, then again every interval. The
-// returned function stops the scheduler before the parent context is cancelled.
-func (s *Service) StartScheduler(ctx context.Context, interval time.Duration) func() {
-	ctx, stop := context.WithCancel(ctx)
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		s.runOnce(ctx)
-		ticker := time.NewTicker(interval)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				s.runOnce(ctx)
-			}
-		}
-	}()
-	return func() {
-		stop()
-		<-done
-	}
-}
-
-func (s *Service) runOnce(ctx context.Context) {
-	if err := s.Sync(ctx); err != nil {
-		if errors.Is(err, context.Canceled) {
-			return
-		}
-		s.logger.ErrorContext(ctx, "entra sync failed",
-			"operation", "sync",
-			"err", err,
-		)
-	}
+	return result, nil
 }

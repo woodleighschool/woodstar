@@ -214,6 +214,19 @@ func TestAdminRoutesUseResourceMethods(t *testing.T) {
 	}
 }
 
+func TestDirectorySyncUsesGetAndPost(t *testing.T) {
+	t.Parallel()
+	doc := BuildSchemaAPI("test").OpenAPI()
+
+	directorySync := doc.Paths["/api/directory/sync"]
+	if directorySync == nil || directorySync.Get == nil || directorySync.Post == nil {
+		t.Fatalf("directory sync methods = %#v, want GET and POST", directorySync)
+	}
+	if directorySync.Put != nil || directorySync.Delete != nil {
+		t.Fatalf("directory sync methods = %#v, do not want PUT or DELETE", directorySync)
+	}
+}
+
 func TestLiveQueryStreamUsesTheAppSchema(t *testing.T) {
 	t.Parallel()
 	doc := BuildSchemaAPI("test").OpenAPI()

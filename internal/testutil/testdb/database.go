@@ -1,3 +1,5 @@
+//go:build postgres || e2e
+
 package testdb
 
 import (

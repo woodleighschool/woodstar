@@ -6,6 +6,7 @@ const (
 	accountTag                 = "Account"
 	agentSecretsTag            = "Agent secrets"
 	directoryGroupsTag         = "Directory groups"
+	directorySyncTag           = "Directory sync"
 	directoryUsersTag          = "Directory users"
 	hostsTag                   = "Hosts"
 	labelsTag                  = "Labels"
@@ -36,6 +37,7 @@ func ConfigureOpenAPI(doc *huma.OpenAPI) {
 		resourceTag(accountTag, "Account"),
 		resourceTag(agentSecretsTag, "Agent secrets"),
 		resourceTag(directoryGroupsTag, "Groups"),
+		resourceTag(directorySyncTag, "Sync"),
 		resourceTag(directoryUsersTag, "Users"),
 		resourceTag(hostsTag, "Hosts"),
 		resourceTag(labelsTag, "Labels"),
@@ -58,7 +60,7 @@ func ConfigureOpenAPI(doc *huma.OpenAPI) {
 		"x-tagGroups": []openAPITagGroup{
 			{Name: "Account", Tags: []string{accountTag}},
 			{Name: "Agent secrets", Tags: []string{agentSecretsTag}},
-			{Name: "Directory", Tags: []string{directoryGroupsTag, directoryUsersTag}},
+			{Name: "Directory", Tags: []string{directorySyncTag, directoryGroupsTag, directoryUsersTag}},
 			{Name: "Hosts", Tags: []string{hostsTag}},
 			{Name: "Labels", Tags: []string{labelsTag}},
 			{Name: "Munki", Tags: []string{

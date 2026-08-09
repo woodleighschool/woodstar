@@ -9,6 +9,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/woodleighschool/woodstar/internal/directory"
+	"github.com/woodleighschool/woodstar/internal/directory/entra"
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/listing"
 )
@@ -67,8 +68,10 @@ func RegisterDirectory(
 	api huma.API,
 	userService *directory.UserService,
 	store *directory.Store,
+	syncJobs *entra.SyncJobs,
 	logger *slog.Logger,
 ) {
+	registerDirectorySync(api, syncJobs, logger)
 	registerListUsers(api, userService, logger)
 	registerListUserDepartments(api, userService, logger)
 	registerCreateUser(api, userService, logger)

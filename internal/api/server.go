@@ -24,6 +24,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/config"
 	"github.com/woodleighschool/woodstar/internal/directory"
+	"github.com/woodleighschool/woodstar/internal/directory/entra"
 	"github.com/woodleighschool/woodstar/internal/geoip"
 	"github.com/woodleighschool/woodstar/internal/heartbeats"
 	"github.com/woodleighschool/woodstar/internal/hosts"
@@ -80,15 +81,16 @@ type Dependencies struct {
 
 // AppDependencies are stores and services used by Woodstar's browser/admin API.
 type AppDependencies struct {
-	AuthService *auth.Service
-	Users       *directory.UserService
-	Directory   *directory.Store
-	Hosts       *hosts.Store
-	PrimaryUser *hosts.PrimaryUserStore
-	Secrets     *agentauth.Store
-	Software    *inventory.Store
-	Labels      *labels.Store
-	GeoIP       func(netip.Addr) (*geoip.Result, error)
+	AuthService   *auth.Service
+	Users         *directory.UserService
+	Directory     *directory.Store
+	DirectorySync *entra.SyncJobs
+	Hosts         *hosts.Store
+	PrimaryUser   *hosts.PrimaryUserStore
+	Secrets       *agentauth.Store
+	Software      *inventory.Store
+	Labels        *labels.Store
+	GeoIP         func(netip.Addr) (*geoip.Result, error)
 
 	Reports     *reports.Store
 	Checks      *checks.Store
@@ -376,7 +378,13 @@ func registerAppRoutes(
 		Users:         deps.App.Users,
 		Logger:        apiLogger,
 	})
-	handlers.RegisterDirectory(ordinary, deps.App.Users, deps.App.Directory, apiLogger)
+	handlers.RegisterDirectory(
+		ordinary,
+		deps.App.Users,
+		deps.App.Directory,
+		deps.App.DirectorySync,
+		apiLogger,
+	)
 	handlers.RegisterHosts(
 		ordinary,
 		deps.App.Hosts,

@@ -5,68 +5,68 @@ import (
 	"errors"
 	"log/slog"
 	"time"
+
+	"github.com/riverqueue/river"
+
+	"github.com/woodleighschool/woodstar/internal/backgroundjobs"
 )
 
-const cleanupInterval = time.Hour
+const (
+	CleanupJobKind     = "inventory_software_cleanup"
+	CleanupJobInterval = time.Hour
+)
 
 // CleanupStore removes software inventory that is no longer observed on a host.
 type CleanupStore interface {
 	PruneUnreferencedSoftware(ctx context.Context) (CleanupResult, error)
 }
 
-// Cleanup owns the software inventory cleanup loop.
-type Cleanup struct {
-	stop context.CancelFunc
-	done <-chan struct{}
+// CleanupJobArgs identifies a scheduled inventory cleanup.
+type CleanupJobArgs struct {
+	Trigger backgroundjobs.Trigger `json:"trigger"`
 }
 
-// Stop cancels the cleanup loop and waits for it to exit.
-func (c *Cleanup) Stop() {
-	c.stop()
-	<-c.done
+func (CleanupJobArgs) Kind() string { return CleanupJobKind }
+
+func (CleanupJobArgs) InsertOpts() river.InsertOpts { return backgroundjobs.SingletonInsertOpts() }
+
+// CleanupWorker removes unreferenced software versions and titles.
+type CleanupWorker struct {
+	river.WorkerDefaults[CleanupJobArgs]
+
+	store  CleanupStore
+	logger *slog.Logger
 }
 
-// StartCleanup starts an immediate cleanup pass followed by hourly passes.
-func StartCleanup(ctx context.Context, store CleanupStore, logger *slog.Logger) *Cleanup {
-	ctx, stop := context.WithCancel(ctx)
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		cleanupLoop(ctx, store, logger)
-	}()
-	return &Cleanup{stop: stop, done: done}
+func NewCleanupWorker(store CleanupStore, logger *slog.Logger) *CleanupWorker {
+	return &CleanupWorker{store: store, logger: logger}
 }
 
-func cleanupLoop(ctx context.Context, store CleanupStore, logger *slog.Logger) {
-	sweep(ctx, store, logger)
-	ticker := time.NewTicker(cleanupInterval)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			sweep(ctx, store, logger)
-		}
-	}
-}
-
-func sweep(ctx context.Context, store CleanupStore, logger *slog.Logger) {
+func (w *CleanupWorker) Work(ctx context.Context, _ *river.Job[CleanupJobArgs]) error {
 	started := time.Now()
-	result, err := store.PruneUnreferencedSoftware(ctx)
+	result, err := w.store.PruneUnreferencedSoftware(ctx)
+	output := cleanupJobOutput{
+		CleanupResult: result,
+		DurationMS:    int(time.Since(started).Milliseconds()),
+	}
 	if err != nil {
-		if !errors.Is(err, context.Canceled) {
-			logger.WarnContext(ctx, "inventory software cleanup failed", "operation", "sweep", "err", err)
-		}
-		return
+		output.Error = err.Error()
+		return errors.Join(err, river.RecordOutput(ctx, output))
 	}
-	if result.SoftwareVersions == 0 && result.SoftwareTitles == 0 {
-		return
+	if result.SoftwareVersions > 0 || result.SoftwareTitles > 0 {
+		w.logger.InfoContext(ctx, "inventory software cleanup complete",
+			"operation", "sweep",
+			"software_versions", result.SoftwareVersions,
+			"software_titles", result.SoftwareTitles,
+			"duration_ms", output.DurationMS,
+		)
 	}
-	logger.InfoContext(ctx, "inventory software cleanup complete",
-		"operation", "sweep",
-		"software_versions", result.SoftwareVersions,
-		"software_titles", result.SoftwareTitles,
-		"duration_ms", time.Since(started).Milliseconds(),
-	)
+	return river.RecordOutput(ctx, output)
+}
+
+type cleanupJobOutput struct {
+	CleanupResult
+
+	DurationMS int    `json:"duration_ms"`
+	Error      string `json:"error,omitempty"`
 }

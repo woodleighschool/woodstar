@@ -3,27 +3,28 @@ package entra_test
 import (
 	"context"
 	"log/slog"
-	"sync/atomic"
 	"testing"
-	"time"
 
 	"github.com/woodleighschool/woodstar/internal/directory"
 	"github.com/woodleighschool/woodstar/internal/directory/entra"
 )
 
-func TestSchedulerStopWaitsForInFlightSync(t *testing.T) {
-	fetcher := &blockingFetcher{started: make(chan struct{})}
-	service := entra.NewService(discardingApplier{}, fetcher, slog.New(slog.DiscardHandler))
-	stop := service.StartScheduler(t.Context(), time.Hour)
+func TestSyncReportsAppliedSnapshot(t *testing.T) {
+	service := entra.NewService(
+		discardingApplier{},
+		staticFetcher{snapshot: directory.ProviderSnapshot{
+			Users:  []directory.ProviderUser{{ExternalID: "user-1"}},
+			Groups: []directory.ProviderGroup{{ExternalID: "group-1"}},
+		}},
+		slog.New(slog.DiscardHandler),
+	)
 
-	select {
-	case <-fetcher.started:
-	case <-time.After(time.Second):
-		t.Fatal("Entra sync did not start")
+	result, err := service.Sync(t.Context())
+	if err != nil {
+		t.Fatalf("Sync() error = %v", err)
 	}
-	stop()
-	if !fetcher.done.Load() {
-		t.Fatal("scheduler stop returned before sync observed cancellation")
+	if result.Users != 1 || result.Groups != 1 {
+		t.Fatalf("Sync() result = %+v, want one user and one group", result)
 	}
 }
 
@@ -37,14 +38,10 @@ func (discardingApplier) ApplyProviderSnapshot(
 	return nil
 }
 
-type blockingFetcher struct {
-	started chan struct{}
-	done    atomic.Bool
+type staticFetcher struct {
+	snapshot directory.ProviderSnapshot
 }
 
-func (f *blockingFetcher) Fetch(ctx context.Context) (directory.ProviderSnapshot, error) {
-	close(f.started)
-	<-ctx.Done()
-	f.done.Store(true)
-	return directory.ProviderSnapshot{}, ctx.Err()
+func (f staticFetcher) Fetch(context.Context) (directory.ProviderSnapshot, error) {
+	return f.snapshot, nil
 }

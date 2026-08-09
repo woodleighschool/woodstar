@@ -5,67 +5,66 @@ import (
 	"errors"
 	"log/slog"
 	"time"
+
+	"github.com/riverqueue/river"
+
+	"github.com/woodleighschool/woodstar/internal/backgroundjobs"
 )
+
+const CleanupJobKind = "santa_event_cleanup"
 
 type CleanupStore interface {
 	SweepEventsBefore(ctx context.Context, cutoff time.Time) (int, error)
 }
 
-// Cleanup owns the Santa event-retention background loop.
-type Cleanup struct {
-	stop context.CancelFunc
-	done <-chan struct{}
+// CleanupJobArgs identifies a scheduled Santa event-retention sweep.
+type CleanupJobArgs struct {
+	Trigger       backgroundjobs.Trigger `json:"trigger"`
+	RetentionDays int                    `json:"retention_days"`
 }
 
-// Stop cancels the cleanup loop and waits for it to exit.
-func (c *Cleanup) Stop() {
-	c.stop()
-	<-c.done
+func (CleanupJobArgs) Kind() string { return CleanupJobKind }
+
+func (CleanupJobArgs) InsertOpts() river.InsertOpts { return backgroundjobs.SingletonInsertOpts() }
+
+// CleanupWorker removes Santa events outside the retention window.
+type CleanupWorker struct {
+	river.WorkerDefaults[CleanupJobArgs]
+
+	store  CleanupStore
+	logger *slog.Logger
 }
 
-func StartCleanup(
-	ctx context.Context,
-	store CleanupStore,
-	retentionDays int,
-	sweepInterval time.Duration,
-	logger *slog.Logger,
-) *Cleanup {
-	ctx, stop := context.WithCancel(ctx)
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		cleanupLoop(ctx, store, retentionDays, sweepInterval, logger)
-	}()
-	return &Cleanup{stop: stop, done: done}
+func NewCleanupWorker(store CleanupStore, logger *slog.Logger) *CleanupWorker {
+	return &CleanupWorker{store: store, logger: logger}
 }
 
-func cleanupLoop(
-	ctx context.Context,
-	store CleanupStore,
-	retentionDays int,
-	sweepInterval time.Duration,
-	logger *slog.Logger,
-) {
-	sweep(ctx, store, retentionDays, logger)
-
-	ticker := time.NewTicker(sweepInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			sweep(ctx, store, retentionDays, logger)
-		}
+func (w *CleanupWorker) Work(ctx context.Context, job *river.Job[CleanupJobArgs]) error {
+	started := time.Now()
+	cutoff := started.AddDate(0, 0, -job.Args.RetentionDays)
+	deleted, err := w.store.SweepEventsBefore(ctx, cutoff)
+	output := cleanupJobOutput{
+		Deleted:    deleted,
+		DurationMS: int(time.Since(started).Milliseconds()),
 	}
+	if err != nil {
+		output.Error = err.Error()
+		return errors.Join(err, river.RecordOutput(ctx, output))
+	}
+	if deleted > 0 {
+		w.logger.InfoContext(ctx, "santa event cleanup complete",
+			"operation", "sweep",
+			"events", deleted,
+			"duration_ms", output.DurationMS,
+		)
+	}
+	return river.RecordOutput(ctx, output)
 }
 
-func sweep(ctx context.Context, store CleanupStore, retentionDays int, logger *slog.Logger) {
-	cutoff := time.Now().AddDate(0, 0, -retentionDays)
-	if _, err := store.SweepEventsBefore(ctx, cutoff); err != nil && !errors.Is(err, context.Canceled) {
-		logger.WarnContext(ctx, "santa event cleanup failed", "operation", "sweep", "err", err)
-	}
+type cleanupJobOutput struct {
+	Deleted    int    `json:"deleted"`
+	DurationMS int    `json:"duration_ms"`
+	Error      string `json:"error,omitempty"`
 }
 
 // SweepEventsBefore deletes Santa events that occurred before cutoff.
