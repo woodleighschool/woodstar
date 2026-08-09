@@ -99,7 +99,7 @@ jobs:
         run: mise run test-integration-storage
 
   frontend:
-    name: Frontend and Docs
+    name: Frontend
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -131,18 +131,14 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ steps.pnpm.outputs.path }}
-          key: ${{ runner.os }}-pnpm-${{ hashFiles('web/pnpm-lock.yaml', 'docs/pnpm-lock.yaml') }}
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('web/pnpm-lock.yaml') }}
           restore-keys: ${{ runner.os }}-pnpm-
 
-      - name: Check frontend and docs formatting
-        run: |
-          mise run //web:fmt-check
-          mise run //docs:fmt-check
+      - name: Check frontend formatting
+        run: mise run //web:fmt-check
 
-      - name: Lint frontend and docs
-        run: |
-          mise run //web:lint
-          mise run //docs:lint
+      - name: Lint frontend
+        run: mise run //web:lint
 
       - name: Regenerate API contracts
         run: mise run generate
@@ -161,9 +157,6 @@ jobs:
 
       - name: Build application
         run: mise run build
-
-      - name: Build docs site
-        run: mise run //docs:build
 
   e2e:
     name: E2E
