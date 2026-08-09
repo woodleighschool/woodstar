@@ -39,17 +39,17 @@ run = { tasks = ["dev-backend", "//web:dev"] }
 [tasks.dev-tls]
 description = "Generate repo-local development TLS files"
 run = """
-mkdir -p tmp/tls/ca
-CAROOT="$PWD/tmp/tls/ca" mkcert \
-  -cert-file tmp/tls/woodstar.pem \
-  -key-file tmp/tls/woodstar-key.pem \
+mkdir -p .local/tls/ca
+CAROOT="$PWD/.local/tls/ca" mkcert \
+  -cert-file .local/tls/woodstar.pem \
+  -key-file .local/tls/woodstar-key.pem \
   woodstar
 """
 
 [tasks.dev-tls-trust]
 description = "Trust the repo-local development CA on this machine"
 depends = ["dev-tls"]
-run = 'CAROOT="$PWD/tmp/tls/ca" mkcert -install'
+run = 'CAROOT="$PWD/.local/tls/ca" mkcert -install'
 
 [tasks.dev-backend]
 description = "Run backend development server"
@@ -72,7 +72,7 @@ run = "go build -o woodstar ./cmd/woodstar"
 
 [tasks.geoip]
 description = "Download the current DB-IP Lite databases"
-run = "go run ./tools/geoipdb -output .cache/geoip"
+run = "go run ./tools/geoipdb -output .local/geoip"
 
 [tasks.tidy]
 description = "Tidy the Go module"
@@ -99,8 +99,8 @@ run = "goose -dir internal/postgres/migrations validate"
 description = "Run Go checks"
 depends = ["geoip"]
 run = [
-  "WOODSTAR_GEOIP_CITY_FILE=$PWD/.cache/geoip/dbip-city-lite.mmdb WOODSTAR_GEOIP_ASN_FILE=$PWD/.cache/geoip/dbip-asn-lite.mmdb go vet ./...",
-  "WOODSTAR_GEOIP_CITY_FILE=$PWD/.cache/geoip/dbip-city-lite.mmdb WOODSTAR_GEOIP_ASN_FILE=$PWD/.cache/geoip/dbip-asn-lite.mmdb go test -race -count=1 ./...",
+  "WOODSTAR_GEOIP_CITY_FILE=$PWD/.local/geoip/dbip-city-lite.mmdb WOODSTAR_GEOIP_ASN_FILE=$PWD/.local/geoip/dbip-asn-lite.mmdb go vet ./...",
+  "WOODSTAR_GEOIP_CITY_FILE=$PWD/.local/geoip/dbip-city-lite.mmdb WOODSTAR_GEOIP_ASN_FILE=$PWD/.local/geoip/dbip-asn-lite.mmdb go test -race -count=1 ./...",
 ]
 
 [tasks.test-postgres]

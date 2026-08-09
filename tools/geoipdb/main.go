@@ -25,7 +25,7 @@ var databases = []struct {
 
 func main() {
 	release := flag.String("release", time.Now().UTC().Format("2006-01"), "DB-IP release in YYYY-MM format")
-	output := flag.String("output", ".cache/geoip", "directory for decompressed MMDB files")
+	output := flag.String("output", ".local/geoip", "directory for decompressed MMDB files")
 	flag.Parse()
 
 	if err := run(context.Background(), *release, *output); err != nil {

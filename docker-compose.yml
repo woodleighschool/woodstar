@@ -18,8 +18,8 @@ services:
     ports:
       - "${WOODSTAR_PORT:-8443}:8080"
     volumes:
-      - ${WOODSTAR_TLS_CERT_FILE:-./tmp/tls/woodstar.pem}:/tls/woodstar.pem:ro
-      - ${WOODSTAR_TLS_KEY_FILE:-./tmp/tls/woodstar-key.pem}:/tls/woodstar-key.pem:ro
+      - ${WOODSTAR_TLS_CERT_FILE:-.local/tls/woodstar.pem}:/tls/woodstar.pem:ro
+      - ${WOODSTAR_TLS_KEY_FILE:-.local/tls/woodstar-key.pem}:/tls/woodstar-key.pem:ro
       - woodstar-data:/data
     depends_on:
       postgres:
@@ -43,9 +43,9 @@ services:
     ports:
       - "${WOODSTAR_MDP_PORT:-8090}:8080"
     volumes:
-      - ${WOODSTAR_MDP_SERVER_CA_FILE:-./tmp/tls/ca/rootCA.pem}:/tls/woodstar-ca.pem:ro
-      - ${WOODSTAR_MDP_TLS_CERT_FILE:-./tmp/tls/woodstar.pem}:/tls/mdp.pem:ro
-      - ${WOODSTAR_MDP_TLS_KEY_FILE:-./tmp/tls/woodstar-key.pem}:/tls/mdp-key.pem:ro
+      - ${WOODSTAR_MDP_SERVER_CA_FILE:-.local/tls/ca/rootCA.pem}:/tls/woodstar-ca.pem:ro
+      - ${WOODSTAR_MDP_TLS_CERT_FILE:-.local/tls/woodstar.pem}:/tls/mdp.pem:ro
+      - ${WOODSTAR_MDP_TLS_KEY_FILE:-.local/tls/woodstar-key.pem}:/tls/mdp-key.pem:ro
       - mdp-data:/data
     depends_on:
       woodstar:

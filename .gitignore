@@ -8,8 +8,7 @@
 # Build and tool outputs
 /bin/
 /woodstar
-/tmp/
-/.cache/
+/.local/
 /.gocache/
 __pycache__/
 build-errors.log

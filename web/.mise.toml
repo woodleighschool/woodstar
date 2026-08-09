@@ -6,7 +6,7 @@ run = "pnpm install --frozen-lockfile"
 description = "Run web development server"
 depends = [":deps"]
 run = """
-NODE_EXTRA_CA_CERTS="../tmp/tls/ca/rootCA.pem" pnpm run dev
+NODE_EXTRA_CA_CERTS="../.local/tls/ca/rootCA.pem" pnpm run dev
 """
 
 [tasks.build]

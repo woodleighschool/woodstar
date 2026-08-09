@@ -52,7 +52,7 @@ Only trust forwarded addresses when the Woodstar origin is restricted to that pr
 
 GeoIP enrichment is disabled unless both paths are set. When configured, Woodstar opens both databases at startup; if either file is missing or invalid, the server continues without public IP location and network enrichment. MDP matching remains available independently.
 
-Container builds package both databases and sets their paths in the runtime image. For a raw binary, run `mise run geoip` and set the two file paths to the resulting files in `.cache/geoip`. The databases are build and development inputs; Woodstar does not update them at runtime.
+Container builds package both databases and sets their paths in the runtime image. For a raw binary, run `mise run geoip` and set the two file paths to the resulting files in `.local/geoip`. The databases are build and development inputs; Woodstar does not update them at runtime.
 
 ## Santa event retention
 
