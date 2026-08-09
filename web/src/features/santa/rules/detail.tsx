@@ -2,21 +2,12 @@ import { useNavigate, useParams } from "@tanstack/react-router";
 import { Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 
-import { TableSurface } from "@components/data-table/table-surface";
 import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link } from "@components/link";
 import { QueryGate } from "@components/query-gate";
-import { TargetDetails } from "@components/targeting/target-details";
+import { TargetBadge, TargetDetails } from "@components/targeting/target-details";
 import { Button } from "@components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@components/ui/table";
 import { useAuth } from "@features/auth/queries";
 import { useLabelNameMap } from "@features/labels/components/label-ref-list";
 import type { SantaRule } from "@lib/api";
@@ -112,34 +103,29 @@ function RuleTargets({ rule }: { rule: SantaRule }) {
     <TargetDetails
       include={
         rule.targets.include.length > 0 ? (
-          <TableSurface variant="embedded">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Label</TableHead>
-                  <TableHead>Policy</TableHead>
-                  <TableHead>CEL Expression</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rule.targets.include.map((target) => (
-                  <TableRow key={`${target.label_id}:${target.policy}`}>
-                    <TableCell>
-                      <Link
-                        to="/labels/$id"
-                        params={{ id: String(target.label_id) }}
-                        className="font-medium"
-                      >
-                        {labelsByID.get(target.label_id) ?? `Label ${target.label_id}`}
-                      </Link>
-                    </TableCell>
-                    <TableCell>{POLICIES[target.policy].name}</TableCell>
-                    <TableCell>{target.cel_expression || "-"}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableSurface>
+          <div className="flex flex-wrap gap-1.5">
+            {rule.targets.include.map((target) => {
+              const label = labelsByID.get(target.label_id) ?? `Label ${target.label_id}`;
+              return (
+                <TargetBadge
+                  key={`${target.label_id}:${target.policy}`}
+                  labelID={target.label_id}
+                  label={label}
+                  details={[
+                    { label: "Policy", value: POLICIES[target.policy].name },
+                    {
+                      label: "CEL Expression",
+                      value: (
+                        <span className="font-mono text-xs break-all">
+                          {target.cel_expression || "-"}
+                        </span>
+                      ),
+                    },
+                  ]}
+                />
+              );
+            })}
+          </div>
         ) : (
           "-"
         )

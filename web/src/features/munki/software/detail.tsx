@@ -3,24 +3,15 @@ import { AppWindow, Pencil, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { DataTableStatic } from "@components/data-table/data-table-static";
-import { TableSurface } from "@components/data-table/table-surface";
 import type { DataTableColumnDef } from "@components/data-table/types";
 import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link } from "@components/link";
 import { PanelEmptyState } from "@components/panel-empty-state";
 import { QueryGate } from "@components/query-gate";
-import { TargetDetails } from "@components/targeting/target-details";
+import { TargetBadge, TargetDetails } from "@components/targeting/target-details";
 import { Badge } from "@components/ui/badge";
 import { Button } from "@components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@components/ui/table";
 import { useAuth } from "@features/auth/queries";
 import { useLabelNameMap } from "@features/labels/components/label-ref-list";
 import { SoftwareArtwork } from "@features/software/software-icon";
@@ -162,42 +153,33 @@ function MunkiSoftwareTargets({ software }: { software: MunkiSoftwareDetail }) {
     <TargetDetails
       include={
         software.targets.include.length > 0 ? (
-          <TableSurface variant="embedded">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Label</TableHead>
-                  <TableHead>Package</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {software.targets.include.map((target) => (
-                  <TableRow key={target.label_id}>
-                    <TableCell>
-                      <Link
-                        to="/labels/$id"
-                        params={{ id: String(target.label_id) }}
-                        className="font-medium"
-                      >
-                        {labelsByID.get(target.label_id) ?? `Label ${target.label_id}`}
-                      </Link>
-                    </TableCell>
-                    <TableCell>{munkiPackageLabel(target.package, packagesByID)}</TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {target.actions.map((action) => (
-                          <Badge key={action} variant="secondary" className="font-normal">
-                            {MUNKI_SOFTWARE_ACTIONS[action].name}
-                          </Badge>
-                        ))}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableSurface>
+          <div className="flex flex-wrap gap-1.5">
+            {software.targets.include.map((target) => {
+              const label = labelsByID.get(target.label_id) ?? `Label ${target.label_id}`;
+              return (
+                <TargetBadge
+                  key={target.label_id}
+                  labelID={target.label_id}
+                  label={label}
+                  details={[
+                    { label: "Package", value: munkiPackageLabel(target.package, packagesByID) },
+                    {
+                      label: "Actions",
+                      value: (
+                        <div className="flex flex-wrap justify-end gap-1">
+                          {target.actions.map((action) => (
+                            <Badge key={action} variant="secondary" className="font-normal">
+                              {MUNKI_SOFTWARE_ACTIONS[action].name}
+                            </Badge>
+                          ))}
+                        </div>
+                      ),
+                    },
+                  ]}
+                />
+              );
+            })}
+          </div>
         ) : (
           "-"
         )
