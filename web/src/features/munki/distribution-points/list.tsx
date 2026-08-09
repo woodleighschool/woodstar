@@ -3,6 +3,7 @@ import { GripVertical, HardDrive, MoreHorizontal, Plus } from "lucide-react";
 import * as React from "react";
 
 import { AsyncButton } from "@components/async-button";
+import { BooleanIndicator } from "@components/boolean-indicator";
 import { ConfirmDialog } from "@components/confirm-dialog";
 import { DataTable } from "@components/data-table/data-table";
 import { DataTableEmpty } from "@components/data-table/data-table-empty";
@@ -17,6 +18,7 @@ import { TableSurface } from "@components/data-table/table-surface";
 import type { DataTableColumnDef } from "@components/data-table/types";
 import { useDataTable } from "@components/data-table/use-data-table";
 import { encodeSort, useDataTableSearch } from "@components/data-table/use-data-table-search";
+import { EnumStatusIndicator } from "@components/enum-status-indicator";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link } from "@components/link";
 import { QueryError } from "@components/query-error";
@@ -43,7 +45,7 @@ import type { MunkiDistributionPoint } from "@lib/api";
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "@lib/pagination";
 
 import { DistributionPointDeleteDialog } from "./delete-dialog";
-import { BoolBadge, WorkerStatus } from "./distribution-point-badges";
+import { DISTRIBUTION_POINT_WORKER_STATUSES, distributionPointWorkerStatus } from "./model";
 import { useMunkiDistributionPoints, useReorderMunkiDistributionPoints } from "./queries";
 
 const routeApi = getRouteApi("/_authenticated/munki/distribution-points/");
@@ -188,6 +190,10 @@ function distributionPointColumns(
       accessorKey: "position",
       header: "Order",
       cell: ({ row }) => row.original.position + 1,
+      size: 96,
+      minSize: 96,
+      maxSize: 96,
+      enableResizing: false,
       meta: { label: "Order" },
     },
     {
@@ -204,6 +210,9 @@ function distributionPointColumns(
         </Link>
       ),
       enableHiding: false,
+      size: 200,
+      minSize: 144,
+      maxSize: 360,
       meta: { label: "Name" },
     },
     {
@@ -211,23 +220,41 @@ function distributionPointColumns(
       accessorKey: "enabled",
       header: () => "Enabled",
       enableSorting: false,
-      cell: ({ row }) => <BoolBadge value={row.original.enabled} label="Enabled" />,
+      cell: ({ row }) => <BooleanIndicator value={row.original.enabled} />,
+      size: 88,
+      minSize: 88,
+      maxSize: 88,
+      enableResizing: false,
       meta: { label: "Enabled" },
     },
     {
       id: "worker",
       header: () => "Connection",
       enableSorting: false,
-      cell: ({ row }) => <WorkerStatus worker={row.original.worker} />,
+      cell: ({ row }) => (
+        <EnumStatusIndicator
+          value={distributionPointWorkerStatus(row.original.worker)}
+          metadata={DISTRIBUTION_POINT_WORKER_STATUSES}
+          showIndicator
+        />
+      ),
+      size: 128,
+      minSize: 128,
+      maxSize: 128,
+      enableResizing: false,
       meta: { label: "Connection" },
     },
     {
       id: "worker_version",
-      header: () => "Worker Version",
+      header: () => "Version",
       enableSorting: false,
       cell: ({ row }) =>
         row.original.worker?.build_version ?? <span className="text-muted-foreground">-</span>,
-      meta: { label: "Worker Version" },
+      size: 88,
+      minSize: 88,
+      maxSize: 88,
+      enableResizing: false,
+      meta: { label: "Version" },
     },
     {
       id: "client_base_url",
@@ -236,6 +263,9 @@ function distributionPointColumns(
       enableSorting: false,
       cell: ({ row }) =>
         row.original.client_base_url || <span className="text-muted-foreground">-</span>,
+      size: 300,
+      minSize: 220,
+      maxSize: 720,
       meta: { label: "Base URL" },
     },
   ];
@@ -340,7 +370,7 @@ function DistributionPointReorder({
                 <TableHead>Name</TableHead>
                 <TableHead>Enabled</TableHead>
                 <TableHead>Connection</TableHead>
-                <TableHead>Worker Version</TableHead>
+                <TableHead>Version</TableHead>
                 <TableHead>Base URL</TableHead>
               </TableRow>
             </TableHeader>
@@ -355,10 +385,14 @@ function DistributionPointReorder({
                   <TableCell className="w-20">{index + 1}</TableCell>
                   <TableCell className="font-medium">{row.name}</TableCell>
                   <TableCell>
-                    <BoolBadge value={row.enabled} label="Enabled" />
+                    <BooleanIndicator value={row.enabled} />
                   </TableCell>
                   <TableCell>
-                    <WorkerStatus worker={row.worker} />
+                    <EnumStatusIndicator
+                      value={distributionPointWorkerStatus(row.worker)}
+                      metadata={DISTRIBUTION_POINT_WORKER_STATUSES}
+                      showIndicator
+                    />
                   </TableCell>
                   <TableCell>
                     {row.worker?.build_version ?? <span className="text-muted-foreground">-</span>}

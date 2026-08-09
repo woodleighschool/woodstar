@@ -1,29 +1,31 @@
 import { useNavigate, useParams } from "@tanstack/react-router";
-import { KeyRound, Pencil, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { KeyRound, Pencil, Smile, Trash2 } from "lucide-react";
+import { useMemo, useState } from "react";
 
 import { AsyncButton } from "@components/async-button";
+import { BooleanIndicator } from "@components/boolean-indicator";
 import { DataTableStatic } from "@components/data-table/data-table-static";
 import type { DataTableColumnDef } from "@components/data-table/types";
+import { EnumStatusIndicator } from "@components/enum-status-indicator";
 import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link } from "@components/link";
-import { PanelEmptyState } from "@components/panel-empty-state";
 import { QueryGate } from "@components/query-gate";
+import { Badge } from "@components/ui/badge";
 import { Button } from "@components/ui/button";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@components/ui/empty";
 import { toast } from "@components/ui/toast";
 import { useAuth } from "@features/auth/queries";
 import { SoftwareArtwork } from "@features/software/software-icon";
 import type { MunkiDistributionPointDetail, MunkiPackageState } from "@lib/api";
 
 import { DistributionPointDeleteDialog } from "./delete-dialog";
-import {
-  BoolBadge,
-  MirrorBadge,
-  PackageStatusBadge,
-  WorkerStatus,
-} from "./distribution-point-badges";
 import { KeyRevealDialog } from "./key-reveal-dialog";
+import {
+  DISTRIBUTION_POINT_WORKER_STATUSES,
+  distributionPointWorkerStatus,
+  packageStateLabel,
+} from "./model";
 import { useLiveMunkiDistributionPoint, useRotateMunkiDistributionPointKey } from "./queries";
 export function DistributionPointDetailPage() {
   const { id: distributionPointId } = useParams({
@@ -60,6 +62,7 @@ export function DistributionPointDetailPage() {
           isAdmin ? (
             <>
               <Button
+                variant="outline"
                 size="sm"
                 render={
                   <Link
@@ -82,12 +85,7 @@ export function DistributionPointDetailPage() {
               >
                 Rotate Key
               </AsyncButton>
-              <Button
-                type="button"
-                variant="destructive"
-                size="sm"
-                onClick={() => setDeleteOpen(true)}
-              >
+              <Button type="button" variant="outline" size="sm" onClick={() => setDeleteOpen(true)}>
                 <Trash2 data-icon="inline-start" />
                 Delete
               </Button>
@@ -98,11 +96,19 @@ export function DistributionPointDetailPage() {
 
       <KeyValueSection title="Overview">
         <KeyValueRow label="Name" value={point.name} />
-        <KeyValueRow label="Worker Status" value={<WorkerStatus worker={point.worker} />} />
-        <KeyValueRow label="Enabled" value={<BoolBadge value={point.enabled} label="Enabled" />} />
-        <KeyValueRow label="Mirror" value={<MirrorBadge packages={point.packages} />} />
         <KeyValueRow
-          label="Worker Version"
+          label="Status"
+          value={
+            <EnumStatusIndicator
+              value={distributionPointWorkerStatus(point.worker)}
+              metadata={DISTRIBUTION_POINT_WORKER_STATUSES}
+              showIndicator
+            />
+          }
+        />
+        <KeyValueRow label="Enabled" value={<BooleanIndicator value={point.enabled} />} />
+        <KeyValueRow
+          label="Version"
           value={point.worker?.build_version ?? <span className="text-muted-foreground">-</span>}
         />
         <KeyValueRow label="Base URL" value={point.client_base_url} />
@@ -135,20 +141,36 @@ function CidrList({ cidrs }: { cidrs: MunkiDistributionPointDetail["client_cidrs
   return (
     <div className="flex flex-wrap gap-1.5">
       {cidrs.map((cidr) => (
-        <span key={cidr} className="text-sm">
+        <Badge key={cidr} variant="secondary">
           {cidr}
-        </span>
+        </Badge>
       ))}
     </div>
   );
 }
 function PackageStateTable({ packages }: { packages: MunkiPackageState[] }) {
+  const nonCurrentPackages = useMemo(
+    () => packages.filter((pkg) => pkg.status !== "current"),
+    [packages],
+  );
   return (
     <DataTableStatic
-      heading="Packages"
+      heading="Package Sync"
       columns={packageStateColumns}
-      data={packages}
-      empty={<PanelEmptyState>No mirrored packages.</PanelEmptyState>}
+      data={nonCurrentPackages}
+      empty={
+        <Empty className="min-h-40 border-0">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <Smile />
+            </EmptyMedia>
+            <EmptyTitle>Everything is up to date</EmptyTitle>
+            <EmptyDescription>
+              Nothing is waiting to sync, and there are no errors to fix.
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      }
     />
   );
 }
@@ -174,7 +196,7 @@ const packageStateColumns: DataTableColumnDef<MunkiPackageState>[] = [
   {
     id: "status",
     header: () => "Status",
-    cell: ({ row }) => <PackageStatusBadge status={row.original.status} />,
+    cell: ({ row }) => packageStateLabel(row.original.status),
   },
   {
     id: "error",
