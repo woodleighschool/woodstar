@@ -71,6 +71,10 @@ url = "https://dl.google.com/go/go1.26.5.darwin-amd64.tar.gz"
 checksum = "sha256:97e6b2a833b6d89f9ff17d25419ac0a7e3b482a044e9ab18cdef834bd834fd38"
 url = "https://dl.google.com/go/go1.26.5.windows-amd64.zip"
 
+[[tools."go:github.com/pressly/goose/v3/cmd/goose"]]
+version = "3.27.3"
+backend = "go:github.com/pressly/goose/v3/cmd/goose"
+
 [[tools.golangci-lint]]
 version = "2.12.2"
 backend = "aqua:golangci/golangci-lint"

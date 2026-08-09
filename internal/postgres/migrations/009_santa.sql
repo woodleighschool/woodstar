@@ -60,7 +60,6 @@ CREATE TABLE santa_hosts (
     primary_user TEXT NOT NULL DEFAULT '',
     primary_user_groups TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
     sip_status BIGINT,
-    last_seen_at TIMESTAMPTZ,
     enrolled_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
