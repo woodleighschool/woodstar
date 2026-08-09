@@ -1,5 +1,3 @@
-// Package fault defines application error categories shared across capabilities
-// and delivery protocols.
 package fault
 
 import "errors"

@@ -1,5 +1,3 @@
-// Package postgres owns Woodstar's PostgreSQL connection and shared SQL
-// mechanics. Application queries remain in capability stores.
 package postgres
 
 import (

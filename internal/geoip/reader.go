@@ -1,4 +1,3 @@
-// Package geoip enriches public IP addresses from configured DB-IP databases.
 package geoip
 
 import (

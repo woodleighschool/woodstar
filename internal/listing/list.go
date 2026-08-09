@@ -1,5 +1,3 @@
-// Package listing defines the shared request semantics for searchable,
-// sortable, paginated application lists.
 package listing
 
 import (
