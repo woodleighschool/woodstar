@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/listing"
@@ -19,11 +19,11 @@ import (
 
 // Store persists Santa rule definitions and resolves host rule state.
 type Store struct {
-	db *database.DB
+	pool *pgxpool.Pool
 }
 
-func NewStore(db *database.DB) *Store {
-	return &Store{db: db}
+func NewStore(pool *pgxpool.Pool) *Store {
+	return &Store{pool: pool}
 }
 
 func (s *Store) List(ctx context.Context, params RuleListParams) ([]Rule, int, error) {
@@ -40,7 +40,7 @@ func (s *Store) List(ctx context.Context, params RuleListParams) ([]Rule, int, e
 		DefaultOrder: []dbutil.OrderExpr{{SQL: "rule_type_sort"}, {SQL: "identifier"}, {SQL: "id"}},
 		Params:       params.ListParams,
 	}
-	rows, count, err := dbutil.ListWithCount[ruleRow](ctx, s.db.Pool(), listQuery)
+	rows, count, err := dbutil.ListWithCount[ruleRow](ctx, s.pool, listQuery)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -60,7 +60,7 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Rule, error) {
 	if id <= 0 {
 		return nil, fault.ErrNotFound
 	}
-	row, err := dbutil.GetOne[ruleRow](ctx, s.db.Pool(), ruleSelectSQL()+"\nWHERE id = $1", id)
+	row, err := dbutil.GetOne[ruleRow](ctx, s.pool, ruleSelectSQL()+"\nWHERE id = $1", id)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +79,7 @@ func (s *Store) Create(ctx context.Context, params RuleMutation) (*Rule, error) 
 	}
 	write := newRuleWrite(params)
 	var ruleID int64
-	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		if err := validateRuleTargetingLabels(ctx, tx, params); err != nil {
 			return err
 		}
@@ -120,7 +120,7 @@ func (s *Store) Update(ctx context.Context, id int64, params RuleMutation) (*Rul
 	}
 	write := newRuleWrite(params)
 	write.ID = id
-	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		if err := validateRuleTargetingLabels(ctx, tx, params); err != nil {
 			return err
 		}
@@ -151,7 +151,7 @@ func (s *Store) Update(ctx context.Context, id int64, params RuleMutation) (*Rul
 }
 
 func (s *Store) Delete(ctx context.Context, id int64) error {
-	tag, err := s.db.Pool().Exec(ctx, `DELETE FROM santa_rules WHERE id = $1`, id)
+	tag, err := s.pool.Exec(ctx, `DELETE FROM santa_rules WHERE id = $1`, id)
 	if err != nil {
 		return dbutil.DeleteConflict(err, "Santa rule is still referenced")
 	}
@@ -166,7 +166,7 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 	if len(ids) == 0 {
 		return 0, nil
 	}
-	rows, err := s.db.Pool().Query(
+	rows, err := s.pool.Query(
 		ctx,
 		`DELETE FROM santa_rules WHERE id = ANY($1::bigint[]) RETURNING id`,
 		ids,
@@ -182,7 +182,7 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 }
 
 func (s *Store) ResolveRulesForHost(ctx context.Context, hostID int64) ([]HostRule, error) {
-	qrows, err := s.db.Pool().Query(ctx, `
+	qrows, err := s.pool.Query(ctx, `
 		SELECT
 			rule_id,
 			rule_type,
@@ -218,7 +218,7 @@ func (s *Store) ListRuleStatusesForHost(
 
 	var hostExists bool
 	var count int
-	if err := s.db.Pool().QueryRow(ctx, `
+	if err := s.pool.QueryRow(ctx, `
 		SELECT
 			EXISTS (SELECT 1 FROM hosts WHERE id = $1)::boolean AS host_exists,
 			count(*)::integer AS rule_count
@@ -229,7 +229,7 @@ func (s *Store) ListRuleStatusesForHost(
 		return nil, 0, fault.ErrNotFound
 	}
 
-	qrows, err := s.db.Pool().Query(
+	qrows, err := s.pool.Query(
 		ctx, `
 			SELECT
 				rule_id,
@@ -318,7 +318,7 @@ func (s *Store) appliedSyncTargetSet(ctx context.Context, hostID int64) (map[str
 		NotificationAppName string `db:"notification_app_name"`
 		PayloadHash         string `db:"payload_hash"`
 	}
-	qrows, err := s.db.Pool().Query(ctx, `
+	qrows, err := s.pool.Query(ctx, `
 		SELECT
 			rule_type::text,
 			identifier,
@@ -415,7 +415,7 @@ func (s *Store) attachRuleTargets(ctx context.Context, rules []Rule, ruleIDs []i
 		Policy        string `db:"policy"`
 		CELExpression string `db:"cel_expression"`
 	}
-	qrows, err := s.db.Pool().Query(ctx, `
+	qrows, err := s.pool.Query(ctx, `
 		SELECT
 			rule_id,
 			direction::text AS direction,

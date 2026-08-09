@@ -6,19 +6,19 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/fault"
 )
 
 // Store persists labels.
 type Store struct {
-	db *database.DB
+	pool *pgxpool.Pool
 }
 
-func NewStore(db *database.DB) *Store {
-	return &Store{db: db}
+func NewStore(pool *pgxpool.Pool) *Store {
+	return &Store{pool: pool}
 }
 
 func (s *Store) List(ctx context.Context, params LabelListParams) ([]Label, int, error) {
@@ -36,7 +36,7 @@ func (s *Store) List(ctx context.Context, params LabelListParams) ([]Label, int,
 		DefaultOrder: []dbutil.OrderExpr{{SQL: "lower(l.name)"}, {SQL: "l.id"}},
 		Params:       params.ListParams,
 	}
-	rows, count, err := dbutil.ListWithCount[labelRow](ctx, s.db.Pool(), listQuery)
+	rows, count, err := dbutil.ListWithCount[labelRow](ctx, s.pool, listQuery)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -48,11 +48,11 @@ func (s *Store) List(ctx context.Context, params LabelListParams) ([]Label, int,
 }
 
 func (s *Store) GetByID(ctx context.Context, id int64) (*Label, error) {
-	return getLabelByID(ctx, s.db.Pool(), id)
+	return getLabelByID(ctx, s.pool, id)
 }
 
 func (s *Store) ListForHost(ctx context.Context, hostID int64) ([]Label, error) {
-	rows, err := s.db.Pool().Query(ctx, labelSelectSQL()+`
+	rows, err := s.pool.Query(ctx, labelSelectSQL()+`
 JOIN label_membership lm_host ON lm_host.label_id = l.id AND lm_host.host_id = $1
 GROUP BY l.id
 ORDER BY lower(l.name), l.id`, hostID)
@@ -79,7 +79,7 @@ func (s *Store) Create(ctx context.Context, params LabelMutation) (*Label, error
 	write.LabelType = string(LabelTypeRegular)
 
 	var out *Label
-	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		var id int64
 		if err := tx.QueryRow(ctx, `
 			INSERT INTO labels (
@@ -123,7 +123,7 @@ func (s *Store) Update(ctx context.Context, id int64, params LabelMutation) (*La
 	write.ID = id
 
 	var out *Label
-	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		var updatedID int64
 		if err := tx.QueryRow(ctx, `
 			UPDATE labels
@@ -152,7 +152,7 @@ func (s *Store) Update(ctx context.Context, id int64, params LabelMutation) (*La
 }
 
 func (s *Store) Delete(ctx context.Context, id int64) error {
-	tag, err := s.db.Pool().Exec(
+	tag, err := s.pool.Exec(
 		ctx,
 		`DELETE FROM labels WHERE id = $1 AND label_type = 'regular'`,
 		id,
@@ -167,7 +167,7 @@ func (s *Store) Delete(ctx context.Context, id int64) error {
 }
 
 func (s *Store) ListApplicableDynamic(ctx context.Context) ([]DynamicLabel, error) {
-	return dbutil.GetAll[DynamicLabel](ctx, s.db.Pool(), `
+	return dbutil.GetAll[DynamicLabel](ctx, s.pool, `
 SELECT l.id, l.query
 FROM labels l
 WHERE l.label_membership_type = 'dynamic'
@@ -189,7 +189,7 @@ func (s *Store) SetDynamicMemberships(
 		return 0, err
 	}
 	var handled int
-	err = s.db.Pool().QueryRow(ctx, `
+	err = s.pool.QueryRow(ctx, `
 WITH applicable AS (
     SELECT result.label_id, result.matched
     FROM unnest($2::bigint[], $3::boolean[]) AS result(label_id, matched)
@@ -235,13 +235,13 @@ func dynamicMembershipValues(memberships []DynamicMembership) ([]int64, []bool, 
 
 func (s *Store) SetMembership(ctx context.Context, labelID int64, hostID int64, matched bool) error {
 	if matched {
-		_, err := s.db.Pool().Exec(ctx, `
+		_, err := s.pool.Exec(ctx, `
 INSERT INTO label_membership (label_id, host_id)
 VALUES ($1, $2)
 ON CONFLICT (label_id, host_id) DO NOTHING`, labelID, hostID)
 		return err
 	}
-	_, err := s.db.Pool().Exec(
+	_, err := s.pool.Exec(
 		ctx,
 		`DELETE FROM label_membership WHERE label_id = $1 AND host_id = $2`,
 		labelID,
@@ -251,7 +251,7 @@ ON CONFLICT (label_id, host_id) DO NOTHING`, labelID, hostID)
 }
 
 func (s *Store) RefreshDerived(ctx context.Context) error {
-	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
+	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		return s.RefreshDerivedTx(ctx, tx)
 	})
 }

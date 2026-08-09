@@ -24,7 +24,7 @@ func (s *Store) IngestEvents(
 	}
 	plan := newIngestPlan(executionEvents, fileAccessEvents, standaloneRuleCreationEvents)
 	var bundleBinaryRequests []string
-	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		requests, err := ingestEventsTx(ctx, tx, hostID, plan)
 		if err != nil {
 			return err

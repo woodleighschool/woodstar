@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/listing"
@@ -19,15 +19,15 @@ import (
 
 // Store persists distribution points and their per-package mirror state.
 type Store struct {
-	db       *database.DB
+	pool     *pgxpool.Pool
 	objects  *storage.ObjectStore
 	presence *Presence
 	logger   *slog.Logger
 }
 
-// NewStore returns a distribution point store backed by db.
-func NewStore(db *database.DB, objects *storage.ObjectStore, logger *slog.Logger) *Store {
-	return &Store{db: db, objects: objects, presence: NewPresence(), logger: logger}
+// NewStore returns a distribution point store backed by PostgreSQL.
+func NewStore(pool *pgxpool.Pool, objects *storage.ObjectStore, logger *slog.Logger) *Store {
+	return &Store{pool: pool, objects: objects, presence: NewPresence(), logger: logger}
 }
 
 // Presence returns the live worker presence set shared by selection and the
@@ -47,7 +47,7 @@ func (s *Store) List(
 
 	records, count, err := dbutil.ListWithCount[distributionPointRow](
 		ctx,
-		s.db.Pool(),
+		s.pool,
 		listQuery,
 	)
 	if err != nil {
@@ -65,7 +65,7 @@ func (s *Store) List(
 func (s *Store) GetByID(ctx context.Context, id int64) (*DistributionPointDetail, error) {
 	row, err := dbutil.GetOne[distributionPointRow](
 		ctx,
-		s.db.Pool(),
+		s.pool,
 		distributionPointSelectSQL()+"\nWHERE c.id = $1",
 		id,
 	)
@@ -73,7 +73,7 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*DistributionPointDetail
 		return nil, err
 	}
 
-	qrows, err := s.db.Pool().Query(ctx, `
+	qrows, err := s.pool.Query(ctx, `
 SELECT
 	p.id AS package_id,
 	sw.id AS software_id,
@@ -142,7 +142,7 @@ func (s *Store) Create(
 	}
 	row, err := dbutil.GetOne[distributionPointRow](
 		ctx,
-		s.db.Pool(),
+		s.pool,
 		`
 INSERT INTO munki_distribution_points (
 	name,
@@ -198,7 +198,7 @@ func (s *Store) Update(
 	}
 	row, err := dbutil.GetOne[distributionPointRow](
 		ctx,
-		s.db.Pool(),
+		s.pool,
 		`
 UPDATE munki_distribution_points
 SET
@@ -229,7 +229,7 @@ RETURNING
 
 // Delete removes a distribution point and its package states.
 func (s *Store) Delete(ctx context.Context, id int64) error {
-	tag, err := s.db.Pool().Exec(
+	tag, err := s.pool.Exec(
 		ctx,
 		`DELETE FROM munki_distribution_points WHERE id = $1`,
 		id,
@@ -245,7 +245,7 @@ func (s *Store) Delete(ctx context.Context, id int64) error {
 
 // RotateKey replaces a distribution point's key, invalidating the old one.
 func (s *Store) RotateKey(ctx context.Context, id int64, key string) error {
-	tag, err := s.db.Pool().Exec(
+	tag, err := s.pool.Exec(
 		ctx,
 		`UPDATE munki_distribution_points SET "key" = $1, updated_at = now() WHERE id = $2`,
 		key,
@@ -263,7 +263,7 @@ func (s *Store) RotateKey(ctx context.Context, id int64, key string) error {
 // Reorder sets distribution point order from an exact permutation of the
 // existing ids, persisted two-phase to satisfy the unique position constraint.
 func (s *Store) Reorder(ctx context.Context, orderedIDs []int64) error {
-	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
+	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		var updated, total int
 		if err := tx.QueryRow(ctx, `
 WITH ordered AS (
@@ -311,7 +311,7 @@ SELECT (SELECT count(*) FROM updated), (SELECT total FROM stats)`,
 func (s *Store) AuthenticateWorker(ctx context.Context, key string) (*DistributionPoint, error) {
 	row, err := dbutil.GetOne[distributionPointRow](
 		ctx,
-		s.db.Pool(),
+		s.pool,
 		distributionPointSelectSQL()+"\nWHERE c.\"key\" = $1",
 		key,
 	)
@@ -347,7 +347,7 @@ func (s *Store) CandidatesForClients(
 		return candidates, nil
 	}
 
-	qrows, err := s.db.Pool().Query(ctx, `
+	qrows, err := s.pool.Query(ctx, `
 SELECT
 	input.client_ip,
 	c.id,
@@ -422,7 +422,7 @@ func (s *Store) ResolveForClient(
 		return nil, nil
 	}
 
-	qrows, err := s.db.Pool().Query(ctx, `
+	qrows, err := s.pool.Query(ctx, `
 SELECT s.distribution_point_id
 FROM munki_distribution_package_states s
 JOIN munki_packages p ON p.id = s.package_id
@@ -469,7 +469,7 @@ WHERE s.distribution_point_id = ANY($1::bigint[])
 
 // DesiredPackages returns every installer-backed package to mirror.
 func (s *Store) DesiredPackages(ctx context.Context) ([]DesiredPackage, error) {
-	qrows, err := s.db.Pool().Query(ctx, `
+	qrows, err := s.pool.Query(ctx, `
 SELECT
 	p.id AS package_id,
 	o.filename,
@@ -504,7 +504,7 @@ ORDER BY p.id`)
 // InstallerObject returns the stored content for a package's installer.
 func (s *Store) InstallerObject(ctx context.Context, packageID int64) (storage.Object, error) {
 	var objectID *int64
-	err := s.db.Pool().QueryRow(ctx, `
+	err := s.pool.QueryRow(ctx, `
 SELECT installer_object_id
 FROM munki_packages
 WHERE id = $1`, packageID).Scan(&objectID)
@@ -536,7 +536,7 @@ func (s *Store) RecordPackageState(
 	sha256 string,
 	errMessage string,
 ) error {
-	_, err := s.db.Pool().Exec(ctx, `
+	_, err := s.pool.Exec(ctx, `
 INSERT INTO munki_distribution_package_states (
 	distribution_point_id,
 	package_id,

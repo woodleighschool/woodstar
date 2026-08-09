@@ -7,13 +7,14 @@ import (
 	"os"
 	"testing"
 
-	"github.com/woodleighschool/woodstar/internal/database"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/woodleighschool/woodstar/internal/postgres"
 )
 
 const testDatabaseURL = "WOODSTAR_TEST_DATABASE_URL"
 
 // Open returns an isolated migrated test database.
-func Open(t testing.TB) (*database.DB, context.Context) {
+func Open(t testing.TB) (*pgxpool.Pool, context.Context) {
 	t.Helper()
 
 	ctx := t.Context()
@@ -23,7 +24,7 @@ func Open(t testing.TB) (*database.DB, context.Context) {
 	}
 	databaseURL := Create(t, baseURL)
 
-	db, err := database.Open(ctx, databaseURL)
+	db, err := postgres.Open(ctx, databaseURL)
 	if err != nil {
 		t.Fatalf("open test database: %v", err)
 	}

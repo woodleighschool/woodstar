@@ -14,14 +14,14 @@ func TestGetTitleLoadsVersionCollection(t *testing.T) {
 	store := NewStore(db)
 
 	var titleID int64
-	if err := db.Pool().QueryRow(ctx, `
+	if err := db.QueryRow(ctx, `
 		INSERT INTO software_titles (name, source, bundle_identifier)
 		VALUES ('Versioned App', 'apps', 'com.example.versioned')
 		RETURNING id
 	`).Scan(&titleID); err != nil {
 		t.Fatalf("insert software title: %v", err)
 	}
-	if _, err := db.Pool().Exec(ctx, `
+	if _, err := db.Exec(ctx, `
 		INSERT INTO software (title_id, name, version, source, bundle_identifier)
 		VALUES
 			($1, 'Versioned App', '2.0', 'apps', 'com.example.versioned'),
@@ -76,7 +76,7 @@ func TestGetTitleLoadsSigningIdentities(t *testing.T) {
 	}
 
 	var titleID int64
-	if err := db.Pool().QueryRow(
+	if err := db.QueryRow(
 		ctx,
 		`SELECT id FROM software_titles WHERE bundle_identifier = 'com.example.app'`,
 	).Scan(&titleID); err != nil {
@@ -101,7 +101,7 @@ func TestGetTitleLoadsSigningIdentities(t *testing.T) {
 	}
 
 	params := SoftwareTitleListParams{}
-	params.Q = "Example, Inc."
+	params.ListParams.Q = "Example, Inc."
 	titles, total, err := store.ListTitles(ctx, params)
 	if err != nil {
 		t.Fatalf("ListTitles by developer name: %v", err)
@@ -135,7 +135,7 @@ func TestGetTitleLoadsTeamIdentityWithoutIdentifier(t *testing.T) {
 	}
 
 	var titleID int64
-	if err := db.Pool().QueryRow(
+	if err := db.QueryRow(
 		ctx,
 		`SELECT id FROM software_titles WHERE bundle_identifier = 'com.example.team-only'`,
 	).Scan(&titleID); err != nil {

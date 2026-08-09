@@ -24,7 +24,7 @@ func (s *Store) ListForHost(
 
 	var total int
 	countSQL, countArgs := listQuery.BuildCount()
-	if err := s.db.Pool().QueryRow(ctx, countSQL, countArgs...).Scan(&total); err != nil {
+	if err := s.pool.QueryRow(ctx, countSQL, countArgs...).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 	if total == 0 {
@@ -54,7 +54,7 @@ func (s *Store) ListForHost(
 
 func (s *Store) hostExists(ctx context.Context, hostID int64) (bool, error) {
 	var exists bool
-	err := s.db.Pool().QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM hosts WHERE id = $1)`, hostID).Scan(&exists)
+	err := s.pool.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM hosts WHERE id = $1)`, hostID).Scan(&exists)
 	return exists, err
 }
 
@@ -89,7 +89,7 @@ func (s *Store) hostSoftwareRows(
 	hostID int64,
 	titleIDs []int64,
 ) ([]HostSoftware, error) {
-	qrows, err := s.db.Pool().Query(ctx, hostSoftwareRowsSQL, hostID, titleIDs)
+	qrows, err := s.pool.Query(ctx, hostSoftwareRowsSQL, hostID, titleIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -176,7 +176,7 @@ func (s *Store) hostSoftwareTitleIDs(
 	if err != nil {
 		return nil, err
 	}
-	rows, err := s.db.Pool().Query(ctx, query, queryArgs...)
+	rows, err := s.pool.Query(ctx, query, queryArgs...)
 	if err != nil {
 		return nil, err
 	}

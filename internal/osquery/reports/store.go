@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/hosts"
@@ -15,11 +15,11 @@ import (
 
 // Store persists saved reports and their per-host result snapshots.
 type Store struct {
-	db *database.DB
+	pool *pgxpool.Pool
 }
 
-func NewStore(db *database.DB) *Store {
-	return &Store{db: db}
+func NewStore(pool *pgxpool.Pool) *Store {
+	return &Store{pool: pool}
 }
 
 func (s *Store) Create(ctx context.Context, in ReportCreateMutation) (*Report, error) {
@@ -30,7 +30,7 @@ func (s *Store) Create(ctx context.Context, in ReportCreateMutation) (*Report, e
 	write := newReportWrite(in.ReportMutation)
 	write.CreatedByUserID = in.CreatedByUserID
 	var id int64
-	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		if err := tx.QueryRow(ctx, `
 			INSERT INTO osquery_reports (
 				name,
@@ -65,7 +65,7 @@ func (s *Store) Update(ctx context.Context, id int64, params ReportMutation) (*R
 	}
 	write := newReportWrite(params)
 	write.ID = id
-	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		var resultsInvalidated bool
 		if err := tx.QueryRow(ctx, `
 			WITH current AS (
@@ -123,7 +123,7 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Report, error) {
 	if id <= 0 {
 		return nil, fault.ErrNotFound
 	}
-	row, err := dbutil.GetOne[reportRow](ctx, s.db.Pool(), reportSelectSQL()+"\nWHERE r.id = $1", id)
+	row, err := dbutil.GetOne[reportRow](ctx, s.pool, reportSelectSQL()+"\nWHERE r.id = $1", id)
 	if err != nil {
 		return nil, err
 	}
@@ -136,7 +136,7 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Report, error) {
 }
 
 func (s *Store) Delete(ctx context.Context, id int64) error {
-	tag, err := s.db.Pool().Exec(ctx, `DELETE FROM osquery_reports WHERE id = $1`, id)
+	tag, err := s.pool.Exec(ctx, `DELETE FROM osquery_reports WHERE id = $1`, id)
 	if err != nil {
 		return dbutil.DeleteConflict(err, "Report is still referenced")
 	}
@@ -151,7 +151,7 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 	if len(ids) == 0 {
 		return 0, nil
 	}
-	rows, err := s.db.Pool().Query(
+	rows, err := s.pool.Query(
 		ctx,
 		`DELETE FROM osquery_reports WHERE id = ANY($1::bigint[]) RETURNING id`,
 		ids,
@@ -177,7 +177,7 @@ func (s *Store) List(ctx context.Context, params ReportListParams) ([]Report, in
 		DefaultOrder: []dbutil.OrderExpr{{SQL: "r.updated_at"}, {SQL: "r.id"}},
 		Params:       params.ListParams,
 	}
-	rows, count, err := dbutil.ListWithCount[reportRow](ctx, s.db.Pool(), listQuery)
+	rows, count, err := dbutil.ListWithCount[reportRow](ctx, s.pool, listQuery)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -195,7 +195,7 @@ func (s *Store) List(ctx context.Context, params ReportListParams) ([]Report, in
 
 // ScheduledForHost returns reports that are scheduled and match the host's label membership.
 func (s *Store) ScheduledForHost(ctx context.Context, host *hosts.Host) ([]Report, error) {
-	qrows, err := s.db.Pool().Query(ctx, reportSelectSQL()+`
+	qrows, err := s.pool.Query(ctx, reportSelectSQL()+`
 		JOIN osquery_report_assignments assignment
 			ON assignment.report_id = r.id
 		   AND assignment.host_id = $1

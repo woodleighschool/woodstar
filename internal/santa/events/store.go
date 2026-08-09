@@ -1,12 +1,12 @@
 package events
 
-import "github.com/woodleighschool/woodstar/internal/database"
+import "github.com/jackc/pgx/v5/pgxpool"
 
 // Store persists Santa execution and file-access events.
 type Store struct {
-	db *database.DB
+	pool *pgxpool.Pool
 }
 
-func NewStore(db *database.DB) *Store {
-	return &Store{db: db}
+func NewStore(pool *pgxpool.Pool) *Store {
+	return &Store{pool: pool}
 }

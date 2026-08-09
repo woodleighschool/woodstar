@@ -33,7 +33,7 @@ func (s *Store) OverwriteSnapshot(
 		return err
 	}
 
-	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
+	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		var accepted bool
 		err := tx.QueryRow(ctx, `
 			SELECT true
@@ -98,7 +98,7 @@ func (s *Store) Snapshots(
 	}
 	if count == 0 {
 		var exists bool
-		if err := s.db.Pool().QueryRow(
+		if err := s.pool.QueryRow(
 			ctx,
 			`SELECT EXISTS (SELECT 1 FROM osquery_reports WHERE id = $1)`,
 			reportID,
@@ -177,7 +177,7 @@ func (s *Store) listSnapshots(
 		DefaultOrder: []dbutil.OrderExpr{{SQL: nameOrderSQL}, {SQL: stableOrderSQL}},
 		Params:       params.ListParams,
 	}
-	rows, count, err := dbutil.ListWithCount[snapshotRow](ctx, s.db.Pool(), listQuery)
+	rows, count, err := dbutil.ListWithCount[snapshotRow](ctx, s.pool, listQuery)
 	if err != nil {
 		return nil, 0, err
 	}

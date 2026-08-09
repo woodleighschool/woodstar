@@ -1,18 +1,18 @@
 package packages
 
 import (
-	"github.com/woodleighschool/woodstar/internal/database"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
 type Store struct {
-	db      *database.DB
+	pool    *pgxpool.Pool
 	objects *storage.ObjectStore
 }
 
-func NewStore(db *database.DB, objects *storage.ObjectStore) *Store {
+func NewStore(pool *pgxpool.Pool, objects *storage.ObjectStore) *Store {
 	return &Store{
-		db:      db,
+		pool:    pool,
 		objects: objects,
 	}
 }

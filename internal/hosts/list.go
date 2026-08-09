@@ -19,7 +19,7 @@ func (s *Store) List(ctx context.Context, params HostListParams) ([]Host, int, e
 	}
 	where, args := hostListWhere(params)
 	listQuery := hostListQuery(params, where, args)
-	rows, count, err := dbutil.ListWithCount[hostRow](ctx, s.db.Pool(), listQuery)
+	rows, count, err := dbutil.ListWithCount[hostRow](ctx, s.pool, listQuery)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -35,7 +35,7 @@ func (s *Store) List(ctx context.Context, params HostListParams) ([]Host, int, e
 }
 
 func (s *Store) GetByID(ctx context.Context, id int64) (*Host, error) {
-	row, err := dbutil.GetOne[hostRow](ctx, s.db.Pool(), hostSelectSQL()+"\nWHERE id = $1", id)
+	row, err := dbutil.GetOne[hostRow](ctx, s.pool, hostSelectSQL()+"\nWHERE id = $1", id)
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +49,7 @@ func (s *Store) GetByHardwareSerial(ctx context.Context, serial string) (*Host, 
 	if serial == "" {
 		return nil, fault.ErrNotFound
 	}
-	rows, err := s.db.Pool().Query(ctx, hostSelectSQL()+`
+	rows, err := s.pool.Query(ctx, hostSelectSQL()+`
 WHERE hardware_serial = $1 AND hardware_serial <> ''
 ORDER BY updated_at DESC, id DESC
 LIMIT 2`, serial)

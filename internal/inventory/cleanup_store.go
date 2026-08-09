@@ -33,7 +33,7 @@ func (s *Store) PruneUnreferencedSoftware(ctx context.Context) (CleanupResult, e
 
 func (s *Store) pruneUnreferencedSoftwareBatch(ctx context.Context) (CleanupResult, error) {
 	var result CleanupResult
-	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		softwareTag, err := tx.Exec(ctx, `
 WITH candidates AS (
 	SELECT software.id

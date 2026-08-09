@@ -35,7 +35,7 @@ func (s *Store) loadCheckTargets(
 	if len(checkIDs) == 0 {
 		return map[int64]CheckTargets{}, nil
 	}
-	rows, err := s.db.Pool().Query(ctx, listCheckTargetsSQL, checkIDs)
+	rows, err := s.pool.Query(ctx, listCheckTargetsSQL, checkIDs)
 	if err != nil {
 		return nil, err
 	}

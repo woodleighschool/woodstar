@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/woodleighschool/woodstar/internal/database"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
@@ -14,11 +14,11 @@ type SecretVerifier interface {
 }
 
 type Store struct {
-	db *database.DB
+	pool *pgxpool.Pool
 }
 
-func NewStore(db *database.DB) *Store {
-	return &Store{db: db}
+func NewStore(pool *pgxpool.Pool) *Store {
+	return &Store{pool: pool}
 }
 
 type agentSecretRow struct {
@@ -39,7 +39,7 @@ func agentSecretFromRow(row agentSecretRow) AgentSecret {
 }
 
 func (s *Store) List(ctx context.Context) ([]AgentSecret, error) {
-	rows, err := dbutil.GetAll[agentSecretRow](ctx, s.db.Pool(), `
+	rows, err := dbutil.GetAll[agentSecretRow](ctx, s.pool, `
 SELECT id, agent, value, created_at, deleted_at
 FROM agent_secrets
 WHERE deleted_at IS NULL
@@ -59,7 +59,7 @@ func (s *Store) Create(ctx context.Context, params AgentSecretCreate) (*AgentSec
 	if err := params.validate(); err != nil {
 		return nil, err
 	}
-	row, err := dbutil.GetOne[agentSecretRow](ctx, s.db.Pool(), `
+	row, err := dbutil.GetOne[agentSecretRow](ctx, s.pool, `
 INSERT INTO agent_secrets (agent, value)
 VALUES ($1::agent, $2)
 RETURNING id, agent, value, created_at, deleted_at`,
@@ -76,7 +76,7 @@ func (s *Store) Update(ctx context.Context, id int64, params AgentSecretMutation
 	if err := params.validate(); err != nil {
 		return nil, err
 	}
-	row, err := dbutil.GetOne[agentSecretRow](ctx, s.db.Pool(), `
+	row, err := dbutil.GetOne[agentSecretRow](ctx, s.pool, `
 UPDATE agent_secrets
 SET value = $1
 WHERE id = $2
@@ -96,7 +96,7 @@ func (s *Store) Verify(ctx context.Context, agent Agent, value string) (bool, er
 		return false, nil
 	}
 	var exists bool
-	err := s.db.Pool().QueryRow(ctx, `
+	err := s.pool.QueryRow(ctx, `
 SELECT EXISTS (
     SELECT 1
     FROM agent_secrets
@@ -109,7 +109,7 @@ SELECT EXISTS (
 
 func (s *Store) Delete(ctx context.Context, id int64) error {
 	var deletedID int64
-	err := s.db.Pool().QueryRow(ctx, `
+	err := s.pool.QueryRow(ctx, `
 UPDATE agent_secrets
 SET deleted_at = now()
 WHERE id = $1

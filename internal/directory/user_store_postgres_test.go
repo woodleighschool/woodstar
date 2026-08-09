@@ -62,7 +62,7 @@ func TestDeleteSoftDeletesDirectoryUsers(t *testing.T) {
 	}
 	const apiKey = "test-api-key"
 	var userID int64
-	if err := database.Pool().QueryRow(ctx, `
+	if err := database.QueryRow(ctx, `
 INSERT INTO users (
     email,
     name,
@@ -101,7 +101,7 @@ RETURNING id`, hash, apiKey).Scan(&userID); err != nil {
 	var externalID string
 	var role string
 	var deletedAt *time.Time
-	if err := database.Pool().QueryRow(ctx, `
+	if err := database.QueryRow(ctx, `
 SELECT source::text, external_id, role::text, deleted_at
 FROM users
 WHERE id = $1`, userID).Scan(&source, &externalID, &role, &deletedAt); err != nil {
@@ -154,7 +154,7 @@ func TestListFiltersUsers(t *testing.T) {
 		t.Fatalf("apply entra snapshot: %v", err)
 	}
 	var engineeringGroupID int64
-	if err := database.Pool().QueryRow(ctx, `
+	if err := database.QueryRow(ctx, `
 SELECT id
 FROM directory_groups
 WHERE external_id = 'engineering'`).Scan(&engineeringGroupID); err != nil {

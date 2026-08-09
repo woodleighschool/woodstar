@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/hosts"
@@ -16,11 +16,11 @@ import (
 
 // Store persists checks and per-host membership state.
 type Store struct {
-	db *database.DB
+	pool *pgxpool.Pool
 }
 
-func NewStore(db *database.DB) *Store {
-	return &Store{db: db}
+func NewStore(pool *pgxpool.Pool) *Store {
+	return &Store{pool: pool}
 }
 
 func (s *Store) Create(ctx context.Context, in CheckCreateMutation) (*Check, error) {
@@ -32,7 +32,7 @@ func (s *Store) Create(ctx context.Context, in CheckCreateMutation) (*Check, err
 	write.CreatedByUserID = in.CreatedByUserID
 
 	var id int64
-	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		if err := tx.QueryRow(ctx, `
 			INSERT INTO osquery_checks (name, description, query, created_by_user_id)
 			VALUES (@name, @description, @query, @created_by_user_id)
@@ -55,7 +55,7 @@ func (s *Store) Update(ctx context.Context, id int64, in CheckMutation) (*Check,
 	write := newCheckWrite(in)
 	write.ID = id
 
-	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		var queryChanged bool
 		if err := tx.QueryRow(ctx, `
 			WITH current AS (
@@ -109,7 +109,7 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Check, error) {
 	if id <= 0 {
 		return nil, fault.ErrNotFound
 	}
-	row, err := dbutil.GetOne[checkRow](ctx, s.db.Pool(), checkSelectSQL()+"\nWHERE c.id = $1", id)
+	row, err := dbutil.GetOne[checkRow](ctx, s.pool, checkSelectSQL()+"\nWHERE c.id = $1", id)
 	if err != nil {
 		return nil, err
 	}
@@ -129,7 +129,7 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Check, error) {
 }
 
 func (s *Store) Delete(ctx context.Context, id int64) error {
-	tag, err := s.db.Pool().Exec(ctx, `DELETE FROM osquery_checks WHERE id = $1`, id)
+	tag, err := s.pool.Exec(ctx, `DELETE FROM osquery_checks WHERE id = $1`, id)
 	if err != nil {
 		return dbutil.DeleteConflict(err, "Check is still referenced")
 	}
@@ -144,7 +144,7 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 	if len(ids) == 0 {
 		return 0, nil
 	}
-	rows, err := s.db.Pool().Query(ctx, `DELETE FROM osquery_checks WHERE id = ANY($1::bigint[]) RETURNING id`, ids)
+	rows, err := s.pool.Query(ctx, `DELETE FROM osquery_checks WHERE id = ANY($1::bigint[]) RETURNING id`, ids)
 	if err != nil {
 		return 0, err
 	}
@@ -169,7 +169,7 @@ func (s *Store) List(ctx context.Context, params CheckListParams) ([]Check, int,
 		},
 		Params: params.ListParams,
 	}
-	rows, count, err := dbutil.ListWithCount[checkRow](ctx, s.db.Pool(), listQuery)
+	rows, count, err := dbutil.ListWithCount[checkRow](ctx, s.pool, listQuery)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -195,7 +195,7 @@ func (s *Store) List(ctx context.Context, params CheckListParams) ([]Check, int,
 }
 
 func (s *Store) ApplicableForHost(ctx context.Context, host *hosts.Host) ([]Check, error) {
-	rows, err := s.db.Pool().Query(ctx, `
+	rows, err := s.pool.Query(ctx, `
 		WITH host_row AS (
 			SELECT id
 			FROM hosts h
@@ -234,7 +234,7 @@ func (s *Store) UpsertMembership(
 	hostID int64,
 	passes *bool,
 ) error {
-	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
+	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		var accepted bool
 		err := tx.QueryRow(ctx, `
 			SELECT true
@@ -309,13 +309,13 @@ func (s *Store) CheckResults(
 		},
 		Params: params.ListParams,
 	}
-	records, count, err := dbutil.ListWithCount[checkHostStatusRow](ctx, s.db.Pool(), listQuery)
+	records, count, err := dbutil.ListWithCount[checkHostStatusRow](ctx, s.pool, listQuery)
 	if err != nil {
 		return nil, 0, err
 	}
 	if count == 0 {
 		var exists bool
-		if err := s.db.Pool().QueryRow(
+		if err := s.pool.QueryRow(
 			ctx,
 			`SELECT EXISTS (SELECT 1 FROM osquery_checks WHERE id = $1)`,
 			checkID,
@@ -369,7 +369,7 @@ func (s *Store) HostChecks(
 		},
 		Params: params.ListParams,
 	}
-	records, count, err := dbutil.ListWithCount[checkHostStatusRow](ctx, s.db.Pool(), listQuery)
+	records, count, err := dbutil.ListWithCount[checkHostStatusRow](ctx, s.pool, listQuery)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -452,7 +452,7 @@ func (s *Store) loadCheckCounts(ctx context.Context, checkIDs []int64) (map[int6
 	if len(checkIDs) == 0 {
 		return map[int64]checkCounts{}, nil
 	}
-	rows, err := s.db.Pool().Query(ctx, `
+	rows, err := s.pool.Query(ctx, `
 		SELECT
 			membership.check_id,
 			COUNT(*) FILTER (WHERE membership.passes IS TRUE)::integer AS passing_host_count,

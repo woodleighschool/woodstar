@@ -23,7 +23,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/api/middleware"
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/config"
-	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/directory"
 	"github.com/woodleighschool/woodstar/internal/geoip"
 	"github.com/woodleighschool/woodstar/internal/heartbeats"
@@ -69,7 +68,7 @@ type Server struct {
 // stores and services; package api owns how they become routes.
 type Dependencies struct {
 	Config         config.Config
-	DB             *database.DB
+	Ready          func(context.Context) error
 	Version        string
 	Logger         *slog.Logger
 	WebHandler     *webui.Handler
@@ -210,7 +209,7 @@ func routes(deps *Dependencies) (http.Handler, error) {
 		_, _ = w.Write([]byte("alive\n"))
 	})
 	ordinary.Get("/readyz", func(w http.ResponseWriter, req *http.Request) {
-		if err := deps.DB.Ping(req.Context()); err != nil {
+		if err := deps.Ready(req.Context()); err != nil {
 			http.Error(w, "not ready", http.StatusServiceUnavailable)
 			return
 		}

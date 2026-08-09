@@ -7,8 +7,8 @@ import (
 
 	"github.com/gabriel-vasile/mimetype"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/listing"
@@ -25,13 +25,13 @@ type packageStore interface {
 }
 
 type Store struct {
-	db       *database.DB
+	pool     *pgxpool.Pool
 	objects  *storage.ObjectStore
 	packages packageStore
 }
 
-func NewStore(db *database.DB, objects *storage.ObjectStore, packages packageStore) *Store {
-	return &Store{db: db, objects: objects, packages: packages}
+func NewStore(pool *pgxpool.Pool, objects *storage.ObjectStore, packages packageStore) *Store {
+	return &Store{pool: pool, objects: objects, packages: packages}
 }
 
 func (s *Store) Create(ctx context.Context, params CreateMutation) (*Software, error) {
@@ -44,7 +44,7 @@ func (s *Store) Create(ctx context.Context, params CreateMutation) (*Software, e
 	}
 	write := newSoftwareWrite(params)
 	var id int64
-	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		if err := tx.QueryRow(ctx, `
 INSERT INTO munki_software (
 	name,
@@ -80,7 +80,7 @@ func (s *Store) Update(ctx context.Context, id int64, params UpdateMutation) (*S
 		return nil, err
 	}
 	var oldIconObjectID *int64
-	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		existing, err := getSoftwareByID(ctx, tx, id)
 		if err != nil {
 			return err
@@ -123,12 +123,12 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Software, error) {
 	if id <= 0 {
 		return nil, fault.ErrNotFound
 	}
-	return getSoftwareByID(ctx, s.db.Pool(), id)
+	return getSoftwareByID(ctx, s.pool, id)
 }
 
 func (s *Store) Delete(ctx context.Context, id int64) error {
 	var objectIDs []int64
-	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		var err error
 		objectIDs, err = softwareObjectIDs(ctx, tx, []int64{id})
 		if err != nil {
@@ -157,7 +157,7 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 	}
 	var deleted int
 	var objectIDs []int64
-	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		var err error
 		objectIDs, err = softwareObjectIDs(ctx, tx, ids)
 		if err != nil {
@@ -192,7 +192,7 @@ func (s *Store) List(ctx context.Context, params listing.Params) ([]Software, in
 		DefaultOrder: []dbutil.OrderExpr{{SQL: "lower(st.name)"}, {SQL: "st.id"}},
 		Params:       params,
 	}
-	rows, count, err := dbutil.ListWithCount[softwareRow](ctx, s.db.Pool(), listQuery)
+	rows, count, err := dbutil.ListWithCount[softwareRow](ctx, s.pool, listQuery)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -216,7 +216,7 @@ func (s *Store) SetIcon(ctx context.Context, softwareID, objectID int64) error {
 		return err
 	}
 	var oldIconObjectID *int64
-	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		existing, err := getSoftwareByID(ctx, tx, softwareID)
 		if err != nil {
 			return err

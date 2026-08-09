@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/woodleighschool/woodstar/internal/database"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/storage"
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
@@ -96,10 +96,10 @@ func createAvailableInstaller(
 	return object
 }
 
-func insertSoftware(t *testing.T, ctx context.Context, db *database.DB, name string) int64 {
+func insertSoftware(t *testing.T, ctx context.Context, db *pgxpool.Pool, name string) int64 {
 	t.Helper()
 	var id int64
-	err := db.Pool().
+	err := db.
 		QueryRow(ctx, `INSERT INTO munki_software (name, display_name) VALUES ($1, $1) RETURNING id`, name).
 		Scan(&id)
 	if err != nil {

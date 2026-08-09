@@ -732,7 +732,7 @@ func TestResultsHiddenWhenHostLeavesScope(t *testing.T) {
 	}
 	assertReportSnapshotCount(t, ctx, store, report.ID, host.ID, 1)
 	var persistedName string
-	if err := store.db.Pool().QueryRow(ctx, `
+	if err := store.pool.QueryRow(ctx, `
 			SELECT rows->0->>'name'
 			FROM osquery_report_snapshots
 			WHERE report_id = $1 AND host_id = $2`,
@@ -782,7 +782,7 @@ func TestUpdatePrunesResultsOutsideNewTargets(t *testing.T) {
 		t.Fatalf("retarget report: %v", err)
 	}
 
-	rows, err := store.db.Pool().Query(ctx, `
+	rows, err := store.pool.Query(ctx, `
 		SELECT DISTINCT host_id
 			FROM osquery_report_snapshots
 		WHERE report_id = $1
@@ -811,7 +811,7 @@ func assertReportSnapshotCount(
 ) {
 	t.Helper()
 	var got int
-	if err := store.db.Pool().QueryRow(ctx, `
+	if err := store.pool.QueryRow(ctx, `
 		SELECT count(*)
 			FROM osquery_report_snapshots
 		WHERE report_id = $1 AND host_id = $2`,

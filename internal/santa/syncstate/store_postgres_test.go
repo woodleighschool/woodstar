@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/woodleighschool/woodstar/internal/database"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/santa/syncstate"
@@ -481,18 +481,18 @@ func boolString(value bool) string {
 	return "false"
 }
 
-func countRows(t *testing.T, ctx context.Context, db *database.DB, table string, hostID int64, predicate string) int {
+func countRows(t *testing.T, ctx context.Context, db *pgxpool.Pool, table string, hostID int64, predicate string) int {
 	t.Helper()
 
 	var count int
 	query := "SELECT count(*) FROM " + table + " WHERE host_id = $1 AND " + predicate
-	if err := db.Pool().QueryRow(ctx, query, hostID).Scan(&count); err != nil {
+	if err := db.QueryRow(ctx, query, hostID).Scan(&count); err != nil {
 		t.Fatalf("count %s: %v", table, err)
 	}
 	return count
 }
 
-func createHost(t *testing.T, ctx context.Context, db *database.DB, suffix string) *hosts.Host {
+func createHost(t *testing.T, ctx context.Context, db *pgxpool.Pool, suffix string) *hosts.Host {
 	t.Helper()
 
 	host, err := hosts.NewStore(db).UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{

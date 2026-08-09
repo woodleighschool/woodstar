@@ -28,7 +28,7 @@ func TestUploadCleanupRemovesAbandonedDirectUpload(t *testing.T) {
 	if err := backend.Put(ctx, object.Key(), strings.NewReader("partial"), PutOptions{}); err != nil {
 		t.Fatalf("write pending bytes: %v", err)
 	}
-	backdatePendingUpload(t, ctx, db.Pool(), object.ID)
+	backdatePendingUpload(t, ctx, db, object.ID)
 
 	sweepExpiredUploads(ctx, ingestor, minimumPendingUploadMaxAge, testLogger())
 
@@ -38,7 +38,7 @@ func TestUploadCleanupRemovesAbandonedDirectUpload(t *testing.T) {
 	if _, _, err := backend.Open(ctx, object.Key()); !errors.Is(err, ErrObjectNotFound) {
 		t.Fatalf("open pending bytes error = %v, want ErrObjectNotFound", err)
 	}
-	assertStorageObjectCount(t, ctx, db.Pool(), object.ID, 0)
+	assertStorageObjectCount(t, ctx, db, object.ID, 0)
 }
 
 func TestUploadCleanupLeavesRecentPendingUpload(t *testing.T) {
@@ -87,7 +87,7 @@ func TestUploadCleanupDoesNotClaimInFlightFinalization(t *testing.T) {
 	if err := backend.Put(ctx, object.Key(), strings.NewReader("complete"), PutOptions{}); err != nil {
 		t.Fatalf("write pending bytes: %v", err)
 	}
-	backdatePendingUpload(t, ctx, db.Pool(), object.ID)
+	backdatePendingUpload(t, ctx, db, object.ID)
 
 	finalized := make(chan error, 1)
 	go func() {
@@ -125,23 +125,23 @@ func TestUploadCleanupRetriesMultipartFailure(t *testing.T) {
 	if err := backend.Put(ctx, object.Key(), strings.NewReader("assembled"), PutOptions{}); err != nil {
 		t.Fatalf("write object bytes: %v", err)
 	}
-	backdatePendingUpload(t, ctx, db.Pool(), object.ID)
+	backdatePendingUpload(t, ctx, db, object.ID)
 
 	sweepExpiredUploads(ctx, ingestor, minimumPendingUploadMaxAge, testLogger())
 
 	if _, err := objects.GetByID(ctx, object.ID); !errors.Is(err, fault.ErrNotFound) {
 		t.Fatalf("get claimed upload error = %v, want ErrNotFound", err)
 	}
-	assertStorageObjectCount(t, ctx, db.Pool(), object.ID, 1)
+	assertStorageObjectCount(t, ctx, db, object.ID, 1)
 	if _, err := objects.MarkAvailable(ctx, object.ID, 9, "application/octet-stream", validHash); !errors.Is(err, fault.ErrNotFound) {
 		t.Fatalf("finalize claimed upload error = %v, want ErrNotFound", err)
 	}
 
 	backend.abortErr = nil
-	backdateCleanupAttempt(t, ctx, db.Pool(), object.ID)
+	backdateCleanupAttempt(t, ctx, db, object.ID)
 	sweepExpiredUploads(ctx, ingestor, minimumPendingUploadMaxAge, testLogger())
 
-	assertStorageObjectCount(t, ctx, db.Pool(), object.ID, 0)
+	assertStorageObjectCount(t, ctx, db, object.ID, 0)
 	if backend.abortCalls.Load() != 2 {
 		t.Fatalf("multipart abort calls = %d, want 2", backend.abortCalls.Load())
 	}
@@ -157,7 +157,7 @@ func TestUploadCleanupClaimsRetriesBeforeNewExpirations(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create retry upload: %v", err)
 	}
-	backdatePendingUpload(t, ctx, db.Pool(), retry.ID)
+	backdatePendingUpload(t, ctx, db, retry.ID)
 	claimed, err := objects.claimExpiredPending(ctx, time.Now(), time.Now(), 1)
 	if err != nil {
 		t.Fatalf("claim retry upload: %v", err)
@@ -165,13 +165,13 @@ func TestUploadCleanupClaimsRetriesBeforeNewExpirations(t *testing.T) {
 	if len(claimed) != 1 || claimed[0].ID != retry.ID {
 		t.Fatalf("first claimed uploads = %+v, want %d", claimed, retry.ID)
 	}
-	backdateCleanupAttempt(t, ctx, db.Pool(), retry.ID)
+	backdateCleanupAttempt(t, ctx, db, retry.ID)
 
 	newlyExpired, err := objects.CreatePending(ctx, "munki/packages", "new.pkg")
 	if err != nil {
 		t.Fatalf("create newly expired upload: %v", err)
 	}
-	backdatePendingUpload(t, ctx, db.Pool(), newlyExpired.ID)
+	backdatePendingUpload(t, ctx, db, newlyExpired.ID)
 	claimed, err = objects.claimExpiredPending(ctx, time.Now(), time.Now(), 1)
 	if err != nil {
 		t.Fatalf("reclaim upload: %v", err)
@@ -202,7 +202,7 @@ func TestUploadCleanupLeasePreventsConcurrentWorkers(t *testing.T) {
 	if _, _, err := objects.RecordMultipartUploadID(ctx, object.ID, "upload-1"); err != nil {
 		t.Fatalf("record multipart upload: %v", err)
 	}
-	backdatePendingUpload(t, ctx, db.Pool(), object.ID)
+	backdatePendingUpload(t, ctx, db, object.ID)
 
 	firstDone := make(chan struct{})
 	go func() {
@@ -218,7 +218,7 @@ func TestUploadCleanupLeasePreventsConcurrentWorkers(t *testing.T) {
 
 	close(releaseAbort)
 	<-firstDone
-	assertStorageObjectCount(t, ctx, db.Pool(), object.ID, 0)
+	assertStorageObjectCount(t, ctx, db, object.ID, 0)
 }
 
 func TestUploadCleanupLeaseCoversClaimedBatch(t *testing.T) {
@@ -254,14 +254,14 @@ func TestUploadCleanupStopCancelsBackendWork(t *testing.T) {
 	if _, _, err := objects.RecordMultipartUploadID(ctx, object.ID, "upload-1"); err != nil {
 		t.Fatalf("record multipart upload: %v", err)
 	}
-	backdatePendingUpload(t, ctx, db.Pool(), object.ID)
+	backdatePendingUpload(t, ctx, db, object.ID)
 
 	cleanup := StartUploadCleanup(t.Context(), ingestor, time.Minute, testLogger())
 	<-started
 	cleanup.Stop()
 	<-canceled
 
-	assertStorageObjectCount(t, ctx, db.Pool(), object.ID, 1)
+	assertStorageObjectCount(t, ctx, db, object.ID, 1)
 }
 
 const validHash = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"

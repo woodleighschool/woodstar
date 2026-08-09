@@ -18,7 +18,7 @@ func (s *Store) PromotePending(
 	rulesHash string,
 ) error {
 	var validationErr error
-	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		var state santaPendingStateRow
 		err := tx.QueryRow(ctx, `
 SELECT

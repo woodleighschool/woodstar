@@ -11,8 +11,8 @@ import (
 
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
@@ -77,7 +77,7 @@ func TestSetDynamicMembershipsReconcilesApplicableLabels(t *testing.T) {
 		t.Fatalf("handled memberships = %d, want 1", handled)
 	}
 	var firstUpdatedAt time.Time
-	if err := db.Pool().QueryRow(ctx, `
+	if err := db.QueryRow(ctx, `
 SELECT updated_at
 FROM label_membership
 WHERE label_id = $1 AND host_id = $2`, dynamicLabel.ID, hostID).Scan(&firstUpdatedAt); err != nil {
@@ -90,7 +90,7 @@ WHERE label_id = $1 AND host_id = $2`, dynamicLabel.ID, hostID).Scan(&firstUpdat
 		t.Fatalf("repeat matching membership: %v", err)
 	}
 	var secondUpdatedAt time.Time
-	if err := db.Pool().QueryRow(ctx, `
+	if err := db.QueryRow(ctx, `
 SELECT updated_at
 FROM label_membership
 WHERE label_id = $1 AND host_id = $2`, dynamicLabel.ID, hostID).Scan(&secondUpdatedAt); err != nil {
@@ -110,7 +110,7 @@ WHERE label_id = $1 AND host_id = $2`, dynamicLabel.ID, hostID).Scan(&secondUpda
 		t.Fatalf("handled memberships = %d, want 1", handled)
 	}
 	var count int
-	if err := db.Pool().QueryRow(ctx, `
+	if err := db.QueryRow(ctx, `
 SELECT count(*)::integer
 FROM label_membership
 WHERE host_id = $1 AND label_id = ANY($2::bigint[])`,
@@ -148,25 +148,25 @@ func TestBuiltinLabelUsesStableKey(t *testing.T) {
 func TestBuiltinKeyConstraints(t *testing.T) {
 	db, ctx := testdb.Open(t)
 
-	_, err := db.Pool().Exec(ctx, `
+	_, err := db.Exec(ctx, `
 		INSERT INTO labels (name, builtin_key, label_type, label_membership_type)
 		VALUES ('Bad Regular Key', 'bad-regular', 'regular', 'manual')
 	`)
 	expectLabelSQLState(t, err, pgerrcode.CheckViolation)
 
-	_, err = db.Pool().Exec(ctx, `
+	_, err = db.Exec(ctx, `
 		INSERT INTO labels (name, label_type, label_membership_type)
 		VALUES ('Missing Builtin Key', 'builtin', 'manual')
 	`)
 	expectLabelSQLState(t, err, pgerrcode.CheckViolation)
 
-	_, err = db.Pool().Exec(ctx, `
+	_, err = db.Exec(ctx, `
 		INSERT INTO labels (name, builtin_key, label_type, label_membership_type)
 		VALUES ('Duplicate All Hosts', 'all-hosts', 'builtin', 'manual')
 	`)
 	expectLabelSQLState(t, err, pgerrcode.UniqueViolation)
 
-	_, err = db.Pool().Exec(ctx, `
+	_, err = db.Exec(ctx, `
 		INSERT INTO labels (name, builtin_key, label_type, label_membership_type)
 		VALUES ('Unknown Builtin', 'unknown-builtin', 'builtin', 'manual')
 	`)
@@ -310,7 +310,7 @@ func TestRefreshDerivedLabelsRecomputesMembership(t *testing.T) {
 		t.Fatalf("create label: %v", err)
 	}
 
-	if _, err := db.Pool().
+	if _, err := db.
 		Exec(ctx, `UPDATE users SET department = 'Operations' WHERE id = $1`, userID); err != nil {
 		t.Fatalf("update user: %v", err)
 	}
@@ -326,10 +326,10 @@ func TestRefreshDerivedLabelsRecomputesMembership(t *testing.T) {
 	}
 }
 
-func insertHost(t *testing.T, db *database.DB, hardwareUUID string) int64 {
+func insertHost(t *testing.T, db *pgxpool.Pool, hardwareUUID string) int64 {
 	t.Helper()
 	var id int64
-	if err := db.Pool().QueryRow(context.Background(), `
+	if err := db.QueryRow(context.Background(), `
 INSERT INTO hosts (hardware_uuid)
 VALUES ($1)
 RETURNING id`, hardwareUUID).Scan(&id); err != nil {
@@ -338,10 +338,10 @@ RETURNING id`, hardwareUUID).Scan(&id); err != nil {
 	return id
 }
 
-func insertUser(t *testing.T, db *database.DB, externalID string, email string, department string) int64 {
+func insertUser(t *testing.T, db *pgxpool.Pool, externalID string, email string, department string) int64 {
 	t.Helper()
 	var id int64
-	if err := db.Pool().QueryRow(context.Background(), `
+	if err := db.QueryRow(context.Background(), `
 INSERT INTO users (email, name, source, external_id, user_principal_name, department)
 VALUES ($1, $1, 'entra', $2, $1, $3)
 RETURNING id`, email, externalID, dbutil.NullString(department)).Scan(&id); err != nil {
@@ -350,19 +350,19 @@ RETURNING id`, email, externalID, dbutil.NullString(department)).Scan(&id); err 
 	return id
 }
 
-func linkHostPrimaryUser(t *testing.T, db *database.DB, hostID int64, email string) {
+func linkHostPrimaryUser(t *testing.T, db *pgxpool.Pool, hostID int64, email string) {
 	t.Helper()
-	if _, err := db.Pool().Exec(context.Background(), `
+	if _, err := db.Exec(context.Background(), `
 INSERT INTO host_primary_user_sources (host_id, email, source)
 VALUES ($1, $2, 'manual')`, hostID, email); err != nil {
 		t.Fatalf("link host primary user: %v", err)
 	}
 }
 
-func insertDirectoryGroup(t *testing.T, db *database.DB, externalID string, displayName string) int64 {
+func insertDirectoryGroup(t *testing.T, db *pgxpool.Pool, externalID string, displayName string) int64 {
 	t.Helper()
 	var id int64
-	if err := db.Pool().QueryRow(context.Background(), `
+	if err := db.QueryRow(context.Background(), `
 INSERT INTO directory_groups (source, external_id, display_name)
 VALUES ('entra', $1, $2)
 RETURNING id`, externalID, displayName).Scan(&id); err != nil {
@@ -371,18 +371,18 @@ RETURNING id`, externalID, displayName).Scan(&id); err != nil {
 	return id
 }
 
-func linkDirectoryGroupMembership(t *testing.T, db *database.DB, userID int64, groupID int64) {
+func linkDirectoryGroupMembership(t *testing.T, db *pgxpool.Pool, userID int64, groupID int64) {
 	t.Helper()
-	if _, err := db.Pool().Exec(context.Background(), `
+	if _, err := db.Exec(context.Background(), `
 INSERT INTO directory_group_memberships (user_id, group_id)
 VALUES ($1, $2)`, userID, groupID); err != nil {
 		t.Fatalf("link directory group membership: %v", err)
 	}
 }
 
-func hostHasLabel(ctx context.Context, db *database.DB, hostID int64, labelID int64) (bool, error) {
+func hostHasLabel(ctx context.Context, db *pgxpool.Pool, hostID int64, labelID int64) (bool, error) {
 	var exists bool
-	err := db.Pool().QueryRow(ctx, `
+	err := db.QueryRow(ctx, `
 SELECT EXISTS (
     SELECT 1 FROM label_membership
     WHERE host_id = $1 AND label_id = $2

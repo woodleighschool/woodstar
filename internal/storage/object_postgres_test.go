@@ -190,7 +190,7 @@ func TestDeleteConflictDoesNotScheduleReferencedObject(t *testing.T) {
 	if err != nil {
 		t.Fatalf("mark object available: %v", err)
 	}
-	if _, err := db.Pool().Exec(ctx, `
+	if _, err := db.Exec(ctx, `
 INSERT INTO munki_software (name, display_name, icon_object_id)
 VALUES ('Referenced', 'Referenced', $1)`, object.ID); err != nil {
 		t.Fatalf("reference object: %v", err)
@@ -204,7 +204,7 @@ VALUES ('Referenced', 'Referenced', $1)`, object.ID); err != nil {
 	if backend.calls != 0 {
 		t.Fatalf("backend delete calls = %d, want 0", backend.calls)
 	}
-	if _, err := db.Pool().Exec(ctx, `DELETE FROM munki_software WHERE icon_object_id = $1`, object.ID); err != nil {
+	if _, err := db.Exec(ctx, `DELETE FROM munki_software WHERE icon_object_id = $1`, object.ID); err != nil {
 		t.Fatalf("remove object reference: %v", err)
 	}
 	if err := store.Delete(ctx, object.ID); err != nil {

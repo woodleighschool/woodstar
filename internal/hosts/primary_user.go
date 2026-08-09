@@ -8,8 +8,8 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/labels"
@@ -35,12 +35,12 @@ func (PrimaryUserSource) Schema(_ huma.Registry) *huma.Schema {
 
 // PrimaryUserStore persists host primary-user source observations.
 type PrimaryUserStore struct {
-	db     *database.DB
+	pool   *pgxpool.Pool
 	labels *labels.Store
 }
 
-func NewPrimaryUserStore(db *database.DB) *PrimaryUserStore {
-	return &PrimaryUserStore{db: db, labels: labels.NewStore(db)}
+func NewPrimaryUserStore(pool *pgxpool.Pool) *PrimaryUserStore {
+	return &PrimaryUserStore{pool: pool, labels: labels.NewStore(pool)}
 }
 
 func (s *PrimaryUserStore) Upsert(ctx context.Context, hostID int64, email string, source PrimaryUserSource) error {
@@ -48,7 +48,7 @@ func (s *PrimaryUserStore) Upsert(ctx context.Context, hostID int64, email strin
 	if err != nil {
 		return err
 	}
-	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
+	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		if err := upsertPrimaryUser(ctx, tx, hostID, email, source); err != nil {
 			return err
 		}
@@ -75,7 +75,7 @@ func (s *PrimaryUserStore) Delete(ctx context.Context, hostID int64, source Prim
 	if err := validatePrimaryUserSource(source); err != nil {
 		return err
 	}
-	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
+	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		if err := deletePrimaryUser(ctx, tx, hostID, source); err != nil {
 			return err
 		}
@@ -205,7 +205,7 @@ func (s *Store) loadPrimaryUser(ctx context.Context, hostIDs []int64) (map[int64
 		return primaryUsers, nil
 	}
 
-	sourceRows, err := s.db.Pool().Query(ctx, listHostPrimaryUserSourcesForHostsSQL, hostIDs)
+	sourceRows, err := s.pool.Query(ctx, listHostPrimaryUserSourcesForHostsSQL, hostIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -215,7 +215,7 @@ func (s *Store) loadPrimaryUser(ctx context.Context, hostIDs []int64) (map[int64
 	}
 	grouped := groupHostPrimaryUserSources(sources)
 
-	primaryRows, err := s.db.Pool().Query(ctx, listHostPrimaryUsersSQL, hostIDs)
+	primaryRows, err := s.pool.Query(ctx, listHostPrimaryUsersSQL, hostIDs)
 	if err != nil {
 		return nil, err
 	}

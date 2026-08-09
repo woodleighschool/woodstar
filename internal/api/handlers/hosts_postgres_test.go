@@ -105,7 +105,7 @@ func TestHostPrimaryUserMutationsRefreshDerivedLabels(t *testing.T) {
 		t.Fatalf("seed orbit primary user: %v", err)
 	}
 	var manualUserID int64
-	if err := db.Pool().QueryRow(ctx, `
+	if err := db.QueryRow(ctx, `
 INSERT INTO users (email, name, source, external_id, user_principal_name)
 VALUES ('manual@example.test', 'Manual User', 'entra', 'manual-user', 'manual@example.test')
 RETURNING id`).Scan(&manualUserID); err != nil {
@@ -183,7 +183,7 @@ func TestHostResponsesBatchEnrichFlatAgentContract(t *testing.T) {
 	if err := hostStore.MarkInventoryFresh(ctx, host.ID, "test-inventory-query-hash"); err != nil {
 		t.Fatalf("mark inventory fresh: %v", err)
 	}
-	if _, err := db.Pool().Exec(ctx, `
+	if _, err := db.Exec(ctx, `
 INSERT INTO host_heartbeats (host_id, source, last_seen_at, remote_ip, user_agent)
 VALUES ($1, 'osquery', $2, '198.51.100.40', 'osquery/5.14')`, host.ID, now); err != nil {
 		t.Fatalf("insert heartbeat: %v", err)
@@ -252,7 +252,7 @@ func TestHostResponsesEnrichPublicIP(t *testing.T) {
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
 	}
-	if _, err := db.Pool().Exec(ctx, `
+	if _, err := db.Exec(ctx, `
 INSERT INTO host_heartbeats (host_id, source, last_seen_at, remote_ip, user_agent)
 VALUES ($1, 'osquery', now(), '198.51.100.40', 'osquery/5.14')`, host.ID); err != nil {
 		t.Fatalf("insert heartbeat: %v", err)

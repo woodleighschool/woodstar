@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/labels"
 )
@@ -23,7 +23,7 @@ func (s *Store) UpsertOnOrbitEnroll(ctx context.Context, update InventoryUpdate)
 		HardwareModelIdentifier: update.Hardware.ModelIdentifier,
 		OrbitNodeKey:            update.OrbitNodeKey,
 	}
-	return enrollHost(ctx, s.db, `
+	return enrollHost(ctx, s.pool, `
 DELETE FROM hosts
 WHERE hardware_uuid = @hardware_uuid AND orbit_node_key <> ''`, `
 INSERT INTO hosts (
@@ -87,7 +87,7 @@ func (s *Store) UpsertOnOsqueryEnroll(ctx context.Context, update InventoryUpdat
 		HardwareVendor:          update.Hardware.Vendor,
 		OSKernelVersion:         update.OS.KernelVersion,
 	}
-	return enrollHost(ctx, s.db, `
+	return enrollHost(ctx, s.pool, `
 DELETE FROM hosts
 WHERE hardware_uuid = @hardware_uuid AND osquery_node_key <> ''`, `
 INSERT INTO hosts (
@@ -170,14 +170,14 @@ RETURNING id`, write)
 
 func enrollHost[W any](
 	ctx context.Context,
-	db *database.DB,
+	pool *pgxpool.Pool,
 	deleteReenrolledHostSQL string,
 	upsertSQL string,
 	write W,
 ) (*Host, error) {
 	now := time.Now()
 	var host Host
-	err := db.WithTx(ctx, func(tx pgx.Tx) error {
+	err := pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, deleteReenrolledHostSQL, pgx.StructArgs(write)); err != nil {
 			return fmt.Errorf("replace host on re-enrollment: %w", err)
 		}

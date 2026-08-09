@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/woodleighschool/woodstar/internal/database"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/munki/mdp"
 	"github.com/woodleighschool/woodstar/internal/storage"
@@ -20,7 +20,7 @@ import (
 
 // newStore returns a store and the presence set the hub would normally write, so
 // tests can connect a point without standing up a live worker.
-func newStore(db *database.DB) (*mdp.Store, *mdp.Presence) {
+func newStore(db *pgxpool.Pool) (*mdp.Store, *mdp.Presence) {
 	store := mdp.NewStore(db, storage.NewObjectStore(db, nil, discardLogger()), discardLogger())
 	return store, store.Presence()
 }
@@ -52,20 +52,20 @@ func pointMutation(name string, cidrs []string) mdp.DistributionPointMutation {
 func seedAvailablePackage(
 	t *testing.T,
 	ctx context.Context,
-	db *database.DB,
+	db *pgxpool.Pool,
 	name string,
 	sha256 string,
 	size int64,
 ) int64 {
 	t.Helper()
 	var softwareID int64
-	if err := db.Pool().QueryRow(ctx,
+	if err := db.QueryRow(ctx,
 		`INSERT INTO munki_software (name, display_name) VALUES ($1, $1) RETURNING id`, name,
 	).Scan(&softwareID); err != nil {
 		t.Fatalf("insert software: %v", err)
 	}
 	var objectID int64
-	if err := db.Pool().QueryRow(ctx,
+	if err := db.QueryRow(ctx,
 		`INSERT INTO storage_objects (prefix, filename, content_type, size_bytes, sha256, available_at)
 		 VALUES ('packages', $1, 'application/octet-stream', $2, $3, now()) RETURNING id`,
 		name+".pkg", size, sha256,
@@ -73,7 +73,7 @@ func seedAvailablePackage(
 		t.Fatalf("insert object: %v", err)
 	}
 	var packageID int64
-	if err := db.Pool().QueryRow(ctx,
+	if err := db.QueryRow(ctx,
 		`INSERT INTO munki_packages (software_id, version, installer_object_id)
 		 VALUES ($1, '1.0', $2) RETURNING id`,
 		softwareID, objectID,

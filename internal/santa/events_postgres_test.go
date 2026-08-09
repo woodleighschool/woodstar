@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/woodleighschool/woodstar/internal/database"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/woodleighschool/woodstar/internal/heartbeats"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/listing"
@@ -25,7 +25,7 @@ import (
 )
 
 type uploadedEventFixture struct {
-	db                *database.DB
+	db                *pgxpool.Pool
 	eventStore        *santaevents.Store
 	allowEvent        santaevents.ExecutionEvent
 	blockEvent        santaevents.ExecutionEvent
@@ -216,7 +216,7 @@ func assertEventUploadPersistsSigningChain(t *testing.T, fixture uploadedEventFi
 	ctx := t.Context()
 
 	var chainCount int
-	if err := fixture.db.Pool().
+	if err := fixture.db.
 		QueryRow(ctx, `SELECT count(*) FROM santa_signing_chains`).
 		Scan(&chainCount); err != nil {
 		t.Fatalf("count signing chains: %v", err)
@@ -225,7 +225,7 @@ func assertEventUploadPersistsSigningChain(t *testing.T, fixture uploadedEventFi
 		t.Fatalf("signing chain count = %d, want 1", chainCount)
 	}
 	var certificateCount int
-	if err := fixture.db.Pool().
+	if err := fixture.db.
 		QueryRow(ctx, `SELECT count(*) FROM santa_certificates`).
 		Scan(&certificateCount); err != nil {
 		t.Fatalf("count certificates: %v", err)
@@ -234,7 +234,7 @@ func assertEventUploadPersistsSigningChain(t *testing.T, fixture uploadedEventFi
 		t.Fatalf("certificate count = %d, want 2", certificateCount)
 	}
 	var chainEntryCount int
-	if err := fixture.db.Pool().
+	if err := fixture.db.
 		QueryRow(ctx, `SELECT count(*) FROM santa_signing_chain_entries`).
 		Scan(&chainEntryCount); err != nil {
 		t.Fatalf("count signing chain entries: %v", err)
@@ -243,7 +243,7 @@ func assertEventUploadPersistsSigningChain(t *testing.T, fixture uploadedEventFi
 		t.Fatalf("signing chain entry count = %d, want 2", chainEntryCount)
 	}
 	var linkCount int
-	if err := fixture.db.Pool().
+	if err := fixture.db.
 		QueryRow(ctx, `SELECT count(*) FROM santa_executable_signing_chains`).
 		Scan(&linkCount); err != nil {
 		t.Fatalf("count signing chain links: %v", err)
@@ -331,7 +331,7 @@ func TestEventUploadRequestsAndCollectsBundleBinaries(t *testing.T) {
 	}
 
 	var eventCount int
-	if err := db.Pool().
+	if err := db.
 		QueryRow(ctx, `SELECT count(*) FROM santa_execution_events WHERE host_id = $1`, host.ID).
 		Scan(&eventCount); err != nil {
 		t.Fatalf("count execution events: %v", err)
@@ -343,7 +343,7 @@ func TestEventUploadRequestsAndCollectsBundleBinaries(t *testing.T) {
 	var binaryCount int
 	var collectedCount int
 	var uploadedAt *time.Time
-	err = db.Pool().QueryRow(ctx, `
+	err = db.QueryRow(ctx, `
 		SELECT b.binary_count, count(be.executable_id)::integer, b.uploaded_at
 		FROM santa_bundles b
 		LEFT JOIN santa_bundle_executables be ON be.bundle_id = b.id
@@ -407,7 +407,7 @@ func TestEventUploadDerivesBundleCompletionFromFinalBatchState(t *testing.T) {
 	var binaryCount int
 	var collectedCount int
 	var uploadedAt *time.Time
-	if err := db.Pool().QueryRow(ctx, `
+	if err := db.QueryRow(ctx, `
 SELECT b.binary_count, count(be.executable_id)::integer, b.uploaded_at
 FROM santa_bundles b
 LEFT JOIN santa_bundle_executables be ON be.bundle_id = b.id
@@ -476,7 +476,7 @@ func TestEventUploadReopensBundleWhenExpectedCountIncreases(t *testing.T) {
 	}
 
 	var uploadedAt *time.Time
-	if err := db.Pool().
+	if err := db.
 		QueryRow(ctx, `SELECT uploaded_at FROM santa_bundles WHERE sha256 = $1`, bundleHash).
 		Scan(&uploadedAt); err != nil {
 		t.Fatalf("get bundle completion: %v", err)
@@ -568,7 +568,7 @@ func TestEventUploadIngestsFileAccessEvents(t *testing.T) {
 	var primaryTeamID string
 	var primaryCDHash string
 	var primaryPID int
-	if err := db.Pool().QueryRow(ctx, `
+	if err := db.QueryRow(ctx, `
 		SELECT
 			primary_process_sha256,
 			primary_process_path,
@@ -772,14 +772,14 @@ func TestEventUploadDeduplicatesSigningChainsAcrossConcurrentUploads(t *testing.
 	}
 
 	var chainCount int
-	if err := db.Pool().QueryRow(ctx, `SELECT count(*) FROM santa_signing_chains`).Scan(&chainCount); err != nil {
+	if err := db.QueryRow(ctx, `SELECT count(*) FROM santa_signing_chains`).Scan(&chainCount); err != nil {
 		t.Fatalf("count signing chains: %v", err)
 	}
 	if chainCount != 1 {
 		t.Fatalf("signing chain count = %d, want 1", chainCount)
 	}
 	var linkCount int
-	if err := db.Pool().
+	if err := db.
 		QueryRow(ctx, `SELECT count(*) FROM santa_executable_signing_chains`).
 		Scan(&linkCount); err != nil {
 		t.Fatalf("count signing chain links: %v", err)
@@ -880,11 +880,11 @@ $$;
 CREATE TRIGGER santa_test_pause_shared_write
 AFTER INSERT OR UPDATE ON %s
 FOR EACH ROW EXECUTE FUNCTION santa_test_pause_shared_write()`, gateKey, pauseTable)
-	if _, err := db.Pool().Exec(ctx, triggerSQL); err != nil {
+	if _, err := db.Exec(ctx, triggerSQL); err != nil {
 		t.Fatalf("create pause trigger: %v", err)
 	}
 
-	gate, err := db.Pool().Acquire(ctx)
+	gate, err := db.Acquire(ctx)
 	if err != nil {
 		t.Fatalf("acquire gate connection: %v", err)
 	}
@@ -945,11 +945,11 @@ FOR EACH ROW EXECUTE FUNCTION santa_test_pause_shared_write()`, gateKey, pauseTa
 	assertHostExecutionEventCount(t, db, host.ID, len(first)+len(second))
 }
 
-func assertHostExecutionEventCount(t *testing.T, db *database.DB, hostID int64, want int) {
+func assertHostExecutionEventCount(t *testing.T, db *pgxpool.Pool, hostID int64, want int) {
 	t.Helper()
 
 	var count int
-	if err := db.Pool().
+	if err := db.
 		QueryRow(t.Context(), `SELECT count(*) FROM santa_execution_events WHERE host_id = $1`, hostID).
 		Scan(&count); err != nil {
 		t.Fatalf("count execution events: %v", err)
@@ -961,7 +961,7 @@ func assertHostExecutionEventCount(t *testing.T, db *database.DB, hostID int64, 
 
 func waitForLockWaiters(
 	ctx context.Context,
-	db *database.DB,
+	db *pgxpool.Pool,
 	wanted int,
 	limit time.Duration,
 ) (bool, error) {
@@ -972,7 +972,7 @@ func waitForLockWaiters(
 
 	for {
 		var count int
-		if err := db.Pool().QueryRow(ctx, `
+		if err := db.QueryRow(ctx, `
 SELECT count(*)
 FROM pg_stat_activity
 WHERE datname = current_database()

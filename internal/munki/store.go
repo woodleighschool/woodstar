@@ -5,17 +5,17 @@ import (
 	"errors"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
 type Store struct {
-	db *database.DB
+	pool *pgxpool.Pool
 }
 
-func NewStore(db *database.DB) *Store {
-	return &Store{db: db}
+func NewStore(pool *pgxpool.Pool) *Store {
+	return &Store{pool: pool}
 }
 
 // AgentVersions returns Munki versions keyed by host ID for the requested hosts.
@@ -24,7 +24,7 @@ func (s *Store) AgentVersions(ctx context.Context, hostIDs []int64) (map[int64]s
 	if len(hostIDs) == 0 {
 		return versions, nil
 	}
-	rows, err := s.db.Pool().Query(ctx, `
+	rows, err := s.pool.Query(ctx, `
 SELECT host_id, version
 FROM munki_host_status
 WHERE host_id = ANY($1::bigint[])`, hostIDs)
@@ -46,7 +46,7 @@ WHERE host_id = ANY($1::bigint[])`, hostIDs)
 }
 
 func (s *Store) UpsertHostObservation(ctx context.Context, observation HostObservation) error {
-	_, err := s.db.Pool().Exec(ctx, `
+	_, err := s.pool.Exec(ctx, `
 INSERT INTO munki_host_status (
 	host_id,
 	version,
@@ -89,7 +89,7 @@ ON CONFLICT (host_id) DO UPDATE SET
 }
 
 func (s *Store) ClearHostObservation(ctx context.Context, hostID int64) error {
-	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
+	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, `DELETE FROM munki_host_items WHERE host_id = $1`, hostID); err != nil {
 			return err
 		}
@@ -99,7 +99,7 @@ func (s *Store) ClearHostObservation(ctx context.Context, hostID int64) error {
 }
 
 func (s *Store) ReplaceHostItems(ctx context.Context, hostID int64, items []ItemObservation) error {
-	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
+	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, `DELETE FROM munki_host_items WHERE host_id = $1`, hostID); err != nil {
 			return err
 		}
@@ -143,7 +143,7 @@ ON CONFLICT (host_id, name) DO UPDATE SET
 
 // LoadHostState returns the latest Munki run summary reported for a host.
 func (s *Store) LoadHostState(ctx context.Context, hostID int64) (*HostState, error) {
-	rows, err := s.db.Pool().Query(ctx, `
+	rows, err := s.pool.Query(ctx, `
 		SELECT version, manifest_name, errors, warnings, problem_installs,
 		       run_started_at, run_ended_at
 		FROM munki_host_status

@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
@@ -15,11 +15,11 @@ import (
 
 // Store persists Santa state.
 type Store struct {
-	db *database.DB
+	pool *pgxpool.Pool
 }
 
-func NewStore(db *database.DB) *Store {
-	return &Store{db: db}
+func NewStore(pool *pgxpool.Pool) *Store {
+	return &Store{pool: pool}
 }
 
 // AgentVersions returns Santa versions keyed by host ID for the requested hosts.
@@ -28,7 +28,7 @@ func (s *Store) AgentVersions(ctx context.Context, hostIDs []int64) (map[int64]s
 	if len(hostIDs) == 0 {
 		return versions, nil
 	}
-	rows, err := s.db.Pool().Query(ctx, `
+	rows, err := s.pool.Query(ctx, `
 SELECT host_id, santa_version
 FROM santa_hosts
 WHERE host_id = ANY($1::bigint[])`, hostIDs)
@@ -57,7 +57,7 @@ func (s *Store) UpsertHostObservation(ctx context.Context, observation HostObser
 		observation.PrimaryUserGroups = []string{}
 	}
 
-	_, err := s.db.Pool().Exec(ctx, `
+	_, err := s.pool.Exec(ctx, `
 		INSERT INTO santa_hosts (
 			host_id,
 			machine_id,
@@ -102,7 +102,7 @@ func (s *Store) UpsertHostObservation(ctx context.Context, observation HostObser
 // Santa's default MachineID is the hardware UUID reported by Orbit or osquery.
 func (s *Store) hostIDByMachineID(ctx context.Context, machineID string) (int64, error) {
 	var id int64
-	err := s.db.Pool().QueryRow(ctx, `SELECT id FROM hosts WHERE hardware_uuid = $1`, machineID).Scan(&id)
+	err := s.pool.QueryRow(ctx, `SELECT id FROM hosts WHERE hardware_uuid = $1`, machineID).Scan(&id)
 	return id, dbutil.GetError(err)
 }
 
@@ -113,7 +113,7 @@ type observedSantaHostStateRow struct {
 }
 
 func (s *Store) LoadObservedHostState(ctx context.Context, hostID int64) (*HostState, error) {
-	row, err := dbutil.GetOne[observedSantaHostStateRow](ctx, s.db.Pool(), `
+	row, err := dbutil.GetOne[observedSantaHostStateRow](ctx, s.pool, `
 		SELECT
 			sh.santa_version,
 			sh.client_mode_reported::text AS client_mode_reported,
@@ -144,7 +144,7 @@ func (s *Store) LoadObservedHostState(ctx context.Context, hostID int64) (*HostS
 
 func (s *Store) syncSummary(ctx context.Context, hostID int64) (RuleSyncSummary, error) {
 	var desired, applied, pending int32
-	err := s.db.Pool().QueryRow(ctx, `
+	err := s.pool.QueryRow(ctx, `
 		SELECT
 			(
 				SELECT count(*)::integer

@@ -77,13 +77,13 @@ LEFT JOIN munki_host_items observed
 		},
 		Params: params.ListParams,
 	}
-	rows, count, err := dbutil.ListWithCount[hostSoftwareRow](ctx, s.db.Pool(), query)
+	rows, count, err := dbutil.ListWithCount[hostSoftwareRow](ctx, s.pool, query)
 	if err != nil {
 		return nil, 0, err
 	}
 	if count == 0 {
 		var hostExists bool
-		if err := s.db.Pool().QueryRow(
+		if err := s.pool.QueryRow(
 			ctx,
 			`SELECT EXISTS (SELECT 1 FROM hosts WHERE id = $1)`,
 			hostID,

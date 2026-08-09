@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/woodleighschool/woodstar/internal/database"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
 )
@@ -48,7 +48,7 @@ func TestRecordUpdatesCurrentHeartbeat(t *testing.T) {
 		t.Fatalf("record first heartbeat: %v", err)
 	}
 	stale := time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC)
-	if _, err := db.Pool().Exec(ctx, `
+	if _, err := db.Exec(ctx, `
 		UPDATE host_heartbeats
 		SET last_seen_at = $1
 		WHERE host_id = $2 AND source = $3`, stale, hostID, SourceOrbit); err != nil {
@@ -72,7 +72,7 @@ func TestRecordUpdatesCurrentHeartbeat(t *testing.T) {
 		t.Fatalf("UserAgent = %q, want Orbit/2.0", second.UserAgent)
 	}
 	var count int
-	if err := db.Pool().QueryRow(ctx, `
+	if err := db.QueryRow(ctx, `
 		SELECT count(*)::integer
 		FROM host_heartbeats
 		WHERE host_id = $1 AND source = $2`, hostID, SourceOrbit).Scan(&count); err != nil {
@@ -95,7 +95,7 @@ func TestRecordStoresSourcesSeparately(t *testing.T) {
 	}
 
 	var count int
-	if err := db.Pool().QueryRow(ctx, `
+	if err := db.QueryRow(ctx, `
 		SELECT count(*)::integer FROM host_heartbeats WHERE host_id = $1`, hostID).Scan(&count); err != nil {
 		t.Fatalf("count heartbeats: %v", err)
 	}
@@ -138,11 +138,11 @@ func TestHostDeletionCascadesHeartbeats(t *testing.T) {
 	if err := store.Record(ctx, hostID, SourceSanta, Contact{}); err != nil {
 		t.Fatalf("record heartbeat: %v", err)
 	}
-	if _, err := db.Pool().Exec(ctx, `DELETE FROM hosts WHERE id = $1`, hostID); err != nil {
+	if _, err := db.Exec(ctx, `DELETE FROM hosts WHERE id = $1`, hostID); err != nil {
 		t.Fatalf("delete host: %v", err)
 	}
 	var count int
-	if err := db.Pool().QueryRow(ctx, `SELECT count(*)::integer FROM host_heartbeats WHERE host_id = $1`, hostID).Scan(&count); err != nil {
+	if err := db.QueryRow(ctx, `SELECT count(*)::integer FROM host_heartbeats WHERE host_id = $1`, hostID).Scan(&count); err != nil {
 		t.Fatalf("count heartbeats: %v", err)
 	}
 	if count != 0 {
@@ -150,16 +150,16 @@ func TestHostDeletionCascadesHeartbeats(t *testing.T) {
 	}
 }
 
-func newPostgresHeartbeatStore(t *testing.T) (*Store, *database.DB, context.Context) {
+func newPostgresHeartbeatStore(t *testing.T) (*Store, *pgxpool.Pool, context.Context) {
 	t.Helper()
 	db, ctx := testdb.Open(t)
 	return NewStore(db), db, ctx
 }
 
-func insertHeartbeatHost(t *testing.T, ctx context.Context, db *database.DB, hardwareUUID string) int64 {
+func insertHeartbeatHost(t *testing.T, ctx context.Context, db *pgxpool.Pool, hardwareUUID string) int64 {
 	t.Helper()
 	var hostID int64
-	if err := db.Pool().QueryRow(ctx, `
+	if err := db.QueryRow(ctx, `
 		INSERT INTO hosts (hardware_uuid)
 		VALUES ($1)
 		RETURNING id`, hardwareUUID).Scan(&hostID); err != nil {
@@ -168,10 +168,10 @@ func insertHeartbeatHost(t *testing.T, ctx context.Context, db *database.DB, har
 	return hostID
 }
 
-func loadHeartbeat(t *testing.T, ctx context.Context, db *database.DB, hostID int64, source Source) Heartbeat {
+func loadHeartbeat(t *testing.T, ctx context.Context, db *pgxpool.Pool, hostID int64, source Source) Heartbeat {
 	t.Helper()
 	var heartbeat Heartbeat
-	if err := db.Pool().QueryRow(ctx, `
+	if err := db.QueryRow(ctx, `
 		SELECT source, last_seen_at, remote_ip, user_agent
 		FROM host_heartbeats
 		WHERE host_id = $1 AND source = $2`, hostID, source).Scan(

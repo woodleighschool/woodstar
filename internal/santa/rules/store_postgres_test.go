@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/woodleighschool/woodstar/internal/database"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
@@ -283,14 +283,14 @@ func TestBundleRuleExpandsToBinaryHostRules(t *testing.T) {
 	secondSHA := strings.Repeat("2", 64)
 	var firstExecutableID int64
 	var secondExecutableID int64
-	if err := db.Pool().QueryRow(ctx, `
+	if err := db.QueryRow(ctx, `
 		INSERT INTO santa_executables (sha256, file_name)
 		VALUES ($1, 'Bundle Main')
 		RETURNING id
 	`, firstSHA).Scan(&firstExecutableID); err != nil {
 		t.Fatalf("insert first executable: %v", err)
 	}
-	if err := db.Pool().QueryRow(ctx, `
+	if err := db.QueryRow(ctx, `
 		INSERT INTO santa_executables (sha256, file_name)
 		VALUES ($1, 'Bundle Helper')
 		RETURNING id
@@ -298,7 +298,7 @@ func TestBundleRuleExpandsToBinaryHostRules(t *testing.T) {
 		t.Fatalf("insert second executable: %v", err)
 	}
 	var bundleID int64
-	if err := db.Pool().QueryRow(ctx, `
+	if err := db.QueryRow(ctx, `
 		INSERT INTO santa_bundles (
 			sha256,
 			bundle_id,
@@ -314,7 +314,7 @@ func TestBundleRuleExpandsToBinaryHostRules(t *testing.T) {
 	`, bundleHash).Scan(&bundleID); err != nil {
 		t.Fatalf("insert bundle: %v", err)
 	}
-	if _, err := db.Pool().Exec(ctx, `
+	if _, err := db.Exec(ctx, `
 		INSERT INTO santa_bundle_executables (bundle_id, executable_id)
 		VALUES ($1, $2), ($1, $3)
 	`, bundleID, firstExecutableID, secondExecutableID); err != nil {
@@ -356,7 +356,7 @@ func TestBundleRuleExpandsToBinaryHostRules(t *testing.T) {
 		t.Fatalf("sync targets = %+v, want binary payloads carrying bundle notification data", targets)
 	}
 
-	if _, err := db.Pool().Exec(ctx, `UPDATE santa_bundles SET name = '' WHERE id = $1`, bundleID); err != nil {
+	if _, err := db.Exec(ctx, `UPDATE santa_bundles SET name = '' WHERE id = $1`, bundleID); err != nil {
 		t.Fatalf("clear bundle name: %v", err)
 	}
 	got, err = store.ResolveRulesForHost(ctx, host.ID)
@@ -428,7 +428,7 @@ func TestRuleStoreListsMultipleRuleTypes(t *testing.T) {
 	}
 }
 
-func createSantaRuleLabel(t *testing.T, db *database.DB, name string) int64 {
+func createSantaRuleLabel(t *testing.T, db *pgxpool.Pool, name string) int64 {
 	t.Helper()
 
 	label, err := labels.NewStore(db).Create(t.Context(), labels.LabelMutation{
@@ -441,11 +441,11 @@ func createSantaRuleLabel(t *testing.T, db *database.DB, name string) int64 {
 	return label.ID
 }
 
-func santaRuleAllHostsLabelID(t *testing.T, db *database.DB) int64 {
+func santaRuleAllHostsLabelID(t *testing.T, db *pgxpool.Pool) int64 {
 	t.Helper()
 
 	var id int64
-	err := db.Pool().QueryRow(
+	err := db.QueryRow(
 		t.Context(),
 		`SELECT id FROM labels WHERE builtin_key = $1 AND label_type = 'builtin'`,
 		string(labels.BuiltinKeyAllHosts),

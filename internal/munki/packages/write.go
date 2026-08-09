@@ -17,7 +17,7 @@ func (s *Store) Create(ctx context.Context, in PackageCreateMutation) (*Package,
 	write := newPackageWrite(in.SoftwareID, params)
 
 	var id int64
-	err = s.db.WithTx(ctx, func(tx pgx.Tx) error {
+	err = pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		if err := validateAndLockInstallerObject(ctx, tx, params.InstallerObjectID, 0); err != nil {
 			return err
 		}
@@ -144,7 +144,7 @@ func (s *Store) Update(ctx context.Context, id int64, params PackageMutation) (*
 	}
 
 	var oldObjectID *int64
-	err = s.db.WithTx(ctx, func(tx pgx.Tx) error {
+	err = pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		if err := validateAndLockInstallerObject(ctx, tx, params.InstallerObjectID, id); err != nil {
 			return err
 		}
@@ -239,7 +239,7 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 	}
 	var deleted int
 	var objectIDs []int64
-	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		var err error
 		objectIDs, err = s.packageObjectIDs(ctx, tx, ids)
 		if err != nil {

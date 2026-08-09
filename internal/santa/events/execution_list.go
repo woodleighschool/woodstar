@@ -22,7 +22,7 @@ func (s *Store) ListEvents(ctx context.Context, params ExecutionEventListParams)
 	where, args := executionEventWhere(params)
 	rows, count, err := dbutil.ListWithCount[executionEventRow](
 		ctx,
-		s.db.Pool(),
+		s.pool,
 		executionEventListQuery(params, where, args),
 	)
 	if err != nil {
@@ -33,7 +33,7 @@ func (s *Store) ListEvents(ctx context.Context, params ExecutionEventListParams)
 
 // GetExecutionEvent returns one execution event by id.
 func (s *Store) GetExecutionEvent(ctx context.Context, id int64) (*ExecutionEvent, error) {
-	row, err := dbutil.GetOne[executionEventRow](ctx, s.db.Pool(), executionEventSelectSQL()+"\nWHERE ee.id = $1", id)
+	row, err := dbutil.GetOne[executionEventRow](ctx, s.pool, executionEventSelectSQL()+"\nWHERE ee.id = $1", id)
 	if err != nil {
 		return nil, err
 	}

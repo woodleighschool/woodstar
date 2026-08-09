@@ -13,8 +13,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/listing"
@@ -84,7 +84,7 @@ func (o Object) SizeKBValue() int64 {
 
 // ObjectStore is the database registry of stored objects.
 type ObjectStore struct {
-	db      *database.DB
+	pool    *pgxpool.Pool
 	backend objectBackend
 	logger  *slog.Logger
 }
@@ -93,9 +93,9 @@ type objectBackend interface {
 	Delete(ctx context.Context, key string) error
 }
 
-// NewObjectStore returns a registry backed by db.
-func NewObjectStore(db *database.DB, backend objectBackend, logger *slog.Logger) *ObjectStore {
-	return &ObjectStore{db: db, backend: backend, logger: logger}
+// NewObjectStore returns a registry backed by PostgreSQL.
+func NewObjectStore(pool *pgxpool.Pool, backend objectBackend, logger *slog.Logger) *ObjectStore {
+	return &ObjectStore{pool: pool, backend: backend, logger: logger}
 }
 
 // CreatePending reserves an object in the registry without classifying content.
@@ -110,7 +110,7 @@ func (s *ObjectStore) CreatePending(ctx context.Context, prefix, filename string
 	const sql = `INSERT INTO storage_objects (prefix, filename)
 VALUES (@prefix, @filename)
 RETURNING ` + objectColumnsSQL
-	obj, err := dbutil.GetOne[Object](ctx, s.db.Pool(), sql, pgx.NamedArgs{
+	obj, err := dbutil.GetOne[Object](ctx, s.pool, sql, pgx.NamedArgs{
 		"prefix":   prefix,
 		"filename": filename,
 	})
@@ -144,7 +144,7 @@ SET size_bytes = @size_bytes,
 WHERE id = @id
   AND expired_at IS NULL
 RETURNING ` + objectColumnsSQL
-	obj, err := dbutil.GetOne[Object](ctx, s.db.Pool(), sql, pgx.NamedArgs{
+	obj, err := dbutil.GetOne[Object](ctx, s.pool, sql, pgx.NamedArgs{
 		"id":           id,
 		"size_bytes":   &sizeBytes,
 		"sha256":       &sha256sum,
@@ -164,7 +164,7 @@ WHERE id = $1
   AND available_at IS NULL
   AND expired_at IS NULL
 RETURNING ` + objectColumnsSQL
-	object, err := dbutil.GetOne[Object](ctx, s.db.Pool(), sql, id)
+	object, err := dbutil.GetOne[Object](ctx, s.pool, sql, id)
 	if err != nil {
 		return nil, dbutil.MutationError(err)
 	}
@@ -184,7 +184,7 @@ func (s *ObjectStore) RecordMultipartUploadID(
 		return "", false, err
 	}
 	var recorded string
-	err = s.db.Pool().QueryRow(ctx, `
+	err = s.pool.QueryRow(ctx, `
 UPDATE storage_objects
 SET multipart_upload_id = $2,
     updated_at = now()
@@ -211,7 +211,7 @@ RETURNING multipart_upload_id`, id, uploadID).Scan(&recorded)
 
 // ClearMultipartUploadID closes the recorded provider upload after assembly.
 func (s *ObjectStore) ClearMultipartUploadID(ctx context.Context, id int64, uploadID string) error {
-	tag, err := s.db.Pool().Exec(ctx, `
+	tag, err := s.pool.Exec(ctx, `
 UPDATE storage_objects
 SET multipart_upload_id = NULL,
     updated_at = now()
@@ -236,7 +236,7 @@ WHERE id = $1
 
 // GetByID returns one object.
 func (s *ObjectStore) GetByID(ctx context.Context, id int64) (*Object, error) {
-	obj, err := dbutil.GetOne[Object](ctx, s.db.Pool(), objectSelectSQL+"\nWHERE id = $1 AND expired_at IS NULL", id)
+	obj, err := dbutil.GetOne[Object](ctx, s.pool, objectSelectSQL+"\nWHERE id = $1 AND expired_at IS NULL", id)
 	if err != nil {
 		return nil, dbutil.GetError(err)
 	}
@@ -253,7 +253,7 @@ func (o Object) ETag() string {
 
 // ListByIDs returns objects keyed by id. Missing IDs are ignored.
 func (s *ObjectStore) ListByIDs(ctx context.Context, ids []int64) (map[int64]Object, error) {
-	rows, err := s.db.Pool().Query(ctx,
+	rows, err := s.pool.Query(ctx,
 		objectSelectSQL+"\nWHERE id = ANY($1::bigint[]) AND expired_at IS NULL", ids)
 	if err != nil {
 		return nil, err
@@ -286,7 +286,7 @@ func (s *ObjectStore) ListByPrefix(
 		},
 		Params: params,
 	}
-	return dbutil.ListWithCount[Object](ctx, s.db.Pool(), listQuery)
+	return dbutil.ListWithCount[Object](ctx, s.pool, listQuery)
 }
 
 // Delete removes one object from the registry and then best-effort removes its bytes.
@@ -325,7 +325,7 @@ func (s *ObjectStore) deleteRegistryObject(ctx context.Context, id int64) (*Obje
 WHERE id = $1
   AND expired_at IS NULL
 RETURNING ` + objectColumnsSQL
-	object, err := dbutil.GetOne[Object](ctx, s.db.Pool(), sql, id)
+	object, err := dbutil.GetOne[Object](ctx, s.pool, sql, id)
 	if err != nil {
 		return nil, dbutil.DeleteConflict(err, "storage object is still referenced")
 	}

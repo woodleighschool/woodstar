@@ -35,7 +35,7 @@ func (s *Store) LoadPendingPayloadPage(
 	}
 
 	var state santaPendingStateRow
-	err = s.db.Pool().QueryRow(ctx,
+	err = s.pool.QueryRow(ctx,
 		`SELECT pending_payload_rule_count, pending_full_sync FROM santa_sync_state WHERE host_id = $1`,
 		hostID,
 	).Scan(&state.PendingPayloadRuleCount, &state.PendingFullSync)
@@ -48,13 +48,13 @@ func (s *Store) LoadPendingPayloadPage(
 	if state.PendingPayloadRuleCount == 0 {
 		return PayloadRulePage{}, nil
 	}
-	desired, err := loadTargets(ctx, s.db.Pool(), hostID, phaseDesired)
+	desired, err := loadTargets(ctx, s.pool, hostID, phaseDesired)
 	if err != nil {
 		return PayloadRulePage{}, err
 	}
 	payload := fullSyncPayload(desired)
 	if !state.PendingFullSync {
-		applied, err := loadTargets(ctx, s.db.Pool(), hostID, phaseApplied)
+		applied, err := loadTargets(ctx, s.pool, hostID, phaseApplied)
 		if err != nil {
 			return PayloadRulePage{}, err
 		}

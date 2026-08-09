@@ -13,7 +13,7 @@ import (
 
 	"howett.net/plist"
 
-	"github.com/woodleighschool/woodstar/internal/database"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/hosts"
@@ -28,14 +28,14 @@ import (
 )
 
 type munkiStores struct {
-	db        *database.DB
+	db        *pgxpool.Pool
 	objects   *storage.ObjectStore
 	hoststate *munki.Store
 	packages  *packages.Store
 	software  *munkisoftware.Store
 }
 
-func newMunkiStores(db *database.DB) munkiStores {
+func newMunkiStores(db *pgxpool.Pool) munkiStores {
 	objectStore := storage.NewObjectStore(db, nil, slog.New(slog.DiscardHandler))
 	packageStore := packages.NewStore(db, objectStore)
 	softwareStore := munkisoftware.NewStore(db, objectStore, packageStore)
@@ -62,7 +62,7 @@ func createMunkiStorageObject(
 		contentType = "image/png"
 	}
 	var objectID int64
-	err := stores.db.Pool().QueryRow(ctx, `
+	err := stores.db.QueryRow(ctx, `
 INSERT INTO storage_objects (
     prefix, filename, content_type, size_bytes, sha256, available_at
 ) VALUES ($1, $2, $3, 512, $4, now())
@@ -315,7 +315,7 @@ func TestPackageInstallerObjectValidationOwnershipAndTransitions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create second package: %v", err)
 	}
-	_, err = stores.db.Pool().Exec(
+	_, err = stores.db.Exec(
 		ctx,
 		`UPDATE munki_packages SET installer_object_id = $1 WHERE id = $2`,
 		firstObject.ID,

@@ -5,17 +5,17 @@ import (
 	"fmt"
 	"net/netip"
 
-	"github.com/woodleighschool/woodstar/internal/database"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/woodleighschool/woodstar/internal/fault"
 )
 
 // Store persists the most recent heartbeat for each host and source.
 type Store struct {
-	db *database.DB
+	pool *pgxpool.Pool
 }
 
-func NewStore(db *database.DB) *Store {
-	return &Store{db: db}
+func NewStore(pool *pgxpool.Pool) *Store {
+	return &Store{pool: pool}
 }
 
 func (s *Store) Record(ctx context.Context, hostID int64, source Source, contact Contact) error {
@@ -32,7 +32,7 @@ func (s *Store) Record(ctx context.Context, hostID int64, source Source, contact
 		}
 	}
 
-	_, err := s.db.Pool().Exec(ctx, `
+	_, err := s.pool.Exec(ctx, `
 		INSERT INTO host_heartbeats (host_id, source, remote_ip, user_agent)
 		VALUES ($1, $2, NULLIF($3, '')::inet, $4)
 		ON CONFLICT (host_id, source) DO UPDATE

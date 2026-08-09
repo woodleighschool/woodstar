@@ -94,7 +94,7 @@ func TestCountsAndResultsUseCurrentTargets(t *testing.T) {
 	}
 
 	var persistedExcluded int
-	if err := store.db.Pool().QueryRow(ctx, `
+	if err := store.pool.QueryRow(ctx, `
 		SELECT count(*)
 		FROM osquery_check_membership
 		WHERE check_id = $1 AND host_id = $2`,
@@ -110,7 +110,7 @@ func TestCountsAndResultsUseCurrentTargets(t *testing.T) {
 		t.Fatalf("upsert late excluded membership: %v", err)
 	}
 	var persistedPasses bool
-	if err := store.db.Pool().QueryRow(ctx, `
+	if err := store.pool.QueryRow(ctx, `
 			SELECT passes
 			FROM osquery_check_membership
 			WHERE check_id = $1 AND host_id = $2`,
@@ -285,7 +285,7 @@ func TestUpdatePrunesMembershipOutsideNewTargets(t *testing.T) {
 	}
 
 	var hostIDs []int64
-	rows, err := store.db.Pool().Query(ctx, `
+	rows, err := store.pool.Query(ctx, `
 		SELECT host_id
 		FROM osquery_check_membership
 		WHERE check_id = $1

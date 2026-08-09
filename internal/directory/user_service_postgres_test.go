@@ -79,7 +79,7 @@ func TestCreateHashesPassword(t *testing.T) {
 func TestCreateRollsBackWhenDerivedLabelsCannotRefresh(t *testing.T) {
 	database, ctx := testdb.Open(t)
 	store := NewStore(database)
-	if _, err := database.Pool().Exec(ctx, `
+	if _, err := database.Exec(ctx, `
 INSERT INTO labels (name, criteria, label_type, label_membership_type)
 VALUES ('Invalid derived label', '{"attribute":"invalid","values":["value"]}', 'regular', 'derived')`); err != nil {
 		t.Fatalf("insert invalid derived label: %v", err)
@@ -97,7 +97,7 @@ VALUES ('Invalid derived label', '{"attribute":"invalid","values":["value"]}', '
 	}
 
 	var count int
-	if err := database.Pool().QueryRow(
+	if err := database.QueryRow(
 		ctx,
 		`SELECT count(*) FROM users WHERE email = 'rollback@example.test'`,
 	).Scan(&count); err != nil {

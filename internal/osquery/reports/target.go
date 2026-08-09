@@ -31,7 +31,7 @@ func (s *Store) attachReportTargets(
 		rpts[i].Targets = emptyReportTargets()
 	}
 
-	qrows, err := s.db.Pool().Query(ctx, `
+	qrows, err := s.pool.Query(ctx, `
 		SELECT report_id AS owner_id, label_id, direction::text AS direction
 		FROM osquery_report_targets
 		WHERE report_id = ANY($1::bigint[])

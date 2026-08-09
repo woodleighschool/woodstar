@@ -48,7 +48,7 @@ func TestProviderIdentityLinksByCanonicalEmailNotUPN(t *testing.T) {
 	}
 
 	var linkedUserID int64
-	if err := database.Pool().QueryRow(ctx, `
+	if err := database.QueryRow(ctx, `
 SELECT user_id
 FROM directory_user_links
 WHERE source = 'entra' AND external_id = 'provider-identity'`).Scan(&linkedUserID); err != nil {
@@ -108,7 +108,7 @@ func TestApplyProviderSnapshotRevokesLastProviderAdministrator(t *testing.T) {
 		t.Fatalf("seed provider user: %v", err)
 	}
 	var adminID int64
-	if err := database.Pool().QueryRow(ctx, `
+	if err := database.QueryRow(ctx, `
 UPDATE users
 SET role = 'admin'
 WHERE external_id = 'admin-object-id'
@@ -123,7 +123,7 @@ RETURNING id`).Scan(&adminID); err != nil {
 		t.Fatal("revoked provider administrator remains active")
 	}
 	var deletedAt *time.Time
-	if err := database.Pool().QueryRow(
+	if err := database.QueryRow(
 		ctx,
 		`SELECT deleted_at FROM users WHERE id = $1`,
 		adminID,
@@ -138,7 +138,7 @@ RETURNING id`).Scan(&adminID); err != nil {
 func TestApplyProviderSnapshotRollsBackWhenDerivedLabelsCannotRefresh(t *testing.T) {
 	database, ctx := testdb.Open(t)
 	store := NewStore(database)
-	if _, err := database.Pool().Exec(ctx, `
+	if _, err := database.Exec(ctx, `
 INSERT INTO labels (name, criteria, label_type, label_membership_type)
 VALUES ('Invalid derived label', '{"attribute":"invalid","values":["value"]}', 'regular', 'derived')`); err != nil {
 		t.Fatalf("insert invalid derived label: %v", err)
@@ -158,7 +158,7 @@ VALUES ('Invalid derived label', '{"attribute":"invalid","values":["value"]}', '
 	}
 
 	var count int
-	if err := database.Pool().QueryRow(
+	if err := database.QueryRow(
 		ctx,
 		`SELECT count(*) FROM users WHERE external_id = 'rollback-user'`,
 	).Scan(&count); err != nil {
@@ -204,7 +204,7 @@ func TestApplyProviderSnapshotReconcilesUsersAndGroups(t *testing.T) {
 	}
 
 	var userCount int
-	if err := store.db.Pool().
+	if err := store.pool.
 		QueryRow(ctx, `SELECT count(*) FROM users WHERE source = 'entra'`).
 		Scan(&userCount); err != nil {
 		t.Fatalf("count users: %v", err)
@@ -235,7 +235,7 @@ func TestApplyProviderSnapshotReconcilesUsersAndGroups(t *testing.T) {
 	}
 
 	var upn, name, department string
-	if err := store.db.Pool().QueryRow(ctx, `
+	if err := store.pool.QueryRow(ctx, `
 		SELECT user_principal_name, name, COALESCE(department, '')
 		FROM users
 		WHERE source = 'entra' AND external_id = 'u-alice'
@@ -249,7 +249,7 @@ func TestApplyProviderSnapshotReconcilesUsersAndGroups(t *testing.T) {
 		t.Fatalf("alice name/department = %q/%q, want updated Operations", name, department)
 	}
 	var bobDeletedAt *time.Time
-	if err := store.db.Pool().QueryRow(ctx, `
+	if err := store.pool.QueryRow(ctx, `
 		SELECT deleted_at
 		FROM users
 		WHERE source = 'entra' AND external_id = 'u-bob'
@@ -261,7 +261,7 @@ func TestApplyProviderSnapshotReconcilesUsersAndGroups(t *testing.T) {
 	}
 
 	var groupExternalID string
-	if err := store.db.Pool().
+	if err := store.pool.
 		QueryRow(ctx, `SELECT external_id FROM directory_groups`).
 		Scan(&groupExternalID); err != nil {
 		t.Fatalf("get remaining group: %v", err)
@@ -290,7 +290,7 @@ func TestApplyProviderSnapshotReconcilesUsersAndGroups(t *testing.T) {
 		t.Fatalf("apply third snapshot: %v", err)
 	}
 	bobDeletedAt = &time.Time{}
-	if err := store.db.Pool().QueryRow(ctx, `
+	if err := store.pool.QueryRow(ctx, `
 		SELECT deleted_at
 		FROM users
 		WHERE source = 'entra' AND external_id = 'u-bob'
@@ -307,7 +307,7 @@ func TestApplyProviderSnapshotReusesDeletedEntraUserWhenRecreatedWithNewExternal
 	store := NewStore(database)
 
 	var userID int64
-	if err := store.db.Pool().QueryRow(ctx, `
+	if err := store.pool.QueryRow(ctx, `
 		INSERT INTO users (
 			email,
 			name,
@@ -349,7 +349,7 @@ func TestApplyProviderSnapshotReusesDeletedEntraUserWhenRecreatedWithNewExternal
 	var gotID int64
 	var externalID string
 	var deletedAt *time.Time
-	if err := store.db.Pool().QueryRow(ctx, `
+	if err := store.pool.QueryRow(ctx, `
 		SELECT id, external_id, deleted_at
 		FROM users
 		WHERE email = 'recreated@example.edu'
@@ -372,7 +372,7 @@ func TestApplyProviderSnapshotPreservesExistingLocalUser(t *testing.T) {
 	store := NewStore(database)
 
 	var localID int64
-	if err := store.db.Pool().QueryRow(ctx, `
+	if err := store.pool.QueryRow(ctx, `
 		INSERT INTO users (email, name, password_hash, role)
 		VALUES ('admin@example.edu', 'Local Admin', 'password-hash', 'admin')
 		RETURNING id
@@ -397,7 +397,7 @@ func TestApplyProviderSnapshotPreservesExistingLocalUser(t *testing.T) {
 
 	var role, source string
 	var externalID *string
-	if err := store.db.Pool().QueryRow(ctx, `
+	if err := store.pool.QueryRow(ctx, `
 		SELECT role::text, source::text, external_id
 		FROM users WHERE id = $1
 	`, localID).Scan(&role, &source, &externalID); err != nil {
@@ -421,7 +421,7 @@ func TestApplyProviderSnapshotPreservesExistingLocalUser(t *testing.T) {
 	}
 
 	var providerID int64
-	if err := store.db.Pool().QueryRow(ctx, `
+	if err := store.pool.QueryRow(ctx, `
 		SELECT user_id FROM directory_user_links
 		WHERE source = 'entra' AND external_id = 'entra-admin'
 	`).Scan(&providerID); err != nil {
@@ -443,7 +443,7 @@ func TestApplyProviderSnapshotPreservesExistingLocalUser(t *testing.T) {
 		t.Fatalf("password login after provider removal = %+v, %v", login, err)
 	}
 	var linkCount int
-	if err := store.db.Pool().QueryRow(
+	if err := store.pool.QueryRow(
 		ctx,
 		`SELECT count(*) FROM directory_user_links WHERE user_id = $1`,
 		localID,

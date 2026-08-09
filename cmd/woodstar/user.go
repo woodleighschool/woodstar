@@ -10,8 +10,8 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 
-	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/directory"
+	"github.com/woodleighschool/woodstar/internal/postgres"
 )
 
 func userCommand() *cobra.Command {
@@ -141,12 +141,12 @@ func withUserService(
 		return errors.New("database URL is required: set WOODSTAR_DATABASE_URL or --database-url")
 	}
 
-	db, err := database.Open(ctx, databaseURL)
+	pool, err := postgres.Open(ctx, databaseURL)
 	if err != nil {
 		return fmt.Errorf("open database: %w", err)
 	}
-	defer db.Close()
-	return action(directory.NewUserService(directory.NewStore(db)))
+	defer pool.Close()
+	return action(directory.NewUserService(directory.NewStore(pool)))
 }
 
 func commandPassword(cmd *cobra.Command, value string) (string, error) {

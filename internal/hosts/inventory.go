@@ -36,7 +36,7 @@ func (s *Store) ApplyInventory(ctx context.Context, hostID int64, update Invento
 		OsqueryDistributedIntervalSeconds: update.Agents.Osquery.DistributedIntervalSeconds,
 		OsqueryConfigRefreshSeconds:       update.Agents.Osquery.ConfigRefreshSeconds,
 	}
-	_, err := s.db.Pool().Exec(ctx, `
+	_, err := s.pool.Exec(ctx, `
 UPDATE hosts
 SET
 	hostname = COALESCE(NULLIF(@hostname::text, ''), hostname),
@@ -71,7 +71,7 @@ WHERE id = @id`, pgx.StructArgs(write))
 }
 
 func (s *Store) ReplaceUsers(ctx context.Context, hostID int64, users []HostUser) error {
-	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
+	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, `DELETE FROM host_users WHERE host_id = $1`, hostID); err != nil {
 			return err
 		}
@@ -111,7 +111,7 @@ ON CONFLICT (host_id, uid, username) DO UPDATE SET
 }
 
 func (s *Store) ReplaceBatteries(ctx context.Context, hostID int64, batteries []HostBattery) error {
-	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
+	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, `DELETE FROM host_batteries WHERE host_id = $1`, hostID); err != nil {
 			return err
 		}
@@ -168,7 +168,7 @@ ON CONFLICT (host_id, serial_number) DO UPDATE SET
 }
 
 func (s *Store) ReplaceCertificates(ctx context.Context, hostID int64, certificates []HostCertificate) error {
-	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
+	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, `DELETE FROM host_certificates WHERE host_id = $1`, hostID); err != nil {
 			return err
 		}
@@ -256,7 +256,7 @@ ON CONFLICT (host_id, sha1, source, username) DO UPDATE SET
 }
 
 func (s *Store) ListUsers(ctx context.Context, hostID int64) ([]HostUser, error) {
-	rows, err := s.db.Pool().Query(ctx, `
+	rows, err := s.pool.Query(ctx, `
 SELECT id, host_id, uid, username, type, description, directory, shell
 FROM host_users
 WHERE host_id = $1
@@ -270,7 +270,7 @@ ORDER BY username, uid, id`,
 }
 
 func (s *Store) ListBatteries(ctx context.Context, hostID int64) ([]HostBattery, error) {
-	rows, err := s.db.Pool().Query(ctx, `
+	rows, err := s.pool.Query(ctx, `
 SELECT
 	id, host_id, serial_number, manufacturer, model, chemistry, cycle_count,
 	health, designed_capacity, max_capacity, current_capacity, percent_remaining
@@ -286,7 +286,7 @@ ORDER BY serial_number, id`,
 }
 
 func (s *Store) ListCertificates(ctx context.Context, hostID int64) ([]HostCertificate, error) {
-	rows, err := s.db.Pool().Query(ctx, `
+	rows, err := s.pool.Query(ctx, `
 SELECT
 	id, host_id, sha1, common_name,
 	subject_country, subject_organization, subject_organizational_unit, subject_common_name,
@@ -314,7 +314,7 @@ ORDER BY common_name, sha1, id`,
 }
 
 func (s *Store) MarkInventoryFresh(ctx context.Context, hostID int64, inventoryQueryHash string) error {
-	_, err := s.db.Pool().Exec(ctx, `
+	_, err := s.pool.Exec(ctx, `
 UPDATE hosts
 SET inventory_updated_at = now(), inventory_query_hash = @inventory_query_hash, updated_at = now()
 WHERE id = @id`,

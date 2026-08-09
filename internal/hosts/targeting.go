@@ -61,7 +61,7 @@ func (s *Store) ResolveOnlineSelectedTargets(
 		return nil, nil
 	}
 	onlineSince := now.Add(-hostOnlineWindow)
-	rows, err := s.db.Pool().Query(ctx, `
+	rows, err := s.pool.Query(ctx, `
 		SELECT id, display_name
 		FROM hosts
 		WHERE id = ANY($1::bigint[])
@@ -95,7 +95,7 @@ func (s *Store) CountSelectedTargets(
 
 	var metrics TargetMetrics
 	onlineSince := now.Add(-hostOnlineWindow)
-	err = s.db.Pool().QueryRow(ctx, `
+	err = s.pool.QueryRow(ctx, `
 		SELECT
 			count(*)::integer AS total,
 			count(*) FILTER (WHERE EXISTS (
@@ -125,7 +125,7 @@ func (s *Store) activeSelectedHostIDs(ctx context.Context, hostIDs []int64) ([]i
 	if len(hostIDs) == 0 {
 		return nil, nil
 	}
-	rows, err := s.db.Pool().Query(ctx, `
+	rows, err := s.pool.Query(ctx, `
 		SELECT id
 		FROM hosts
 		WHERE id = ANY($1::bigint[])
@@ -144,7 +144,7 @@ type selectedLabelRow struct {
 }
 
 func (s *Store) resolveSelectedLabelTargets(ctx context.Context, labelIDs []int64) ([]int64, error) {
-	queryRows, err := s.db.Pool().Query(ctx, `
+	queryRows, err := s.pool.Query(ctx, `
 		SELECT id, name, label_type, builtin_key
 		FROM labels
 		WHERE id = ANY($1::bigint[])
@@ -183,7 +183,7 @@ func (s *Store) resolveSelectedLabelTargets(ctx context.Context, labelIDs []int6
 }
 
 func (s *Store) allActiveHostIDs(ctx context.Context) ([]int64, error) {
-	rows, err := s.db.Pool().Query(ctx, `SELECT id FROM hosts ORDER BY id`)
+	rows, err := s.pool.Query(ctx, `SELECT id FROM hosts ORDER BY id`)
 	if err != nil {
 		return nil, err
 	}
@@ -191,7 +191,7 @@ func (s *Store) allActiveHostIDs(ctx context.Context) ([]int64, error) {
 }
 
 func (s *Store) hostsMatchingAnyLabel(ctx context.Context, labelIDs []int64) ([]int64, error) {
-	rows, err := s.db.Pool().Query(ctx, `
+	rows, err := s.pool.Query(ctx, `
 		SELECT DISTINCT h.id
 		FROM hosts h
 		JOIN label_membership lm ON lm.host_id = h.id
@@ -208,7 +208,7 @@ func (s *Store) hostsMatchingBuiltinAndRegularLabels(
 	builtinIDs []int64,
 	regularIDs []int64,
 ) ([]int64, error) {
-	rows, err := s.db.Pool().Query(ctx, `
+	rows, err := s.pool.Query(ctx, `
 		SELECT DISTINCT h.id
 		FROM hosts h
 		WHERE EXISTS (

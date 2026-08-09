@@ -16,7 +16,7 @@ func (s *Store) ListTitles(ctx context.Context, params SoftwareTitleListParams) 
 	whereSQL, args := softwareTitleWhere(params)
 	listQuery := softwareTitleListQuery(params.ListParams, whereSQL, args)
 
-	titles, total, err := dbutil.ListWithCount[SoftwareTitle](ctx, s.db.Pool(), listQuery)
+	titles, total, err := dbutil.ListWithCount[SoftwareTitle](ctx, s.pool, listQuery)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -32,7 +32,7 @@ func (s *Store) ListTitles(ctx context.Context, params SoftwareTitleListParams) 
 
 func (s *Store) GetTitle(ctx context.Context, id int64) (*SoftwareTitle, error) {
 	query := softwareTitleSelectSQL + "\nWHERE st.id = $1\nGROUP BY st.id"
-	title, err := dbutil.GetOne[SoftwareTitle](ctx, s.db.Pool(), query, id)
+	title, err := dbutil.GetOne[SoftwareTitle](ctx, s.pool, query, id)
 	if err != nil {
 		return nil, dbutil.GetError(err)
 	}
@@ -163,7 +163,7 @@ func (s *Store) loadSoftwareTitleVersions(ctx context.Context, titles []Software
 		}
 	}
 
-	qrows, err := s.db.Pool().Query(ctx, softwareTitleVersionsSQL, titleIDs)
+	qrows, err := s.pool.Query(ctx, softwareTitleVersionsSQL, titleIDs)
 	if err != nil {
 		return err
 	}
@@ -230,7 +230,7 @@ func (s *Store) loadSoftwareTitleSigningIdentities(ctx context.Context, titles [
 		}
 	}
 
-	qrows, err := s.db.Pool().Query(ctx, softwareTitleSigningIdentitiesSQL, titleIDs)
+	qrows, err := s.pool.Query(ctx, softwareTitleSigningIdentitiesSQL, titleIDs)
 	if err != nil {
 		return err
 	}

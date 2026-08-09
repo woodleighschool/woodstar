@@ -6,7 +6,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/woodleighschool/woodstar/internal/database"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
@@ -313,7 +313,7 @@ func TestConfigurationStoreBulkDeleteIgnoresMissingIDs(t *testing.T) {
 	}
 }
 
-func createSantaConfigurationLabel(t *testing.T, db *database.DB, name string) int64 {
+func createSantaConfigurationLabel(t *testing.T, db *pgxpool.Pool, name string) int64 {
 	t.Helper()
 
 	label, err := labels.NewStore(db).Create(t.Context(), labels.LabelMutation{

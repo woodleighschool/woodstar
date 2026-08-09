@@ -96,7 +96,7 @@ func (s *Store) packageRelationsByPackage(
 	if len(packageIDs) == 0 {
 		return map[int64]packageRelations{}, nil
 	}
-	rows, err := s.db.Pool().Query(ctx, `
+	rows, err := s.pool.Query(ctx, `
 		SELECT
 			r.package_id,
 			r.relation_kind,

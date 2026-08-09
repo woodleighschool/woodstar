@@ -71,7 +71,7 @@ func sweep(ctx context.Context, store CleanupStore, retentionDays int, logger *s
 // SweepEventsBefore deletes Santa events that occurred before cutoff.
 func (s *Store) SweepEventsBefore(ctx context.Context, cutoff time.Time) (int, error) {
 	var deleted int
-	err := s.db.Pool().QueryRow(ctx, `
+	err := s.pool.QueryRow(ctx, `
 WITH deleted_execution AS (
 	DELETE FROM santa_execution_events
 	WHERE santa_execution_events.occurred_at < $1

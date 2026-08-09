@@ -23,7 +23,7 @@ func (s *Store) ListFileAccessEvents(
 	where, args := fileAccessEventWhere(params)
 	rows, count, err := dbutil.ListWithCount[fileAccessEventRow](
 		ctx,
-		s.db.Pool(),
+		s.pool,
 		fileAccessEventListQuery(params, where, args),
 	)
 	if err != nil {
@@ -36,7 +36,7 @@ func (s *Store) ListFileAccessEvents(
 func (s *Store) GetFileAccessEvent(ctx context.Context, id int64) (*FileAccessEvent, error) {
 	row, err := dbutil.GetOne[fileAccessEventRow](
 		ctx,
-		s.db.Pool(),
+		s.pool,
 		fileAccessEventSelectSQL()+"\nWHERE fae.id = $1",
 		id,
 	)

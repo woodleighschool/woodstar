@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/woodleighschool/woodstar/internal/database"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/listing"
 	"github.com/woodleighschool/woodstar/internal/storage"
@@ -49,7 +49,7 @@ func TestStoreCRUDKeepsEffectiveSingleton(t *testing.T) { //nolint:cyclop,funlen
 		},
 		archiveObjectID: generatedArchive.ID,
 	}
-	if _, err := db.Pool().Exec(ctx, `
+	if _, err := db.Exec(ctx, `
 INSERT INTO munki_client_resources (archive_object_id, custom)
 VALUES ($1, FALSE)`, generatedArchive.ID); err == nil {
 		t.Fatal("insert non-custom client resources without builder succeeded")
@@ -71,7 +71,7 @@ VALUES ($1, FALSE)`, generatedArchive.ID); err == nil {
 	if _, err := store.Create(ctx, generatedWrite); !errors.Is(err, fault.ErrAlreadyExists) {
 		t.Fatalf("second Create error = %v, want ErrAlreadyExists", err)
 	}
-	if _, err := db.Pool().Exec(ctx, `
+	if _, err := db.Exec(ctx, `
 INSERT INTO munki_client_resources (id, archive_object_id, custom, banner_object_id)
 VALUES (2, $1, FALSE, $2)`, generatedArchive.ID, banner.ID); err == nil {
 		t.Fatal("insert client resource ID 2 succeeded")
@@ -176,7 +176,7 @@ VALUES (2, $1, FALSE, $2)`, generatedArchive.ID, banner.ID); err == nil {
 func createAvailableObject(
 	t *testing.T,
 	ctx context.Context,
-	db *database.DB,
+	db *pgxpool.Pool,
 	objects *storage.ObjectStore,
 	prefix string,
 	filename string,
@@ -184,7 +184,7 @@ func createAvailableObject(
 ) *storage.Object {
 	t.Helper()
 	var objectID int64
-	if err := db.Pool().QueryRow(ctx, `
+	if err := db.QueryRow(ctx, `
 INSERT INTO storage_objects (
     prefix, filename, content_type, size_bytes, sha256, available_at
 ) VALUES ($1, $2, $3, 1, $4, now())

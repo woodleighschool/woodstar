@@ -30,7 +30,7 @@ func TestPruneUnreferencedSoftwarePreservesReferencedVersions(t *testing.T) {
 		t.Fatalf("report second host software: %v", err)
 	}
 	var titleID int64
-	if err := db.Pool().QueryRow(ctx, `
+	if err := db.QueryRow(ctx, `
 SELECT id
 FROM software_titles
 WHERE bundle_identifier = 'com.example.cleanup'`).Scan(&titleID); err != nil {
@@ -99,7 +99,7 @@ func TestPruneUnreferencedSoftwareAllowsFreshObservation(t *testing.T) {
 	if err := store.ReplaceHostSoftware(ctx, host.ID, []HostSoftwareEntry{entry}); err != nil {
 		t.Fatalf("report initial software: %v", err)
 	}
-	oldTitleID, oldSoftwareID := cleanupTestSoftwareIDs(t, ctx, db.Pool())
+	oldTitleID, oldSoftwareID := cleanupTestSoftwareIDs(t, ctx, db)
 	if err := store.ReplaceHostSoftware(ctx, host.ID, nil); err != nil {
 		t.Fatalf("clear initial software: %v", err)
 	}
@@ -110,7 +110,7 @@ func TestPruneUnreferencedSoftwareAllowsFreshObservation(t *testing.T) {
 	if err := store.ReplaceHostSoftware(ctx, host.ID, []HostSoftwareEntry{entry}); err != nil {
 		t.Fatalf("report software again: %v", err)
 	}
-	newTitleID, newSoftwareID := cleanupTestSoftwareIDs(t, ctx, db.Pool())
+	newTitleID, newSoftwareID := cleanupTestSoftwareIDs(t, ctx, db)
 	if newTitleID == oldTitleID || newSoftwareID == oldSoftwareID {
 		t.Fatalf(
 			"re-observed IDs = title %d software %d, want fresh IDs after title %d software %d",
@@ -118,7 +118,7 @@ func TestPruneUnreferencedSoftwareAllowsFreshObservation(t *testing.T) {
 		)
 	}
 	var links int
-	if err := db.Pool().QueryRow(ctx, `
+	if err := db.QueryRow(ctx, `
 SELECT count(*)
 FROM host_software
 WHERE host_id = $1 AND software_id = $2`, host.ID, newSoftwareID).Scan(&links); err != nil {
@@ -137,7 +137,7 @@ func TestPruneUnreferencedSoftwareAfterHostDeletion(t *testing.T) {
 	if err := store.ReplaceHostSoftware(ctx, host.ID, []HostSoftwareEntry{cleanupTestSoftware("1.0")}); err != nil {
 		t.Fatalf("report software: %v", err)
 	}
-	titleID, _ := cleanupTestSoftwareIDs(t, ctx, db.Pool())
+	titleID, _ := cleanupTestSoftwareIDs(t, ctx, db)
 	if err := hostStore.Delete(ctx, host.ID); err != nil {
 		t.Fatalf("delete host: %v", err)
 	}
@@ -163,12 +163,12 @@ func TestPruneUnreferencedSoftwareSkipsLockedInventory(t *testing.T) {
 	if err := store.ReplaceHostSoftware(ctx, host.ID, []HostSoftwareEntry{entry}); err != nil {
 		t.Fatalf("report software: %v", err)
 	}
-	_, softwareID := cleanupTestSoftwareIDs(t, ctx, db.Pool())
+	_, softwareID := cleanupTestSoftwareIDs(t, ctx, db)
 	if err := store.ReplaceHostSoftware(ctx, host.ID, nil); err != nil {
 		t.Fatalf("clear software: %v", err)
 	}
 
-	tx, err := db.Pool().Begin(ctx)
+	tx, err := db.Begin(ctx)
 	if err != nil {
 		t.Fatalf("begin inventory transaction: %v", err)
 	}

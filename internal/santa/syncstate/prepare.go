@@ -26,7 +26,7 @@ func (s *Store) PreparePending(
 	desired = sortedTargets(desired)
 
 	var pendingFullSync bool
-	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		applied, err := loadPriorState(ctx, tx, hostID)
 		if err != nil {
 			return err

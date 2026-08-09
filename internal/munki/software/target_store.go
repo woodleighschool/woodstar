@@ -151,7 +151,7 @@ func (s *Store) TargetsForSoftware(ctx context.Context, softwareID int64) (Targe
 		PackageSelection string   `db:"package_selection"`
 		PinnedPackageID  *int64   `db:"pinned_package_id"`
 	}
-	qrows, err := s.db.Pool().Query(
+	qrows, err := s.pool.Query(
 		ctx,
 		`SELECT
 			direction::text AS direction,
@@ -199,7 +199,7 @@ type effectivePackageRow struct {
 
 // EffectivePackagesForHost resolves Munki package candidates for one host.
 func (s *Store) EffectivePackagesForHost(ctx context.Context, hostID int64) ([]EffectivePackage, error) {
-	qrows, err := s.db.Pool().Query(ctx, `
+	qrows, err := s.pool.Query(ctx, `
 SELECT
 	p.id AS package_id,
 	resolved.actions,

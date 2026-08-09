@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/listing"
@@ -14,12 +14,12 @@ import (
 )
 
 type Store struct {
-	db      *database.DB
+	pool    *pgxpool.Pool
 	objects *storage.ObjectStore
 }
 
-func NewStore(db *database.DB, objects *storage.ObjectStore) *Store {
-	return &Store{db: db, objects: objects}
+func NewStore(pool *pgxpool.Pool, objects *storage.ObjectStore) *Store {
+	return &Store{pool: pool, objects: objects}
 }
 
 type clientResourcesRow struct {
@@ -67,7 +67,7 @@ func (s *Store) List(
 		DefaultOrder: []dbutil.OrderExpr{{SQL: "cr.id"}},
 		Params:       params,
 	}
-	rows, count, err := dbutil.ListWithCount[clientResourcesRow](ctx, s.db.Pool(), query)
+	rows, count, err := dbutil.ListWithCount[clientResourcesRow](ctx, s.pool, query)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -79,7 +79,7 @@ func (s *Store) List(
 }
 
 func (s *Store) GetByID(ctx context.Context, id int64) (*ClientResources, error) {
-	return getByID(ctx, s.db.Pool(), id)
+	return getByID(ctx, s.pool, id)
 }
 
 func getByID(ctx context.Context, q dbutil.Queryer, id int64) (*ClientResources, error) {
@@ -124,7 +124,7 @@ type clientResourcesWrite struct {
 
 func (s *Store) Create(ctx context.Context, next clientResourcesWrite) (*ClientResources, error) {
 	var id int64
-	if err := s.db.Pool().QueryRow(ctx, `
+	if err := s.pool.QueryRow(ctx, `
 INSERT INTO munki_client_resources (
     archive_object_id,
     custom,
@@ -152,7 +152,7 @@ RETURNING id`, clientResourcesWriteArgs(next)).Scan(&id); err != nil {
 
 func (s *Store) Update(ctx context.Context, id int64, next clientResourcesWrite) (*ClientResources, error) {
 	var replacedObjectIDs []int64
-	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		existing, err := lockByID(ctx, tx, id)
 		if err != nil {
 			return err
@@ -218,7 +218,7 @@ func clientResourcesWriteArgs(next clientResourcesWrite) pgx.NamedArgs {
 func (s *Store) Delete(ctx context.Context, id int64) error {
 	var archiveObjectID int64
 	var bannerObjectID *int64
-	if err := s.db.Pool().QueryRow(ctx, `
+	if err := s.pool.QueryRow(ctx, `
 DELETE FROM munki_client_resources
 WHERE id = $1
 RETURNING archive_object_id, banner_object_id`, id).Scan(&archiveObjectID, &bannerObjectID); err != nil {

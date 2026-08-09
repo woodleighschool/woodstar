@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/listing"
@@ -15,12 +15,12 @@ import (
 
 // Store persists directory users, groups, memberships, and source snapshots.
 type Store struct {
-	db     *database.DB
+	pool   *pgxpool.Pool
 	labels *labels.Store
 }
 
-func NewStore(db *database.DB) *Store {
-	return &Store{db: db, labels: labels.NewStore(db)}
+func NewStore(pool *pgxpool.Pool) *Store {
+	return &Store{pool: pool, labels: labels.NewStore(pool)}
 }
 
 type userRow struct {
@@ -142,7 +142,7 @@ func (s *Store) createUser(
 	params userCreateRecord,
 ) (*User, error) {
 	var user User
-	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		qrows, err := tx.Query(ctx, `
 INSERT INTO users (email, name, password_hash, role, source)
 VALUES ($1, $2, $3, $4::user_role, 'local')
@@ -182,7 +182,7 @@ WHERE deleted_at IS NULL
 }
 
 func (s *Store) getUserByEmail(ctx context.Context, email string, whereSQL string) (*User, error) {
-	row, err := dbutil.GetOne[userRow](ctx, s.db.Pool(), userSelectSQL()+whereSQL, email)
+	row, err := dbutil.GetOne[userRow](ctx, s.pool, userSelectSQL()+whereSQL, email)
 	if err != nil {
 		return nil, dbutil.GetError(err)
 	}
@@ -191,7 +191,7 @@ func (s *Store) getUserByEmail(ctx context.Context, email string, whereSQL strin
 }
 
 func (s *Store) GetUserByID(ctx context.Context, id int64) (*User, error) {
-	row, err := dbutil.GetOne[userRow](ctx, s.db.Pool(), userSelectSQL()+`
+	row, err := dbutil.GetOne[userRow](ctx, s.pool, userSelectSQL()+`
 WHERE id = $1
   AND deleted_at IS NULL`, id)
 	if err != nil {
@@ -203,7 +203,7 @@ WHERE id = $1
 
 // GetAccountByID returns the signed-in user's self-view, including API key fields.
 func (s *Store) GetAccountByID(ctx context.Context, id int64) (*Account, error) {
-	row, err := dbutil.GetOne[userRow](ctx, s.db.Pool(), userSelectSQL()+`
+	row, err := dbutil.GetOne[userRow](ctx, s.pool, userSelectSQL()+`
 WHERE id = $1
   AND deleted_at IS NULL`, id)
 	if err != nil {
@@ -215,7 +215,7 @@ WHERE id = $1
 
 func (s *Store) ListUsers(ctx context.Context, params UserListParams) ([]User, int, error) {
 	where, args := userWhere(params)
-	rows, count, err := dbutil.ListWithCount[userRow](ctx, s.db.Pool(), userListQuery(params, where, args))
+	rows, count, err := dbutil.ListWithCount[userRow](ctx, s.pool, userListQuery(params, where, args))
 	if err != nil {
 		return nil, 0, err
 	}
@@ -228,7 +228,7 @@ func (s *Store) ListUsers(ctx context.Context, params UserListParams) ([]User, i
 
 func (s *Store) ListDepartments(ctx context.Context, params UserListParams) ([]Department, int, error) {
 	where, args := departmentWhere(params)
-	return dbutil.ListWithCount[Department](ctx, s.db.Pool(), departmentListQuery(params, where, args))
+	return dbutil.ListWithCount[Department](ctx, s.pool, departmentListQuery(params, where, args))
 }
 
 type userUpdateRecord struct {
@@ -243,7 +243,7 @@ func (s *Store) updateUser(ctx context.Context, id int64, params userUpdateRecor
 		v := string(*params.Role)
 		roleStr = &v
 	}
-	qrows, err := s.db.Pool().Query(ctx, `
+	qrows, err := s.pool.Query(ctx, `
 UPDATE users
 SET
     name = CASE WHEN source = 'local' THEN $1 ELSE name END,
@@ -273,7 +273,7 @@ func (s *Store) setLocalUserPasswordByEmail(
 	email string,
 	passwordHash string,
 ) (*User, error) {
-	qrows, err := s.db.Pool().Query(ctx, `
+	qrows, err := s.pool.Query(ctx, `
 UPDATE users
 SET
     password_hash = $1,
@@ -294,7 +294,7 @@ RETURNING `+userColumnsSQL(""), passwordHash, email)
 }
 
 func (s *Store) setUserRoleByEmail(ctx context.Context, email string, role Role) (*User, error) {
-	qrows, err := s.db.Pool().Query(ctx, `
+	qrows, err := s.pool.Query(ctx, `
 UPDATE users
 SET
     role = $1::user_role,
@@ -314,7 +314,7 @@ RETURNING `+userColumnsSQL(""), string(role), email)
 }
 
 func (s *Store) updateAccount(ctx context.Context, id int64, params accountUpdateRecord) (*Account, error) {
-	qrows, err := s.db.Pool().Query(ctx, `
+	qrows, err := s.pool.Query(ctx, `
 UPDATE users
 SET
     name = CASE WHEN source = 'local' THEN $1 ELSE name END,
@@ -341,7 +341,7 @@ func (s *Store) deleteUser(
 	ctx context.Context,
 	id int64,
 ) error {
-	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
+	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		var source Source
 		if err := tx.QueryRow(ctx, `
 SELECT source::text
@@ -376,7 +376,7 @@ RETURNING id`, id).Scan(&deletedID); err != nil {
 }
 
 func (s *Store) GetUserByAPIKey(ctx context.Context, key string) (*User, error) {
-	row, err := dbutil.GetOne[userRow](ctx, s.db.Pool(), userSelectSQL()+`
+	row, err := dbutil.GetOne[userRow](ctx, s.pool, userSelectSQL()+`
 WHERE api_key = $1
   AND deleted_at IS NULL
   AND role IS NOT NULL`, key)
@@ -388,7 +388,7 @@ WHERE api_key = $1
 }
 
 func (s *Store) setAccountAPIKey(ctx context.Context, id int64, key string) (*Account, error) {
-	qrows, err := s.db.Pool().Query(ctx, `
+	qrows, err := s.pool.Query(ctx, `
 UPDATE users
 SET
     api_key = $1,
@@ -411,7 +411,7 @@ RETURNING `+userColumnsSQL(""),
 }
 
 func (s *Store) clearAccountAPIKey(ctx context.Context, id int64) (*Account, error) {
-	qrows, err := s.db.Pool().Query(ctx, `
+	qrows, err := s.pool.Query(ctx, `
 UPDATE users
 SET
     api_key = NULL,

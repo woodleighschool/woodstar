@@ -8,7 +8,7 @@ import (
 
 // ReplaceHostSoftware replaces a host's software snapshot in one transaction.
 func (s *Store) ReplaceHostSoftware(ctx context.Context, hostID int64, entries []HostSoftwareEntry) error {
-	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
+	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		if err := resetHostSoftware(ctx, tx, hostID); err != nil {
 			return err
 		}

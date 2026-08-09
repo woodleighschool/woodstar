@@ -24,7 +24,7 @@ func TestOpenPreservesPoolSettings(t *testing.T) {
 	t.Setenv(testDatabaseURL, parsed.String())
 
 	db, _ := Open(t)
-	config := db.Pool().Config()
+	config := db.Config()
 	if config.MaxConns != 12 || config.MinConns != 2 {
 		t.Fatalf("pool bounds = %d/%d, want 12/2", config.MaxConns, config.MinConns)
 	}

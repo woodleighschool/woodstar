@@ -11,7 +11,7 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Package, error) {
 	if id <= 0 {
 		return nil, fault.ErrNotFound
 	}
-	row, err := dbutil.GetOne[packageRow](ctx, s.db.Pool(), packageSelectSQL()+"\nWHERE p.id = $1", id)
+	row, err := dbutil.GetOne[packageRow](ctx, s.pool, packageSelectSQL()+"\nWHERE p.id = $1", id)
 	if err != nil {
 		return nil, err
 	}
@@ -40,7 +40,7 @@ func (s *Store) List(ctx context.Context, params PackageListParams) ([]Package, 
 		},
 		Params: params.ListParams,
 	}
-	rows, count, err := dbutil.ListWithCount[packageRow](ctx, s.db.Pool(), listQuery)
+	rows, count, err := dbutil.ListWithCount[packageRow](ctx, s.pool, listQuery)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -54,7 +54,7 @@ func (s *Store) List(ctx context.Context, params PackageListParams) ([]Package, 
 // ListRepositoryPackages returns every package that may appear in the shared
 // Munki catalog.
 func (s *Store) ListRepositoryPackages(ctx context.Context) ([]Package, error) {
-	records, err := dbutil.GetAll[packageRow](ctx, s.db.Pool(), packageSelectSQL()+`
+	records, err := dbutil.GetAll[packageRow](ctx, s.pool, packageSelectSQL()+`
 ORDER BY lower(s.name), s.id, p.id`)
 	if err != nil {
 		return nil, err
@@ -70,7 +70,7 @@ func (s *Store) PackagesByID(ctx context.Context, ids []int64) ([]Package, error
 	}
 	records, err := dbutil.GetAll[packageRow](
 		ctx,
-		s.db.Pool(),
+		s.pool,
 		packageSelectSQL()+"\nWHERE p.id = ANY($1::bigint[])",
 		ids,
 	)

@@ -15,6 +15,7 @@ import (
 
 	"github.com/alexedwards/scs/pgxstore"
 	"github.com/alexedwards/scs/v2"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/spf13/cobra"
 
 	"github.com/woodleighschool/woodstar/internal/agentauth"
@@ -22,7 +23,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/buildinfo"
 	"github.com/woodleighschool/woodstar/internal/config"
-	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/directory"
 	"github.com/woodleighschool/woodstar/internal/directory/entra"
 	"github.com/woodleighschool/woodstar/internal/geoip"
@@ -44,6 +44,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/osquery/ingest"
 	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
 	"github.com/woodleighschool/woodstar/internal/osquery/reports"
+	"github.com/woodleighschool/woodstar/internal/postgres"
 	"github.com/woodleighschool/woodstar/internal/santa"
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 	"github.com/woodleighschool/woodstar/internal/santa/events"
@@ -125,13 +126,13 @@ func run(parent context.Context, cfg config.Config) error {
 		}
 	}
 
-	db, err := database.Open(ctx, cfg.DatabaseURL)
+	pool, err := postgres.Open(ctx, cfg.DatabaseURL)
 	if err != nil {
 		return fmt.Errorf("open database: %w", err)
 	}
-	defer db.Close()
+	defer pool.Close()
 
-	sessions, sessionStore := newSessions(db, cfg)
+	sessions, sessionStore := newSessions(pool, cfg)
 
 	// StopCleanup must run while the DB pool still exists.
 	defer sessionStore.StopCleanup()
@@ -144,7 +145,7 @@ func run(parent context.Context, cfg config.Config) error {
 	deps, starters, err := buildDependencies(
 		ctx,
 		cfg,
-		db,
+		pool,
 		sessions,
 		logger,
 		storageBackend,
@@ -206,7 +207,7 @@ func runServer(
 func buildDependencies(
 	ctx context.Context,
 	cfg config.Config,
-	db *database.DB,
+	pool *pgxpool.Pool,
 	sessions *scs.SessionManager,
 	logger *slog.Logger,
 	storageBackend storage.Backend,
@@ -215,23 +216,23 @@ func buildDependencies(
 	storageDelivery := storage.NewDelivery(storageBackend)
 
 	// Core stores.
-	labelStore := labels.NewStore(db)
-	directoryStore := directory.NewStore(db)
-	hostStore, heartbeatStore := newHostStores(db)
-	secretStore := agentauth.NewStore(db)
-	inventoryStore := inventory.NewStore(db)
-	primaryUsers := hosts.NewPrimaryUserStore(db)
+	labelStore := labels.NewStore(pool)
+	directoryStore := directory.NewStore(pool)
+	hostStore, heartbeatStore := newHostStores(pool)
+	secretStore := agentauth.NewStore(pool)
+	inventoryStore := inventory.NewStore(pool)
+	primaryUsers := hosts.NewPrimaryUserStore(pool)
 
 	// Osquery stores.
-	reportStore := reports.NewStore(db)
-	checkStore := checks.NewStore(db)
+	reportStore := reports.NewStore(pool)
+	checkStore := checks.NewStore(pool)
 	liveQueries := livequery.NewManager()
 
 	// Munki stores.
 	storageLogger := logger.With("component", "storage")
-	objectStore := storage.NewObjectStore(db, storageBackend, storageLogger)
+	objectStore := storage.NewObjectStore(pool, storageBackend, storageLogger)
 	storageIngestor := storage.NewIngestor(objectStore, storageBackend)
-	clientResourceStore := clientresources.NewStore(db, objectStore)
+	clientResourceStore := clientresources.NewStore(pool, objectStore)
 	clientResourceService := clientresources.NewService(
 		clientResourceStore,
 		objectStore,
@@ -239,18 +240,18 @@ func buildDependencies(
 		storageBackend,
 	)
 	packageStore := packages.NewStore(
-		db,
+		pool,
 		objectStore,
 	)
-	munkiSoftwareStore := munkisoftware.NewStore(db, objectStore, packageStore)
-	munkiHostState := munki.NewStore(db)
+	munkiSoftwareStore := munkisoftware.NewStore(pool, objectStore, packageStore)
+	munkiHostState := munki.NewStore(pool)
 
 	// Santa stores.
-	santaHostStore := santa.NewStore(db)
-	configurationStore := configurations.NewStore(db)
-	eventStore := events.NewStore(db)
-	ruleStore := rules.NewStore(db)
-	syncStore := syncstate.NewStore(db)
+	santaHostStore := santa.NewStore(pool)
+	configurationStore := configurations.NewStore(pool)
+	eventStore := events.NewStore(pool)
+	ruleStore := rules.NewStore(pool)
+	syncStore := syncstate.NewStore(pool)
 
 	userService := directory.NewUserService(directoryStore)
 	authService, err := newAuth(ctx, cfg, userService, sessions)
@@ -287,7 +288,7 @@ func buildDependencies(
 		ClientResources: clientResourceStore,
 	})
 	munkiDistributionLogger := logger.With("component", "munki_distribution")
-	munkiDistribution := mdp.NewStore(db, objectStore, munkiDistributionLogger)
+	munkiDistribution := mdp.NewStore(pool, objectStore, munkiDistributionLogger)
 	munkiDistributionProtocol, err := mdpprotocol.NewServer(
 		ctx,
 		munkiDistribution,
@@ -319,7 +320,7 @@ func buildDependencies(
 
 	deps := &api.Dependencies{
 		Config:         cfg,
-		DB:             db,
+		Ready:          pool.Ping,
 		Version:        buildinfo.Version,
 		Logger:         logger,
 		SessionManager: sessions,
@@ -390,8 +391,8 @@ func buildDependencies(
 	return deps, starters, nil
 }
 
-func newHostStores(db *database.DB) (*hosts.Store, *heartbeats.Store) {
-	return hosts.NewStore(db), heartbeats.NewStore(db)
+func newHostStores(pool *pgxpool.Pool) (*hosts.Store, *heartbeats.Store) {
+	return hosts.NewStore(pool), heartbeats.NewStore(pool)
 }
 
 func storageUploadCleanupStarter(
@@ -532,8 +533,8 @@ func start(ctx context.Context, starts ...starter) func() {
 	}
 }
 
-func newSessions(db *database.DB, cfg config.Config) (*scs.SessionManager, *pgxstore.PostgresStore) {
-	store := pgxstore.New(db.Pool())
+func newSessions(pool *pgxpool.Pool, cfg config.Config) (*scs.SessionManager, *pgxstore.PostgresStore) {
+	store := pgxstore.New(pool)
 
 	sessions := scs.New()
 	sessions.Store = store

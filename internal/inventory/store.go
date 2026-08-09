@@ -1,14 +1,12 @@
 package inventory
 
-import (
-	"github.com/woodleighschool/woodstar/internal/database"
-)
+import "github.com/jackc/pgx/v5/pgxpool"
 
 // Store persists global software titles and host inventory joins.
 type Store struct {
-	db *database.DB
+	pool *pgxpool.Pool
 }
 
-func NewStore(db *database.DB) *Store {
-	return &Store{db: db}
+func NewStore(pool *pgxpool.Pool) *Store {
+	return &Store{pool: pool}
 }

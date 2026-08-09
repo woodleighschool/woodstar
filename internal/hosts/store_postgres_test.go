@@ -45,7 +45,7 @@ func TestApplyInventoryAcceptsBigMemory(t *testing.T) {
 
 func TestLoadDetailResolvesPrimaryUserFromSourceEmail(t *testing.T) {
 	store, ctx := newPostgresHostStore(t)
-	primaryUsers := NewPrimaryUserStore(store.db)
+	primaryUsers := NewPrimaryUserStore(store.pool)
 
 	host, err := store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
 		Hardware:     HostHardware{UUID: "test-primary-user-direct-user"},
@@ -54,7 +54,7 @@ func TestLoadDetailResolvesPrimaryUserFromSourceEmail(t *testing.T) {
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
 	}
-	if _, err := store.db.Pool().Exec(ctx, `
+	if _, err := store.pool.Exec(ctx, `
 INSERT INTO users (
 	email, name, source, external_id, user_principal_name,
 	mail_nickname, given_name, family_name, department
@@ -100,7 +100,7 @@ VALUES (
 
 func TestPrimaryUserManualSourceOverridesReportedSource(t *testing.T) {
 	store, ctx := newPostgresHostStore(t)
-	primaryUsers := NewPrimaryUserStore(store.db)
+	primaryUsers := NewPrimaryUserStore(store.pool)
 
 	host, err := store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
 		Hardware:     HostHardware{UUID: "test-primary-user-manual-override"},
@@ -109,7 +109,7 @@ func TestPrimaryUserManualSourceOverridesReportedSource(t *testing.T) {
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
 	}
-	if _, err := store.db.Pool().Exec(ctx, `
+	if _, err := store.pool.Exec(ctx, `
 INSERT INTO users (
 	email, name, source, external_id, user_principal_name,
 	mail_nickname, department
@@ -191,7 +191,7 @@ VALUES
 
 func TestPrimaryUserStoreReturnsNotFoundForMissingHost(t *testing.T) {
 	store, ctx := newPostgresHostStore(t)
-	primaryUsers := NewPrimaryUserStore(store.db)
+	primaryUsers := NewPrimaryUserStore(store.pool)
 
 	if err := primaryUsers.Upsert(
 		ctx,
@@ -218,12 +218,12 @@ func TestPrimaryUserStoreRollsBackWhenDerivedLabelsCannotRefresh(t *testing.T) {
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
 	}
-	if _, err := store.db.Pool().Exec(ctx, `
+	if _, err := store.pool.Exec(ctx, `
 INSERT INTO labels (name, criteria, label_type, label_membership_type)
 VALUES ('Invalid derived label', '{"attribute":"invalid","values":["value"]}', 'regular', 'derived')`); err != nil {
 		t.Fatalf("insert invalid derived label: %v", err)
 	}
-	primaryUsers := NewPrimaryUserStore(store.db)
+	primaryUsers := NewPrimaryUserStore(store.pool)
 
 	err = primaryUsers.Upsert(ctx, host.ID, "rollback@example.test", PrimaryUserSourceManual)
 	if err == nil {
@@ -231,7 +231,7 @@ VALUES ('Invalid derived label', '{"attribute":"invalid","values":["value"]}', '
 	}
 
 	var count int
-	if err := store.db.Pool().QueryRow(ctx, `
+	if err := store.pool.QueryRow(ctx, `
 SELECT count(*)
 FROM host_primary_user_sources
 WHERE host_id = $1 AND source = 'manual'`, host.ID).Scan(&count); err != nil {
@@ -245,7 +245,7 @@ WHERE host_id = $1 AND source = 'manual'`, host.ID).Scan(&count); err != nil {
 // New hosts land in All Hosts.
 func TestEnrollAddsHostToAllHosts(t *testing.T) {
 	store, ctx := newPostgresHostStore(t)
-	labelStore := labels.NewStore(store.db)
+	labelStore := labels.NewStore(store.pool)
 
 	host, err := store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
 		Hardware:     HostHardware{UUID: "test-enroll-all-hosts"},
@@ -514,7 +514,7 @@ func TestHostListFiltersAndSortsByFlattenedContactFields(t *testing.T) {
 
 func TestHostListSearchesPersistedIdentityNetworkAndPrimaryUserFields(t *testing.T) {
 	store, ctx := newPostgresHostStore(t)
-	primaryUsers := NewPrimaryUserStore(store.db)
+	primaryUsers := NewPrimaryUserStore(store.pool)
 	host, err := store.UpsertOnOsqueryEnroll(ctx, InventoryUpdate{
 		ComputerName:   "Searchable Mac",
 		Hardware:       HostHardware{UUID: "test-search-host", Serial: "C02SEARCH123"},
@@ -557,7 +557,7 @@ func TestHostListSearchesPersistedIdentityNetworkAndPrimaryUserFields(t *testing
 	recordTestHeartbeat(
 		t, ctx, store, host.ID, heartbeats.SourceOsquery, time.Now(), "198.51.100.77", "",
 	)
-	if _, err := store.db.Pool().Exec(ctx, `
+	if _, err := store.pool.Exec(ctx, `
 INSERT INTO users (
 	email, name, source, external_id, user_principal_name,
 	mail_nickname, given_name, family_name, department
@@ -612,7 +612,7 @@ VALUES (
 
 func TestResolveSelectedTargetsMergesDirectHostsAndLabels(t *testing.T) {
 	store, ctx := newPostgresHostStore(t)
-	labelStore := labels.NewStore(store.db)
+	labelStore := labels.NewStore(store.pool)
 
 	directHost, err := store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
 		Hardware:     HostHardware{UUID: "test-live-target-direct"},
@@ -653,7 +653,7 @@ func TestResolveSelectedTargetsMergesDirectHostsAndLabels(t *testing.T) {
 
 func TestCountSelectedTargetsSplitsOnlineAndOffline(t *testing.T) {
 	store, ctx := newPostgresHostStore(t)
-	labelStore := labels.NewStore(store.db)
+	labelStore := labels.NewStore(store.pool)
 	now := time.Date(2026, 5, 15, 12, 0, 0, 0, time.UTC)
 
 	onlineHost, err := store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
@@ -699,7 +699,7 @@ func TestCountSelectedTargetsSplitsOnlineAndOffline(t *testing.T) {
 
 func TestResolveOnlineSelectedTargetsReturnsOnlyCurrentlyOnlineHosts(t *testing.T) {
 	store, ctx := newPostgresHostStore(t)
-	labelStore := labels.NewStore(store.db)
+	labelStore := labels.NewStore(store.pool)
 	now := time.Date(2026, 5, 19, 12, 0, 0, 0, time.UTC)
 
 	onlineHost, err := store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
@@ -827,7 +827,7 @@ func recordTestHeartbeat(
 	userAgent string,
 ) {
 	t.Helper()
-	if _, err := store.db.Pool().Exec(ctx, `
+	if _, err := store.pool.Exec(ctx, `
 INSERT INTO host_heartbeats (host_id, source, last_seen_at, remote_ip, user_agent)
 VALUES ($1, $2, $3, NULLIF($4, '')::inet, $5)
 ON CONFLICT (host_id, source) DO UPDATE SET

@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/listing"
@@ -16,11 +16,11 @@ import (
 )
 
 type Store struct {
-	db *database.DB
+	pool *pgxpool.Pool
 }
 
-func NewStore(db *database.DB) *Store {
-	return &Store{db: db}
+func NewStore(pool *pgxpool.Pool) *Store {
+	return &Store{pool: pool}
 }
 
 func (s *Store) List(
@@ -38,7 +38,7 @@ func (s *Store) List(
 		Params:       params.ListParams,
 	}
 
-	rows, count, err := dbutil.ListWithCount[configurationRow](ctx, s.db.Pool(), listQuery)
+	rows, count, err := dbutil.ListWithCount[configurationRow](ctx, s.pool, listQuery)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -61,7 +61,7 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Configuration, error) {
 	}
 	row, err := dbutil.GetOne[configurationRow](
 		ctx,
-		s.db.Pool(),
+		s.pool,
 		configurationSelectSQL()+"\nWHERE c.id = $1",
 		id,
 	)
@@ -84,7 +84,7 @@ func (s *Store) Create(ctx context.Context, params ConfigurationMutation) (*Conf
 
 	write := newConfigurationWrite(params)
 	var id int64
-	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		if err := tx.QueryRow(ctx, `
 			INSERT INTO santa_configurations (
 				name,
@@ -146,7 +146,7 @@ func (s *Store) Update(ctx context.Context, id int64, params ConfigurationMutati
 
 	write := newConfigurationWrite(params)
 	write.ID = id
-	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		var updatedID int64
 		if err := tx.QueryRow(ctx, `
 			UPDATE santa_configurations
@@ -183,7 +183,7 @@ func (s *Store) Update(ctx context.Context, id int64, params ConfigurationMutati
 }
 
 func (s *Store) Delete(ctx context.Context, id int64) error {
-	tag, err := s.db.Pool().Exec(ctx, `DELETE FROM santa_configurations WHERE id = $1`, id)
+	tag, err := s.pool.Exec(ctx, `DELETE FROM santa_configurations WHERE id = $1`, id)
 	if err != nil {
 		return dbutil.DeleteConflict(err, "Santa configuration is still referenced")
 	}
@@ -198,7 +198,7 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 	if len(ids) == 0 {
 		return 0, nil
 	}
-	rows, err := s.db.Pool().Query(
+	rows, err := s.pool.Query(
 		ctx,
 		`DELETE FROM santa_configurations WHERE id = ANY($1::bigint[]) RETURNING id`,
 		ids,
@@ -214,7 +214,7 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 }
 
 func (s *Store) ReorderConfigurations(ctx context.Context, orderedIDs []int64) error {
-	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
+	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		var updated, total int
 		if err := tx.QueryRow(ctx, `
 WITH ordered AS (
@@ -263,7 +263,7 @@ func (s *Store) ResolveConfigurationForHost(ctx context.Context, hostID int64) (
 		LabelName string `db:"label_name"`
 	}
 
-	qrows, err := s.db.Pool().Query(ctx, `
+	qrows, err := s.pool.Query(ctx, `
 		SELECT
 			c.id,
 			c.name,
@@ -406,7 +406,7 @@ func (s *Store) attachConfigurationTargets(
 		Direction       string `db:"direction"`
 	}
 
-	qrows, err := s.db.Pool().Query(ctx, `
+	qrows, err := s.pool.Query(ctx, `
 		SELECT configuration_id, label_id, direction::text AS direction
 		FROM santa_configuration_targets
 		WHERE configuration_id = ANY($1::bigint[])

@@ -115,7 +115,7 @@ func (s *ObjectStore) claimExpiredPending(
 	retryBefore time.Time,
 	limit int,
 ) ([]Object, error) {
-	rows, err := s.db.Pool().Query(ctx, `
+	rows, err := s.pool.Query(ctx, `
 WITH candidates AS (
     SELECT id
     FROM storage_objects
@@ -147,7 +147,7 @@ RETURNING objects.id, objects.prefix, objects.filename, objects.content_type,
 }
 
 func (s *ObjectStore) deleteExpiredPending(ctx context.Context, id int64) error {
-	tag, err := s.db.Pool().Exec(ctx, `
+	tag, err := s.pool.Exec(ctx, `
 DELETE FROM storage_objects
 WHERE id = $1
   AND expired_at IS NOT NULL`, id)
