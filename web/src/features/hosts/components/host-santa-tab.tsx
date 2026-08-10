@@ -31,7 +31,6 @@ const santaRuleColumns: DataTableColumnDef<SantaRuleStatus>[] = [
     ),
     size: 240,
     minSize: 160,
-    maxSize: 400,
   },
   {
     accessorKey: "rule_type",
@@ -48,7 +47,6 @@ const santaRuleColumns: DataTableColumnDef<SantaRuleStatus>[] = [
     cell: ({ row }) => row.original.identifier || "-",
     size: 320,
     minSize: 200,
-    maxSize: 720,
   },
   {
     accessorKey: "policy",

@@ -68,7 +68,6 @@ function ruleColumns(isAdmin: boolean): DataTableColumnDef<RuleTableRow>[] {
       enableHiding: false,
       size: 240,
       minSize: 160,
-      maxSize: 400,
       meta: { label: "Name" },
     },
     {
@@ -90,7 +89,6 @@ function ruleColumns(isAdmin: boolean): DataTableColumnDef<RuleTableRow>[] {
       cell: ({ row }) => row.original.rule.identifier || "-",
       size: 320,
       minSize: 200,
-      maxSize: 720,
       meta: { label: "Identifier" },
     },
     {

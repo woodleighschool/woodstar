@@ -60,6 +60,8 @@ const softwareColumns: DataTableColumnDef<HostSoftware>[] = [
         </Link>
       </div>
     ),
+    size: 240,
+    minSize: 160,
     meta: { label: "Name" },
   },
   {
@@ -67,6 +69,10 @@ const softwareColumns: DataTableColumnDef<HostSoftware>[] = [
     accessorFn: (row) => row.installed_versions[0].version,
     header: "Version",
     cell: ({ row }) => versionsSummaryLabel(row.original.installed_versions),
+    size: 112,
+    minSize: 112,
+    maxSize: 112,
+    enableResizing: false,
     meta: { label: "Version" },
   },
   {
@@ -74,6 +80,10 @@ const softwareColumns: DataTableColumnDef<HostSoftware>[] = [
     accessorKey: "source",
     header: "Type",
     cell: ({ row }) => softwareSourceLabel(row.original.source, row.original.extension_for),
+    size: 144,
+    minSize: 144,
+    maxSize: 144,
+    enableResizing: false,
     meta: { label: "Type", options: SOURCE_FILTER_OPTIONS },
     enableColumnFilter: true,
   },
@@ -85,6 +95,10 @@ const softwareColumns: DataTableColumnDef<HostSoftware>[] = [
       const lastOpenedAt = pickLatestLastOpened(row.original.installed_versions);
       return lastOpenedAt ? formatRelative(lastOpenedAt) : "-";
     },
+    size: 136,
+    minSize: 136,
+    maxSize: 136,
+    enableResizing: false,
     meta: { label: "Last Opened" },
   },
   {
@@ -105,6 +119,8 @@ const softwareColumns: DataTableColumnDef<HostSoftware>[] = [
         />
       );
     },
+    size: 360,
+    minSize: 240,
     meta: { label: "File path" },
   },
 ];

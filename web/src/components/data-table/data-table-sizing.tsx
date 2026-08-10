@@ -7,12 +7,13 @@ import type {
 } from "@components/data-table/types";
 import { cn } from "@lib/utils";
 
-// `size` is the preferred flex basis. Columns grow into spare room, preserve
-// their use-case minimum, and only overflow the surface once their bases no longer fit.
+// `size` is both the preferred flex basis and the relative share of spare room.
+// Columns preserve their use-case minimum and only overflow the surface once
+// their bases no longer fit.
 export const DATA_TABLE_DEFAULT_COLUMN = {
   size: 160,
   minSize: 72,
-  maxSize: 960,
+  maxSize: Number.MAX_SAFE_INTEGER,
 } as const;
 
 export const DATA_TABLE_CONTROL_COLUMN = {
@@ -29,11 +30,13 @@ export function getDataTableColumnStyle<TData extends DataTableRowData, TValue>(
   const minSize = column.columnDef.minSize ?? DATA_TABLE_DEFAULT_COLUMN.minSize;
   const maxSize = column.columnDef.maxSize ?? DATA_TABLE_DEFAULT_COLUMN.maxSize;
   const isFixed = minSize === maxSize;
+  const isTrailingActions = column.id === "actions" && column.getAfter() === 0;
 
   return {
-    flex: `${isFixed ? 0 : 1} 0 ${size}px`,
+    flex: `${isFixed ? 0 : size / DATA_TABLE_DEFAULT_COLUMN.size} 0 ${size}px`,
+    marginLeft: isTrailingActions ? "auto" : undefined,
     minWidth: minSize,
-    maxWidth: maxSize,
+    maxWidth: maxSize === Number.MAX_SAFE_INTEGER ? undefined : maxSize,
     width: size,
   };
 }

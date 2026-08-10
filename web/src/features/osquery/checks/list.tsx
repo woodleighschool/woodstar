@@ -147,7 +147,6 @@ const checkColumns: DataTableColumnDef<CheckTableRow>[] = [
     enableHiding: false,
     size: 360,
     minSize: 240,
-    maxSize: 720,
     meta: { label: "Name" },
   },
   {

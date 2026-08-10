@@ -21,7 +21,6 @@ const softwareColumns: DataTableColumnDef<MunkiHostManifestSoftware>[] = [
     cell: ({ row }) => <MunkiSoftwareCell software={row.original} />,
     size: 240,
     minSize: 180,
-    maxSize: 480,
   },
   {
     accessorKey: "actions",

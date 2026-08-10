@@ -237,7 +237,6 @@ function configurationColumns(
       enableHiding: false,
       size: 320,
       minSize: 200,
-      maxSize: 720,
       meta: { label: "Name" },
     },
     {

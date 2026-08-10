@@ -212,7 +212,6 @@ function distributionPointColumns(
       enableHiding: false,
       size: 200,
       minSize: 144,
-      maxSize: 360,
       meta: { label: "Name" },
     },
     {
@@ -265,7 +264,6 @@ function distributionPointColumns(
         row.original.client_base_url || <span className="text-muted-foreground">-</span>,
       size: 300,
       minSize: 220,
-      maxSize: 720,
       meta: { label: "Base URL" },
     },
   ];
