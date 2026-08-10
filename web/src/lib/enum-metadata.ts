@@ -1,9 +1,7 @@
 import type { ComponentProps } from "react";
 
-import type { Badge } from "@components/ui/badge";
 import type { Status } from "@components/ui/status";
 
-type BadgeVariant = ComponentProps<typeof Badge>["variant"];
 type StatusVariant = ComponentProps<typeof Status>["variant"];
 
 interface EnumLabel {
@@ -11,16 +9,11 @@ interface EnumLabel {
   description?: string;
 }
 
-interface EnumMetadata extends EnumLabel {
-  variant?: BadgeVariant;
-  badgeClassName?: string;
-}
-
 interface StatusMetadata extends EnumLabel {
   variant?: StatusVariant;
 }
 
-export type EnumMetadataMap<T extends string> = Record<T, EnumMetadata>;
+export type EnumMetadataMap<T extends string> = Record<T, EnumLabel>;
 export type StatusMetadataMap<T extends string> = Record<T, StatusMetadata>;
 
 export function enumOptions<const Value extends string>(

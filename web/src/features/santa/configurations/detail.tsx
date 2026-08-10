@@ -9,6 +9,7 @@ import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link } from "@components/link";
 import { QueryGate } from "@components/query-gate";
 import { LabelTargetDetails } from "@components/targeting/target-details";
+import { TokenList } from "@components/token-list";
 import { Button } from "@components/ui/button";
 import { useAuth } from "@features/auth/queries";
 import type { SantaRemovableMediaPolicy } from "@lib/api";
@@ -157,9 +158,7 @@ function MediaPolicyValue({ policy }: { policy: SantaRemovableMediaPolicy | unde
   return (
     <div className="flex flex-wrap items-center gap-2">
       <EnumBadge value={action} metadata={MEDIA_ACTIONS} />
-      {policy?.remount_flags?.length ? (
-        <span className="text-xs text-muted-foreground">{policy.remount_flags.join(", ")}</span>
-      ) : null}
+      {policy?.remount_flags?.length ? <TokenList values={policy.remount_flags} /> : null}
     </div>
   );
 }

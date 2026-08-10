@@ -8,6 +8,7 @@ import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link, TextLink } from "@components/link";
 import { QueryGate } from "@components/query-gate";
+import { TokenList } from "@components/token-list";
 import { Button } from "@components/ui/button";
 import { useAuth } from "@features/auth/queries";
 import { SoftwareArtwork } from "@features/software/software-icon";
@@ -107,7 +108,10 @@ export function MunkiPackageDetailPage() {
         />
         <KeyValueRow label="Minimum macOS" value={pkg.minimum_os_version || "Any"} />
         <KeyValueRow label="Maximum macOS" value={pkg.maximum_os_version || "Any"} />
-        <KeyValueRow label="Architecture" value={valueList(pkg.supported_architectures)} />
+        <KeyValueRow
+          label="Architecture"
+          value={<TokenList values={pkg.supported_architectures} empty="Any" />}
+        />
       </KeyValueSection>
 
       <KeyValueSection title="Behaviour">
@@ -156,8 +160,4 @@ function PackageReferences({ values }: { values: MunkiPackageReference[] }) {
       ))}
     </div>
   );
-}
-
-function valueList(values: string[]) {
-  return values.length > 0 ? values.join(", ") : "Any";
 }

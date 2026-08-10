@@ -7,6 +7,7 @@ import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { ScrollableTabs, ScrollableTabsList } from "@components/layout/scrollable-tabs";
 import { Link } from "@components/link";
 import { QueryGate } from "@components/query-gate";
+import { TokenList } from "@components/token-list";
 import {
   Table,
   TableBody,
@@ -286,8 +287,7 @@ function ValueText({ value }: { value?: string }) {
 
 function ValueList({ values }: { values: string[] }) {
   const cleaned = values.filter(Boolean);
-  if (cleaned.length === 0) return <span className="text-sm text-muted-foreground">-</span>;
-  return <span className="wrap-break-word">{cleaned.join(", ")}</span>;
+  return <TokenList values={cleaned} />;
 }
 
 function formatNumber(value?: number) {

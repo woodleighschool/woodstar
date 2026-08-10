@@ -13,7 +13,7 @@ import { PanelEmptyState } from "@components/panel-empty-state";
 import { QueryError } from "@components/query-error";
 import { useHostOsqueryChecks } from "@features/hosts/queries";
 import { CHECK_RESULT_STATUS_OPTIONS } from "@features/osquery/checks/model";
-import { checkResultStatusLabel } from "@features/osquery/checks/query-results";
+import { CheckResultStatus } from "@features/osquery/checks/query-results";
 import type { OsqueryCheckHostStatus } from "@lib/api";
 import { formatRelative } from "@lib/utils";
 
@@ -31,7 +31,7 @@ const checkColumns: DataTableColumnDef<OsqueryCheckHostStatus>[] = [
     accessorKey: "status",
     header: () => "Status",
     enableColumnFilter: true,
-    cell: ({ row }) => checkResultStatusLabel(row.original.status),
+    cell: ({ row }) => <CheckResultStatus status={row.original.status} />,
   },
   {
     accessorKey: "updated_at",

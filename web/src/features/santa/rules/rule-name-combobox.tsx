@@ -1,12 +1,11 @@
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 
+import { EnumBadge } from "@components/enum-badge";
 import { FreeTextCombobox } from "@components/free-text-combobox";
-import { Badge } from "@components/ui/badge";
 import { useSoftware } from "@features/software/queries";
 import { useDebouncedCallback } from "@hooks/use-debounced-callback";
 import type { SoftwareTitle } from "@lib/api";
-import { cn } from "@lib/utils";
 
 import { RULE_TYPES, type SantaRuleType } from "./metadata";
 
@@ -129,20 +128,15 @@ function candidateValue(candidate: RuleNameCandidate): string {
 }
 
 function renderCandidate(candidate: RuleNameCandidate): ReactNode {
-  const metadata = RULE_TYPES[candidate.ruleType];
-  const badgeClassName = "badgeClassName" in metadata ? metadata.badgeClassName : undefined;
   return (
     <>
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="truncate font-medium">{candidate.name}</span>
         <span className="truncate text-xs text-muted-foreground">{candidate.identifier}</span>
       </span>
-      <Badge
-        variant={metadata.variant ?? "secondary"}
-        className={cn("shrink-0 self-center", badgeClassName)}
-      >
-        {metadata.name}
-      </Badge>
+      <span className="shrink-0 self-center">
+        <EnumBadge value={candidate.ruleType} metadata={RULE_TYPES} variant="outline" />
+      </span>
     </>
   );
 }

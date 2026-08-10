@@ -1,5 +1,6 @@
 import { DataTableStatic } from "@components/data-table/data-table-static";
 import type { DataTableColumnDef } from "@components/data-table/types";
+import { EnumStatusIndicator } from "@components/enum-status-indicator";
 import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { TextLink } from "@components/link";
 import { PanelEmptyState } from "@components/panel-empty-state";
@@ -11,7 +12,15 @@ import { useHostMunkiSoftware } from "@features/hosts/queries";
 import { MUNKI_SOFTWARE_ACTIONS, type MunkiSoftwareAction } from "@features/munki/software/actions";
 import { SoftwareArtwork } from "@features/software/software-icon";
 import type { ApiError, MunkiHostManifestSoftware, MunkiHostState } from "@lib/api";
+import type { StatusMetadataMap } from "@lib/enum-metadata";
 import { MAX_PAGE_SIZE } from "@lib/pagination";
+
+type MunkiSoftwareStatus = "installed" | "pending";
+
+const MUNKI_SOFTWARE_STATUSES = {
+  installed: { name: "Installed", variant: "success" },
+  pending: { name: "Pending", variant: "default" },
+} satisfies StatusMetadataMap<MunkiSoftwareStatus>;
 
 const softwareColumns: DataTableColumnDef<MunkiHostManifestSoftware>[] = [
   {
@@ -49,7 +58,7 @@ const softwareColumns: DataTableColumnDef<MunkiHostManifestSoftware>[] = [
   {
     id: "status",
     header: () => "Status",
-    cell: ({ row }) => munkiSoftwareStatus(row.original) ?? "-",
+    cell: ({ row }) => <MunkiSoftwareStatus software={row.original} />,
     size: 200,
     minSize: 200,
     maxSize: 200,
@@ -175,16 +184,22 @@ function MunkiActionBadge({ action }: { action: MunkiSoftwareAction }) {
   );
 }
 
-function munkiSoftwareStatus(software: MunkiHostManifestSoftware): string | null {
+function MunkiSoftwareStatus({ software }: { software: MunkiHostManifestSoftware }) {
+  const status = munkiSoftwareStatus(software);
+  if (status === null) return "-";
+  return <EnumStatusIndicator value={status} metadata={MUNKI_SOFTWARE_STATUSES} />;
+}
+
+function munkiSoftwareStatus(software: MunkiHostManifestSoftware): MunkiSoftwareStatus | null {
   const observation = software.observation;
   if (!observation) return null;
 
   if (observation.target_version) {
-    return "Pending";
+    return "pending";
   }
 
   if (observation.installed) {
-    return "Installed";
+    return "installed";
   }
 
   return null;

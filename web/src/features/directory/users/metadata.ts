@@ -14,12 +14,10 @@ const USER_ROLES = {
   admin: {
     name: "Admin",
     description: "Can manage Woodstar settings, users, enrollments, and data.",
-    variant: "default",
   },
   viewer: {
     name: "Viewer",
     description: "Can view Woodstar data without making administrative changes.",
-    variant: "secondary",
   },
 } satisfies EnumMetadataMap<UserRole>;
 
@@ -28,7 +26,6 @@ export const USER_ACCESS_ROLES = {
   none: {
     name: "No Access",
     description: "Cannot sign in until a role is assigned.",
-    variant: "outline",
   },
 } satisfies EnumMetadataMap<UserAccessRole>;
 

@@ -5,16 +5,14 @@ import type { EnumMetadataMap } from "@lib/enum-metadata";
 export function EnumBadge<T extends string>({
   value,
   metadata,
+  variant = "secondary",
 }: {
   value: T;
   metadata: EnumMetadataMap<T>;
+  variant?: "secondary" | "outline";
 }) {
   const item = metadata[value];
-  const badge = (
-    <Badge variant={item.variant ?? "secondary"} className={item.badgeClassName}>
-      {item.name}
-    </Badge>
-  );
+  const badge = <Badge variant={variant}>{item.name}</Badge>;
 
   if (!item.description) return badge;
 

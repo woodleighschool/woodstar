@@ -16,6 +16,7 @@ import { QueryError } from "@components/query-error";
 import { listAllHostOsqueryReports, useHostOsqueryReports } from "@features/hosts/queries";
 import {
   REPORT_SNAPSHOT_STATUS_OPTIONS,
+  ReportResultStatus,
   resultColumnNames,
   resultRowCountLabel,
   serializeSnapshots,
@@ -64,7 +65,7 @@ const hostReportColumns: DataTableColumnDef<OsqueryReportSnapshot>[] = [
     accessorKey: "status",
     header: () => "Status",
     enableColumnFilter: true,
-    cell: ({ row }) => snapshotStatusLabel(row.original),
+    cell: ({ row }) => <ReportResultStatus row={row.original} />,
   },
   {
     id: "collected_at",

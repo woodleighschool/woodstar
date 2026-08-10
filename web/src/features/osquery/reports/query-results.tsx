@@ -4,6 +4,7 @@ import type {
 } from "@components/data-table/data-table-export";
 import { DataTableRowExpander } from "@components/data-table/data-table-row-expander";
 import type { DataTableColumnDef } from "@components/data-table/types";
+import { EnumStatusIndicator } from "@components/enum-status-indicator";
 import { TextLink } from "@components/link";
 import {
   Table,
@@ -14,6 +15,7 @@ import {
   TableRow,
 } from "@components/ui/table";
 import type { OsqueryReportSnapshot } from "@lib/api";
+import type { StatusMetadataMap } from "@lib/enum-metadata";
 import { formatRelative } from "@lib/utils";
 
 type SnapshotStatus = OsqueryReportSnapshot["status"];
@@ -37,6 +39,13 @@ export const REPORT_SNAPSHOT_STATUS_OPTIONS = [
   { label: "Collected", value: "collected" },
   { label: "Pending", value: "pending" },
 ] satisfies { label: string; value: SnapshotStatus }[];
+
+const REPORT_RESULT_STATUSES = {
+  collected: { name: "Collected", variant: "success" },
+  pending: { name: "Pending", variant: "default" },
+  error: { name: "Error", variant: "error" },
+  stopped: { name: "Stopped", variant: "default" },
+} satisfies StatusMetadataMap<ReportResultStatus>;
 
 export function reportResultFromSnapshot(snapshot: OsqueryReportSnapshot): ReportResultRow {
   return {
@@ -100,7 +109,7 @@ export function createReportResultColumns({
       accessorKey: "status",
       header: () => "Status",
       enableColumnFilter: true,
-      cell: ({ row }) => snapshotStatusLabel(row.original),
+      cell: ({ row }) => <ReportResultStatus row={row.original} />,
     },
     timestampColumn,
     {
@@ -136,13 +145,11 @@ function snapshotStatus(row: ReportResultRow): ReportResultStatus {
 }
 
 export function snapshotStatusLabel(row: ReportResultRow): string {
-  const labels: Record<ReportResultStatus, string> = {
-    pending: "Pending",
-    collected: "Collected",
-    error: "Error",
-    stopped: "Stopped",
-  };
-  return labels[snapshotStatus(row)];
+  return REPORT_RESULT_STATUSES[snapshotStatus(row)].name;
+}
+
+export function ReportResultStatus({ row }: { row: ReportResultRow }) {
+  return <EnumStatusIndicator value={snapshotStatus(row)} metadata={REPORT_RESULT_STATUSES} />;
 }
 
 export function resultRowCountLabel(row: ReportResultRow): string {

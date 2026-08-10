@@ -6,11 +6,13 @@ export function BooleanIndicator({
   value,
   trueLabel = "Yes",
   falseLabel = "No",
+  tone = "neutral",
   className,
 }: {
   value: boolean;
   trueLabel?: string;
   falseLabel?: string;
+  tone?: "neutral" | "positive";
   className?: string;
 }) {
   const Icon = value ? Check : X;
@@ -18,7 +20,7 @@ export function BooleanIndicator({
     <span
       className={cn(
         "inline-flex items-center",
-        value ? "text-status-online" : "text-destructive",
+        tone === "positive" && (value ? "text-status-online" : "text-muted-foreground"),
         className,
       )}
     >

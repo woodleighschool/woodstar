@@ -12,12 +12,10 @@ export const DIRECTORY_SOURCES = {
   local: {
     name: "Local",
     description: "Created and managed in Woodstar.",
-    variant: "outline",
   },
   entra: {
     name: "Entra",
     description: "Synced from Microsoft Entra.",
-    variant: "secondary",
   },
 } satisfies EnumMetadataMap<DirectorySource>;
 

@@ -1,4 +1,5 @@
 import type { DataTableColumnDef } from "@components/data-table/types";
+import { EnumStatusIndicator } from "@components/enum-status-indicator";
 import { TextLink } from "@components/link";
 import type { OsqueryCheckHostStatus } from "@lib/api";
 import { formatRelative } from "@lib/utils";
@@ -47,7 +48,7 @@ export function createCheckResultColumns({
       accessorKey: "status",
       header: () => "Status",
       enableColumnFilter: true,
-      cell: ({ row }) => checkResultStatusLabel(row.original.status),
+      cell: ({ row }) => <CheckResultStatus status={row.original.status} />,
     },
     {
       accessorKey: "updated_at",
@@ -67,4 +68,8 @@ export function createCheckResultColumns({
 
 export function checkResultStatusLabel(status: CheckResultDisplayStatus) {
   return CHECK_RESULT_STATUSES[status].name;
+}
+
+export function CheckResultStatus({ status }: { status: CheckResultDisplayStatus }) {
+  return <EnumStatusIndicator value={status} metadata={CHECK_RESULT_STATUSES} />;
 }

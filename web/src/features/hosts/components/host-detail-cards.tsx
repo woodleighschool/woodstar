@@ -9,7 +9,7 @@ import { BooleanIndicator } from "@components/boolean-indicator";
 import { DataTableStatic } from "@components/data-table/data-table-static";
 import type { DataTableColumnDef } from "@components/data-table/types";
 import { KeyValueRow, KeyValueRows, KeyValueSection } from "@components/key-value";
-import { Badge } from "@components/ui/badge";
+import { TokenList } from "@components/token-list";
 import { Button } from "@components/ui/button";
 import {
   Dialog,
@@ -176,13 +176,7 @@ function UserGroups({ groups }: { groups: readonly string[] }) {
   if (uniqueGroups.length === 0) return <span>-</span>;
   return (
     <div className="max-h-24 overflow-y-auto pr-1">
-      <div className="flex flex-wrap gap-1.5">
-        {uniqueGroups.map((group) => (
-          <Badge key={group} variant="secondary" className="font-normal">
-            {group}
-          </Badge>
-        ))}
-      </div>
+      <TokenList values={uniqueGroups} />
     </div>
   );
 }

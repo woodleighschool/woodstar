@@ -1,10 +1,11 @@
-import type { CSSProperties, ReactNode } from "react";
+import { type CSSProperties, type ReactNode, useCallback, useRef, useState } from "react";
 
 import type {
   DataTableColumn,
   DataTableHeader,
   DataTableRowData,
 } from "@components/data-table/types";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@components/ui/tooltip";
 import { cn } from "@lib/utils";
 
 // `size` is both the preferred flex basis and the relative share of spare room.
@@ -42,13 +43,41 @@ export function getDataTableColumnStyle<TData extends DataTableRowData, TValue>(
 }
 
 export function DataTableCellContent({ children }: { children: ReactNode }) {
-  const title =
-    typeof children === "string" || typeof children === "number" ? String(children) : undefined;
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+  const [tooltipText, setTooltipText] = useState("");
+
+  const handleOpenChange = useCallback((nextOpen: boolean) => {
+    if (!nextOpen) {
+      setOpen(false);
+      return;
+    }
+
+    const content = contentRef.current;
+    if (!content || !hasOverflow(content)) return;
+
+    const text = content.innerText.trim();
+    if (!text) return;
+
+    setTooltipText(text);
+    setOpen(true);
+  }, []);
 
   return (
-    <div className="w-full min-w-0 truncate" title={title}>
-      {children}
-    </div>
+    <Tooltip open={open} onOpenChange={handleOpenChange}>
+      <TooltipTrigger render={<div ref={contentRef} className="w-full min-w-0 truncate" />}>
+        {children}
+      </TooltipTrigger>
+      <TooltipContent className="max-w-[calc(100vw-2rem)] break-all whitespace-normal sm:max-w-lg">
+        {tooltipText}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+function hasOverflow(root: HTMLElement) {
+  return [root, ...root.querySelectorAll("*")].some(
+    (element) => element.scrollWidth > element.clientWidth,
   );
 }
 

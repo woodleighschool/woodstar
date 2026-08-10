@@ -17,33 +17,26 @@ export const RULE_TYPES = {
   binary: {
     name: "Binary",
     description: "SHA-256 hash of the exact binary.",
-    variant: "info",
   },
   certificate: {
     name: "Certificate",
     description: "SHA-256 hash of the signing certificate.",
-    variant: "success",
   },
   teamid: {
     name: "Team ID",
     description: "10-character Apple Team ID.",
-    variant: "warning",
   },
   signingid: {
     name: "Signing ID",
     description: "Signing identifier with team or platform prefix.",
-    variant: "outline",
-    badgeClassName: "border-violet-500/20 bg-violet-500/10 text-violet-600 dark:text-violet-400",
   },
   cdhash: {
     name: "CDHash",
     description: "Code directory hash of the binary.",
-    variant: "error",
   },
   bundle: {
     name: "Bundle",
     description: "A server-side rule expanded to the collected executables in a Santa bundle.",
-    variant: "outline",
   },
 } satisfies EnumMetadataMap<SantaRuleType>;
 
@@ -63,38 +56,31 @@ export const POLICIES = {
   allowlist: {
     name: "Allowlist",
     description: "Allow matching software on targeted hosts.",
-    variant: "success",
   },
   allowlist_compiler: {
     name: "Compiler Allowlist",
     description:
       "Allow matching compilers to create transitive rules when that setting is enabled.",
-    variant: "success",
   },
   blocklist: {
     name: "Blocklist",
     description: "Block matching software on targeted hosts.",
-    variant: "error",
   },
   silent_blocklist: {
     name: "Silent Blocklist",
     description: "Block matching software without showing a custom user-facing Santa message.",
-    variant: "error",
   },
   silent_gui_blocklist: {
     name: "Silent GUI Blocklist",
     description: "Block matching software without showing Santa's GUI notification.",
-    variant: "error",
   },
   silent_tty_blocklist: {
     name: "Silent TTY Blocklist",
     description: "Block matching software without printing Santa's TTY message.",
-    variant: "error",
   },
   cel: {
     name: "CEL",
     description: "Use a Santa CEL expression to decide whether the rule applies.",
-    variant: "warning",
   },
 } satisfies EnumMetadataMap<SantaRulePolicy>;
 

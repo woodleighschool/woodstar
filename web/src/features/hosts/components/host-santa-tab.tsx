@@ -61,7 +61,12 @@ const santaRuleColumns: DataTableColumnDef<SantaRuleStatus>[] = [
     accessorKey: "applied",
     header: () => "Applied",
     cell: ({ row }) => (
-      <BooleanIndicator value={row.original.applied} trueLabel="Applied" falseLabel="Pending" />
+      <BooleanIndicator
+        value={row.original.applied}
+        trueLabel="Applied"
+        falseLabel="Pending"
+        tone="positive"
+      />
     ),
     size: 80,
     minSize: 80,

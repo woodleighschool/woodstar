@@ -7,6 +7,8 @@ import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link, TextLink } from "@components/link";
 import { QueryGate } from "@components/query-gate";
+import { TokenList } from "@components/token-list";
+import { Badge } from "@components/ui/badge";
 import { Button } from "@components/ui/button";
 import { Separator } from "@components/ui/separator";
 import { useAuth } from "@features/auth/queries";
@@ -175,15 +177,22 @@ function UserValues({ values }: { values: readonly string[] }) {
 
   if (values.length === 0) return <span className="text-muted-foreground">-</span>;
   return (
-    <div className="flex flex-wrap gap-x-3 gap-y-1">
+    <div className="flex flex-wrap gap-1.5">
       {values.map((value) => {
         const user = users.get(value);
         return user ? (
-          <TextLink key={value} to="/directory/users/$id" params={{ id: value }}>
+          <Badge
+            key={value}
+            variant="outline"
+            className="font-normal"
+            render={<Link to="/directory/users/$id" params={{ id: value }} />}
+          >
             {user.name}
-          </TextLink>
+          </Badge>
         ) : (
-          <span key={value}>{value}</span>
+          <Badge key={value} variant="outline" className="font-normal">
+            {value}
+          </Badge>
         );
       })}
     </div>
@@ -191,14 +200,7 @@ function UserValues({ values }: { values: readonly string[] }) {
 }
 
 function PlainValues({ values }: { values: readonly string[] }) {
-  if (values.length === 0) return <span className="text-muted-foreground">-</span>;
-  return (
-    <div className="flex flex-wrap gap-x-3 gap-y-1">
-      {values.map((value) => (
-        <span key={value}>{value}</span>
-      ))}
-    </div>
-  );
+  return <TokenList values={values} />;
 }
 
 function formatHostCount(count: number) {

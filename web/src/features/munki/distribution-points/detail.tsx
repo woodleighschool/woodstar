@@ -11,7 +11,7 @@ import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link, TextLink } from "@components/link";
 import { QueryGate } from "@components/query-gate";
-import { Badge } from "@components/ui/badge";
+import { TokenList } from "@components/token-list";
 import { Button } from "@components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@components/ui/empty";
 import { toast } from "@components/ui/toast";
@@ -141,16 +141,7 @@ export function DistributionPointDetailPage() {
   );
 }
 function CidrList({ cidrs }: { cidrs: MunkiDistributionPointDetail["client_cidrs"] }) {
-  if (cidrs.length === 0) return <span className="text-muted-foreground">-</span>;
-  return (
-    <div className="flex flex-wrap gap-1.5">
-      {cidrs.map((cidr) => (
-        <Badge key={cidr} variant="secondary">
-          {cidr}
-        </Badge>
-      ))}
-    </div>
-  );
+  return <TokenList values={cidrs} />;
 }
 function PackageStateTable({ packages }: { packages: MunkiPackageState[] }) {
   const nonCurrentPackages = useMemo(

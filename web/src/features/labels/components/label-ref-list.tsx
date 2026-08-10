@@ -2,7 +2,7 @@ import { useMemo } from "react";
 
 import { encodeSort } from "@components/data-table/use-data-table-search";
 import { Link } from "@components/link";
-import { Button } from "@components/ui/button";
+import { Badge } from "@components/ui/badge";
 import { useLabels } from "@features/labels/queries";
 import { MAX_PAGE_SIZE } from "@lib/pagination";
 
@@ -28,16 +28,14 @@ export function LabelRefList({ labelIDs }: { labelIDs: readonly number[] }) {
   return (
     <div className="flex flex-wrap gap-1.5">
       {labelIDs.map((labelID) => (
-        <Button
+        <Badge
           key={labelID}
-          size="xs"
           variant="outline"
           className="font-normal"
           render={<Link to="/labels/$id" params={{ id: String(labelID) }} />}
-          nativeButton={false}
         >
           {labelsByID.get(labelID) ?? `Label ${labelID}`}
-        </Button>
+        </Badge>
       ))}
     </div>
   );
