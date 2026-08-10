@@ -4,6 +4,7 @@ package rules_test
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -300,20 +301,26 @@ func TestRuleStatusesCanonicalizeBundleCollisions(t *testing.T) {
 		"Bundle Rule App",
 		firstSHA,
 	)
-	for name, bundleHash := range map[string]string{
-		"First bundle":     firstBundleHash,
-		"Duplicate bundle": secondBundleHash,
+	createdRules := make([]rules.Rule, 0, 2)
+	for _, fixture := range []struct {
+		name       string
+		bundleHash string
+	}{
+		{name: "First bundle", bundleHash: firstBundleHash},
+		{name: "Duplicate bundle", bundleHash: secondBundleHash},
 	} {
-		if _, err := ruleStore.Create(ctx, rules.RuleMutation{
+		createdRule, err := ruleStore.Create(ctx, rules.RuleMutation{
 			ConfigurationID: configurationID,
 			RuleType:        rules.RuleTypeBundle,
-			Identifier:      bundleHash,
-			Name:            name,
+			Identifier:      fixture.bundleHash,
+			Name:            fixture.name,
 			Policy:          rules.PolicyBlocklist,
 			Targets:         storeRuleTargets([]int64{labelID}),
-		}); err != nil {
-			t.Fatalf("create %s rule: %v", name, err)
+		})
+		if err != nil {
+			t.Fatalf("create %s rule: %v", fixture.name, err)
 		}
+		createdRules = append(createdRules, *createdRule)
 	}
 
 	resolved, err := ruleStore.ResolveRulesForHost(ctx, host.ID, configurationID)
@@ -383,8 +390,14 @@ func TestRuleStatusesCanonicalizeBundleCollisions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("resolve app-name conflict: %v", err)
 	}
-	if _, err := rules.SyncTargetsFromRules(resolved); !errors.Is(err, fault.ErrConflict) {
+	_, err = rules.SyncTargetsFromRules(resolved)
+	if !errors.Is(err, fault.ErrConflict) {
 		t.Fatalf("app-name-only collision error = %v, want ErrConflict", err)
+	}
+	for _, createdRule := range createdRules {
+		if want := fmt.Sprintf(`%d %q`, createdRule.ID, createdRule.Name); !strings.Contains(err.Error(), want) {
+			t.Fatalf("app-name-only collision error = %q, want source %s", err, want)
+		}
 	}
 	if _, _, err := ruleStore.ListRuleStatusesForHost(
 		ctx,

@@ -248,29 +248,27 @@ func (s *Store) ListRuleStatusesForHost(
 	if err != nil {
 		return nil, 0, err
 	}
-	hostRules, targets, err := canonicalHostRules(hostRules)
+	canonicalRules, err := canonicalHostRules(hostRules)
 	if err != nil {
 		return nil, 0, err
 	}
-	count := len(hostRules)
+	count := len(canonicalRules)
 	start := int(params.ListParams.PageIndex * params.ListParams.PageSize)
 	if start >= count {
 		return []RuleStatus{}, count, nil
 	}
 	end := min(start+int(params.ListParams.PageSize), count)
-	hostRules = hostRules[start:end]
-	targets = targets[start:end]
+	canonicalRules = canonicalRules[start:end]
 
 	applied, err := s.appliedSyncTargetSet(ctx, hostID)
 	if err != nil {
 		return nil, 0, err
 	}
-	statuses := make([]RuleStatus, 0, len(hostRules))
-	for i, rule := range hostRules {
-		target := targets[i]
-		appliedRule := applied[target]
+	statuses := make([]RuleStatus, 0, len(canonicalRules))
+	for _, canonicalRule := range canonicalRules {
+		appliedRule := applied[canonicalRule.target]
 		statuses = append(statuses, RuleStatus{
-			HostRule: rule,
+			HostRule: canonicalRule.rule,
 			Applied:  appliedRule,
 		})
 	}
@@ -581,35 +579,50 @@ type ruleTargetWrite struct {
 	LabelID   int64  `db:"label_id"`
 }
 
-// SyncTargetsFromRules returns one wire target per identity and rejects conflicting decisions.
-func SyncTargetsFromRules(rules []HostRule) ([]syncstate.Target, error) {
-	_, targets, err := canonicalHostRules(rules)
-	return targets, err
+type canonicalHostRule struct {
+	rule   HostRule
+	target syncstate.Target
 }
 
-func canonicalHostRules(rules []HostRule) ([]HostRule, []syncstate.Target, error) {
-	canonicalRules := make([]HostRule, 0, len(rules))
-	targets := make([]syncstate.Target, 0, len(rules))
-	seen := make(map[string]syncstate.Target, len(rules))
+// SyncTargetsFromRules returns one wire target per identity and rejects conflicting decisions.
+func SyncTargetsFromRules(rules []HostRule) ([]syncstate.Target, error) {
+	canonicalRules, err := canonicalHostRules(rules)
+	if err != nil {
+		return nil, err
+	}
+	targets := make([]syncstate.Target, len(canonicalRules))
+	for i, canonicalRule := range canonicalRules {
+		targets[i] = canonicalRule.target
+	}
+	return targets, nil
+}
+
+func canonicalHostRules(rules []HostRule) ([]canonicalHostRule, error) {
+	canonicalRules := make([]canonicalHostRule, 0, len(rules))
+	seen := make(map[string]canonicalHostRule, len(rules))
 	for _, rule := range rules {
 		target := syncTargetFromRule(rule)
 		identity := target.RuleType + "\x00" + target.Identifier
 		if existing, ok := seen[identity]; ok {
-			if existing != target {
-				return nil, nil, fmt.Errorf(
-					"%w: conflicting Santa rules for %s %q",
+			if existing.target != target {
+				return nil, fmt.Errorf(
+					"%w: Santa rules %d %q and %d %q conflict for %s %q",
 					fault.ErrConflict,
+					existing.rule.RuleID,
+					existing.rule.Name,
+					rule.RuleID,
+					rule.Name,
 					rule.RuleType,
 					rule.Identifier,
 				)
 			}
 			continue
 		}
-		seen[identity] = target
-		canonicalRules = append(canonicalRules, rule)
-		targets = append(targets, target)
+		canonicalRule := canonicalHostRule{rule: rule, target: target}
+		seen[identity] = canonicalRule
+		canonicalRules = append(canonicalRules, canonicalRule)
 	}
-	return canonicalRules, targets, nil
+	return canonicalRules, nil
 }
 
 func syncTargetFromRule(rule HostRule) syncstate.Target {
