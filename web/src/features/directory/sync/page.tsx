@@ -2,17 +2,14 @@ import { RefreshCw, UserRound, UsersRound } from "lucide-react";
 
 import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link } from "@components/link";
-import { QueryError } from "@components/query-error";
-import { RelativeTime } from "@components/relative-time";
 import { ResourceOverviewCard } from "@components/resource-overview-card";
 import { Button } from "@components/ui/button";
-import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@components/ui/card";
-import { Skeleton } from "@components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@components/ui/tooltip";
 import { useAuth } from "@features/auth/queries";
 import { useGroups } from "@features/directory/groups/queries";
 import { useDirectorySync, useTriggerDirectorySync } from "@features/directory/sync/queries";
 import { useUsers } from "@features/directory/users/queries";
-import type { SyncRun, SyncStatus } from "@lib/api";
+import { cn, formatRelative } from "@lib/utils";
 
 const OVERVIEW_COUNT_PARAMS = { page: 1, per_page: 1 } as const;
 
@@ -22,7 +19,11 @@ export function DirectoryOverviewPage() {
 
   return (
     <PageShell>
-      <PageHeader title="Directory" description="Manage synced and local identities." />
+      <PageHeader
+        title="Directory"
+        description="Manage synced and local identities."
+        actions={<DirectorySyncAction />}
+      />
 
       <div className="grid min-w-0 gap-4 md:grid-cols-3">
         <Link to="/directory/users">
@@ -43,96 +44,84 @@ export function DirectoryOverviewPage() {
             icon={UsersRound}
           />
         </Link>
-        <DirectorySyncCard />
       </div>
     </PageShell>
   );
 }
 
-function DirectorySyncCard() {
+function DirectorySyncAction() {
   const { user } = useAuth();
   const sync = useDirectorySync();
   const trigger = useTriggerDirectorySync();
   const status = sync.data;
   const active = status?.activity === "queued" || status?.activity === "running";
-  const disabled = active || trigger.isPending;
-  const actionLabel = trigger.isPending
-    ? "Starting"
-    : status?.activity === "queued"
-      ? "Queued"
-      : status?.activity === "running"
-        ? "Syncing"
-        : "Run now";
+  const syncing = active || trigger.isPending;
+  const lastRun = status?.activity === "idle" && !syncing ? status.last_run : undefined;
+  const lastRunAt = lastRun?.finished_at ?? lastRun?.started_at ?? lastRun?.queued_at;
+
+  if (user?.role !== "admin") return null;
+  if (status && !status.enabled) return null;
 
   return (
-    <Card size="sm" className="min-w-0">
-      <CardHeader>
-        <CardTitle>Sync</CardTitle>
-        <CardAction>
-          {user?.role === "admin" && status?.enabled ? (
-            <Button size="sm" disabled={disabled} onClick={() => trigger.mutate()}>
-              <RefreshCw data-icon="inline-start" />
-              {actionLabel}
-            </Button>
-          ) : null}
-        </CardAction>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-3">
-        {sync.error && !status ? (
-          <QueryError
-            title="Failed to load sync status"
-            error={sync.error}
-            onRetry={() => void sync.refetch()}
+    <>
+      {lastRun?.outcome === "failed" ? <DirectorySyncFailure error={lastRun.error} /> : null}
+      <DirectorySyncButton
+        disabled={!status || syncing}
+        syncing={syncing}
+        lastSyncedAt={lastRun?.outcome === "succeeded" ? lastRunAt : undefined}
+        onClick={() => trigger.mutate()}
+      />
+    </>
+  );
+}
+
+function DirectorySyncButton({
+  disabled,
+  syncing,
+  lastSyncedAt,
+  onClick,
+}: {
+  disabled: boolean;
+  syncing: boolean;
+  lastSyncedAt?: string;
+  onClick: () => void;
+}) {
+  const button = (
+    <Button size="sm" disabled={disabled} onClick={onClick}>
+      <RefreshCw className={cn(syncing && "animate-spin")} data-icon="inline-start" />
+      Sync IdP
+    </Button>
+  );
+
+  if (!lastSyncedAt) return button;
+
+  return (
+    <Tooltip>
+      <TooltipTrigger render={button} />
+      <TooltipContent side="bottom" align="end">
+        Last synced {formatRelative(lastSyncedAt)}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+function DirectorySyncFailure({ error }: { error?: string }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <button
+            type="button"
+            aria-label="Directory sync status"
+            className="cursor-default text-sm text-muted-foreground underline decoration-dotted underline-offset-4"
           />
-        ) : !status ? (
-          <SyncDetailsSkeleton />
-        ) : !status.enabled ? (
-          <p className="text-sm text-muted-foreground">Entra ID sync is not configured.</p>
-        ) : (
-          <SyncDetails status={status} />
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-function SyncDetails({ status }: { status: SyncStatus }) {
-  const lastRun = status.last_run;
-  return (
-    <div className="flex flex-col gap-3">
-      <p className={lastRun?.outcome === "failed" ? "text-sm text-destructive" : "text-sm"}>
-        {lastRun ? (
-          lastRun.outcome === "succeeded" ? (
-            <>
-              Last synced <RunTime run={lastRun} />.
-            </>
-          ) : (
-            <>
-              Sync failed <RunTime run={lastRun} />.
-            </>
-          )
-        ) : (
-          "No sync has run yet."
-        )}
-      </p>
-      {lastRun?.outcome === "failed" ? (
-        <p className="text-sm text-destructive">
-          {lastRun.error || "The last sync failed without an error message."}
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
-function RunTime({ run }: { run: SyncRun }) {
-  return <RelativeTime value={run.finished_at ?? run.started_at ?? run.queued_at} />;
-}
-
-function SyncDetailsSkeleton() {
-  return (
-    <div className="flex flex-col gap-3">
-      <Skeleton className="h-5 w-full" />
-      <Skeleton className="h-5 w-4/5" />
-    </div>
+        }
+      >
+        Last sync failed
+      </TooltipTrigger>
+      <TooltipContent side="bottom" align="end" className="max-w-sm text-left whitespace-normal">
+        {error || "The last sync failed."}
+      </TooltipContent>
+    </Tooltip>
   );
 }
