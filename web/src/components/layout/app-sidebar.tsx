@@ -25,7 +25,6 @@ import {
   SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
-  SidebarMenuAction,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSub,
@@ -86,8 +85,11 @@ function SidebarNavGroup({ section, pathname }: { section: NavMenu; pathname: st
   );
 }
 function SidebarNavItem({ item, pathname }: { item: NavItem; pathname: string }) {
+  const { isMobile, state } = useSidebar();
   const Icon = item.icon;
   const active = isActivePath(pathname, item);
+  const collapsedOverviewTarget =
+    state === "collapsed" && !isMobile && !item.disabled ? item.to : undefined;
   const [open, setOpen] = useState(active);
 
   useEffect(() => {
@@ -95,6 +97,21 @@ function SidebarNavItem({ item, pathname }: { item: NavItem; pathname: string })
   }, [active]);
 
   if (item.items?.length) {
+    if (collapsedOverviewTarget) {
+      return (
+        <SidebarMenuItem>
+          <SidebarMenuButton
+            render={<Link to={collapsedOverviewTarget} activeOptions={item.activeOptions} />}
+            tooltip={item.label}
+            isActive={active}
+          >
+            {Icon ? <Icon /> : null}
+            <span>{item.label}</span>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      );
+    }
+
     return (
       <Collapsible
         open={open}
@@ -102,27 +119,11 @@ function SidebarNavItem({ item, pathname }: { item: NavItem; pathname: string })
         className="group/collapsible"
         render={<SidebarMenuItem />}
       >
-        {item.to && !item.disabled ? (
-          <>
-            <SidebarMenuButton
-              render={<Link to={item.to} activeOptions={item.activeOptions} />}
-              tooltip={item.label}
-              isActive={active}
-            >
-              {Icon ? <Icon /> : null}
-              <span>{item.label}</span>
-            </SidebarMenuButton>
-            <CollapsibleTrigger render={<SidebarMenuAction aria-label={`Toggle ${item.label}`} />}>
-              <ChevronRight className="transition-transform duration-200 group-data-open/collapsible:rotate-90" />
-            </CollapsibleTrigger>
-          </>
-        ) : (
-          <CollapsibleTrigger render={<SidebarMenuButton tooltip={item.label} isActive={active} />}>
-            {Icon ? <Icon /> : null}
-            <span>{item.label}</span>
-            <ChevronRight className="ml-auto transition-transform duration-200 group-data-open/collapsible:rotate-90" />
-          </CollapsibleTrigger>
-        )}
+        <CollapsibleTrigger render={<SidebarMenuButton tooltip={item.label} isActive={active} />}>
+          {Icon ? <Icon /> : null}
+          <span>{item.label}</span>
+          <ChevronRight className="ml-auto transition-transform duration-200 group-data-open/collapsible:rotate-90" />
+        </CollapsibleTrigger>
         <CollapsibleContent className="h-(--collapsible-panel-height) overflow-hidden opacity-100 transition-[height,opacity] duration-200 ease-out data-ending-style:h-0 data-ending-style:opacity-0 data-starting-style:h-0 data-starting-style:opacity-0 motion-reduce:transition-none">
           <SidebarMenuSub>
             {item.items.map((child) => (
