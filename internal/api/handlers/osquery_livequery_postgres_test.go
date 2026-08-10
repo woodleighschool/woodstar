@@ -5,6 +5,7 @@ package handlers
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -80,6 +81,85 @@ func TestLiveQueryStreamFollowsResultsFromAnotherStore(t *testing.T) {
 	completed := readSSEEvent(t, reader)
 	if !strings.Contains(completed, `"type":"completed"`) {
 		t.Fatalf("completed event = %q", completed)
+	}
+}
+
+func TestLiveQueryStreamReplaysCompletedResultsFromAnotherStore(t *testing.T) {
+	db, ctx := testdb.Open(t)
+	storeA := livequery.NewStore(db)
+	storeB := livequery.NewStore(db)
+	handle, err := storeA.Start(ctx, "select 1", []livequery.Target{{HostID: 4, HostName: "mac-4"}})
+	if err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	if err := storeA.RecordResult(ctx, livequery.Result{
+		QueryID:  handle.ID,
+		HostID:   4,
+		HostName: "mac-4",
+		Status:   livequery.StatusCollected,
+		Rows:     []map[string]string{{"answer": "1"}},
+	}); err != nil {
+		t.Fatalf("RecordResult: %v", err)
+	}
+
+	router := chi.NewRouter()
+	api := humachi.New(router, testHumaConfig())
+	registerLiveQueries(api, api, storeB, nil, discardLogger())
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequestWithContext(
+		ctx,
+		http.MethodGet,
+		fmt.Sprintf("/api/osquery/live-queries/%d/stream", handle.ID),
+		nil,
+	)
+	request.Header.Set("Accept", "text/event-stream")
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body = %q", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+	body := recorder.Body.String()
+	snapshotAt := strings.Index(body, "event: snapshot")
+	completedAt := strings.Index(body, "event: completed")
+	if snapshotAt < 0 || completedAt < 0 || snapshotAt > completedAt {
+		t.Fatalf("SSE body = %q, want final snapshot before completion", body)
+	}
+	for _, want := range []string{`"status":"collected"`, `"host_name":"mac-4"`, `"rows":[{"answer":"1"}]`} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("SSE body = %q, want %q", body, want)
+		}
+	}
+}
+
+func TestReadLiveQuerySnapshotsTimesOutOnLockedRun(t *testing.T) {
+	db, ctx := testdb.Open(t)
+	store := livequery.NewStore(db)
+	handle, err := store.Start(ctx, "select 1", []livequery.Target{{HostID: 4, HostName: "mac-4"}})
+	if err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+
+	tx, err := db.Begin(ctx)
+	if err != nil {
+		t.Fatalf("begin lock transaction: %v", err)
+	}
+	defer func() { _ = tx.Rollback(context.Background()) }()
+	var lockedID int64
+	if err := tx.QueryRow(ctx, `
+SELECT id
+FROM osquery_live_query_runs
+WHERE id = $1
+FOR UPDATE`, handle.ID).Scan(&lockedID); err != nil {
+		t.Fatalf("lock run: %v", err)
+	}
+
+	started := time.Now()
+	_, _, err = readLiveQuerySnapshots(ctx, store, handle.ID)
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("Snapshots error = %v, want context deadline exceeded", err)
+	}
+	if elapsed := time.Since(started); elapsed > 2*liveQuerySnapshotTimeout {
+		t.Fatalf("Snapshots took %s, want at most %s", elapsed, 2*liveQuerySnapshotTimeout)
 	}
 }
 

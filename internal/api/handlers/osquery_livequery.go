@@ -18,9 +18,10 @@ import (
 )
 
 const (
-	liveQueriesPath       = "/api/osquery/live-queries"
-	liveQueryPollInterval = time.Second
-	liveQueryPingInterval = 15 * time.Second
+	liveQueriesPath          = "/api/osquery/live-queries"
+	liveQueryPollInterval    = time.Second
+	liveQueryPingInterval    = 15 * time.Second
+	liveQuerySnapshotTimeout = 2 * time.Second
 )
 
 type OsqueryLiveQueryCreateBody struct {
@@ -214,7 +215,7 @@ func loadLiveQuery(
 			next(ctx)
 			return
 		}
-		snapshots, completed, err := store.Snapshots(ctx.Context(), id)
+		snapshots, completed, err := readLiveQuerySnapshots(ctx.Context(), store, id)
 		if err != nil {
 			if !errors.Is(err, livequery.ErrLiveQueryNotFound) {
 				logger.ErrorContext(ctx.Context(), "load live query stream failed",
@@ -231,6 +232,16 @@ func loadLiveQuery(
 			Completed: completed,
 		}))
 	}
+}
+
+func readLiveQuerySnapshots(
+	ctx context.Context,
+	store *livequery.Store,
+	id int64,
+) ([]livequery.Snapshot, bool, error) {
+	readCtx, cancel := context.WithTimeout(ctx, liveQuerySnapshotTimeout)
+	defer cancel()
+	return store.Snapshots(readCtx, id)
 }
 
 func (body OsqueryLiveQueryCreateBody) resolveTargets(
@@ -291,7 +302,7 @@ func streamLiveQuery(
 				return
 			}
 		case <-poll.C:
-			snapshots, completed, err := store.Snapshots(ctx, state.ID)
+			snapshots, completed, err := readLiveQuerySnapshots(ctx, store, state.ID)
 			if err != nil {
 				if ctx.Err() == nil {
 					logger.WarnContext(ctx, "poll live query stream failed",
