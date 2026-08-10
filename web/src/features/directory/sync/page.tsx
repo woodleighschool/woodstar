@@ -4,10 +4,7 @@ import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link } from "@components/link";
 import { QueryError } from "@components/query-error";
 import { RelativeTime } from "@components/relative-time";
-import {
-  overviewCardLinkClassName,
-  ResourceOverviewCard,
-} from "@components/resource-overview-card";
+import { ResourceOverviewCard } from "@components/resource-overview-card";
 import { Button } from "@components/ui/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@components/ui/card";
 import { Skeleton } from "@components/ui/skeleton";
@@ -28,7 +25,7 @@ export function DirectoryOverviewPage() {
       <PageHeader title="Directory" description="Manage synced and local identities." />
 
       <div className="grid min-w-0 gap-4 md:grid-cols-3">
-        <Link to="/directory/users" className={overviewCardLinkClassName}>
+        <Link to="/directory/users">
           <ResourceOverviewCard
             title="Users"
             count={users.data?.count}
@@ -37,7 +34,7 @@ export function DirectoryOverviewPage() {
             icon={UserRound}
           />
         </Link>
-        <Link to="/directory/groups" className={overviewCardLinkClassName}>
+        <Link to="/directory/groups">
           <ResourceOverviewCard
             title="Groups"
             count={groups.data?.count}

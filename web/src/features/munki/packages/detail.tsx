@@ -6,7 +6,7 @@ import { useState } from "react";
 import { BooleanIndicator } from "@components/boolean-indicator";
 import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
-import { Link } from "@components/link";
+import { Link, TextLink } from "@components/link";
 import { QueryGate } from "@components/query-gate";
 import { Button } from "@components/ui/button";
 import { useAuth } from "@features/auth/queries";
@@ -85,13 +85,13 @@ export function MunkiPackageDetailPage() {
         <KeyValueRow
           label="Software"
           value={
-            <Link
+            <TextLink
               to="/munki/software/$id"
               params={{ id: String(pkg.software.id) }}
               className="font-medium"
             >
               {pkg.software.name}
-            </Link>
+            </TextLink>
           }
         />
         <KeyValueRow label="Version" value={pkg.version} />
@@ -145,14 +145,14 @@ function PackageReferences({ values }: { values: MunkiPackageReference[] }) {
   return (
     <div className="flex flex-col items-start gap-1">
       {values.map((reference) => (
-        <Link
+        <TextLink
           key={`${reference.software_id}:${reference.package_id ?? "latest"}`}
           to={reference.package_id === undefined ? "/munki/software/$id" : "/munki/packages/$id"}
           params={{ id: String(reference.package_id ?? reference.software_id) }}
           className="font-medium"
         >
           {reference.software_name} {reference.package_version ?? "latest"}
-        </Link>
+        </TextLink>
       ))}
     </div>
   );

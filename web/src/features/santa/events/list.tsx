@@ -13,7 +13,7 @@ import { useDataTableSearch } from "@components/data-table/use-data-table-search
 import { FilterChip } from "@components/filter-controls";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { ScrollableTabs, ScrollableTabsList } from "@components/layout/scrollable-tabs";
-import { Link } from "@components/link";
+import { Link, TextLink } from "@components/link";
 import { QueryError } from "@components/query-error";
 import { TabsTrigger } from "@components/ui/tabs";
 import { useHost } from "@features/hosts/queries";
@@ -52,13 +52,13 @@ const executionEventColumns: DataTableColumnDef<ExecutionEventTableRow>[] = [
     accessorFn: (row) => row.event.executable.file_name,
     header: "Executable",
     cell: ({ row }) => (
-      <Link
+      <TextLink
         to="/santa/events/$id"
         params={{ id: String(row.original.event.id) }}
         className="font-medium"
       >
         {row.original.event.executable.file_name || "-"}
-      </Link>
+      </TextLink>
     ),
     enableHiding: false,
     size: 200,
@@ -117,13 +117,13 @@ const fileAccessEventColumns: DataTableColumnDef<SantaFileAccessEvent>[] = [
     accessorKey: "target",
     header: "Target",
     cell: ({ row }) => (
-      <Link
+      <TextLink
         to="/santa/events/file-access/$id"
         params={{ id: String(row.original.id) }}
         className="font-medium"
       >
         {fileName(row.original.target) || row.original.target}
-      </Link>
+      </TextLink>
     ),
     enableHiding: false,
     size: 280,
@@ -428,17 +428,17 @@ function EventsEmptyState({ hasFilters, noun }: { hasFilters: boolean; noun: str
 }
 function EventHostLink({ host }: { host: SantaHostSummary }) {
   return (
-    <Link to="/hosts/$id" params={{ id: String(host.id) }}>
+    <TextLink to="/hosts/$id" params={{ id: String(host.id) }}>
       {host.display_name}
-    </Link>
+    </TextLink>
   );
 }
 function EventUserLink({ user, hostId }: { user: string; hostId?: number }) {
   if (!user) return "-";
   return (
-    <Link to="/santa/events" search={{ host_id: hostId, user }}>
+    <TextLink to="/santa/events" search={{ host_id: hostId, user }}>
       {user}
-    </Link>
+    </TextLink>
   );
 }
 function Timestamp({ value }: { value: string }) {

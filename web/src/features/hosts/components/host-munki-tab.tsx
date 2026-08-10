@@ -1,7 +1,7 @@
 import { DataTableStatic } from "@components/data-table/data-table-static";
 import type { DataTableColumnDef } from "@components/data-table/types";
 import { KeyValueRow, KeyValueSection } from "@components/key-value";
-import { Link } from "@components/link";
+import { TextLink } from "@components/link";
 import { PanelEmptyState } from "@components/panel-empty-state";
 import { QueryError } from "@components/query-error";
 import { RelativeTime } from "@components/relative-time";
@@ -155,14 +155,14 @@ function MunkiSoftwareCell({ software }: { software: MunkiHostManifestSoftware }
   return (
     <div className="flex min-w-0 items-center gap-2">
       <SoftwareArtwork src={software.software.icon_url} />
-      <Link
+      <TextLink
         to="/munki/software/$id"
         params={{ id: String(software.software.id) }}
         className="min-w-0 truncate font-medium"
         title={label}
       >
         {label}
-      </Link>
+      </TextLink>
     </div>
   );
 }

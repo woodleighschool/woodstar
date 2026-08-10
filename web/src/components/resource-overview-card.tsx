@@ -38,6 +38,3 @@ export function ResourceOverviewCard({
     </Card>
   );
 }
-
-export const overviewCardLinkClassName =
-  "min-w-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring";

@@ -5,7 +5,7 @@ import { useState } from "react";
 import { SQLEditor } from "@components/editor/sql-editor";
 import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
-import { Link } from "@components/link";
+import { Link, TextLink } from "@components/link";
 import { QueryGate } from "@components/query-gate";
 import { Button } from "@components/ui/button";
 import { Separator } from "@components/ui/separator";
@@ -89,9 +89,9 @@ export function LabelDetailPage() {
         <KeyValueRow
           label="Hosts"
           value={
-            <Link to="/hosts" search={{ label_id: label.id }} className="font-medium">
+            <TextLink to="/hosts" search={{ label_id: label.id }} className="font-medium">
               {formatHostCount(label.hosts_count)}
-            </Link>
+            </TextLink>
           }
         />
       </KeyValueSection>
@@ -179,9 +179,9 @@ function UserValues({ values }: { values: readonly string[] }) {
       {values.map((value) => {
         const user = users.get(value);
         return user ? (
-          <Link key={value} to="/directory/users/$id" params={{ id: value }}>
+          <TextLink key={value} to="/directory/users/$id" params={{ id: value }}>
             {user.name}
-          </Link>
+          </TextLink>
         ) : (
           <span key={value}>{value}</span>
         );

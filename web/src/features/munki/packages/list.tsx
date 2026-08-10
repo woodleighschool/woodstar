@@ -14,7 +14,7 @@ import type { DataTableCellContext, DataTableColumnDef } from "@components/data-
 import { useDataTable } from "@components/data-table/use-data-table";
 import { useDataTableSearch } from "@components/data-table/use-data-table-search";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
-import { Link } from "@components/link";
+import { Link, TextLink } from "@components/link";
 import { QueryError } from "@components/query-error";
 import { Button } from "@components/ui/button";
 import {
@@ -41,14 +41,14 @@ function PackageSoftwareCell({ row }: DataTableCellContext<MunkiPackage>) {
   return (
     <div className="flex min-w-0 items-center gap-2">
       <SoftwareArtwork src={row.original.software.icon_url} />
-      <Link
+      <TextLink
         to="/munki/packages/$id"
         params={{ id: String(row.original.id) }}
         className="min-w-0 truncate font-medium"
         title={row.original.software.name}
       >
         {row.original.software.name}
-      </Link>
+      </TextLink>
     </div>
   );
 }

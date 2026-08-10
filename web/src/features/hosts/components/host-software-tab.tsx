@@ -8,7 +8,7 @@ import { DataTableSkeleton } from "@components/data-table/data-table-skeleton";
 import type { DataTableColumnDef } from "@components/data-table/types";
 import { useDataTable } from "@components/data-table/use-data-table";
 import { useDataTableSearch } from "@components/data-table/use-data-table-search";
-import { Link } from "@components/link";
+import { TextLink } from "@components/link";
 import { PanelEmptyState } from "@components/panel-empty-state";
 import { QueryError } from "@components/query-error";
 import { Button } from "@components/ui/button";
@@ -50,14 +50,14 @@ const softwareColumns: DataTableColumnDef<HostSoftware>[] = [
     cell: ({ row }) => (
       <div className="flex min-w-0 items-center gap-2">
         <SoftwareIcon {...softwareIconProps(row.original.source)} />
-        <Link
+        <TextLink
           to="/software/titles/$id"
           params={{ id: String(row.original.id) }}
           className="min-w-0 truncate font-medium"
           title={row.original.name}
         >
           {row.original.name}
-        </Link>
+        </TextLink>
       </div>
     ),
     size: 240,

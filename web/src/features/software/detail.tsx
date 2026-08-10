@@ -3,7 +3,7 @@ import { useParams } from "@tanstack/react-router";
 import { TableSurface } from "@components/data-table/table-surface";
 import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
-import { Link } from "@components/link";
+import { Link, TextLink } from "@components/link";
 import { PanelEmptyState } from "@components/panel-empty-state";
 import { QueryGate } from "@components/query-gate";
 import { Badge } from "@components/ui/badge";
@@ -89,10 +89,10 @@ function SoftwareOverview({ title }: { title: SoftwareTitle }) {
       <KeyValueRow
         label="Hosts"
         value={
-          <Link to="/hosts" search={{ software_title_id: title.id }}>
+          <TextLink to="/hosts" search={{ software_title_id: title.id }}>
             <span className="tabular-nums">{title.hosts_count}</span>{" "}
             {title.hosts_count === 1 ? "host" : "hosts"}
-          </Link>
+          </TextLink>
         }
       />
       <KeyValueRow
@@ -169,9 +169,9 @@ function VersionRow({ title, version }: { title: SoftwareTitle; version: Softwar
     <TableRow>
       <TableCell className="font-medium">{version.version || "-"}</TableCell>
       <TableCell className="text-right tabular-nums">
-        <Link to="/hosts" search={{ software_title_id: title.id, software_id: version.id }}>
+        <TextLink to="/hosts" search={{ software_title_id: title.id, software_id: version.id }}>
           {version.hosts_count}
-        </Link>
+        </TextLink>
       </TableCell>
     </TableRow>
   );

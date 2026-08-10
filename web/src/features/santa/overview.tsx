@@ -2,10 +2,7 @@ import { ExternalLink, FileLock2, ListChecks, ScrollText, ShieldCheck } from "lu
 
 import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link } from "@components/link";
-import {
-  overviewCardLinkClassName,
-  ResourceOverviewCard,
-} from "@components/resource-overview-card";
+import { ResourceOverviewCard } from "@components/resource-overview-card";
 import { buttonVariants } from "@components/ui/button";
 import { EnrollmentOverviewCard } from "@features/enrollments/card";
 import { enrollmentDocsURL } from "@features/enrollments/metadata";
@@ -40,7 +37,7 @@ export function SantaOverviewPage() {
       />
 
       <div className="grid min-w-0 gap-4 md:grid-cols-3">
-        <Link to="/santa/configurations" className={overviewCardLinkClassName}>
+        <Link to="/santa/configurations">
           <ResourceOverviewCard
             title="Configurations"
             count={configurations.data?.count}
@@ -49,7 +46,7 @@ export function SantaOverviewPage() {
             icon={ShieldCheck}
           />
         </Link>
-        <Link to="/santa/rules" className={overviewCardLinkClassName}>
+        <Link to="/santa/rules">
           <ResourceOverviewCard
             title="Rules"
             count={rules.data?.count}
@@ -58,7 +55,7 @@ export function SantaOverviewPage() {
             icon={ListChecks}
           />
         </Link>
-        <Link to="/santa/events" className={overviewCardLinkClassName}>
+        <Link to="/santa/events">
           <ResourceOverviewCard
             title="Execution Events"
             count={events.data?.count}
@@ -67,7 +64,7 @@ export function SantaOverviewPage() {
             icon={ScrollText}
           />
         </Link>
-        <Link to="/santa/events/file-access" className={overviewCardLinkClassName}>
+        <Link to="/santa/events/file-access">
           <ResourceOverviewCard
             title="File Access Events"
             count={fileAccessEvents.data?.count}

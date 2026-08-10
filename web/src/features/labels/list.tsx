@@ -11,7 +11,7 @@ import type { DataTableCellContext, DataTableColumnDef } from "@components/data-
 import { useDataTable } from "@components/data-table/use-data-table";
 import { useDataTableSearch } from "@components/data-table/use-data-table-search";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
-import { Link } from "@components/link";
+import { Link, TextLink } from "@components/link";
 import { QueryError } from "@components/query-error";
 import { Button } from "@components/ui/button";
 import {
@@ -40,9 +40,13 @@ interface LabelTableRow {
 
 function LabelNameCell({ row }: DataTableCellContext<LabelTableRow>) {
   return (
-    <Link to="/labels/$id" params={{ id: String(row.original.label.id) }} className="font-medium">
+    <TextLink
+      to="/labels/$id"
+      params={{ id: String(row.original.label.id) }}
+      className="font-medium"
+    >
       {row.original.label.name}
-    </Link>
+    </TextLink>
   );
 }
 

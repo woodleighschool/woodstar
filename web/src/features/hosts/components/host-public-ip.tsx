@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { Link } from "@components/link";
+import { TextLink } from "@components/link";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@components/ui/hover-card";
 import type { Host, HostDetail, PublicIpDetails } from "@lib/api";
 
@@ -40,13 +40,13 @@ export function HostPublicIP({
             <PublicIPCardRow
               label="Distribution point"
               value={
-                <Link
+                <TextLink
                   to="/munki/distribution-points/$id"
                   params={{ id: String(distributionPoint.id) }}
                   className="font-medium"
                 >
                   {distributionPoint.name}
-                </Link>
+                </TextLink>
               }
             />
           ) : null}

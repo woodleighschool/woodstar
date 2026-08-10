@@ -17,7 +17,7 @@ import { useDataTable } from "@components/data-table/use-data-table";
 import { useDataTableSearch } from "@components/data-table/use-data-table-search";
 import { FilterChip } from "@components/filter-controls";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
-import { Link } from "@components/link";
+import { TextLink } from "@components/link";
 import { QueryError } from "@components/query-error";
 import { RelativeTime } from "@components/relative-time";
 import { Button } from "@components/ui/button";
@@ -204,9 +204,9 @@ const hostColumns: DataTableColumnDef<Host>[] = [
     header: "Name",
     cell: ({ row }) => (
       <div className="flex items-center gap-2">
-        <Link to="/hosts/$id" params={{ id: String(row.original.id) }} className="font-medium">
+        <TextLink to="/hosts/$id" params={{ id: String(row.original.id) }} className="font-medium">
           {row.original.display_name}
-        </Link>
+        </TextLink>
         <HostOnlineDot status={row.original.status} />
       </div>
     ),

@@ -12,7 +12,7 @@ import type { DataTableCellContext, DataTableColumnDef } from "@components/data-
 import { useDataTable } from "@components/data-table/use-data-table";
 import { useDataTableSearch } from "@components/data-table/use-data-table-search";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
-import { Link } from "@components/link";
+import { Link, TextLink } from "@components/link";
 import { QueryError } from "@components/query-error";
 import { Button } from "@components/ui/button";
 import {
@@ -136,13 +136,13 @@ const checkColumns: DataTableColumnDef<CheckTableRow>[] = [
     accessorKey: "name",
     header: "Name",
     cell: ({ row }) => (
-      <Link
+      <TextLink
         to="/osquery/checks/$id"
         params={{ id: String(row.original.id) }}
         className="font-medium"
       >
         {row.original.name}
-      </Link>
+      </TextLink>
     ),
     enableHiding: false,
     size: 360,

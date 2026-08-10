@@ -2,10 +2,7 @@ import { Boxes, ExternalLink, FileArchive, PackageSearch, RadioTower } from "luc
 
 import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link } from "@components/link";
-import {
-  overviewCardLinkClassName,
-  ResourceOverviewCard,
-} from "@components/resource-overview-card";
+import { ResourceOverviewCard } from "@components/resource-overview-card";
 import { buttonVariants } from "@components/ui/button";
 import { EnrollmentOverviewCard } from "@features/enrollments/card";
 import { enrollmentDocsURL } from "@features/enrollments/metadata";
@@ -41,7 +38,7 @@ export function MunkiOverviewPage() {
       />
 
       <div className="grid min-w-0 gap-4 md:grid-cols-3">
-        <Link to="/munki/software" className={overviewCardLinkClassName}>
+        <Link to="/munki/software">
           <ResourceOverviewCard
             title="Software"
             count={software.data?.count}
@@ -50,7 +47,7 @@ export function MunkiOverviewPage() {
             icon={PackageSearch}
           />
         </Link>
-        <Link to="/munki/packages" className={overviewCardLinkClassName}>
+        <Link to="/munki/packages">
           <ResourceOverviewCard
             title="Packages"
             count={packages.data?.count}
@@ -59,7 +56,7 @@ export function MunkiOverviewPage() {
             icon={Boxes}
           />
         </Link>
-        <Link to="/munki/distribution-points" className={overviewCardLinkClassName}>
+        <Link to="/munki/distribution-points">
           <ResourceOverviewCard
             title="Distribution Points"
             count={distributionPoints.data?.count}
@@ -68,7 +65,7 @@ export function MunkiOverviewPage() {
             icon={RadioTower}
           />
         </Link>
-        <Link to="/munki/client-resources" className={overviewCardLinkClassName}>
+        <Link to="/munki/client-resources">
           <ResourceOverviewCard
             title="Client Resources"
             count={clientResources.data?.count}

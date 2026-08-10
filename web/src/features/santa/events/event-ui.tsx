@@ -1,5 +1,5 @@
 import { EnumStatusIndicator } from "@components/enum-status-indicator";
-import { Link } from "@components/link";
+import { TextLink } from "@components/link";
 import type { SantaHostSummary } from "@lib/api";
 import { formatDateTime, formatRelative } from "@lib/utils";
 
@@ -20,9 +20,9 @@ export function FileAccessDecisionBadge({ decision }: { decision: SantaFileAcces
 
 export function HostLink({ host }: { host: SantaHostSummary }) {
   return (
-    <Link to="/hosts/$id" params={{ id: String(host.id) }} className="font-medium">
+    <TextLink to="/hosts/$id" params={{ id: String(host.id) }} className="font-medium">
       {host.display_name}
-    </Link>
+    </TextLink>
   );
 }
 

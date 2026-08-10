@@ -6,12 +6,23 @@ const LinkAnchor = forwardRef<HTMLAnchorElement, ComponentPropsWithoutRef<"a">>(
   ref,
 ) {
   return (
-    <a ref={ref} data-link {...props}>
+    <a ref={ref} {...props}>
       {children}
     </a>
   );
 });
 
-const Link = createLink(LinkAnchor);
+const TextLinkAnchor = forwardRef<HTMLAnchorElement, ComponentPropsWithoutRef<"a">>(
+  function TextLinkAnchor({ children, ...props }, ref) {
+    return (
+      <a ref={ref} data-text-link {...props}>
+        {children}
+      </a>
+    );
+  },
+);
 
-export { Link };
+const Link = createLink(LinkAnchor);
+const TextLink = createLink(TextLinkAnchor);
+
+export { Link, TextLink };

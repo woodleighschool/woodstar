@@ -2,10 +2,7 @@ import { ClipboardCheck, ExternalLink, FileChartColumn } from "lucide-react";
 
 import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link } from "@components/link";
-import {
-  overviewCardLinkClassName,
-  ResourceOverviewCard,
-} from "@components/resource-overview-card";
+import { ResourceOverviewCard } from "@components/resource-overview-card";
 import { buttonVariants } from "@components/ui/button";
 import { EnrollmentOverviewCard } from "@features/enrollments/card";
 import { enrollmentDocsURL } from "@features/enrollments/metadata";
@@ -37,7 +34,7 @@ export function OsqueryOverviewPage() {
       />
 
       <div className="grid min-w-0 gap-4 md:grid-cols-3">
-        <Link to="/osquery/reports" className={overviewCardLinkClassName}>
+        <Link to="/osquery/reports">
           <ResourceOverviewCard
             title="Reports"
             count={reports.data?.count}
@@ -46,7 +43,7 @@ export function OsqueryOverviewPage() {
             icon={FileChartColumn}
           />
         </Link>
-        <Link to="/osquery/checks" className={overviewCardLinkClassName}>
+        <Link to="/osquery/checks">
           <ResourceOverviewCard
             title="Checks"
             count={checks.data?.count}

@@ -9,7 +9,7 @@ import type { DataTableColumnDef } from "@components/data-table/types";
 import { EnumStatusIndicator } from "@components/enum-status-indicator";
 import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
-import { Link } from "@components/link";
+import { Link, TextLink } from "@components/link";
 import { QueryGate } from "@components/query-gate";
 import { Badge } from "@components/ui/badge";
 import { Button } from "@components/ui/button";
@@ -186,14 +186,14 @@ const packageStateColumns: DataTableColumnDef<MunkiPackageState>[] = [
     cell: ({ row }) => (
       <div className="flex items-center gap-2">
         <SoftwareArtwork src={row.original.software_icon_url} />
-        <Link
+        <TextLink
           to="/munki/packages/$id"
           params={{ id: String(row.original.package_id) }}
           className="min-w-0 truncate font-medium"
           title={`${row.original.name} ${row.original.version}`}
         >
           {row.original.name} {row.original.version}
-        </Link>
+        </TextLink>
       </div>
     ),
   },

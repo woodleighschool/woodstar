@@ -11,7 +11,7 @@ import type { DataTableColumnDef } from "@components/data-table/types";
 import { useDataTable } from "@components/data-table/use-data-table";
 import { useDataTableSearch } from "@components/data-table/use-data-table-search";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
-import { Link } from "@components/link";
+import { TextLink } from "@components/link";
 import { QueryError } from "@components/query-error";
 import { useSoftware } from "@features/software/queries";
 import { SoftwareIcon, softwareIconProps } from "@features/software/software-icon";
@@ -117,14 +117,14 @@ const softwareColumns: DataTableColumnDef<SoftwareTitle>[] = [
     cell: ({ row }) => (
       <div className="flex min-w-0 items-center gap-2">
         <SoftwareIcon {...softwareIconProps(row.original.source)} />
-        <Link
+        <TextLink
           to="/software/titles/$id"
           params={{ id: String(row.original.id) }}
           className="min-w-0 truncate font-medium"
           title={row.original.name}
         >
           {row.original.name}
-        </Link>
+        </TextLink>
       </div>
     ),
     enableHiding: false,
@@ -160,9 +160,13 @@ const softwareColumns: DataTableColumnDef<SoftwareTitle>[] = [
     accessorKey: "hosts_count",
     header: "Hosts",
     cell: ({ row }) => (
-      <Link to="/hosts" search={{ software_title_id: row.original.id }} className="tabular-nums">
+      <TextLink
+        to="/hosts"
+        search={{ software_title_id: row.original.id }}
+        className="tabular-nums"
+      >
         {row.original.hosts_count}
-      </Link>
+      </TextLink>
     ),
     meta: { label: "Hosts" },
     size: 96,

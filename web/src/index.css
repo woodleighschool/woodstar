@@ -256,9 +256,7 @@
     border-color: var(--border);
   }
 
-  [data-link]:where(:not([data-slot]), [data-slot="tooltip-trigger"]):not(:empty):not(
-      [role="button"]
-    ) {
+  [data-text-link]:not(:empty):not([role="button"]) {
     background-image:
       linear-gradient(currentColor, currentColor),
       linear-gradient(
@@ -274,19 +272,15 @@
     transition: background-size 180ms ease-out;
   }
 
-  [data-link]:where(:not([data-slot]), [data-slot="tooltip-trigger"]):not(:empty):not(
-      [role="button"]
-    ):hover,
-  [data-link]:where(:not([data-slot]), [data-slot="tooltip-trigger"]):not(:empty):not(
-      [role="button"]
-    ):focus-visible {
+  [data-text-link]:not(:empty):not([role="button"]):hover,
+  [data-text-link]:not(:empty):not([role="button"]):focus-visible {
     background-size:
       100% 1px,
       100% 1px;
   }
 
   @media (prefers-reduced-motion: reduce) {
-    [data-link] {
+    [data-text-link] {
       transition: none;
     }
   }

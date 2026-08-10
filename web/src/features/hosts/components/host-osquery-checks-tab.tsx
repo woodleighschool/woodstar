@@ -8,7 +8,7 @@ import { DataTableSkeleton } from "@components/data-table/data-table-skeleton";
 import type { DataTableColumnDef, DataTableInstance } from "@components/data-table/types";
 import { useDataTable } from "@components/data-table/use-data-table";
 import { useDataTableSearch } from "@components/data-table/use-data-table-search";
-import { Link } from "@components/link";
+import { TextLink } from "@components/link";
 import { PanelEmptyState } from "@components/panel-empty-state";
 import { QueryError } from "@components/query-error";
 import { useHostOsqueryChecks } from "@features/hosts/queries";
@@ -22,9 +22,9 @@ const checkColumns: DataTableColumnDef<OsqueryCheckHostStatus>[] = [
     accessorKey: "check_name",
     header: () => "Check",
     cell: ({ row }) => (
-      <Link to="/osquery/checks/$id" params={{ id: String(row.original.check_id) }}>
+      <TextLink to="/osquery/checks/$id" params={{ id: String(row.original.check_id) }}>
         {row.original.check_name}
-      </Link>
+      </TextLink>
     ),
   },
   {

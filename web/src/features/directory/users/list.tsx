@@ -13,7 +13,7 @@ import { useDataTableSearch } from "@components/data-table/use-data-table-search
 import { EnumBadge } from "@components/enum-badge";
 import { FilterChip } from "@components/filter-controls";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
-import { Link } from "@components/link";
+import { Link, TextLink } from "@components/link";
 import { QueryError } from "@components/query-error";
 import { Button } from "@components/ui/button";
 import {
@@ -50,13 +50,13 @@ interface UserTableRow {
 function UserNameCell({ row }: DataTableCellContext<UserTableRow>) {
   const label = nonEmpty(row.original.user.name) ?? row.original.user.email;
   return (
-    <Link
+    <TextLink
       to="/directory/users/$id"
       params={{ id: String(row.original.user.id) }}
       className="font-medium"
     >
       {label}
-    </Link>
+    </TextLink>
   );
 }
 

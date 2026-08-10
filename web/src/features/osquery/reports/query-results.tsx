@@ -4,7 +4,7 @@ import type {
 } from "@components/data-table/data-table-export";
 import { DataTableRowExpander } from "@components/data-table/data-table-row-expander";
 import type { DataTableColumnDef } from "@components/data-table/types";
-import { Link } from "@components/link";
+import { TextLink } from "@components/link";
 import {
   Table,
   TableBody,
@@ -90,9 +90,9 @@ export function createReportResultColumns({
       accessorKey: "host_name",
       header: () => "Host",
       cell: ({ row }) => (
-        <Link to="/hosts/$id" params={{ id: String(row.original.host_id) }}>
+        <TextLink to="/hosts/$id" params={{ id: String(row.original.host_id) }}>
           {row.original.host_name}
-        </Link>
+        </TextLink>
       ),
     },
     {

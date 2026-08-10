@@ -6,7 +6,7 @@ import { DataTableStatic } from "@components/data-table/data-table-static";
 import type { DataTableColumnDef } from "@components/data-table/types";
 import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
-import { Link } from "@components/link";
+import { Link, TextLink } from "@components/link";
 import { PanelEmptyState } from "@components/panel-empty-state";
 import { QueryGate } from "@components/query-gate";
 import { TargetBadge, TargetDetails } from "@components/targeting/target-details";
@@ -31,14 +31,14 @@ const packageColumns: DataTableColumnDef<MunkiPackage>[] = [
     cell: ({ row }) => (
       <div className="flex min-w-0 items-center gap-2">
         <SoftwareArtwork src={row.original.software.icon_url} />
-        <Link
+        <TextLink
           to="/munki/packages/$id"
           params={{ id: String(row.original.id) }}
           className="min-w-0 truncate font-medium"
           title={row.original.version}
         >
           {row.original.version}
-        </Link>
+        </TextLink>
       </div>
     ),
   },

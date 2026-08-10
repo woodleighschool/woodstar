@@ -11,7 +11,7 @@ import { useDataTable } from "@components/data-table/use-data-table";
 import { useDataTableSearch } from "@components/data-table/use-data-table-search";
 import { EnumBadge } from "@components/enum-badge";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
-import { Link } from "@components/link";
+import { TextLink } from "@components/link";
 import { QueryError } from "@components/query-error";
 import { useGroups } from "@features/directory/groups/queries";
 import { DIRECTORY_SOURCES } from "@features/directory/source";
@@ -27,9 +27,13 @@ const groupColumns: DataTableColumnDef<Group>[] = [
     accessorKey: "display_name",
     header: "Name",
     cell: ({ row }) => (
-      <Link to="/directory/users" search={{ group_id: row.original.id }} className="font-medium">
+      <TextLink
+        to="/directory/users"
+        search={{ group_id: row.original.id }}
+        className="font-medium"
+      >
         {row.original.display_name}
-      </Link>
+      </TextLink>
     ),
     enableHiding: false,
     meta: { label: "Name" },

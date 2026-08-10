@@ -10,7 +10,7 @@ import { DataTableSkeleton } from "@components/data-table/data-table-skeleton";
 import type { DataTableColumnDef, DataTableInstance } from "@components/data-table/types";
 import { useDataTable } from "@components/data-table/use-data-table";
 import { useDataTableSearch } from "@components/data-table/use-data-table-search";
-import { Link } from "@components/link";
+import { TextLink } from "@components/link";
 import { PanelEmptyState } from "@components/panel-empty-state";
 import { QueryError } from "@components/query-error";
 import { listAllHostOsqueryReports, useHostOsqueryReports } from "@features/hosts/queries";
@@ -44,13 +44,13 @@ const hostReportColumns: DataTableColumnDef<OsqueryReportSnapshot>[] = [
     header: () => "Report",
     cell: ({ row }) => (
       <div className="flex flex-col gap-0.5">
-        <Link
+        <TextLink
           to="/osquery/reports/$id"
           params={{ id: String(row.original.report_id) }}
           className="w-fit"
         >
           {row.original.report_name}
-        </Link>
+        </TextLink>
         {row.original.report_description ? (
           <span className="text-xs whitespace-normal text-muted-foreground">
             {row.original.report_description}

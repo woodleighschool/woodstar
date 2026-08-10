@@ -4,7 +4,7 @@ import { BooleanIndicator } from "@components/boolean-indicator";
 import { DataTableStatic } from "@components/data-table/data-table-static";
 import type { DataTableColumnDef } from "@components/data-table/types";
 import { KeyValueRow, KeyValueSection } from "@components/key-value";
-import { Link } from "@components/link";
+import { Link, TextLink } from "@components/link";
 import { PanelEmptyState } from "@components/panel-empty-state";
 import { QueryError } from "@components/query-error";
 import { Button } from "@components/ui/button";
@@ -21,13 +21,13 @@ const santaRuleColumns: DataTableColumnDef<SantaRuleStatus>[] = [
     accessorKey: "name",
     header: () => "Name",
     cell: ({ row }) => (
-      <Link
+      <TextLink
         to="/santa/rules/$id"
         params={{ id: String(row.original.rule_id) }}
         className="font-medium"
       >
         {row.original.name}
-      </Link>
+      </TextLink>
     ),
     size: 240,
     minSize: 160,
@@ -146,13 +146,13 @@ function SantaConfigurationLink({
   configuration: NonNullable<SantaHostState["configuration"]>;
 }) {
   const link = (
-    <Link
+    <TextLink
       to="/santa/configurations/$id"
       params={{ id: String(configuration.id) }}
       className="font-medium"
     >
       {configuration.name}
-    </Link>
+    </TextLink>
   );
 
   return configuration.matched_via_label ? (

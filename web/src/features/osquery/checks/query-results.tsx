@@ -1,5 +1,5 @@
 import type { DataTableColumnDef } from "@components/data-table/types";
-import { Link } from "@components/link";
+import { TextLink } from "@components/link";
 import type { OsqueryCheckHostStatus } from "@lib/api";
 import { formatRelative } from "@lib/utils";
 
@@ -34,9 +34,13 @@ export function createCheckResultColumns({
       accessorKey: "host_name",
       header: () => "Host",
       cell: ({ row }) => (
-        <Link to="/hosts/$id" params={{ id: String(row.original.host_id) }} className="font-medium">
+        <TextLink
+          to="/hosts/$id"
+          params={{ id: String(row.original.host_id) }}
+          className="font-medium"
+        >
           {row.original.host_name}
-        </Link>
+        </TextLink>
       ),
     },
     {
