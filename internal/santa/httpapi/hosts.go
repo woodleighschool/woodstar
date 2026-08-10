@@ -73,7 +73,7 @@ func registerHostSantaRules(
 		Path:        "/api/hosts/{id}/santa/rules",
 		Tags:        []string{api.TagHosts},
 		Summary:     "List Santa rules for a host",
-		Errors:      []int{http.StatusBadRequest, http.StatusNotFound},
+		Errors:      []int{http.StatusBadRequest, http.StatusNotFound, http.StatusConflict},
 	}, func(ctx context.Context, input *hostSantaRulesInput) (*hostSantaRulesOutput, error) {
 		configuration, err := configurationStore.ResolveConfigurationForHost(ctx, input.ID)
 		if err != nil {
