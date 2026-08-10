@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.8.9](https://github.com/woodleighschool/woodstar/compare/0.8.8...0.8.9) (2026-08-10)
+
+
+### Features
+
+* **directory:** move sync action to header ([02e2d5b](https://github.com/woodleighschool/woodstar/commit/02e2d5bba761270998f57f594d6c85eecbb2bfc3))
+* **web:** add agent secret management ([9a8ec72](https://github.com/woodleighschool/woodstar/commit/9a8ec72e8c69ee877b7c057d2d3b2201da87819c))
+
+
+### Bug Fixes
+
+* **sidebar:** link collapsed groups to overviews ([1fdc6db](https://github.com/woodleighschool/woodstar/commit/1fdc6db186a8c78098d1a52af4ce3165e4574ce3))
+* **sidebar:** stop hidden labels blocking icons ([0efa81e](https://github.com/woodleighschool/woodstar/commit/0efa81ec73bfb0537bde503f418e698b8b797c74))
+
+
+### Code Refactoring
+
+* **web:** separate text link styling ([6d0b22b](https://github.com/woodleighschool/woodstar/commit/6d0b22b613dffe017cf475a5145675cf42b4e989))
+
 ## [0.8.8](https://github.com/woodleighschool/woodstar/compare/0.8.7...0.8.8) (2026-08-10)
 
 
