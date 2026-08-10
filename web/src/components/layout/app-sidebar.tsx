@@ -75,7 +75,9 @@ function SidebarBrand() {
 function SidebarNavGroup({ section, pathname }: { section: NavMenu; pathname: string }) {
   return (
     <SidebarGroup>
-      <SidebarGroupLabel>{section.label}</SidebarGroupLabel>
+      <SidebarGroupLabel className="group-data-[collapsible=icon]:pointer-events-none">
+        {section.label}
+      </SidebarGroupLabel>
       <SidebarMenu>
         {section.items.map((item) => (
           <SidebarNavItem key={item.label} item={item} pathname={pathname} />
