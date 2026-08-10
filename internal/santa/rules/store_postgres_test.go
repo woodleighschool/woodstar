@@ -323,10 +323,7 @@ func TestRuleStatusesCanonicalizeBundleCollisions(t *testing.T) {
 		createdRules = append(createdRules, *createdRule)
 	}
 
-	resolved, err := ruleStore.ResolveRulesForHost(ctx, host.ID, configurationID)
-	if err != nil {
-		t.Fatalf("resolve duplicate bundle rules: %v", err)
-	}
+	resolved := resolveSantaRulesForHost(t, ruleStore, host.ID, configurationID)
 	if len(resolved) != 3 {
 		t.Fatalf("resolved rules = %d, want three pre-canonical bundle expansions", len(resolved))
 	}
@@ -386,10 +383,7 @@ func TestRuleStatusesCanonicalizeBundleCollisions(t *testing.T) {
 	); err != nil {
 		t.Fatalf("change duplicate bundle app name: %v", err)
 	}
-	resolved, err = ruleStore.ResolveRulesForHost(ctx, host.ID, configurationID)
-	if err != nil {
-		t.Fatalf("resolve app-name conflict: %v", err)
-	}
+	resolved = resolveSantaRulesForHost(t, ruleStore, host.ID, configurationID)
 	_, err = rules.SyncTargetsFromRules(resolved)
 	if !errors.Is(err, fault.ErrConflict) {
 		t.Fatalf("app-name-only collision error = %v, want ErrConflict", err)
@@ -634,6 +628,21 @@ func TestRuleIdentityIsUniqueWithinConfiguration(t *testing.T) {
 	if !errors.Is(err, fault.ErrAlreadyExists) {
 		t.Fatalf("duplicate rule error = %v, want ErrAlreadyExists", err)
 	}
+}
+
+func resolveSantaRulesForHost(
+	t *testing.T,
+	store *rules.Store,
+	hostID int64,
+	configurationID int64,
+) []rules.HostRule {
+	t.Helper()
+
+	resolved, err := store.ResolveRulesForHost(t.Context(), hostID, configurationID)
+	if err != nil {
+		t.Fatalf("resolve Santa rules for host: %v", err)
+	}
+	return resolved
 }
 
 func createSantaRuleBundleFixture(t *testing.T, db *pgxpool.Pool) (int64, string, string, string) {
