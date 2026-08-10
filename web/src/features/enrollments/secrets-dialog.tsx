@@ -1,5 +1,5 @@
 import { revalidateLogic, useForm } from "@tanstack/react-form";
-import { Copy, Eye, EyeOff, Pencil, Plus, Trash2 } from "lucide-react";
+import { Copy, ExternalLink, Eye, EyeOff, Pencil, Plus, Trash2 } from "lucide-react";
 import { type ReactNode, useMemo, useState } from "react";
 import { z } from "zod";
 
@@ -17,7 +17,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@components/ui/alert-dialog";
-import { Button } from "@components/ui/button";
+import { Button, buttonVariants } from "@components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -34,6 +34,7 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from "@components/ui/input-group";
+import { Separator } from "@components/ui/separator";
 import { Skeleton } from "@components/ui/skeleton";
 import { Spinner } from "@components/ui/spinner";
 import { toast } from "@components/ui/toast";
@@ -41,6 +42,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@components/ui/tooltip"
 import { ValidatedFormField } from "@components/validated-form-field";
 import {
   deleteDescription,
+  enrollmentDialogTitle,
+  enrollmentDocsURL,
   type Integration,
   integrationLabel,
   secretUsageDescription,
@@ -94,11 +97,22 @@ export function AgentSecretsDialog({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-4xl">
           <DialogHeader>
-            <DialogTitle>{`Manage ${integrationLabel(integration)} Enrollment Secrets`}</DialogTitle>
+            <DialogTitle>{enrollmentDialogTitle(integration)}</DialogTitle>
             <DialogDescription>{secretUsageDescription(integration)}</DialogDescription>
           </DialogHeader>
 
-          <div className="flex justify-end border-t pt-5">
+          <Separator />
+
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <a
+              href={enrollmentDocsURL(integration)}
+              target="_blank"
+              rel="noreferrer"
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+            >
+              <ExternalLink data-icon="inline-start" />
+              Deployment guide
+            </a>
             <Button
               type="button"
               variant="outline"
@@ -126,7 +140,11 @@ export function AgentSecretsDialog({
             onCopy={(secret) => void copyAgentSecret(secret)}
             onEdit={setEditing}
             onDelete={setDeleting}
-            emptyTitle={`No ${integrationLabel(integration)} secrets yet`}
+            emptyTitle={
+              integration === "orbit"
+                ? "No host enrollment secrets yet"
+                : `No ${integrationLabel(integration)} secrets yet`
+            }
           />
 
           <DialogFooter>

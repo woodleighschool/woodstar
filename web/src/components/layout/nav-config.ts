@@ -1,7 +1,6 @@
 import { linkOptions, type ActiveOptions } from "@tanstack/react-router";
 import {
   Database,
-  KeyRound,
   type LucideIcon,
   Package,
   PackageSearch,
@@ -38,16 +37,22 @@ export const navSections: NavMenu[] = [
     items: [
       {
         label: "Osquery",
+        to: "/osquery",
+        activeOptions: { exact: true },
         icon: Database,
         items: linkOptions([
+          { label: "Overview", to: "/osquery", activeOptions: { exact: true } },
           { label: "Reports", to: "/osquery/reports" },
           { label: "Checks", to: "/osquery/checks" },
         ]),
       },
       {
         label: "Santa",
+        to: "/santa",
+        activeOptions: { exact: true },
         icon: ShieldCheck,
         items: linkOptions([
+          { label: "Overview", to: "/santa", activeOptions: { exact: true } },
           { label: "Configurations", to: "/santa/configurations" },
           { label: "Rules", to: "/santa/rules" },
           { label: "Events", to: "/santa/events" },
@@ -55,8 +60,11 @@ export const navSections: NavMenu[] = [
       },
       {
         label: "Munki",
+        to: "/munki",
+        activeOptions: { exact: true },
         icon: PackageSearch,
         items: linkOptions([
+          { label: "Overview", to: "/munki", activeOptions: { exact: true } },
           { label: "Software", to: "/munki/software" },
           { label: "Packages", to: "/munki/packages" },
           { label: "Distribution Points", to: "/munki/distribution-points" },
@@ -77,15 +85,6 @@ export const navSections: NavMenu[] = [
           { label: "Overview", to: "/directory", activeOptions: { exact: true } },
           { label: "Users", to: "/directory/users" },
           { label: "Groups", to: "/directory/groups" },
-        ]),
-      },
-      {
-        label: "Enrollments",
-        icon: KeyRound,
-        items: linkOptions([
-          { label: "Orbit", to: "/enrollments/orbit" },
-          { label: "Munki", to: "/enrollments/munki" },
-          { label: "Santa", to: "/enrollments/santa" },
         ]),
       },
       linkOptions({ label: "Labels", to: "/labels", icon: Tag }),

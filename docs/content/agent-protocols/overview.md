@@ -16,8 +16,8 @@ Woodstar exposes the native protocol expected by each Mac client. These routes a
 | Munki                    | `/munki/...`                  | Munki bearer secret                      |
 | Munki distribution point | `/api/munki/distribution/...` | Per-point key                            |
 
-Create the Orbit, Santa, and Munki secrets under **Enrollments**. The same pages provide configuration-profile templates for each client.
+Create the shared Orbit/osquery secret from **Hosts > Enroll Hosts** or the **osquery** overview. Santa and Munki secrets live on their integration overviews. The deployment profiles are documented with each protocol.
 
 Orbit and osquery can enroll a new host. Santa and Munki require a host that has already enrolled with the same hardware UUID or serial number.
 
-See [Agent Secrets](../concepts/agent-secrets) for the credential model.
+See [Agent Secrets](../concepts/agent-secrets) for the credential model and [Mutual TLS](./mutual-tls) for edge-terminated client certificate authentication.

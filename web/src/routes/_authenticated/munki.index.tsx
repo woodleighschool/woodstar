@@ -1,7 +1,7 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
+
+import { MunkiOverviewPage } from "@features/munki/overview";
 
 export const Route = createFileRoute("/_authenticated/munki/")({
-  beforeLoad: () => {
-    throw redirect({ to: "/munki/software" });
-  },
+  component: MunkiOverviewPage,
 });

@@ -2,30 +2,33 @@ import type { AgentSecret } from "@lib/api";
 
 export type Integration = AgentSecret["agent"];
 
+const DOCS_BASE_URL = "https://woodleighschool.github.io/woodstar/docs/agent-protocols";
+
 export function integrationLabel(integration?: Integration) {
   if (integration === "santa") return "Santa";
   if (integration === "munki") return "Munki";
-  if (integration === "orbit") return "Orbit";
+  if (integration === "orbit") return "Host";
   return "Integration";
 }
 
-export function enrollmentTitle(integration: Integration) {
-  return `${integrationLabel(integration)} Enrollment`;
+export function enrollmentDialogTitle(integration: Integration) {
+  if (integration === "orbit") return "Enroll Hosts";
+  return `Manage ${integrationLabel(integration)} Enrollment Secrets`;
 }
 
-export function enrollmentDescription(integration: Integration) {
-  if (integration === "orbit") {
-    return "Orbit package, profile, and enroll secrets.";
-  }
-  if (integration === "munki") {
-    return "Profile and bearer secrets for Munki.";
-  }
-  return "Profile and bearer secrets for Santa.";
+export function enrollmentCardTitle(integration: Integration) {
+  return integration === "orbit" ? "Host Enrollment" : "Enrollment Secrets";
+}
+
+export function enrollmentCardDescription(integration: Integration) {
+  if (integration === "orbit") return "Shared by Orbit and direct osquery enrollment.";
+  if (integration === "munki") return "Bearer credentials used by Munki clients.";
+  return "Bearer credentials used by Santa clients.";
 }
 
 export function secretUsageDescription(integration: Integration) {
   if (integration === "orbit") {
-    return "Use these secrets for Orbit enrollment.";
+    return "Use these shared secrets to enroll hosts through Orbit or osquery.";
   }
   if (integration === "munki") {
     return "Use these bearer secrets for Munki.";
@@ -35,10 +38,16 @@ export function secretUsageDescription(integration: Integration) {
 
 export function deleteDescription(integration: Integration) {
   if (integration === "orbit") {
-    return "New enrollments using this secret will fail. Existing hosts keep their issued node keys.";
+    return "New Orbit and osquery enrollments using this secret will fail. Existing hosts keep their issued node keys.";
   }
   if (integration === "munki") {
     return "Munki clients using this bearer secret will be rejected until they receive another active secret.";
   }
   return "Santa clients using this bearer secret will be rejected until they receive another active secret.";
+}
+
+export function enrollmentDocsURL(integration: Integration) {
+  if (integration === "orbit") return `${DOCS_BASE_URL}/orbit-and-osquery`;
+  if (integration === "munki") return `${DOCS_BASE_URL}/munki-repository`;
+  return `${DOCS_BASE_URL}/santa-sync`;
 }

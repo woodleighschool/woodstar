@@ -10,7 +10,107 @@ Orbit and osquery enroll with the Orbit agent secret, then use a per-host node k
 
 ## Configure Orbit
 
-Under **Enrollments > Orbit**, create an agent secret and copy the generated package command and configuration profile. The profile sets the Woodstar URL, enrollment secret, and optional MDM user-email value.
+Create a host enrollment secret from **Hosts > Enroll Hosts** or the **osquery** overview. Orbit and direct osquery enrollment use the same secret.
+
+Build the macOS package without embedding the Woodstar URL or enrollment secret:
+
+```shell
+fleetctl package --type=pkg --use-system-configuration
+```
+
+Deploy the package with the fleetd configuration profile below. Replace the example URL and secret before deployment.
+
+```xml title="fleetd.mobileconfig"
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>PayloadContent</key>
+  <array>
+    <dict>
+      <key>EnrollSecret</key>
+      <string>REPLACE_WITH_SECRET</string>
+      <key>FleetURL</key>
+      <string>https://woodstar.example.com</string>
+      <key>PayloadDisplayName</key>
+      <string>fleetd</string>
+      <key>PayloadIdentifier</key>
+      <string>com.fleetdm.fleetd.config</string>
+      <key>PayloadType</key>
+      <string>com.fleetdm.fleetd.config</string>
+      <key>PayloadUUID</key>
+      <string>476F5334-D501-4768-9A31-1A18A4E1E807</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+    </dict>
+  </array>
+  <key>PayloadDescription</key>
+  <string>Configures fleetd for Woodstar.</string>
+  <key>PayloadDisplayName</key>
+  <string>Woodstar - fleetd</string>
+  <key>PayloadIdentifier</key>
+  <string>com.example.woodstar.fleetd</string>
+  <key>PayloadOrganization</key>
+  <string>Example Organization</string>
+  <key>PayloadScope</key>
+  <string>System</string>
+  <key>PayloadType</key>
+  <string>Configuration</string>
+  <key>PayloadUUID</key>
+  <string>0C6AFB45-01B6-4E19-944A-123CD16381C7</string>
+  <key>PayloadVersion</key>
+  <integer>1</integer>
+</dict>
+</plist>
+```
+
+### Optional end-user mapping
+
+Replace `$EMAIL` with the user-email variable supported by your MDM. Orbit reads the inner `com.fleetdm.fleet.mdm.apple.mdm` preference domain exactly as shown.
+
+```xml title="fleetd-user.mobileconfig"
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>PayloadContent</key>
+  <array>
+    <dict>
+      <key>EndUserEmail</key>
+      <string>$EMAIL</string>
+      <key>PayloadDisplayName</key>
+      <string>fleetd user mapping</string>
+      <key>PayloadIdentifier</key>
+      <string>com.fleetdm.fleet.mdm.apple.mdm</string>
+      <key>PayloadType</key>
+      <string>com.fleetdm.fleet.mdm.apple.mdm</string>
+      <key>PayloadUUID</key>
+      <string>29713130-1602-4D27-90C9-B822A295E44E</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+    </dict>
+  </array>
+  <key>PayloadDescription</key>
+  <string>Maps the assigned MDM user to a Woodstar host.</string>
+  <key>PayloadDisplayName</key>
+  <string>Woodstar - fleetd user</string>
+  <key>PayloadIdentifier</key>
+  <string>com.example.woodstar.fleetd-user</string>
+  <key>PayloadOrganization</key>
+  <string>Example Organization</string>
+  <key>PayloadScope</key>
+  <string>System</string>
+  <key>PayloadType</key>
+  <string>Configuration</string>
+  <key>PayloadUUID</key>
+  <string>9A11B43D-395C-4377-8EDB-870551531B41</string>
+  <key>PayloadVersion</key>
+  <integer>1</integer>
+</dict>
+</plist>
+```
+
+See [Mutual TLS](./mutual-tls) to include a client certificate and key in the fleetd package.
 
 ## Orbit routes
 

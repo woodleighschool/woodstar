@@ -14,7 +14,6 @@ import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedAccountRouteImport } from './routes/_authenticated/account'
 import { Route as AuthenticatedDirectoryRouteImport } from './routes/_authenticated/directory'
-import { Route as AuthenticatedEnrollmentsRouteImport } from './routes/_authenticated/enrollments'
 import { Route as AuthenticatedHostsRouteImport } from './routes/_authenticated/hosts'
 import { Route as AuthenticatedLabelsRouteImport } from './routes/_authenticated/labels'
 import { Route as AuthenticatedMunkiRouteImport } from './routes/_authenticated/munki'
@@ -24,10 +23,6 @@ import { Route as AuthenticatedSoftwareRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedDirectoryIndexRouteImport } from './routes/_authenticated/directory.index'
 import { Route as AuthenticatedDirectoryGroupsRouteImport } from './routes/_authenticated/directory.groups'
 import { Route as AuthenticatedDirectoryUsersRouteImport } from './routes/_authenticated/directory.users'
-import { Route as AuthenticatedEnrollmentsIndexRouteImport } from './routes/_authenticated/enrollments.index'
-import { Route as AuthenticatedEnrollmentsMunkiRouteImport } from './routes/_authenticated/enrollments.munki'
-import { Route as AuthenticatedEnrollmentsOrbitRouteImport } from './routes/_authenticated/enrollments.orbit'
-import { Route as AuthenticatedEnrollmentsSantaRouteImport } from './routes/_authenticated/enrollments.santa'
 import { Route as AuthenticatedHostsIndexRouteImport } from './routes/_authenticated/hosts.index'
 import { Route as AuthenticatedHostsIdRouteImport } from './routes/_authenticated/hosts.$id'
 import { Route as AuthenticatedLabelsIndexRouteImport } from './routes/_authenticated/labels.index'
@@ -132,12 +127,6 @@ const AuthenticatedDirectoryRoute = AuthenticatedDirectoryRouteImport.update({
   path: '/directory',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
-const AuthenticatedEnrollmentsRoute =
-  AuthenticatedEnrollmentsRouteImport.update({
-    id: '/enrollments',
-    path: '/enrollments',
-    getParentRoute: () => AuthenticatedRoute,
-  } as any)
 const AuthenticatedHostsRoute = AuthenticatedHostsRouteImport.update({
   id: '/hosts',
   path: '/hosts',
@@ -185,30 +174,6 @@ const AuthenticatedDirectoryUsersRoute =
     id: '/users',
     path: '/users',
     getParentRoute: () => AuthenticatedDirectoryRoute,
-  } as any)
-const AuthenticatedEnrollmentsIndexRoute =
-  AuthenticatedEnrollmentsIndexRouteImport.update({
-    id: '/',
-    path: '/',
-    getParentRoute: () => AuthenticatedEnrollmentsRoute,
-  } as any)
-const AuthenticatedEnrollmentsMunkiRoute =
-  AuthenticatedEnrollmentsMunkiRouteImport.update({
-    id: '/munki',
-    path: '/munki',
-    getParentRoute: () => AuthenticatedEnrollmentsRoute,
-  } as any)
-const AuthenticatedEnrollmentsOrbitRoute =
-  AuthenticatedEnrollmentsOrbitRouteImport.update({
-    id: '/orbit',
-    path: '/orbit',
-    getParentRoute: () => AuthenticatedEnrollmentsRoute,
-  } as any)
-const AuthenticatedEnrollmentsSantaRoute =
-  AuthenticatedEnrollmentsSantaRouteImport.update({
-    id: '/santa',
-    path: '/santa',
-    getParentRoute: () => AuthenticatedEnrollmentsRoute,
   } as any)
 const AuthenticatedHostsIndexRoute = AuthenticatedHostsIndexRouteImport.update({
   id: '/',
@@ -683,7 +648,6 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/account': typeof AuthenticatedAccountRoute
   '/directory': typeof AuthenticatedDirectoryRouteWithChildren
-  '/enrollments': typeof AuthenticatedEnrollmentsRouteWithChildren
   '/hosts': typeof AuthenticatedHostsRouteWithChildren
   '/labels': typeof AuthenticatedLabelsRouteWithChildren
   '/munki': typeof AuthenticatedMunkiRouteWithChildren
@@ -692,9 +656,6 @@ export interface FileRoutesByFullPath {
   '/software': typeof AuthenticatedSoftwareRouteWithChildren
   '/directory/groups': typeof AuthenticatedDirectoryGroupsRouteWithChildren
   '/directory/users': typeof AuthenticatedDirectoryUsersRouteWithChildren
-  '/enrollments/munki': typeof AuthenticatedEnrollmentsMunkiRoute
-  '/enrollments/orbit': typeof AuthenticatedEnrollmentsOrbitRoute
-  '/enrollments/santa': typeof AuthenticatedEnrollmentsSantaRoute
   '/hosts/$id': typeof AuthenticatedHostsIdRouteWithChildren
   '/labels/$id': typeof AuthenticatedLabelsIdRouteWithChildren
   '/labels/new': typeof AuthenticatedLabelsNewRoute
@@ -708,7 +669,6 @@ export interface FileRoutesByFullPath {
   '/santa/events': typeof AuthenticatedSantaEventsRouteWithChildren
   '/santa/rules': typeof AuthenticatedSantaRulesRouteWithChildren
   '/directory/': typeof AuthenticatedDirectoryIndexRoute
-  '/enrollments/': typeof AuthenticatedEnrollmentsIndexRoute
   '/hosts/': typeof AuthenticatedHostsIndexRoute
   '/labels/': typeof AuthenticatedLabelsIndexRoute
   '/munki/': typeof AuthenticatedMunkiIndexRoute
@@ -781,13 +741,9 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/account': typeof AuthenticatedAccountRoute
-  '/enrollments/munki': typeof AuthenticatedEnrollmentsMunkiRoute
-  '/enrollments/orbit': typeof AuthenticatedEnrollmentsOrbitRoute
-  '/enrollments/santa': typeof AuthenticatedEnrollmentsSantaRoute
   '/labels/new': typeof AuthenticatedLabelsNewRoute
   '/munki/client-resources': typeof AuthenticatedMunkiClientResourcesRoute
   '/directory': typeof AuthenticatedDirectoryIndexRoute
-  '/enrollments': typeof AuthenticatedEnrollmentsIndexRoute
   '/hosts': typeof AuthenticatedHostsIndexRoute
   '/labels': typeof AuthenticatedLabelsIndexRoute
   '/munki': typeof AuthenticatedMunkiIndexRoute
@@ -852,7 +808,6 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/_authenticated/account': typeof AuthenticatedAccountRoute
   '/_authenticated/directory': typeof AuthenticatedDirectoryRouteWithChildren
-  '/_authenticated/enrollments': typeof AuthenticatedEnrollmentsRouteWithChildren
   '/_authenticated/hosts': typeof AuthenticatedHostsRouteWithChildren
   '/_authenticated/labels': typeof AuthenticatedLabelsRouteWithChildren
   '/_authenticated/munki': typeof AuthenticatedMunkiRouteWithChildren
@@ -861,9 +816,6 @@ export interface FileRoutesById {
   '/_authenticated/software': typeof AuthenticatedSoftwareRouteWithChildren
   '/_authenticated/directory/groups': typeof AuthenticatedDirectoryGroupsRouteWithChildren
   '/_authenticated/directory/users': typeof AuthenticatedDirectoryUsersRouteWithChildren
-  '/_authenticated/enrollments/munki': typeof AuthenticatedEnrollmentsMunkiRoute
-  '/_authenticated/enrollments/orbit': typeof AuthenticatedEnrollmentsOrbitRoute
-  '/_authenticated/enrollments/santa': typeof AuthenticatedEnrollmentsSantaRoute
   '/_authenticated/hosts/$id': typeof AuthenticatedHostsIdRouteWithChildren
   '/_authenticated/labels/$id': typeof AuthenticatedLabelsIdRouteWithChildren
   '/_authenticated/labels/new': typeof AuthenticatedLabelsNewRoute
@@ -877,7 +829,6 @@ export interface FileRoutesById {
   '/_authenticated/santa/events': typeof AuthenticatedSantaEventsRouteWithChildren
   '/_authenticated/santa/rules': typeof AuthenticatedSantaRulesRouteWithChildren
   '/_authenticated/directory/': typeof AuthenticatedDirectoryIndexRoute
-  '/_authenticated/enrollments/': typeof AuthenticatedEnrollmentsIndexRoute
   '/_authenticated/hosts/': typeof AuthenticatedHostsIndexRoute
   '/_authenticated/labels/': typeof AuthenticatedLabelsIndexRoute
   '/_authenticated/munki/': typeof AuthenticatedMunkiIndexRoute
@@ -953,7 +904,6 @@ export interface FileRouteTypes {
     | '/login'
     | '/account'
     | '/directory'
-    | '/enrollments'
     | '/hosts'
     | '/labels'
     | '/munki'
@@ -962,9 +912,6 @@ export interface FileRouteTypes {
     | '/software'
     | '/directory/groups'
     | '/directory/users'
-    | '/enrollments/munki'
-    | '/enrollments/orbit'
-    | '/enrollments/santa'
     | '/hosts/$id'
     | '/labels/$id'
     | '/labels/new'
@@ -978,7 +925,6 @@ export interface FileRouteTypes {
     | '/santa/events'
     | '/santa/rules'
     | '/directory/'
-    | '/enrollments/'
     | '/hosts/'
     | '/labels/'
     | '/munki/'
@@ -1051,13 +997,9 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/account'
-    | '/enrollments/munki'
-    | '/enrollments/orbit'
-    | '/enrollments/santa'
     | '/labels/new'
     | '/munki/client-resources'
     | '/directory'
-    | '/enrollments'
     | '/hosts'
     | '/labels'
     | '/munki'
@@ -1121,7 +1063,6 @@ export interface FileRouteTypes {
     | '/login'
     | '/_authenticated/account'
     | '/_authenticated/directory'
-    | '/_authenticated/enrollments'
     | '/_authenticated/hosts'
     | '/_authenticated/labels'
     | '/_authenticated/munki'
@@ -1130,9 +1071,6 @@ export interface FileRouteTypes {
     | '/_authenticated/software'
     | '/_authenticated/directory/groups'
     | '/_authenticated/directory/users'
-    | '/_authenticated/enrollments/munki'
-    | '/_authenticated/enrollments/orbit'
-    | '/_authenticated/enrollments/santa'
     | '/_authenticated/hosts/$id'
     | '/_authenticated/labels/$id'
     | '/_authenticated/labels/new'
@@ -1146,7 +1084,6 @@ export interface FileRouteTypes {
     | '/_authenticated/santa/events'
     | '/_authenticated/santa/rules'
     | '/_authenticated/directory/'
-    | '/_authenticated/enrollments/'
     | '/_authenticated/hosts/'
     | '/_authenticated/labels/'
     | '/_authenticated/munki/'
@@ -1259,13 +1196,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDirectoryRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/enrollments': {
-      id: '/_authenticated/enrollments'
-      path: '/enrollments'
-      fullPath: '/enrollments'
-      preLoaderRoute: typeof AuthenticatedEnrollmentsRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
     '/_authenticated/hosts': {
       id: '/_authenticated/hosts'
       path: '/hosts'
@@ -1328,34 +1258,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/directory/users'
       preLoaderRoute: typeof AuthenticatedDirectoryUsersRouteImport
       parentRoute: typeof AuthenticatedDirectoryRoute
-    }
-    '/_authenticated/enrollments/': {
-      id: '/_authenticated/enrollments/'
-      path: '/'
-      fullPath: '/enrollments/'
-      preLoaderRoute: typeof AuthenticatedEnrollmentsIndexRouteImport
-      parentRoute: typeof AuthenticatedEnrollmentsRoute
-    }
-    '/_authenticated/enrollments/munki': {
-      id: '/_authenticated/enrollments/munki'
-      path: '/munki'
-      fullPath: '/enrollments/munki'
-      preLoaderRoute: typeof AuthenticatedEnrollmentsMunkiRouteImport
-      parentRoute: typeof AuthenticatedEnrollmentsRoute
-    }
-    '/_authenticated/enrollments/orbit': {
-      id: '/_authenticated/enrollments/orbit'
-      path: '/orbit'
-      fullPath: '/enrollments/orbit'
-      preLoaderRoute: typeof AuthenticatedEnrollmentsOrbitRouteImport
-      parentRoute: typeof AuthenticatedEnrollmentsRoute
-    }
-    '/_authenticated/enrollments/santa': {
-      id: '/_authenticated/enrollments/santa'
-      path: '/santa'
-      fullPath: '/enrollments/santa'
-      preLoaderRoute: typeof AuthenticatedEnrollmentsSantaRouteImport
-      parentRoute: typeof AuthenticatedEnrollmentsRoute
     }
     '/_authenticated/hosts/': {
       id: '/_authenticated/hosts/'
@@ -1986,26 +1888,6 @@ const AuthenticatedDirectoryRouteWithChildren =
     AuthenticatedDirectoryRouteChildren,
   )
 
-interface AuthenticatedEnrollmentsRouteChildren {
-  AuthenticatedEnrollmentsMunkiRoute: typeof AuthenticatedEnrollmentsMunkiRoute
-  AuthenticatedEnrollmentsOrbitRoute: typeof AuthenticatedEnrollmentsOrbitRoute
-  AuthenticatedEnrollmentsSantaRoute: typeof AuthenticatedEnrollmentsSantaRoute
-  AuthenticatedEnrollmentsIndexRoute: typeof AuthenticatedEnrollmentsIndexRoute
-}
-
-const AuthenticatedEnrollmentsRouteChildren: AuthenticatedEnrollmentsRouteChildren =
-  {
-    AuthenticatedEnrollmentsMunkiRoute: AuthenticatedEnrollmentsMunkiRoute,
-    AuthenticatedEnrollmentsOrbitRoute: AuthenticatedEnrollmentsOrbitRoute,
-    AuthenticatedEnrollmentsSantaRoute: AuthenticatedEnrollmentsSantaRoute,
-    AuthenticatedEnrollmentsIndexRoute: AuthenticatedEnrollmentsIndexRoute,
-  }
-
-const AuthenticatedEnrollmentsRouteWithChildren =
-  AuthenticatedEnrollmentsRoute._addFileChildren(
-    AuthenticatedEnrollmentsRouteChildren,
-  )
-
 interface AuthenticatedHostsIdRouteChildren {
   AuthenticatedHostsIdChecksRoute: typeof AuthenticatedHostsIdChecksRoute
   AuthenticatedHostsIdMunkiRoute: typeof AuthenticatedHostsIdMunkiRoute
@@ -2485,7 +2367,6 @@ const AuthenticatedSoftwareRouteWithChildren =
 interface AuthenticatedRouteChildren {
   AuthenticatedAccountRoute: typeof AuthenticatedAccountRoute
   AuthenticatedDirectoryRoute: typeof AuthenticatedDirectoryRouteWithChildren
-  AuthenticatedEnrollmentsRoute: typeof AuthenticatedEnrollmentsRouteWithChildren
   AuthenticatedHostsRoute: typeof AuthenticatedHostsRouteWithChildren
   AuthenticatedLabelsRoute: typeof AuthenticatedLabelsRouteWithChildren
   AuthenticatedMunkiRoute: typeof AuthenticatedMunkiRouteWithChildren
@@ -2497,7 +2378,6 @@ interface AuthenticatedRouteChildren {
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAccountRoute: AuthenticatedAccountRoute,
   AuthenticatedDirectoryRoute: AuthenticatedDirectoryRouteWithChildren,
-  AuthenticatedEnrollmentsRoute: AuthenticatedEnrollmentsRouteWithChildren,
   AuthenticatedHostsRoute: AuthenticatedHostsRouteWithChildren,
   AuthenticatedLabelsRoute: AuthenticatedLabelsRouteWithChildren,
   AuthenticatedMunkiRoute: AuthenticatedMunkiRouteWithChildren,

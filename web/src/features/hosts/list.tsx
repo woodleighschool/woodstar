@@ -1,6 +1,6 @@
 import { getRouteApi } from "@tanstack/react-router";
 import { filesize } from "filesize";
-import { ServerCog } from "lucide-react";
+import { KeyRound, ServerCog } from "lucide-react";
 import * as React from "react";
 
 import { BulkDeleteActionBar } from "@components/bulk-delete-action-bar";
@@ -20,7 +20,9 @@ import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link } from "@components/link";
 import { QueryError } from "@components/query-error";
 import { RelativeTime } from "@components/relative-time";
+import { Button } from "@components/ui/button";
 import { useAuth } from "@features/auth/queries";
+import { AgentSecretsDialog } from "@features/enrollments/secrets-dialog";
 import { HostLastContact } from "@features/hosts/components/host-heartbeats";
 import { HostOnlineDot } from "@features/hosts/components/host-online-dot";
 import { HostPublicIP } from "@features/hosts/components/host-public-ip";
@@ -49,6 +51,7 @@ export function HostListPage() {
   });
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
+  const [enrollmentOpen, setEnrollmentOpen] = React.useState(false);
   const softwareID = search.software_title_id === undefined ? undefined : search.software_id;
 
   const label = useLabel(search.label_id ?? null);
@@ -129,7 +132,19 @@ export function HostListPage() {
             ) : null}
           </>
         }
+        actions={
+          isAdmin ? (
+            <Button size="sm" onClick={() => setEnrollmentOpen(true)}>
+              <KeyRound data-icon="inline-start" />
+              Enroll Hosts
+            </Button>
+          ) : null
+        }
       />
+
+      {enrollmentOpen ? (
+        <AgentSecretsDialog integration="orbit" open onOpenChange={setEnrollmentOpen} />
+      ) : null}
 
       {query.error ? (
         <QueryError
@@ -151,7 +166,7 @@ export function HostListPage() {
                 table={table}
                 useBulkDelete={useBulkDeleteHosts}
                 noun="host"
-                description="Agents can re-enroll with a valid Orbit secret."
+                description="Agents can re-enroll with a valid host enrollment secret."
               />
             ) : undefined
           }
@@ -160,7 +175,7 @@ export function HostListPage() {
               icon={<ServerCog />}
               filtered={tableSearch.isFiltered}
               title="No enrolled devices"
-              description="Create an Orbit enrollment, then install the package on a host."
+              description="Create a host enrollment secret, then deploy Orbit or osquery."
               filteredDescription="No hosts matched the current filters."
             />
           }

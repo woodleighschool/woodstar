@@ -1,0 +1,83 @@
+import { ExternalLink, FileLock2, ListChecks, ScrollText, ShieldCheck } from "lucide-react";
+
+import { PageHeader, PageShell } from "@components/layout/page-layout";
+import { Link } from "@components/link";
+import {
+  overviewCardLinkClassName,
+  ResourceOverviewCard,
+} from "@components/resource-overview-card";
+import { buttonVariants } from "@components/ui/button";
+import { EnrollmentOverviewCard } from "@features/enrollments/card";
+import { enrollmentDocsURL } from "@features/enrollments/metadata";
+import { useSantaConfigurations } from "@features/santa/configurations/queries";
+import { useSantaEvents, useSantaFileAccessEvents } from "@features/santa/events/queries";
+import { useSantaRules } from "@features/santa/rules/queries";
+
+const OVERVIEW_COUNT_PARAMS = { page: 1, per_page: 1 } as const;
+
+export function SantaOverviewPage() {
+  const configurations = useSantaConfigurations(OVERVIEW_COUNT_PARAMS);
+  const rules = useSantaRules(OVERVIEW_COUNT_PARAMS);
+  const events = useSantaEvents(OVERVIEW_COUNT_PARAMS);
+  const fileAccessEvents = useSantaFileAccessEvents(OVERVIEW_COUNT_PARAMS);
+
+  return (
+    <PageShell>
+      <PageHeader
+        title="Santa"
+        description="Manage client policy, rules, and reported events."
+        actions={
+          <a
+            href={enrollmentDocsURL("santa")}
+            target="_blank"
+            rel="noreferrer"
+            className={buttonVariants({ variant: "outline", size: "sm" })}
+          >
+            <ExternalLink data-icon="inline-start" />
+            Documentation
+          </a>
+        }
+      />
+
+      <div className="grid min-w-0 gap-4 md:grid-cols-3">
+        <Link to="/santa/configurations" className={overviewCardLinkClassName}>
+          <ResourceOverviewCard
+            title="Configurations"
+            count={configurations.data?.count}
+            loading={configurations.isLoading}
+            error={configurations.error}
+            icon={ShieldCheck}
+          />
+        </Link>
+        <Link to="/santa/rules" className={overviewCardLinkClassName}>
+          <ResourceOverviewCard
+            title="Rules"
+            count={rules.data?.count}
+            loading={rules.isLoading}
+            error={rules.error}
+            icon={ListChecks}
+          />
+        </Link>
+        <Link to="/santa/events" className={overviewCardLinkClassName}>
+          <ResourceOverviewCard
+            title="Execution Events"
+            count={events.data?.count}
+            loading={events.isLoading}
+            error={events.error}
+            icon={ScrollText}
+          />
+        </Link>
+        <Link to="/santa/events/file-access" className={overviewCardLinkClassName}>
+          <ResourceOverviewCard
+            title="File Access Events"
+            count={fileAccessEvents.data?.count}
+            loading={fileAccessEvents.isLoading}
+            error={fileAccessEvents.error}
+            icon={FileLock2}
+          />
+        </Link>
+        <EnrollmentOverviewCard integration="santa" />
+      </div>
+    </PageShell>
+  );
+}

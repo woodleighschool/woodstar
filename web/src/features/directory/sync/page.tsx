@@ -1,9 +1,13 @@
-import { RefreshCw, UserRound, UsersRound, type LucideIcon } from "lucide-react";
+import { RefreshCw, UserRound, UsersRound } from "lucide-react";
 
 import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link } from "@components/link";
 import { QueryError } from "@components/query-error";
 import { RelativeTime } from "@components/relative-time";
+import {
+  overviewCardLinkClassName,
+  ResourceOverviewCard,
+} from "@components/resource-overview-card";
 import { Button } from "@components/ui/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@components/ui/card";
 import { Skeleton } from "@components/ui/skeleton";
@@ -24,69 +28,27 @@ export function DirectoryOverviewPage() {
       <PageHeader title="Directory" description="Manage synced and local identities." />
 
       <div className="grid min-w-0 gap-4 md:grid-cols-3">
-        <DirectoryResourceCard
-          title="Users"
-          count={users.data?.count}
-          loading={users.isLoading}
-          error={users.error}
-          icon={UserRound}
-          to="/directory/users"
-        />
-        <DirectoryResourceCard
-          title="Groups"
-          count={groups.data?.count}
-          loading={groups.isLoading}
-          error={groups.error}
-          icon={UsersRound}
-          to="/directory/groups"
-        />
+        <Link to="/directory/users" className={overviewCardLinkClassName}>
+          <ResourceOverviewCard
+            title="Users"
+            count={users.data?.count}
+            loading={users.isLoading}
+            error={users.error}
+            icon={UserRound}
+          />
+        </Link>
+        <Link to="/directory/groups" className={overviewCardLinkClassName}>
+          <ResourceOverviewCard
+            title="Groups"
+            count={groups.data?.count}
+            loading={groups.isLoading}
+            error={groups.error}
+            icon={UsersRound}
+          />
+        </Link>
         <DirectorySyncCard />
       </div>
     </PageShell>
-  );
-}
-
-function DirectoryResourceCard({
-  title,
-  count,
-  loading,
-  error,
-  icon: Icon,
-  to,
-}: {
-  title: string;
-  count?: number;
-  loading: boolean;
-  error: { message?: string } | null;
-  icon: LucideIcon;
-  to: "/directory/users" | "/directory/groups";
-}) {
-  return (
-    <Link
-      to={to}
-      data-slot="card-link"
-      className="min-w-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring"
-    >
-      <Card size="sm" className="h-full min-w-0 transition-colors hover:bg-muted/50">
-        <CardHeader>
-          <CardTitle>{title}</CardTitle>
-          <CardAction>
-            <Icon aria-hidden="true" className="text-muted-foreground" />
-          </CardAction>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <Skeleton className="h-9 w-24" />
-          ) : error ? (
-            <p className="text-sm text-destructive">Count unavailable</p>
-          ) : (
-            <span className="text-3xl font-semibold tracking-tight tabular-nums">
-              {(count ?? 0).toLocaleString()}
-            </span>
-          )}
-        </CardContent>
-      </Card>
-    </Link>
   );
 }
 

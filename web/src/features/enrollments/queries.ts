@@ -11,10 +11,11 @@ import {
 
 const agentSecretsKey = ["agent-secrets"] as const;
 
-export function useAgentSecrets() {
+export function useAgentSecrets(enabled = true) {
   return useQuery<AgentSecret[], ApiError>({
     queryKey: agentSecretsKey,
     queryFn: ({ signal }) => unwrap(listAgentSecrets({ signal })),
+    enabled,
   });
 }
 

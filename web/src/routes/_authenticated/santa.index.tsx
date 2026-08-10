@@ -1,7 +1,7 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
+
+import { SantaOverviewPage } from "@features/santa/overview";
 
 export const Route = createFileRoute("/_authenticated/santa/")({
-  beforeLoad: () => {
-    throw redirect({ to: "/santa/configurations" });
-  },
+  component: SantaOverviewPage,
 });

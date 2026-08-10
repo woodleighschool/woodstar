@@ -10,7 +10,58 @@ Woodstar serves manifests, catalogs, packages, icons, and Managed Software Cente
 
 ## Configure Munki
 
-Create a Munki secret under **Enrollments > Munki**, then copy the generated configuration profile. The profile sets:
+Create a secret from the **Munki** overview, then replace the example URL and secret in this profile:
+
+```xml title="munki.mobileconfig"
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>PayloadContent</key>
+  <array>
+    <dict>
+      <key>AdditionalHttpHeaders</key>
+      <array>
+        <string>Authorization: Bearer REPLACE_WITH_SECRET</string>
+        <string>X-Woodstar-Serial-Number: $SERIALNUMBER</string>
+      </array>
+      <key>FollowHTTPRedirects</key>
+      <string>https</string>
+      <key>SoftwareRepoURL</key>
+      <string>https://woodstar.example.com/munki</string>
+      <key>PayloadDisplayName</key>
+      <string>Munki</string>
+      <key>PayloadIdentifier</key>
+      <string>com.example.woodstar.munki.managedinstalls</string>
+      <key>PayloadType</key>
+      <string>ManagedInstalls</string>
+      <key>PayloadUUID</key>
+      <string>EF6B0B39-B2BE-44F7-A2B5-5F49282B221D</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+    </dict>
+  </array>
+  <key>PayloadDescription</key>
+  <string>Configures Munki for Woodstar.</string>
+  <key>PayloadDisplayName</key>
+  <string>Woodstar - Munki</string>
+  <key>PayloadIdentifier</key>
+  <string>com.example.woodstar.munki</string>
+  <key>PayloadOrganization</key>
+  <string>Example Organization</string>
+  <key>PayloadScope</key>
+  <string>System</string>
+  <key>PayloadType</key>
+  <string>Configuration</string>
+  <key>PayloadUUID</key>
+  <string>56E74DA2-6F02-4E85-8C95-BA51C34F88F0</string>
+  <key>PayloadVersion</key>
+  <integer>1</integer>
+</dict>
+</plist>
+```
+
+The profile sets:
 
 - `SoftwareRepoURL` to `<WOODSTAR_URL>/munki`
 - `FollowHTTPRedirects` to `https`
@@ -20,6 +71,8 @@ Create a Munki secret under **Enrollments > Munki**, then copy the generated con
 Both headers accompany every repository request. The bearer secret authenticates the Munki
 client and the serial header binds the request to an enrolled Woodstar host. Munki does not
 need a `ClientIdentifier`, UUID field, or preflight/postflight hook for Woodstar.
+
+See [Mutual TLS](./mutual-tls#munki) to have Munki present the same PEM identity installed with fleetd.
 
 ## Routes
 

@@ -6,7 +6,7 @@ description: Credentials used by Orbit, osquery, Santa, and Munki.
 
 # Agent Secrets
 
-Agent secrets authenticate Mac clients. Create them under **Enrollments** in Woodstar.
+Agent secrets authenticate Mac clients. Create the shared Orbit/osquery secret from **Hosts > Enroll Hosts** or the **osquery** overview. Santa and Munki secrets live on their integration overviews.
 
 | Secret  | Used by                      |
 | ------- | ---------------------------- |
