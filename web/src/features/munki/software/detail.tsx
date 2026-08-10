@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from "@tanstack/react-router";
+import { getRouteApi, useParams } from "@tanstack/react-router";
 import { AppWindow, Pencil, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 
@@ -6,12 +6,14 @@ import { DataTableStatic } from "@components/data-table/data-table-static";
 import type { DataTableColumnDef } from "@components/data-table/types";
 import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
+import { ScrollableTabs, ScrollableTabsList } from "@components/layout/scrollable-tabs";
 import { Link, TextLink } from "@components/link";
 import { PanelEmptyState } from "@components/panel-empty-state";
 import { QueryGate } from "@components/query-gate";
 import { TargetBadge, TargetDetails } from "@components/targeting/target-details";
 import { Badge } from "@components/ui/badge";
 import { Button } from "@components/ui/button";
+import { TabsContent, TabsTrigger } from "@components/ui/tabs";
 import { useAuth } from "@features/auth/queries";
 import { useLabelNameMap } from "@features/labels/components/label-ref-list";
 import { SoftwareArtwork } from "@features/software/software-icon";
@@ -22,6 +24,10 @@ import { countLabel, formatRelative } from "@lib/utils";
 import { MUNKI_SOFTWARE_ACTIONS } from "./actions";
 import { MunkiSoftwareDeleteDialog } from "./delete-dialog";
 import { useMunkiSoftwareDetail } from "./queries";
+import { MunkiSoftwareReport } from "./report";
+import { MunkiSoftwareReportCountLink } from "./report-count-link";
+
+const routeApi = getRouteApi("/_authenticated/munki/software/$id/");
 
 const packageColumns: DataTableColumnDef<MunkiPackage>[] = [
   {
@@ -57,7 +63,9 @@ const packageColumns: DataTableColumnDef<MunkiPackage>[] = [
 
 export function MunkiSoftwareDetailPage() {
   const params = useParams({ strict: false });
-  const navigate = useNavigate();
+  const search = routeApi.useSearch();
+  const navigate = routeApi.useNavigate();
+  const activeTab = search.tab === "report" ? "report" : "overview";
   const { user } = useAuth();
   const softwareID = parseRouteID(params.id);
   const query = useMunkiSoftwareDetail(softwareID);
@@ -120,26 +128,73 @@ export function MunkiSoftwareDetailPage() {
         }
       />
 
-      <KeyValueSection title="Overview">
-        <KeyValueRow label="Name" value={software.name} />
-        <KeyValueRow label="Display Name" value={software.display_name || "-"} />
-        <KeyValueRow label="Description" value={software.description} />
-        <KeyValueRow label="Category" value={software.category} />
-        <KeyValueRow label="Developer" value={software.developer} />
-        <KeyValueRow
-          label="Packages"
-          value={countLabel(software.packages.length, "package", "packages")}
-        />
-      </KeyValueSection>
+      <ScrollableTabs value={activeTab}>
+        <ScrollableTabsList>
+          <TabsTrigger
+            value="overview"
+            render={
+              <Link
+                to="/munki/software/$id"
+                params={{ id: String(software.id) }}
+                search={{ ...search, tab: undefined }}
+              />
+            }
+            nativeButton={false}
+          >
+            Overview
+          </TabsTrigger>
+          <TabsTrigger
+            value="report"
+            render={
+              <Link
+                to="/munki/software/$id"
+                params={{ id: String(software.id) }}
+                search={{ ...search, tab: "report" }}
+              />
+            }
+            nativeButton={false}
+          >
+            Report
+          </TabsTrigger>
+        </ScrollableTabsList>
 
-      <MunkiSoftwareTargets software={software} />
+        <TabsContent value="overview" className="flex flex-col gap-5">
+          <KeyValueSection title="Overview">
+            <KeyValueRow label="Name" value={software.name} />
+            <KeyValueRow label="Display Name" value={software.display_name || "-"} />
+            <KeyValueRow label="Description" value={software.description} />
+            <KeyValueRow label="Category" value={software.category} />
+            <KeyValueRow label="Developer" value={software.developer} />
+            <KeyValueRow
+              label="Packages"
+              value={countLabel(software.packages.length, "package", "packages")}
+            />
+            <KeyValueRow
+              label="Installed"
+              value={
+                <MunkiSoftwareReportCountLink
+                  softwareID={software.id}
+                  installed={software.installed_host_count}
+                  expected={software.expected_host_count}
+                />
+              }
+            />
+          </KeyValueSection>
 
-      <DataTableStatic
-        heading="Packages"
-        columns={packageColumns}
-        data={software.packages}
-        empty={<PanelEmptyState>No Packages Yet</PanelEmptyState>}
-      />
+          <MunkiSoftwareTargets software={software} />
+
+          <DataTableStatic
+            heading="Packages"
+            columns={packageColumns}
+            data={software.packages}
+            empty={<PanelEmptyState>No Packages Yet</PanelEmptyState>}
+          />
+        </TabsContent>
+
+        <TabsContent value="report">
+          <MunkiSoftwareReport softwareID={activeTab === "report" ? software.id : null} />
+        </TabsContent>
+      </ScrollableTabs>
 
       <MunkiSoftwareDeleteDialog
         software={software}

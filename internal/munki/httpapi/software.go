@@ -16,9 +16,10 @@ import (
 )
 
 const (
-	munkiSoftwarePath   = "/api/munki/software"
-	munkiSoftwareIDPath = munkiSoftwarePath + "/{id}"
-	munkiSoftwareLabel  = "Munki software"
+	munkiSoftwarePath       = "/api/munki/software"
+	munkiSoftwareIDPath     = munkiSoftwarePath + "/{id}"
+	munkiSoftwareReportPath = munkiSoftwareIDPath + "/report"
+	munkiSoftwareLabel      = "Munki software"
 )
 
 type munkiSoftwareListInput struct {
@@ -27,6 +28,13 @@ type munkiSoftwareListInput struct {
 
 type munkiSoftwareGetInput struct {
 	ID int64 `path:"id"`
+}
+
+type munkiSoftwareReportInput struct {
+	api.ListQueryInput
+
+	ID     int64                                `path:"id"`
+	Status []munkisoftware.SoftwareReportStatus `          query:"status,omitempty"`
 }
 
 type munkiSoftwareCreateInput struct {
@@ -50,6 +58,10 @@ type munkiSoftwareDetailOutput struct {
 	Body munkiSoftwareDetail
 }
 
+type munkiSoftwareReportOutput struct {
+	Body api.Page[munkisoftware.SoftwareReportHost]
+}
+
 type munkiSoftwareDetail struct {
 	munkisoftware.Software
 
@@ -59,6 +71,13 @@ type munkiSoftwareDetail struct {
 
 func (input munkiSoftwareListInput) params() listing.Params {
 	return input.Params()
+}
+
+func (input munkiSoftwareReportInput) params() munkisoftware.SoftwareReportHostListParams {
+	return munkisoftware.SoftwareReportHostListParams{
+		ListParams: input.Params(),
+		Statuses:   input.Status,
+	}
 }
 
 func registerMunkiSoftware(
@@ -71,12 +90,47 @@ func registerMunkiSoftware(
 	logger *slog.Logger,
 ) {
 	registerListMunkiSoftware(humaAPI, store, logger)
+	registerMunkiSoftwareReport(humaAPI, store, logger)
 	registerCreateMunkiSoftware(humaAPI, store, packageService, logger)
 	registerGetMunkiSoftware(humaAPI, store, packageService, logger)
 	registerPutMunkiSoftware(humaAPI, store, packageService, logger)
 	registerDeleteMunkiSoftware(humaAPI, deletions, logger)
 	registerBulkDeleteMunkiSoftware(humaAPI, deletions, logger)
 	registerIconRoutes(humaAPI, store, objects, ingestor, logger)
+}
+
+func registerMunkiSoftwareReport(
+	humaAPI huma.API,
+	store *munkisoftware.Store,
+	logger *slog.Logger,
+) {
+	huma.Register(humaAPI, huma.Operation{
+		OperationID: "list-munki-software-report",
+		Method:      http.MethodGet,
+		Path:        munkiSoftwareReportPath,
+		Tags:        []string{api.TagMunkiSoftware},
+		Summary:     "List software report",
+		Errors:      []int{http.StatusBadRequest, http.StatusNotFound},
+	}, func(
+		ctx context.Context,
+		input *munkiSoftwareReportInput,
+	) (*munkiSoftwareReportOutput, error) {
+		rows, count, err := store.ListReportHosts(ctx, input.ID, input.params())
+		if err != nil {
+			return nil, api.ResourceError(
+				ctx,
+				logger,
+				"list-munki-software-report",
+				munkiSoftwareLabel,
+				err,
+				"software_id",
+				input.ID,
+			)
+		}
+		return &munkiSoftwareReportOutput{
+			Body: api.Page[munkisoftware.SoftwareReportHost]{Items: rows, Count: count},
+		}, nil
+	})
 }
 
 func registerListMunkiSoftware(humaAPI huma.API, store *munkisoftware.Store, logger *slog.Logger) {

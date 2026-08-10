@@ -30,6 +30,7 @@ import { formatRelative } from "@lib/utils";
 
 import { MunkiSoftwareDeleteDialog } from "./delete-dialog";
 import { useBulkDeleteMunkiSoftware, useMunkiSoftware } from "./queries";
+import { MunkiSoftwareReportCountLink } from "./report-count-link";
 
 const routeApi = getRouteApi("/_authenticated/munki/software/");
 
@@ -63,6 +64,21 @@ function softwareColumns(
       size: 340,
       minSize: 180,
       meta: { label: "Name" },
+    },
+    {
+      id: "installed_host_count",
+      accessorKey: "installed_host_count",
+      header: "Installed",
+      enableSorting: false,
+      cell: ({ row }) => (
+        <MunkiSoftwareReportCountLink
+          softwareID={row.original.id}
+          installed={row.original.installed_host_count}
+          expected={row.original.expected_host_count}
+        />
+      ),
+      size: 112,
+      meta: { label: "Installed" },
     },
     {
       id: "category",
@@ -160,7 +176,7 @@ export function MunkiSoftwareListPage() {
           onRetry={() => void query.refetch()}
         />
       ) : query.isLoading ? (
-        <DataTableSkeleton columnCount={isAdmin ? 6 : 4} />
+        <DataTableSkeleton columnCount={isAdmin ? 7 : 5} />
       ) : (
         <DataTable
           table={table}

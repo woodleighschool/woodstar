@@ -100,17 +100,19 @@ func validateName(name string) error {
 
 // Software is managed metadata for a Munki software item.
 type Software struct {
-	ID           int64     `json:"id"`
-	Name         string    `json:"name"`
-	DisplayName  *string   `json:"display_name,omitempty"`
-	Description  string    `json:"description"`
-	Category     string    `json:"category"`
-	Developer    string    `json:"developer"`
-	IconObjectID *int64    `json:"icon_object_id,omitempty"`
-	IconFile     *IconFile `json:"icon_file,omitempty"`
-	IconURL      string    `json:"icon_url,omitempty"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID                 int64     `json:"id"`
+	Name               string    `json:"name"`
+	DisplayName        *string   `json:"display_name,omitempty"`
+	Description        string    `json:"description"`
+	Category           string    `json:"category"`
+	Developer          string    `json:"developer"`
+	IconObjectID       *int64    `json:"icon_object_id,omitempty"`
+	IconFile           *IconFile `json:"icon_file,omitempty"`
+	IconURL            string    `json:"icon_url,omitempty"`
+	InstalledHostCount int32     `json:"installed_host_count"`
+	ExpectedHostCount  int32     `json:"expected_host_count"`
+	CreatedAt          time.Time `json:"created_at"`
+	UpdatedAt          time.Time `json:"updated_at"`
 }
 
 // IconFile describes the object attached as a software icon.

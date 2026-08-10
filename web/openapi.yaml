@@ -2245,6 +2245,9 @@ components:
           type: string
         display_name:
           type: string
+        expected_host_count:
+          format: int32
+          type: integer
         icon_file:
           $ref: "#/components/schemas/MunkiIconFile"
         icon_object_id:
@@ -2254,6 +2257,9 @@ components:
           type: string
         id:
           format: int64
+          type: integer
+        installed_host_count:
+          format: int32
           type: integer
         name:
           type: string
@@ -2266,6 +2272,8 @@ components:
         - description
         - category
         - developer
+        - installed_host_count
+        - expected_host_count
         - created_at
         - updated_at
       type: object
@@ -2283,6 +2291,9 @@ components:
           type: string
         display_name:
           type: string
+        expected_host_count:
+          format: int32
+          type: integer
         icon_file:
           $ref: "#/components/schemas/MunkiIconFile"
         icon_object_id:
@@ -2292,6 +2303,9 @@ components:
           type: string
         id:
           format: int64
+          type: integer
+        installed_host_count:
+          format: int32
           type: integer
         name:
           type: string
@@ -2312,8 +2326,35 @@ components:
         - description
         - category
         - developer
+        - installed_host_count
+        - expected_host_count
         - created_at
         - updated_at
+      type: object
+    MunkiSoftwareReportHost:
+      additionalProperties: false
+      properties:
+        evaluated_at:
+          format: date-time
+          type: string
+        hardware_serial:
+          type: string
+        host_id:
+          format: int64
+          type: integer
+        host_name:
+          type: string
+        status:
+          enum:
+            - installed
+            - pending
+          type: string
+        target_version:
+          type: string
+      required:
+        - host_id
+        - host_name
+        - hardware_serial
       type: object
     MunkiTargets:
       additionalProperties: false
@@ -3149,6 +3190,20 @@ components:
         items:
           items:
             $ref: "#/components/schemas/MunkiSoftware"
+          type: array
+      required:
+        - items
+        - count
+      type: object
+    PageSoftwareReportHost:
+      additionalProperties: false
+      properties:
+        count:
+          format: int64
+          type: integer
+        items:
+          items:
+            $ref: "#/components/schemas/MunkiSoftwareReportHost"
           type: array
       required:
         - items
@@ -8239,6 +8294,94 @@ paths:
       summary: Set a software icon
       tags:
         - Munki icons
+  /api/munki/software/{id}/report:
+    get:
+      operationId: list-munki-software-report
+      parameters:
+        - explode: false
+          in: query
+          name: q
+          schema:
+            type: string
+        - explode: false
+          in: query
+          name: page
+          schema:
+            format: int32
+            minimum: 1
+            type: integer
+        - explode: false
+          in: query
+          name: per_page
+          schema:
+            format: int32
+            maximum: 1000
+            minimum: 1
+            type: integer
+        - explode: false
+          in: query
+          name: sort
+          schema:
+            type: string
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+        - explode: false
+          in: query
+          name: status
+          schema:
+            items:
+              enum:
+                - installed
+                - pending
+              type: string
+            type: array
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageSoftwareReportHost"
+          description: OK
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      summary: List software report
+      tags:
+        - Munki software
   /api/osquery/host-status-history:
     get:
       operationId: list-osquery-host-status-history
