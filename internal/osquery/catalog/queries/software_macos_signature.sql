@@ -8,6 +8,6 @@ SELECT
 FROM apps a
 JOIN signature s
   ON s.path = a.path
-  AND s.hash_resources = 0
-  AND s.hash_executable = 0
+  AND s.hash_resources = 1
+  AND s.hash_executable = 1
 WHERE s.arch = '';
