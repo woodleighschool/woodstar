@@ -177,6 +177,7 @@ WHERE deleted_at IS NULL
 func (s *Store) GetSSOUserByEmail(ctx context.Context, email string) (*User, error) {
 	return s.getUserByEmail(ctx, email, `
 WHERE deleted_at IS NULL
+  AND source <> 'local'
   AND role IS NOT NULL
   AND email = $1`)
 }
@@ -295,13 +296,21 @@ RETURNING `+userColumnsSQL(""), passwordHash, email)
 
 func (s *Store) setUserRoleByEmail(ctx context.Context, email string, role Role) (*User, error) {
 	qrows, err := s.pool.Query(ctx, `
-UPDATE users
+WITH target AS (
+    SELECT id
+    FROM users
+    WHERE email = $2
+      AND deleted_at IS NULL
+    ORDER BY CASE WHEN source = 'local' THEN 1 ELSE 0 END, id
+    LIMIT 1
+)
+UPDATE users u
 SET
     role = $1::user_role,
     updated_at = now()
-WHERE email = $2
-  AND deleted_at IS NULL
-RETURNING `+userColumnsSQL(""), string(role), email)
+FROM target
+WHERE u.id = target.id
+RETURNING `+userColumnsSQL("u"), string(role), email)
 	if err != nil {
 		return nil, postgres.MutationError(err)
 	}

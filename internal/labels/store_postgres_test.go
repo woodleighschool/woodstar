@@ -241,6 +241,7 @@ func TestDerivedLabelsMatchUserAndEntraAttributes(t *testing.T) {
 	store := NewStore(db)
 	hostA := insertHost(t, db, "derived-a")
 	hostB := insertHost(t, db, "derived-b")
+	insertLocalUser(t, db, "alice@example.com")
 	aliceID := insertUser(t, db, "alice", "alice@example.com", "Engineering")
 	insertUser(t, db, "bob", "bob@example.com", "Operations")
 	linkHostPrimaryUser(t, db, hostA, "alice@example.com")
@@ -346,6 +347,18 @@ INSERT INTO users (email, name, source, external_id, user_principal_name, depart
 VALUES ($1, $1, 'entra', $2, $1, $3)
 RETURNING id`, email, externalID, postgres.NullString(department)).Scan(&id); err != nil {
 		t.Fatalf("insert user: %v", err)
+	}
+	return id
+}
+
+func insertLocalUser(t *testing.T, db *pgxpool.Pool, email string) int64 {
+	t.Helper()
+	var id int64
+	if err := db.QueryRow(context.Background(), `
+INSERT INTO users (email, name, password_hash, role)
+VALUES ($1, $1, 'password-hash', 'viewer')
+RETURNING id`, email).Scan(&id); err != nil {
+		t.Fatalf("insert local user: %v", err)
 	}
 	return id
 }

@@ -144,7 +144,10 @@ func hostListWhere(params HostListParams) (string, []any) {
 						u.email = preferred.email
 						OR u.user_principal_name = preferred.email
 					  )
-					ORDER BY CASE WHEN u.email = preferred.email THEN 0 ELSE 1 END, u.id
+					ORDER BY
+						CASE WHEN u.email = preferred.email THEN 0 ELSE 1 END,
+						CASE WHEN u.source <> 'local' THEN 0 ELSE 1 END,
+						u.id
 					LIMIT 1
 				) resolved ON true
 				WHERE preferred.email ILIKE ` + search + `

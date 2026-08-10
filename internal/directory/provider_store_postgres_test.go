@@ -11,35 +11,26 @@ import (
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
 )
 
-func TestProviderIdentityLinksByCanonicalEmailNotUPN(t *testing.T) {
+func TestProviderSnapshotKeepsLocalAndEntraUsersSeparate(t *testing.T) {
 	database, ctx := testdb.Open(t)
 	store := NewStore(database)
 	service := newTestUserService(store)
 
-	upnOwner, err := service.Create(ctx, UserCreate{
-		Email:    "UPN.Owner@Example.TEST",
-		Name:     "UPN Owner",
+	local, err := service.Create(ctx, UserCreate{
+		Email:    "shared@example.test",
+		Name:     "Local User",
 		Role:     RoleViewer,
 		Password: "correct-password",
 	})
 	if err != nil {
-		t.Fatalf("create UPN owner: %v", err)
-	}
-	mailOwner, err := service.Create(ctx, UserCreate{
-		Email:    "Mail.Owner@Example.TEST",
-		Name:     "Mail Owner",
-		Role:     RoleViewer,
-		Password: "correct-password",
-	})
-	if err != nil {
-		t.Fatalf("create mail owner: %v", err)
+		t.Fatalf("create local user: %v", err)
 	}
 
 	if err := store.ApplyProviderSnapshot(ctx, SourceEntra, ProviderSnapshot{
 		Users: []ProviderUser{{
 			ExternalID:        "provider-identity",
-			Mail:              mailOwner.Email,
-			UserPrincipalName: upnOwner.Email,
+			Mail:              local.Email,
+			UserPrincipalName: "provider-upn@example.test",
 			DisplayName:       "Provider Identity",
 			Enabled:           true,
 		}},
@@ -47,15 +38,39 @@ func TestProviderIdentityLinksByCanonicalEmailNotUPN(t *testing.T) {
 		t.Fatalf("apply provider snapshot: %v", err)
 	}
 
-	var linkedUserID int64
+	var providerID int64
+	var providerRole *string
 	if err := database.QueryRow(ctx, `
-SELECT user_id
-FROM directory_user_links
-WHERE source = 'entra' AND external_id = 'provider-identity'`).Scan(&linkedUserID); err != nil {
-		t.Fatalf("load provider link: %v", err)
+SELECT id, role::text
+FROM users
+WHERE source = 'entra' AND external_id = 'provider-identity'`).Scan(
+		&providerID,
+		&providerRole,
+	); err != nil {
+		t.Fatalf("load provider user: %v", err)
 	}
-	if linkedUserID != mailOwner.ID {
-		t.Fatalf("linked user ID = %d, want canonical email owner %d", linkedUserID, mailOwner.ID)
+	if providerID == local.ID {
+		t.Fatalf("provider user reused local user id %d", local.ID)
+	}
+	if providerRole != nil {
+		t.Fatalf("provider role = %q, want nil", *providerRole)
+	}
+	if _, err := service.GetSSOByEmail(ctx, local.Email); !errors.Is(err, fault.ErrNotFound) {
+		t.Fatalf("SSO lookup before provider grant error = %v, want %v", err, fault.ErrNotFound)
+	}
+
+	granted, err := service.SetRoleByEmail(ctx, local.Email, RoleViewer)
+	if err != nil {
+		t.Fatalf("grant provider role by email: %v", err)
+	}
+	if granted.ID != providerID {
+		t.Fatalf("granted user id = %d, want provider user %d", granted.ID, providerID)
+	}
+	if sso, err := service.GetSSOByEmail(ctx, local.Email); err != nil || sso.ID != providerID {
+		t.Fatalf("SSO user after provider grant = %+v, %v", sso, err)
+	}
+	if login, err := service.GetLoginByEmail(ctx, local.Email); err != nil || login.ID != local.ID {
+		t.Fatalf("password login user = %+v, %v", login, err)
 	}
 }
 
@@ -302,68 +317,144 @@ func TestApplyProviderSnapshotReconcilesUsersAndGroups(t *testing.T) {
 	}
 }
 
-func TestApplyProviderSnapshotReusesDeletedEntraUserWhenRecreatedWithNewExternalID(t *testing.T) {
+func TestApplyProviderSnapshotKeepsReplacedEntraObjectsDistinct(t *testing.T) {
 	database, ctx := testdb.Open(t)
 	store := NewStore(database)
 
-	var userID int64
-	if err := store.pool.QueryRow(ctx, `
-		INSERT INTO users (
-			email,
-			name,
-			role,
-			source,
-			external_id,
-			user_principal_name,
-			deleted_at
-		)
-		VALUES (
-			'recreated@example.edu',
-			'Recreated User',
-			'viewer',
-			'entra',
-			'old-object-id',
-			'recreated@example.edu',
-			now()
-		)
-		RETURNING id
-	`).Scan(&userID); err != nil {
-		t.Fatalf("insert deleted entra user: %v", err)
+	user := ProviderUser{
+		ExternalID:        "old-object-id",
+		UserPrincipalName: "recreated@example.edu",
+		Mail:              "recreated@example.edu",
+		DisplayName:       "Recreated User",
+		Enabled:           true,
 	}
-
 	if err := store.ApplyProviderSnapshot(ctx, SourceEntra, ProviderSnapshot{
 		GeneratedAt: time.Now().UTC(),
-		Users: []ProviderUser{
-			{
-				ExternalID:        "new-object-id",
-				UserPrincipalName: "recreated@example.edu",
-				Mail:              "recreated@example.edu",
-				DisplayName:       "Recreated User",
-				Enabled:           true,
-			},
-		},
+		Users:       []ProviderUser{user},
 	}); err != nil {
-		t.Fatalf("apply recreated user snapshot: %v", err)
+		t.Fatalf("apply original user snapshot: %v", err)
 	}
 
-	var gotID int64
-	var externalID string
-	var deletedAt *time.Time
+	var oldUserID int64
 	if err := store.pool.QueryRow(ctx, `
-		SELECT id, external_id, deleted_at
+UPDATE users
+SET role = 'viewer'
+WHERE source = 'entra' AND external_id = 'old-object-id'
+RETURNING id`).Scan(&oldUserID); err != nil {
+		t.Fatalf("grant original user role: %v", err)
+	}
+
+	user.ExternalID = "new-object-id"
+	if err := store.ApplyProviderSnapshot(ctx, SourceEntra, ProviderSnapshot{
+		GeneratedAt: time.Now().UTC(),
+		Users:       []ProviderUser{user},
+	}); err != nil {
+		t.Fatalf("apply replacement user snapshot: %v", err)
+	}
+
+	var oldDeletedAt *time.Time
+	var oldRole string
+	if err := store.pool.QueryRow(ctx, `
+		SELECT role::text, deleted_at
+		FROM users WHERE id = $1
+	`, oldUserID).Scan(&oldRole, &oldDeletedAt); err != nil {
+		t.Fatalf("load original user: %v", err)
+	}
+	if oldRole != "viewer" {
+		t.Fatalf("original user role = %q, want viewer", oldRole)
+	}
+	if oldDeletedAt == nil {
+		t.Fatal("original user remains active after its object left the snapshot")
+	}
+
+	var newUserID int64
+	var newRole *string
+	var newDeletedAt *time.Time
+	if err := store.pool.QueryRow(ctx, `
+		SELECT id, role::text, deleted_at
 		FROM users
-		WHERE email = 'recreated@example.edu'
-	`).Scan(&gotID, &externalID, &deletedAt); err != nil {
-		t.Fatalf("load recreated user: %v", err)
+		WHERE source = 'entra' AND external_id = 'new-object-id'
+	`).Scan(&newUserID, &newRole, &newDeletedAt); err != nil {
+		t.Fatalf("load replacement user: %v", err)
 	}
-	if gotID != userID {
-		t.Fatalf("user id = %d, want reused id %d", gotID, userID)
+	if newUserID == oldUserID {
+		t.Fatalf("replacement user reused original user id %d", oldUserID)
 	}
-	if externalID != "new-object-id" {
-		t.Fatalf("external_id = %q, want new-object-id", externalID)
+	if newRole != nil {
+		t.Fatalf("replacement user role = %q, want nil", *newRole)
 	}
-	if deletedAt != nil {
-		t.Fatalf("deleted_at = %v, want nil", deletedAt)
+	if newDeletedAt != nil {
+		t.Fatalf("replacement user deleted_at = %v, want nil", newDeletedAt)
+	}
+}
+
+func TestApplyProviderSnapshotReconcilesEmailSwapByExternalID(t *testing.T) {
+	database, ctx := testdb.Open(t)
+	store := NewStore(database)
+	service := newTestUserService(store)
+
+	users := []ProviderUser{
+		{
+			ExternalID:        "object-a",
+			UserPrincipalName: "a@example.edu",
+			Mail:              "a@example.edu",
+			DisplayName:       "Object A",
+			Enabled:           true,
+		},
+		{
+			ExternalID:        "object-b",
+			UserPrincipalName: "b@example.edu",
+			Mail:              "b@example.edu",
+			DisplayName:       "Object B",
+			Enabled:           true,
+		},
+	}
+	for _, user := range users {
+		if _, err := service.Create(ctx, UserCreate{
+			Email:    user.Mail,
+			Name:     "Local " + user.DisplayName,
+			Role:     RoleViewer,
+			Password: "correct-password",
+		}); err != nil {
+			t.Fatalf("create local user for %s: %v", user.ExternalID, err)
+		}
+	}
+	if err := store.ApplyProviderSnapshot(ctx, SourceEntra, ProviderSnapshot{
+		GeneratedAt: time.Now().UTC(),
+		Users:       users,
+	}); err != nil {
+		t.Fatalf("apply original snapshot: %v", err)
+	}
+
+	users[0].Mail, users[1].Mail = users[1].Mail, users[0].Mail
+	users[0].UserPrincipalName, users[1].UserPrincipalName =
+		users[1].UserPrincipalName, users[0].UserPrincipalName
+	if err := store.ApplyProviderSnapshot(ctx, SourceEntra, ProviderSnapshot{
+		GeneratedAt: time.Now().UTC(),
+		Users:       users,
+	}); err != nil {
+		t.Fatalf("apply swapped snapshot: %v", err)
+	}
+
+	for _, user := range users {
+		var email, upn string
+		var deletedAt *time.Time
+		if err := store.pool.QueryRow(ctx, `
+			SELECT email, user_principal_name, deleted_at
+			FROM users
+			WHERE source = 'entra' AND external_id = $1
+		`, user.ExternalID).Scan(&email, &upn, &deletedAt); err != nil {
+			t.Fatalf("load %s: %v", user.ExternalID, err)
+		}
+		if email != user.Mail {
+			t.Fatalf("%s email = %q, want %q", user.ExternalID, email, user.Mail)
+		}
+		if upn != user.UserPrincipalName {
+			t.Fatalf("%s UPN = %q, want %q", user.ExternalID, upn, user.UserPrincipalName)
+		}
+		if deletedAt != nil {
+			t.Fatalf("%s deleted_at = %v, want nil", user.ExternalID, deletedAt)
+		}
 	}
 }
 
@@ -421,14 +512,18 @@ func TestApplyProviderSnapshotPreservesExistingLocalUser(t *testing.T) {
 	}
 
 	var providerID int64
+	var providerRole *string
 	if err := store.pool.QueryRow(ctx, `
-		SELECT user_id FROM directory_user_links
+		SELECT id, role::text FROM users
 		WHERE source = 'entra' AND external_id = 'entra-admin'
-	`).Scan(&providerID); err != nil {
-		t.Fatalf("load provider identity link: %v", err)
+	`).Scan(&providerID, &providerRole); err != nil {
+		t.Fatalf("load provider user: %v", err)
 	}
-	if providerID != localID {
-		t.Fatalf("provider identity user = %d, want local user %d", providerID, localID)
+	if providerID == localID {
+		t.Fatalf("provider user reused local user id %d", localID)
+	}
+	if providerRole != nil {
+		t.Fatalf("provider role = %q, want nil", *providerRole)
 	}
 
 	if err := store.ApplyProviderSnapshot(
@@ -442,15 +537,13 @@ func TestApplyProviderSnapshotPreservesExistingLocalUser(t *testing.T) {
 	if err != nil || login.ID != localID {
 		t.Fatalf("password login after provider removal = %+v, %v", login, err)
 	}
-	var linkCount int
-	if err := store.pool.QueryRow(
-		ctx,
-		`SELECT count(*) FROM directory_user_links WHERE user_id = $1`,
-		localID,
-	).Scan(&linkCount); err != nil {
-		t.Fatalf("count removed provider identity links: %v", err)
+	var providerDeletedAt *time.Time
+	if err := store.pool.QueryRow(ctx, `
+		SELECT deleted_at FROM users WHERE id = $1
+	`, providerID).Scan(&providerDeletedAt); err != nil {
+		t.Fatalf("load removed provider user: %v", err)
 	}
-	if linkCount != 0 {
-		t.Fatalf("provider identity links = %d, want 0 after removal", linkCount)
+	if providerDeletedAt == nil {
+		t.Fatal("provider user remains active after provider removal")
 	}
 }
