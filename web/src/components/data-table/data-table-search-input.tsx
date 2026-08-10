@@ -1,7 +1,7 @@
 import * as React from "react";
 
-import { InputGroup, InputGroupAddon, InputGroupInput } from "@components/ui/input-group";
-import { Spinner } from "@components/ui/spinner";
+import { InputGroupLoadingAddon } from "@components/input-group-loading-addon";
+import { InputGroup, InputGroupInput } from "@components/ui/input-group";
 import { useDebouncedCallback } from "@hooks/use-debounced-callback";
 import { cn } from "@lib/utils";
 
@@ -52,16 +52,13 @@ export function DataTableSearchInput({
           write(event.target.value);
         }}
       />
-      <InputGroupAddon
-        align="inline-end"
+      <InputGroupLoadingAddon
         aria-hidden={!searchPending}
         className={cn(
           "transition-opacity duration-150",
           searchPending ? "opacity-100 delay-150" : "opacity-0 delay-0",
         )}
-      >
-        <Spinner className="size-3.5" />
-      </InputGroupAddon>
+      />
     </InputGroup>
   );
 }

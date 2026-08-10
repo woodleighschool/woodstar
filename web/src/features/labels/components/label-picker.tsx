@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import { encodeSort } from "@components/data-table/use-data-table-search";
+import { InputGroupLoadingAddon } from "@components/input-group-loading-addon";
 import {
   Combobox,
   ComboboxChip,
@@ -11,11 +12,10 @@ import {
   ComboboxInput,
   ComboboxItem,
   ComboboxList,
-  ComboboxTrigger,
   ComboboxValue,
   useComboboxAnchor,
 } from "@components/ui/combobox";
-import { Skeleton } from "@components/ui/skeleton";
+import { Spinner } from "@components/ui/spinner";
 import { useLabels } from "@features/labels/queries";
 import type { Label } from "@lib/api";
 import { MAX_PAGE_SIZE } from "@lib/pagination";
@@ -59,13 +59,9 @@ export function LabelPicker({
   );
   const selected = rows.filter((label) => value.includes(label.id));
   const noLabelsMessage = emptyMessage ?? "No Labels Available.";
-  const selectedValues = selected.map((label) => String(label.id));
   const selectedLabel = selected[0] ?? null;
   const anchorRef = useComboboxAnchor();
 
-  if (labels.isLoading) {
-    return <Skeleton className="h-9 w-full" />;
-  }
   if (labels.error) {
     return <p className="text-sm text-destructive">{labels.error.message}</p>;
   }
@@ -74,7 +70,6 @@ export function LabelPicker({
     return (
       <SingleLabelCombobox
         key={selectedLabel?.id ?? "none"}
-        rows={rows}
         items={items}
         selected={selectedLabel}
         emptyPlaceholder={emptyPlaceholder}
@@ -82,6 +77,7 @@ export function LabelPicker({
         noLabelsMessage={noLabelsMessage}
         required={required}
         invalid={invalid}
+        loading={labels.isLoading}
         onChange={onChange}
       />
     );
@@ -90,39 +86,44 @@ export function LabelPicker({
   return (
     <Combobox
       multiple
-      items={items.map((label) => String(label.id))}
-      value={selectedValues}
-      onValueChange={(next) => onChange(next.map((id) => Number(id)).filter(Number.isFinite))}
+      items={items}
+      value={selected}
+      itemToStringLabel={(label) => label.name}
+      itemToStringValue={(label) => String(label.id)}
+      isItemEqualToValue={(label, candidate) => label.id === candidate.id}
+      onValueChange={(next) => onChange(next.map((label) => label.id))}
     >
       <ComboboxChips ref={anchorRef} className="h-auto min-h-9 pr-2">
         <ComboboxValue>
-          {(current: string[]) =>
-            current.map((id) => {
-              const label = rows.find((candidate) => String(candidate.id) === id);
-              return label ? <ComboboxChip key={label.id}>{label.name}</ComboboxChip> : null;
-            })
-          }
+          {(current: Label[]) => (
+            <>
+              {current.map((label) => (
+                <ComboboxChip key={label.id}>{label.name}</ComboboxChip>
+              ))}
+              <ComboboxChipsInput
+                className="h-[calc(--spacing(5.5))] min-w-16 flex-1 p-0 text-sm"
+                placeholder={
+                  items.length === 0 ? (emptyPlaceholder ?? "No Labels Available") : placeholder
+                }
+                required={required && selected.length === 0}
+                aria-invalid={invalid ? true : undefined}
+              />
+            </>
+          )}
         </ComboboxValue>
-        <ComboboxChipsInput
-          className="h-[calc(--spacing(5.5))] min-w-16 flex-1 p-0 text-sm"
-          placeholder={
-            items.length === 0 ? (emptyPlaceholder ?? "No Labels Available") : placeholder
-          }
-          required={required && selected.length === 0}
-          aria-invalid={invalid ? true : undefined}
-        />
-        <ComboboxTrigger className="ml-auto" />
+        {labels.isLoading ? <Spinner className="size-3.5" /> : null}
       </ComboboxChips>
-      <ComboboxContent anchor={anchorRef}>
-        <ComboboxEmpty>{items.length === 0 ? noLabelsMessage : "No Labels Found."}</ComboboxEmpty>
-        <ComboboxList>{items.map(labelItem)}</ComboboxList>
-      </ComboboxContent>
+      {labels.isLoading ? null : (
+        <ComboboxContent anchor={anchorRef}>
+          <ComboboxEmpty>{items.length === 0 ? noLabelsMessage : "No Labels Found."}</ComboboxEmpty>
+          <ComboboxList>{labelItem}</ComboboxList>
+        </ComboboxContent>
+      )}
     </Combobox>
   );
 }
 
 function SingleLabelCombobox({
-  rows,
   items,
   selected,
   emptyPlaceholder,
@@ -130,9 +131,9 @@ function SingleLabelCombobox({
   noLabelsMessage,
   required,
   invalid,
+  loading,
   onChange,
 }: {
-  rows: Label[];
   items: Label[];
   selected: Label | null;
   emptyPlaceholder?: string;
@@ -140,20 +141,23 @@ function SingleLabelCombobox({
   noLabelsMessage: string;
   required: boolean;
   invalid: boolean;
+  loading: boolean;
   onChange: (value: number[]) => void;
 }) {
   const [inputValue, setInputValue] = useState(selected?.name ?? "");
 
   return (
     <Combobox
-      items={items.map((label) => String(label.id))}
-      value={selected ? String(selected.id) : null}
+      items={items}
+      value={selected}
       inputValue={inputValue}
+      itemToStringLabel={(label) => label.name}
+      itemToStringValue={(label) => String(label.id)}
+      isItemEqualToValue={(label, selectedLabel) => label.id === selectedLabel.id}
       onInputValueChange={setInputValue}
       onValueChange={(next) => {
-        const label = rows.find((candidate) => String(candidate.id) === next);
-        onChange(label ? [label.id] : []);
-        setInputValue(label?.name ?? "");
+        onChange(next ? [next.id] : []);
+        setInputValue(next?.name ?? "");
       }}
     >
       <ComboboxInput
@@ -161,19 +165,25 @@ function SingleLabelCombobox({
         placeholder={items.length === 0 ? (emptyPlaceholder ?? "No Labels Available") : placeholder}
         required={required}
         aria-invalid={invalid ? true : undefined}
+        aria-busy={loading}
         showClear={inputValue !== ""}
-      />
-      <ComboboxContent>
-        <ComboboxEmpty>{items.length === 0 ? noLabelsMessage : "No Labels Found."}</ComboboxEmpty>
-        <ComboboxList>{items.map(labelItem)}</ComboboxList>
-      </ComboboxContent>
+        showTrigger={!loading}
+      >
+        {loading ? <InputGroupLoadingAddon /> : null}
+      </ComboboxInput>
+      {loading ? null : (
+        <ComboboxContent>
+          <ComboboxEmpty>{items.length === 0 ? noLabelsMessage : "No Labels Found."}</ComboboxEmpty>
+          <ComboboxList>{labelItem}</ComboboxList>
+        </ComboboxContent>
+      )}
     </Combobox>
   );
 }
 
 function labelItem(label: Label) {
   return (
-    <ComboboxItem key={label.id} value={String(label.id)} className="gap-2">
+    <ComboboxItem key={label.id} value={label} className="gap-2">
       <span className="min-w-0 flex-1 truncate">{label.name}</span>
       <span className="text-muted-foreground tabular-nums">{label.hosts_count}</span>
     </ComboboxItem>

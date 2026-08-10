@@ -47,6 +47,10 @@ export function DataTableFacetedFilter<TData extends DataTableRowData, TValue>({
 
   const selected = Array.from(selectedValues, String);
   const items = options.map((option) => option.value);
+  const optionsByValue = React.useMemo(
+    () => new Map(options.map((option) => [option.value, option])),
+    [options],
+  );
   const multiple = options.length > 2;
   const content = (
     <>
@@ -98,15 +102,20 @@ export function DataTableFacetedFilter<TData extends DataTableRowData, TValue>({
         />
         <ComboboxEmpty>No results found.</ComboboxEmpty>
         <ComboboxList className="max-h-72">
-          {options.map((option) => (
-            <ComboboxItem key={option.value} value={option.value}>
-              {option.icon ? <option.icon /> : null}
-              <span>{option.label}</span>
-              {option.count !== undefined ? (
-                <span className="ml-auto pr-5 text-xs tabular-nums">{option.count}</span>
-              ) : null}
-            </ComboboxItem>
-          ))}
+          {(value) => {
+            const option = optionsByValue.get(value);
+            if (!option) return null;
+
+            return (
+              <ComboboxItem key={option.value} value={option.value}>
+                {option.icon ? <option.icon /> : null}
+                <span>{option.label}</span>
+                {option.count !== undefined ? (
+                  <span className="ml-auto pr-5 text-xs tabular-nums">{option.count}</span>
+                ) : null}
+              </ComboboxItem>
+            );
+          }}
         </ComboboxList>
       </ComboboxContent>
     </>

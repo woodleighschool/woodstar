@@ -1,8 +1,8 @@
 import { Fragment, type ReactNode } from "react";
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 
+import { InputGroupLoadingAddon } from "@components/input-group-loading-addon";
 import {
-  Autocomplete,
   Combobox,
   ComboboxContent,
   ComboboxInput,
@@ -62,15 +62,23 @@ export function FreeTextCombobox<TItem>(props: FreeTextComboboxProps<TItem>) {
   } = props;
 
   const [addedItems, setAddedItems] = useState<TItem[]>([]);
+  const [selectedItem, setSelectedItem] = useState<TItem | null>(null);
   const [open, setOpen] = useState(false);
-  const highlightedItem = useRef<TItem | null>(null);
 
   const itemToKey = itemKey ?? itemToStringValue;
+  const retainedSelection =
+    selectedItem && itemToStringValue(selectedItem) === value ? selectedItem : null;
 
   // Callers can keep option identity separate from the public string value.
   const options = useMemo(
-    () => uniqueItems([...items, ...addedItems], itemToKey),
-    [addedItems, itemToKey, items],
+    () =>
+      uniqueItems(
+        retainedSelection
+          ? [...items, ...addedItems, retainedSelection]
+          : [...items, ...addedItems],
+        itemToKey,
+      ),
+    [addedItems, itemToKey, items, retainedSelection],
   );
 
   const selected = options.find((item) => itemToStringValue(item) === value) ?? null;
@@ -94,11 +102,13 @@ export function FreeTextCombobox<TItem>(props: FreeTextComboboxProps<TItem>) {
       placeholder={placeholder}
       disabled={disabled}
       aria-invalid={invalid}
+      aria-busy={loading}
       onBlur={onBlur}
-      loading={loading}
       showTrigger={mode === "create"}
       showClear={value !== ""}
-    />
+    >
+      {loading ? <InputGroupLoadingAddon /> : null}
+    </ComboboxInput>
   );
 
   const content = (
@@ -119,14 +129,7 @@ export function FreeTextCombobox<TItem>(props: FreeTextComboboxProps<TItem>) {
           const itemValue = itemToStringValue(item);
 
           return (
-            <ComboboxItem
-              key={itemToKey(item)}
-              value={item}
-              disabled={itemDisabled?.(item)}
-              onPointerDown={() => {
-                highlightedItem.current = item;
-              }}
-            >
+            <ComboboxItem key={itemToKey(item)} value={item} disabled={itemDisabled?.(item)}>
               {renderItem?.(item) ?? itemValue}
             </ComboboxItem>
           );
@@ -134,40 +137,6 @@ export function FreeTextCombobox<TItem>(props: FreeTextComboboxProps<TItem>) {
       </ComboboxList>
     </ComboboxContent>
   );
-
-  if (mode === "free-text") {
-    return (
-      <Autocomplete
-        items={renderedOptions}
-        mode={filterItems ? "list" : "none"}
-        disabled={disabled}
-        open={open && !loading && renderedOptions.length > 0}
-        onOpenChange={setOpen}
-        itemToStringValue={itemToStringValue}
-        value={value}
-        onItemHighlighted={(item) => {
-          highlightedItem.current = item ?? null;
-        }}
-        onValueChange={(next, eventDetails) => {
-          onChange(next);
-
-          if (eventDetails.reason === "item-press") {
-            const selectedItem = highlightedItem.current;
-            if (selectedItem) {
-              onSelectItem?.(selectedItem);
-            }
-            setOpen(false);
-            return;
-          }
-
-          setOpen(next.trim() !== "");
-        }}
-      >
-        {input}
-        {content}
-      </Autocomplete>
-    );
-  }
 
   return (
     <Combobox
@@ -178,7 +147,7 @@ export function FreeTextCombobox<TItem>(props: FreeTextComboboxProps<TItem>) {
       onOpenChange={setOpen}
       itemToStringLabel={itemToStringValue}
       itemToStringValue={itemToStringValue}
-      isItemEqualToValue={(item, selectedItem) => itemToKey(item) === itemToKey(selectedItem)}
+      isItemEqualToValue={(item, candidate) => itemToKey(item) === itemToKey(candidate)}
       value={selected}
       inputValue={value}
       onInputValueChange={(next, eventDetails) => {
@@ -189,6 +158,9 @@ export function FreeTextCombobox<TItem>(props: FreeTextComboboxProps<TItem>) {
           eventDetails.reason === "input-clear" ||
           eventDetails.reason === "clear-press"
         ) {
+          if (selectedItem && itemToStringValue(selectedItem) !== next) {
+            setSelectedItem(null);
+          }
           onChange(next);
           setOpen(next.trim() !== "");
         }
@@ -199,11 +171,9 @@ export function FreeTextCombobox<TItem>(props: FreeTextComboboxProps<TItem>) {
         }
 
         const itemValue = itemToStringValue(next);
+        setSelectedItem(next);
 
-        if (
-          mode === "create" &&
-          !options.some((candidate) => itemToStringValue(candidate) === itemValue)
-        ) {
+        if (addItem === next) {
           setAddedItems((current) => uniqueItems([...current, next], itemToStringValue));
         }
 

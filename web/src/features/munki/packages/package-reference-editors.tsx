@@ -1,6 +1,7 @@
 import { AppWindow, Package as PackageIcon, Trash2 } from "lucide-react";
 import { useState } from "react";
 
+import { InputGroupLoadingAddon } from "@components/input-group-loading-addon";
 import { Link } from "@components/link";
 import {
   Attachment,
@@ -12,6 +13,7 @@ import {
 import { Button } from "@components/ui/button";
 import {
   Combobox,
+  ComboboxCollection,
   ComboboxContent,
   ComboboxEmpty,
   ComboboxGroup,
@@ -27,6 +29,7 @@ import {
   FieldLegend,
   FieldSet,
 } from "@components/ui/field";
+import { InputGroupAddon, InputGroupButton } from "@components/ui/input-group";
 import { ValidatedFormField } from "@components/validated-form-field";
 import { SoftwareArtwork } from "@features/software/software-icon";
 import type { MunkiPackage, MunkiSoftware } from "@lib/api";
@@ -119,12 +122,11 @@ function SoftwareCombobox({
 
   return (
     <Combobox
-      items={rows.map((item) => String(item.id))}
-      itemToStringLabel={(value) =>
-        rows.find((candidate) => String(candidate.id) === value)?.name ?? value
-      }
-      itemToStringValue={(value) => value}
-      value={selected ? String(selected.id) : null}
+      items={rows}
+      itemToStringLabel={(item) => item.name}
+      itemToStringValue={(item) => String(item.id)}
+      isItemEqualToValue={(item, selectedItem) => item.id === selectedItem.id}
+      value={selected}
       inputValue={inputValue}
       onInputValueChange={(next, eventDetails) => {
         if (eventDetails.reason !== "item-press") {
@@ -132,30 +134,35 @@ function SoftwareCombobox({
         }
       }}
       onValueChange={(next) => {
-        const item = rows.find((candidate) => String(candidate.id) === next);
-        onChange(item?.id ?? null);
-        setInputValue(item?.name ?? "");
+        onChange(next?.id ?? null);
+        setInputValue(next?.name ?? "");
       }}
     >
       <ComboboxInput
         {...control}
         id="munki-package-software"
         className="w-full"
-        placeholder={loading ? "Loading software..." : "Select software"}
+        placeholder="Select software"
+        aria-busy={loading}
+        showTrigger={!loading}
         onBlur={onBlur}
-      />
-      <ComboboxContent>
-        <ComboboxEmpty>
-          {rows.length === 0 ? "No software available." : "No software found."}
-        </ComboboxEmpty>
-        <ComboboxList>
-          {rows.map((item) => (
-            <ComboboxItem key={item.id} value={String(item.id)}>
-              {item.name}
-            </ComboboxItem>
-          ))}
-        </ComboboxList>
-      </ComboboxContent>
+      >
+        {loading ? <InputGroupLoadingAddon /> : null}
+      </ComboboxInput>
+      {loading ? null : (
+        <ComboboxContent>
+          <ComboboxEmpty>
+            {rows.length === 0 ? "No software available." : "No software found."}
+          </ComboboxEmpty>
+          <ComboboxList>
+            {(item) => (
+              <ComboboxItem key={item.id} value={item}>
+                {item.name}
+              </ComboboxItem>
+            )}
+          </ComboboxList>
+        </ComboboxContent>
+      )}
     </Combobox>
   );
 }
@@ -220,74 +227,118 @@ function PackageReferenceCombobox({
     : row.software_id
       ? packageReferenceSoftwareValue(row.software_id)
       : "";
+  const optionGroups = packageReferenceOptionGroups(packageGroups);
+  const selectedOption = optionGroups
+    .flatMap((group) => group.items)
+    .find((option) => option.value === selectedValue);
 
   return (
     <Combobox
-      items={packageGroups.flatMap((group) => [
-        packageReferenceSoftwareValue(group.softwareID),
-        ...group.packages.map((pkg) => packageReferencePackageValue(pkg.id)),
-      ])}
-      itemToStringLabel={(value) => packageReferenceSelection(value, packageGroups)?.label ?? value}
-      itemToStringValue={(value) => value}
-      value={selectedValue || null}
+      items={optionGroups}
+      itemToStringLabel={(option) => option.label}
+      itemToStringValue={(option) => option.value}
+      isItemEqualToValue={(option, selected) => option.value === selected.value}
+      value={selectedOption ?? null}
       inputValue={inputValue}
       onInputValueChange={(next, eventDetails) => {
         if (eventDetails.reason !== "item-press") {
           setInputValue(next);
         }
       }}
-      onValueChange={(value) => {
-        const selection = packageReferenceSelection(value, packageGroups);
+      onValueChange={(option) => {
+        const selection = packageReferenceSelection(option?.value ?? null, packageGroups);
         if (!selection) return;
         onChange({ rowID: row.rowID, ...selection.reference });
         setInputValue(selection.label);
       }}
     >
       <ComboboxInput className="w-full" placeholder="Select software or a version">
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-xs"
-          onClick={(event) => {
-            event.stopPropagation();
-            onRemove();
-          }}
-        >
-          <Trash2 />
-        </Button>
+        <InputGroupAddon align="inline-end">
+          <InputGroupButton
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            onClick={(event) => {
+              event.stopPropagation();
+              onRemove();
+            }}
+          >
+            <Trash2 />
+          </InputGroupButton>
+        </InputGroupAddon>
       </ComboboxInput>
       <ComboboxContent>
         <ComboboxEmpty>
           {packageGroups.length === 0 ? "No Packages Available." : "No Packages Found."}
         </ComboboxEmpty>
         <ComboboxList>
-          {packageGroups.map((group) => (
-            <ComboboxGroup key={group.softwareID}>
-              <ComboboxItem
-                className="py-2"
-                value={packageReferenceSoftwareValue(group.softwareID)}
-              >
-                <SoftwareArtwork src={group.softwareIconURL} fallbackIcon={AppWindow} />
-                <span className="flex min-w-0 flex-1 flex-col">
-                  <span className="truncate font-medium">{group.softwareTitle}</span>
-                  <span className="text-xs text-muted-foreground">All versions</span>
-                </span>
-              </ComboboxItem>
-              {group.packages.map((option) => (
-                <ComboboxItem
-                  key={option.id}
-                  className="py-2 pl-8"
-                  value={packageReferencePackageValue(option.id)}
-                >
-                  <PackageIcon />
-                  <span className="min-w-0 flex-1 truncate">Version {option.version}</span>
-                </ComboboxItem>
-              ))}
+          {(group) => (
+            <ComboboxGroup key={group.value} items={group.items}>
+              <ComboboxCollection>
+                {(option) => <PackageReferenceComboboxItem key={option.value} option={option} />}
+              </ComboboxCollection>
             </ComboboxGroup>
-          ))}
+          )}
         </ComboboxList>
       </ComboboxContent>
     </Combobox>
+  );
+}
+
+interface PackageReferenceOption {
+  value: string;
+  label: string;
+  kind: "software" | "package";
+  softwareIconURL?: string;
+  version?: string;
+}
+
+interface PackageReferenceOptionGroup {
+  value: string;
+  items: PackageReferenceOption[];
+}
+
+function packageReferenceOptionGroups(
+  packageGroups: ReturnType<typeof packageReferenceGroups>,
+): PackageReferenceOptionGroup[] {
+  return packageGroups.map((group) => {
+    const items: PackageReferenceOption[] = [
+      {
+        value: packageReferenceSoftwareValue(group.softwareID),
+        label: group.softwareTitle,
+        kind: "software",
+        softwareIconURL: group.softwareIconURL,
+      },
+      ...group.packages.map((pkg) => ({
+        value: packageReferencePackageValue(pkg.id),
+        label: packageLabel(pkg),
+        kind: "package" as const,
+        version: pkg.version,
+      })),
+    ];
+
+    return { value: String(group.softwareID), items };
+  });
+}
+
+function PackageReferenceComboboxItem({ option }: { option: PackageReferenceOption }) {
+  if (option.kind === "software") {
+    return (
+      <ComboboxItem className="py-2" value={option}>
+        <SoftwareArtwork src={option.softwareIconURL} fallbackIcon={AppWindow} />
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span className="truncate font-medium">{option.label}</span>
+          <span className="text-xs text-muted-foreground">All versions</span>
+        </span>
+      </ComboboxItem>
+    );
+  }
+
+  return (
+    <ComboboxItem className="py-2 pl-8" value={option}>
+      <PackageIcon />
+      <span className="min-w-0 flex-1 truncate">Version {option.version}</span>
+    </ComboboxItem>
   );
 }
 

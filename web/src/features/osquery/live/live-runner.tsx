@@ -17,7 +17,6 @@ import {
   ComboboxEmpty,
   ComboboxItem,
   ComboboxList,
-  ComboboxTrigger,
   ComboboxValue,
   useComboboxAnchor,
 } from "@components/ui/combobox";
@@ -365,7 +364,12 @@ function TargetPicker({
     <FieldSet className="max-w-3xl">
       <FieldLegend>Targets</FieldLegend>
       <FieldGroup>
-        <LabelCombobox labels={labelRows} value={selectedLabels} onChange={onLabelsChange} />
+        <LabelCombobox
+          labels={labelRows}
+          value={selectedLabels}
+          isFetching={labels.isFetching}
+          onChange={onLabelsChange}
+        />
         <HostCombobox
           hosts={hostRows}
           value={selectedHosts}
@@ -381,10 +385,12 @@ function TargetPicker({
 function LabelCombobox({
   labels,
   value,
+  isFetching,
   onChange,
 }: {
   labels: Label[];
   value: Label[];
+  isFetching: boolean;
   onChange: (labels: Label[]) => void;
 }) {
   const anchorRef = useComboboxAnchor();
@@ -402,23 +408,29 @@ function LabelCombobox({
       >
         <ComboboxChips ref={anchorRef}>
           <ComboboxValue>
-            {(selected: Label[]) =>
-              selected.map((label) => <ComboboxChip key={label.id}>{label.name}</ComboboxChip>)
-            }
+            {(selected: Label[]) => (
+              <>
+                {selected.map((label) => (
+                  <ComboboxChip key={label.id}>{label.name}</ComboboxChip>
+                ))}
+                <ComboboxChipsInput id="live-label-targets" placeholder="Add label" />
+              </>
+            )}
           </ComboboxValue>
-          <ComboboxChipsInput id="live-label-targets" placeholder="Add label" />
-          <ComboboxTrigger className="ml-auto" />
+          {isFetching ? <Spinner className="size-3.5" /> : null}
         </ComboboxChips>
-        <ComboboxContent anchor={anchorRef}>
-          <ComboboxEmpty>No Labels Found.</ComboboxEmpty>
-          <ComboboxList>
-            {labels.map((label) => (
-              <ComboboxItem key={label.id} value={label}>
-                {label.name}
-              </ComboboxItem>
-            ))}
-          </ComboboxList>
-        </ComboboxContent>
+        {isFetching ? null : (
+          <ComboboxContent anchor={anchorRef}>
+            <ComboboxEmpty>No Labels Found.</ComboboxEmpty>
+            <ComboboxList>
+              {(label) => (
+                <ComboboxItem key={label.id} value={label}>
+                  {label.name}
+                </ComboboxItem>
+              )}
+            </ComboboxList>
+          </ComboboxContent>
+        )}
       </Combobox>
     </Field>
   );
@@ -457,23 +469,29 @@ function HostCombobox({
       >
         <ComboboxChips ref={anchorRef}>
           <ComboboxValue>
-            {(selected: Host[]) =>
-              selected.map((host) => <ComboboxChip key={host.id}>{host.display_name}</ComboboxChip>)
-            }
+            {(selected: Host[]) => (
+              <>
+                {selected.map((host) => (
+                  <ComboboxChip key={host.id}>{host.display_name}</ComboboxChip>
+                ))}
+                <ComboboxChipsInput id="live-host-targets" placeholder="Add host" />
+              </>
+            )}
           </ComboboxValue>
-          <ComboboxChipsInput id="live-host-targets" placeholder="Add host" />
-          <ComboboxTrigger className="ml-auto" />
+          {isFetching ? <Spinner className="size-3.5" /> : null}
         </ComboboxChips>
-        <ComboboxContent anchor={anchorRef}>
-          <ComboboxEmpty>{isFetching ? "Searching hosts…" : "No Hosts Found."}</ComboboxEmpty>
-          <ComboboxList>
-            {items.map((host) => (
-              <ComboboxItem key={host.id} value={host}>
-                {host.display_name}
-              </ComboboxItem>
-            ))}
-          </ComboboxList>
-        </ComboboxContent>
+        {isFetching ? null : (
+          <ComboboxContent anchor={anchorRef}>
+            <ComboboxEmpty>No Hosts Found.</ComboboxEmpty>
+            <ComboboxList>
+              {(host) => (
+                <ComboboxItem key={host.id} value={host}>
+                  {host.display_name}
+                </ComboboxItem>
+              )}
+            </ComboboxList>
+          </ComboboxContent>
+        )}
       </Combobox>
     </Field>
   );

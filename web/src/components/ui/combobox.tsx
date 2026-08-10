@@ -1,9 +1,6 @@
 "use client";
 
-import {
-  Autocomplete as AutocompletePrimitive,
-  Combobox as ComboboxPrimitive,
-} from "@base-ui/react";
+import { Combobox as ComboboxPrimitive } from "@base-ui/react";
 import { ChevronDownIcon, XIcon, CheckIcon } from "lucide-react";
 import * as React from "react";
 
@@ -14,11 +11,9 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from "@components/ui/input-group";
-import { Spinner } from "@components/ui/spinner";
 import { cn } from "@lib/utils";
 
 const Combobox = ComboboxPrimitive.Root;
-const Autocomplete = AutocompletePrimitive.Root;
 
 function ComboboxValue({ ...props }: ComboboxPrimitive.Value.Props) {
   return <ComboboxPrimitive.Value data-slot="combobox-value" {...props} />;
@@ -54,20 +49,17 @@ function ComboboxInput({
   className,
   children,
   disabled = false,
-  loading = false,
   showTrigger = true,
   showClear = false,
   ...props
 }: ComboboxPrimitive.Input.Props & {
   showTrigger?: boolean;
   showClear?: boolean;
-  loading?: boolean;
 }) {
   return (
     <InputGroup className={cn("w-auto", className)}>
       <ComboboxPrimitive.Input render={<InputGroupInput disabled={disabled} />} {...props} />
       <InputGroupAddon align="inline-end">
-        {loading ? <Spinner className="size-3.5" /> : null}
         {showTrigger && (
           <InputGroupButton
             size="icon-xs"
@@ -262,7 +254,6 @@ function useComboboxAnchor() {
 }
 
 export {
-  Autocomplete,
   Combobox,
   ComboboxInput,
   ComboboxContent,
