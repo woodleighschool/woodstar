@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	pingInterval        = 20 * time.Second
+	pingInterval        = 5 * time.Second
 	pingTimeout         = 10 * time.Second
 	desiredPollInterval = 20 * time.Second
 	connectionIDBytes   = 16

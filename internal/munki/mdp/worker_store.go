@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	workerSessionTTL   = time.Minute
+	workerSessionTTL   = 15 * time.Second
 	workerRejectionTTL = 5 * time.Minute
 )
 
