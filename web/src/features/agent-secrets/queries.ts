@@ -9,11 +9,11 @@ import {
   updateAgentSecret,
 } from "@lib/api";
 
-const agentSecretsKey = ["agent-secrets"] as const;
+const agentSecretsQueryKey = ["agent-secrets"] as const;
 
 export function useAgentSecrets(enabled = true) {
   return useQuery<AgentSecret[], ApiError>({
-    queryKey: agentSecretsKey,
+    queryKey: agentSecretsQueryKey,
     queryFn: ({ signal }) => unwrap(listAgentSecrets({ signal })),
     enabled,
   });
@@ -24,7 +24,7 @@ export function useCreateAgentSecret() {
   return useMutation<AgentSecret, ApiError, AgentSecretCreate>({
     mutationFn: (body) => unwrap(createAgentSecret({ body })),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: agentSecretsKey });
+      await queryClient.invalidateQueries({ queryKey: agentSecretsQueryKey });
     },
   });
 }
@@ -34,7 +34,7 @@ export function useUpdateAgentSecret() {
   return useMutation<AgentSecret, ApiError, { id: number; body: AgentSecretMutation }>({
     mutationFn: ({ id, body }) => unwrap(updateAgentSecret({ path: { id }, body })),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: agentSecretsKey });
+      await queryClient.invalidateQueries({ queryKey: agentSecretsQueryKey });
     },
   });
 }
@@ -44,7 +44,7 @@ export function useDeleteAgentSecret() {
   return useMutation<void, ApiError, number>({
     mutationFn: (id) => unwrap(deleteAgentSecret({ path: { id } })),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: agentSecretsKey });
+      await queryClient.invalidateQueries({ queryKey: agentSecretsQueryKey });
     },
   });
 }

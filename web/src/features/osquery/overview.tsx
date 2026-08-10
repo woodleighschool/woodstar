@@ -1,11 +1,9 @@
-import { ClipboardCheck, ExternalLink, FileChartColumn } from "lucide-react";
+import { ClipboardCheck, FileChartColumn } from "lucide-react";
 
 import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link } from "@components/link";
 import { ResourceOverviewCard } from "@components/resource-overview-card";
-import { buttonVariants } from "@components/ui/button";
-import { EnrollmentOverviewCard } from "@features/enrollments/card";
-import { enrollmentDocsURL } from "@features/enrollments/metadata";
+import { AgentSecretsHeaderAction } from "@features/agent-secrets/header-action";
 import { useChecks } from "@features/osquery/checks/queries";
 import { useReports } from "@features/osquery/reports/queries";
 
@@ -20,17 +18,7 @@ export function OsqueryOverviewPage() {
       <PageHeader
         title="osquery"
         description="Enroll hosts and manage scheduled reports and checks."
-        actions={
-          <a
-            href={enrollmentDocsURL("orbit")}
-            target="_blank"
-            rel="noreferrer"
-            className={buttonVariants({ variant: "outline", size: "sm" })}
-          >
-            <ExternalLink data-icon="inline-start" />
-            Documentation
-          </a>
-        }
+        actions={<AgentSecretsHeaderAction agent="orbit" />}
       />
 
       <div className="grid min-w-0 gap-4 md:grid-cols-3">
@@ -52,7 +40,6 @@ export function OsqueryOverviewPage() {
             icon={ClipboardCheck}
           />
         </Link>
-        <EnrollmentOverviewCard integration="orbit" />
       </div>
     </PageShell>
   );

@@ -1,11 +1,9 @@
-import { Boxes, ExternalLink, FileArchive, PackageSearch, RadioTower } from "lucide-react";
+import { Boxes, FileArchive, PackageSearch, RadioTower } from "lucide-react";
 
 import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link } from "@components/link";
 import { ResourceOverviewCard } from "@components/resource-overview-card";
-import { buttonVariants } from "@components/ui/button";
-import { EnrollmentOverviewCard } from "@features/enrollments/card";
-import { enrollmentDocsURL } from "@features/enrollments/metadata";
+import { AgentSecretsHeaderAction } from "@features/agent-secrets/header-action";
 import { useMunkiClientResources } from "@features/munki/client-resources/queries";
 import { useMunkiDistributionPoints } from "@features/munki/distribution-points/queries";
 import { useMunkiPackages } from "@features/munki/packages/queries";
@@ -24,17 +22,7 @@ export function MunkiOverviewPage() {
       <PageHeader
         title="Munki"
         description="Manage software, packages, distribution, and client resources."
-        actions={
-          <a
-            href={enrollmentDocsURL("munki")}
-            target="_blank"
-            rel="noreferrer"
-            className={buttonVariants({ variant: "outline", size: "sm" })}
-          >
-            <ExternalLink data-icon="inline-start" />
-            Documentation
-          </a>
-        }
+        actions={<AgentSecretsHeaderAction agent="munki" />}
       />
 
       <div className="grid min-w-0 gap-4 md:grid-cols-3">
@@ -74,7 +62,6 @@ export function MunkiOverviewPage() {
             icon={FileArchive}
           />
         </Link>
-        <EnrollmentOverviewCard integration="munki" />
       </div>
     </PageShell>
   );

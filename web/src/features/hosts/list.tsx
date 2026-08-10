@@ -21,8 +21,8 @@ import { TextLink } from "@components/link";
 import { QueryError } from "@components/query-error";
 import { RelativeTime } from "@components/relative-time";
 import { Button } from "@components/ui/button";
+import { AgentSecretsDialog } from "@features/agent-secrets/secrets-dialog";
 import { useAuth } from "@features/auth/queries";
-import { AgentSecretsDialog } from "@features/enrollments/secrets-dialog";
 import { HostLastContact } from "@features/hosts/components/host-heartbeats";
 import { HostOnlineDot } from "@features/hosts/components/host-online-dot";
 import { HostPublicIP } from "@features/hosts/components/host-public-ip";
@@ -143,7 +143,7 @@ export function HostListPage() {
       />
 
       {enrollmentOpen ? (
-        <AgentSecretsDialog integration="orbit" open onOpenChange={setEnrollmentOpen} />
+        <AgentSecretsDialog agent="orbit" open onOpenChange={setEnrollmentOpen} />
       ) : null}
 
       {query.error ? (
