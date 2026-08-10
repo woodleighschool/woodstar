@@ -2296,19 +2296,21 @@ type MunkiRevealedDistributionPoint struct {
 
 // MunkiSoftwareDetail defines model for MunkiSoftwareDetail.
 type MunkiSoftwareDetail struct {
-	Category     string         `json:"category"`
-	CreatedAt    time.Time      `json:"created_at"`
-	Description  string         `json:"description"`
-	Developer    string         `json:"developer"`
-	DisplayName  *string        `json:"display_name,omitempty"`
-	IconFile     *MunkiIconFile `json:"icon_file,omitempty"`
-	IconObjectId *int64         `json:"icon_object_id,omitempty"`
-	IconUrl      *string        `json:"icon_url,omitempty"`
-	Id           int64          `json:"id"`
-	Name         string         `json:"name"`
-	Packages     []MunkiPackage `json:"packages"`
-	Targets      MunkiTargets   `json:"targets"`
-	UpdatedAt    time.Time      `json:"updated_at"`
+	Category           string         `json:"category"`
+	CreatedAt          time.Time      `json:"created_at"`
+	Description        string         `json:"description"`
+	Developer          string         `json:"developer"`
+	DisplayName        *string        `json:"display_name,omitempty"`
+	ExpectedHostCount  int32          `json:"expected_host_count"`
+	IconFile           *MunkiIconFile `json:"icon_file,omitempty"`
+	IconObjectId       *int64         `json:"icon_object_id,omitempty"`
+	IconUrl            *string        `json:"icon_url,omitempty"`
+	Id                 int64          `json:"id"`
+	InstalledHostCount int32          `json:"installed_host_count"`
+	Name               string         `json:"name"`
+	Packages           []MunkiPackage `json:"packages"`
+	Targets            MunkiTargets   `json:"targets"`
+	UpdatedAt          time.Time      `json:"updated_at"`
 }
 
 // MunkiTargets defines model for MunkiTargets.

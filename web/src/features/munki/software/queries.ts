@@ -18,6 +18,7 @@ import type {
   MunkiUpdateMutation,
   PageMunkiObjectView,
   PageSoftware,
+  PageSoftwareReportHost,
 } from "@lib/api";
 import {
   bulkDeleteMunkiSoftware,
@@ -27,17 +28,19 @@ import {
   getMunkiSoftware,
   listMunkiIcons,
   listMunkiSoftware,
+  listMunkiSoftwareReport,
   setMunkiSoftwareIcon,
   unwrap,
   updateMunkiSoftware,
 } from "@lib/api";
-import type { ListMunkiSoftwareData } from "@lib/api-client/types.gen";
+import type { ListMunkiSoftwareData, ListMunkiSoftwareReportData } from "@lib/api-client/types.gen";
 import { baseListParams, MAX_PAGE_SIZE } from "@lib/pagination";
 import { detailPath } from "@lib/route-params";
 
 import { uploadRequestFromTarget } from "../upload";
 
 type MunkiListParams = NonNullable<ListMunkiSoftwareData["query"]>;
+type MunkiSoftwareReportParams = NonNullable<ListMunkiSoftwareReportData["query"]>;
 type IconUploadVariables = { softwareId: number; file: File };
 type QueryParams = Record<string, unknown>;
 
@@ -47,6 +50,8 @@ const munkiSoftwareKeys = {
   root: [...munkiRoot, "software"] as const,
   list: (params: QueryParams) => [...munkiRoot, "software", "list", params] as const,
   detail: (id: number | null) => [...munkiRoot, "software", "detail", id] as const,
+  report: (id: number | null, params: QueryParams) =>
+    [...munkiRoot, "software", "detail", id, "report", params] as const,
   iconList: (params: QueryParams) => [...munkiRoot, "icons", "list", params] as const,
 };
 
@@ -73,6 +78,17 @@ export function useMunkiSoftware(params: MunkiListParams = {}) {
 
 export function useMunkiSoftwareDetail(id: number | null) {
   return useQuery(munkiSoftwareQueryOptions(id));
+}
+
+export function useMunkiSoftwareReport(id: number | null, params: MunkiSoftwareReportParams = {}) {
+  const query = { ...baseListParams(params), status: params.status };
+  return useQuery<PageSoftwareReportHost, ApiError>({
+    queryKey: munkiSoftwareKeys.report(id, query),
+    queryFn: ({ signal }) =>
+      unwrap(listMunkiSoftwareReport({ path: detailPath(id), query, signal })),
+    enabled: id !== null,
+    placeholderData: keepPreviousData,
+  });
 }
 
 export function useCreateMunkiSoftware() {

@@ -793,10 +793,12 @@ export type MunkiSoftware = {
     description: string;
     developer: string;
     display_name?: string;
+    expected_host_count: number;
     icon_file?: MunkiIconFile;
     icon_object_id?: number;
     icon_url?: string;
     id: number;
+    installed_host_count: number;
     name: string;
     updated_at: string;
 };
@@ -807,14 +809,25 @@ export type MunkiSoftwareDetail = {
     description: string;
     developer: string;
     display_name?: string;
+    expected_host_count: number;
     icon_file?: MunkiIconFile;
     icon_object_id?: number;
     icon_url?: string;
     id: number;
+    installed_host_count: number;
     name: string;
     packages: Array<MunkiPackage>;
     targets: MunkiTargets;
     updated_at: string;
+};
+
+export type MunkiSoftwareReportHost = {
+    evaluated_at?: string;
+    hardware_serial: string;
+    host_id: number;
+    host_name: string;
+    status?: 'installed' | 'pending';
+    target_version?: string;
 };
 
 export type MunkiTargets = {
@@ -1096,6 +1109,11 @@ export type PageRuleStatus = {
 export type PageSoftware = {
     count: number;
     items: Array<MunkiSoftware>;
+};
+
+export type PageSoftwareReportHost = {
+    count: number;
+    items: Array<MunkiSoftwareReportHost>;
 };
 
 export type PageSoftwareTitle = {
@@ -4382,6 +4400,55 @@ export type SetMunkiSoftwareIconResponses = {
 };
 
 export type SetMunkiSoftwareIconResponse = SetMunkiSoftwareIconResponses[keyof SetMunkiSoftwareIconResponses];
+
+export type ListMunkiSoftwareReportData = {
+    body?: never;
+    path: {
+        id: number;
+    };
+    query?: {
+        q?: string;
+        page?: number;
+        per_page?: number;
+        sort?: string;
+        status?: Array<'installed' | 'pending'>;
+    };
+    url: '/api/munki/software/{id}/report';
+};
+
+export type ListMunkiSoftwareReportErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorModel;
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type ListMunkiSoftwareReportError = ListMunkiSoftwareReportErrors[keyof ListMunkiSoftwareReportErrors];
+
+export type ListMunkiSoftwareReportResponses = {
+    /**
+     * OK
+     */
+    200: PageSoftwareReportHost;
+};
+
+export type ListMunkiSoftwareReportResponse = ListMunkiSoftwareReportResponses[keyof ListMunkiSoftwareReportResponses];
 
 export type CreateLiveQueryData = {
     body: OsqueryLiveQueryCreateBody;
