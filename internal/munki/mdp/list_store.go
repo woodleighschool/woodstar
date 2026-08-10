@@ -55,6 +55,24 @@ SELECT
 	c.client_base_url,
 	c."key",
 	c.created_at,
-	c.updated_at
-FROM munki_distribution_points c`
+	c.updated_at,
+	CASE
+		WHEN session.distribution_point_id IS NOT NULL THEN jsonb_build_object(
+			'compatible', true,
+			'protocol_version', session.protocol_version,
+			'build_version', session.build_version
+		)
+		WHEN rejection.distribution_point_id IS NOT NULL THEN jsonb_strip_nulls(jsonb_build_object(
+			'compatible', false,
+			'protocol_version', rejection.protocol_version,
+			'build_version', rejection.build_version
+		))
+	END AS worker
+FROM munki_distribution_points c
+LEFT JOIN munki_distribution_worker_sessions session
+	ON session.distribution_point_id = c.id
+	AND session.expires_at > now()
+LEFT JOIN munki_distribution_worker_rejections rejection
+	ON rejection.distribution_point_id = c.id
+	AND rejection.expires_at > now()`
 }

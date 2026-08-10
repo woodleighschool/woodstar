@@ -71,7 +71,7 @@ func NewServer(
 	}
 	return &Server{
 		store:    store,
-		hub:      newHub(ctx, store, store.Presence(), logger),
+		hub:      newHub(ctx, store, logger),
 		delivery: delivery,
 		version:  version,
 		logger:   logger,
@@ -107,11 +107,11 @@ func (s *Server) Close() {
 // connect upgrades an authenticated worker to a WebSocket and hands it to the
 // hub for the lifetime of the connection.
 func (h workerHandler) connect(w http.ResponseWriter, r *http.Request) {
-	dp, ok := h.authenticate(w, r)
+	dp, key, ok := h.authenticate(w, r)
 	if !ok {
 		return
 	}
-	worker, ok := h.negotiate(w, r, dp.ID)
+	worker, ok := h.negotiate(w, r, dp.ID, key)
 	if !ok {
 		return
 	}
@@ -123,7 +123,7 @@ func (h workerHandler) connect(w http.ResponseWriter, r *http.Request) {
 		h.log(r, "connect", err)
 		return
 	}
-	if err := h.hub.Serve(r.Context(), ws, dp, worker); err != nil && !isExpectedClose(err) {
+	if err := h.hub.Serve(r.Context(), ws, dp, key, worker); err != nil && !isExpectedClose(err) {
 		h.log(r, "connect", err)
 		_ = ws.Close(websocket.StatusInternalError, "serve error")
 		return
@@ -135,6 +135,7 @@ func (h workerHandler) negotiate(
 	w http.ResponseWriter,
 	r *http.Request,
 	pointID int64,
+	key string,
 ) (mdp.DistributionPointWorker, bool) {
 	w.Header().Set(wire.BuildVersionHeader, h.version)
 
@@ -143,7 +144,11 @@ func (h workerHandler) negotiate(
 	if len(protocols) != 1 || protocols[0] != wire.Subprotocol ||
 		len(versionHeaders) != 1 || !wire.ValidBuildVersion(versionHeaders[0]) {
 		w.Header().Set(wire.ProtocolHeader, wire.Subprotocol)
-		h.store.Presence().Reject(pointID, incompatibleWorker(protocols, versionHeaders))
+		if err := h.store.ObserveRejectedWorker(
+			r.Context(), pointID, key, incompatibleWorker(protocols, versionHeaders),
+		); err != nil && !errors.Is(err, mdp.ErrWorkerSessionInvalid) {
+			h.log(r, "negotiate", err)
+		}
 		http.Error(w, "incompatible MDP protocol", http.StatusUpgradeRequired)
 		return mdp.DistributionPointWorker{}, false
 	}
@@ -184,7 +189,7 @@ func offeredSubprotocols(header http.Header) []string {
 // downloadURL mints a fresh, short-lived URL for an authenticated worker to pull
 // one package's installer bytes. The worker calls it as each mirror job starts.
 func (h workerHandler) downloadURL(w http.ResponseWriter, r *http.Request) {
-	if _, ok := h.authenticate(w, r); !ok {
+	if _, _, ok := h.authenticate(w, r); !ok {
 		return
 	}
 	packageID, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
@@ -216,23 +221,26 @@ func (h workerHandler) downloadURL(w http.ResponseWriter, r *http.Request) {
 	httpx.Write(w, http.StatusOK, downloadURLResponse{DownloadURL: url})
 }
 
-func (h workerHandler) authenticate(w http.ResponseWriter, r *http.Request) (*mdp.DistributionPoint, bool) {
+func (h workerHandler) authenticate(
+	w http.ResponseWriter,
+	r *http.Request,
+) (*mdp.DistributionPoint, string, bool) {
 	token, ok := httpx.BearerToken(r.Header.Get("Authorization"))
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
-		return nil, false
+		return nil, "", false
 	}
 	point, err := h.store.AuthenticateWorker(r.Context(), token)
 	if errors.Is(err, fault.ErrNotFound) {
 		w.WriteHeader(http.StatusUnauthorized)
-		return nil, false
+		return nil, "", false
 	}
 	if err != nil {
 		h.log(r, "authenticate", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		return nil, false
+		return nil, "", false
 	}
-	return point, true
+	return point, token, true
 }
 
 func (h workerHandler) log(r *http.Request, operation string, err error) {
@@ -246,7 +254,8 @@ func (h workerHandler) log(r *http.Request, operation string, err error) {
 // isExpectedClose reports whether err is a normal end of a connection rather
 // than a server-side failure worth logging.
 func isExpectedClose(err error) bool {
-	if err == nil || errors.Is(err, errHubClosed) || errors.Is(err, context.Canceled) ||
+	if err == nil || errors.Is(err, errHubClosed) || errors.Is(err, mdp.ErrWorkerSessionInvalid) ||
+		errors.Is(err, context.Canceled) ||
 		errors.Is(err, io.EOF) {
 		return true
 	}

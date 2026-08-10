@@ -2,6 +2,7 @@ package mdp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/netip"
@@ -19,24 +20,17 @@ import (
 
 // Store persists distribution points and their per-package mirror state.
 type Store struct {
-	pool     *pgxpool.Pool
-	objects  *storage.ObjectStore
-	presence *Presence
-	logger   *slog.Logger
+	pool    *pgxpool.Pool
+	objects *storage.ObjectStore
+	logger  *slog.Logger
 }
 
 // NewStore returns a distribution point store backed by PostgreSQL.
 func NewStore(pool *pgxpool.Pool, objects *storage.ObjectStore, logger *slog.Logger) *Store {
-	return &Store{pool: pool, objects: objects, presence: NewPresence(), logger: logger}
+	return &Store{pool: pool, objects: objects, logger: logger}
 }
 
-// Presence returns the live worker presence set shared by selection and the
-// worker protocol hub.
-func (s *Store) Presence() *Presence {
-	return s.presence
-}
-
-// List returns distribution points in admin order with live presence.
+// List returns distribution points in admin order with current worker state.
 func (s *Store) List(
 	ctx context.Context,
 	params DistributionPointListParams,
@@ -140,10 +134,10 @@ func (s *Store) Create(
 		ClientBaseURL: mutation.ClientBaseURL,
 		Key:           key,
 	}
-	row, err := postgres.GetOne[distributionPointRow](
-		ctx,
-		s.pool,
-		`
+	var row distributionPointRow
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		var id int64
+		if err := tx.QueryRow(ctx, `
 INSERT INTO munki_distribution_points (
 	name,
 	enabled,
@@ -161,17 +155,18 @@ VALUES (
 	@key
 )
 RETURNING
-	id,
-	name,
-	enabled,
-	position,
-	client_cidrs,
-	client_base_url,
-	"key",
-	created_at,
-	updated_at`,
-		pgx.StructArgs(write),
-	)
+	id`, pgx.StructArgs(write)).Scan(&id); err != nil {
+			return err
+		}
+		var err error
+		row, err = postgres.GetOne[distributionPointRow](
+			ctx,
+			tx,
+			distributionPointSelectSQL()+"\nWHERE c.id = $1",
+			id,
+		)
+		return err
+	})
 	if err != nil {
 		return nil, postgres.MutationError(err)
 	}
@@ -196,10 +191,10 @@ func (s *Store) Update(
 		ClientCidrs:   clientCIDRs(mutation.ClientCIDRs),
 		ClientBaseURL: mutation.ClientBaseURL,
 	}
-	row, err := postgres.GetOne[distributionPointRow](
-		ctx,
-		s.pool,
-		`
+	var row distributionPointRow
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		var updatedID int64
+		if err := tx.QueryRow(ctx, `
 UPDATE munki_distribution_points
 SET
 	name = @name,
@@ -209,17 +204,23 @@ SET
 	updated_at = now()
 WHERE id = @id
 RETURNING
-	id,
-	name,
-	enabled,
-	position,
-	client_cidrs,
-	client_base_url,
-	"key",
-	created_at,
-	updated_at`,
-		pgx.StructArgs(write),
-	)
+	id`, pgx.StructArgs(write)).Scan(&updatedID); err != nil {
+			return err
+		}
+		if !mutation.Enabled {
+			if err := clearWorkerStates(ctx, tx, id); err != nil {
+				return err
+			}
+		}
+		var err error
+		row, err = postgres.GetOne[distributionPointRow](
+			ctx,
+			tx,
+			distributionPointSelectSQL()+"\nWHERE c.id = $1",
+			updatedID,
+		)
+		return err
+	})
 	if err != nil {
 		return nil, postgres.MutationError(err)
 	}
@@ -245,16 +246,27 @@ func (s *Store) Delete(ctx context.Context, id int64) error {
 
 // RotateKey replaces a distribution point's key, invalidating the old one.
 func (s *Store) RotateKey(ctx context.Context, id int64, key string) error {
-	tag, err := s.pool.Exec(
-		ctx,
-		`UPDATE munki_distribution_points SET "key" = $1, updated_at = now() WHERE id = $2`,
-		key,
-		id,
-	)
+	var rowsAffected int64
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		tag, err := tx.Exec(
+			ctx,
+			`UPDATE munki_distribution_points SET "key" = $1, updated_at = now() WHERE id = $2`,
+			key,
+			id,
+		)
+		if err != nil {
+			return err
+		}
+		rowsAffected = tag.RowsAffected()
+		if rowsAffected == 0 {
+			return nil
+		}
+		return clearWorkerStates(ctx, tx, id)
+	})
 	if err != nil {
 		return postgres.MutationError(err)
 	}
-	if tag.RowsAffected() == 0 {
+	if rowsAffected == 0 {
 		return fault.ErrNotFound
 	}
 	return nil
@@ -312,7 +324,7 @@ func (s *Store) AuthenticateWorker(ctx context.Context, key string) (*Distributi
 	row, err := postgres.GetOne[distributionPointRow](
 		ctx,
 		s.pool,
-		distributionPointSelectSQL()+"\nWHERE c.\"key\" = $1",
+		distributionPointSelectSQL()+"\nWHERE c.\"key\" = $1 AND c.enabled",
 		key,
 	)
 	if err != nil {
@@ -427,6 +439,9 @@ SELECT s.distribution_point_id
 FROM munki_distribution_package_states s
 JOIN munki_packages p ON p.id = s.package_id
 JOIN storage_objects o ON o.id = p.installer_object_id
+JOIN munki_distribution_worker_sessions session
+	ON session.distribution_point_id = s.distribution_point_id
+	AND session.expires_at > now()
 WHERE s.distribution_point_id = ANY($1::bigint[])
   AND s.package_id = $2
   AND s.status = 'current'
@@ -456,13 +471,11 @@ WHERE s.distribution_point_id = ANY($1::bigint[])
 		if _, ok := current[candidate.ID]; !ok {
 			continue
 		}
-		if worker, ok := s.presence.Worker(candidate.ID); ok && worker.Compatible {
-			return &ResolvedPoint{
-				ID:            candidate.ID,
-				Key:           candidate.key,
-				ClientBaseURL: candidate.clientBaseURL,
-			}, nil
-		}
+		return &ResolvedPoint{
+			ID:            candidate.ID,
+			Key:           candidate.key,
+			ClientBaseURL: candidate.clientBaseURL,
+		}, nil
 	}
 	return nil, nil
 }
@@ -525,18 +538,50 @@ WHERE id = $1`, packageID).Scan(&objectID)
 }
 
 // RecordPackageState upserts one package's mirror state for a distribution
-// point. Eligibility is derived at read and redirect time by comparing the
-// reported hash against Woodstar's current desired installer, so a stale or
-// removed package stops matching on its own and needs no separate cleanup.
+// point while the reporting connection owns its current worker session.
+// Eligibility is derived at read and redirect time by comparing the reported
+// hash against Woodstar's current desired installer, so a stale or removed
+// package stops matching on its own and needs no separate cleanup.
 func (s *Store) RecordPackageState(
 	ctx context.Context,
 	distributionPointID int64,
+	connectionID string,
 	packageID int64,
 	status PackageStatus,
 	sha256 string,
 	errMessage string,
 ) error {
-	_, err := s.pool.Exec(ctx, `
+	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		var enabled bool
+		if err := tx.QueryRow(ctx, `
+SELECT enabled
+FROM munki_distribution_points
+WHERE id = $1
+FOR SHARE`, distributionPointID).Scan(&enabled); err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return ErrWorkerSessionInvalid
+			}
+			return err
+		}
+		if !enabled {
+			return ErrWorkerSessionInvalid
+		}
+
+		var current bool
+		if err := tx.QueryRow(ctx, `
+SELECT true
+FROM munki_distribution_worker_sessions
+WHERE distribution_point_id = $1
+  AND connection_id = $2
+  AND expires_at > now()
+FOR UPDATE`, distributionPointID, connectionID).Scan(&current); err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return ErrWorkerSessionInvalid
+			}
+			return err
+		}
+
+		_, err := tx.Exec(ctx, `
 INSERT INTO munki_distribution_package_states (
 	distribution_point_id,
 	package_id,
@@ -556,14 +601,15 @@ SET status = EXCLUDED.status,
     reported_sha256 = EXCLUDED.reported_sha256,
     error = EXCLUDED.error,
     updated_at = now()`,
-		pgx.NamedArgs{
-			"distribution_point_id": distributionPointID,
-			"package_id":            packageID,
-			"status":                string(status),
-			"reported_sha256":       reportedSHA256(sha256),
-			"error":                 errMessage,
-		})
-	return err
+			pgx.NamedArgs{
+				"distribution_point_id": distributionPointID,
+				"package_id":            packageID,
+				"status":                string(status),
+				"reported_sha256":       reportedSHA256(sha256),
+				"error":                 errMessage,
+			})
+		return err
+	})
 }
 
 // clientCIDRs coerces a nil slice to empty so the not-null text[] column takes
@@ -576,10 +622,6 @@ func clientCIDRs(cidrs []string) []string {
 }
 
 func (s *Store) distributionPointFromRow(row distributionPointRow) DistributionPoint {
-	var worker *DistributionPointWorker
-	if current, ok := s.presence.Worker(row.ID); ok {
-		worker = &current
-	}
 	return DistributionPoint{
 		ID:            row.ID,
 		Name:          row.Name,
@@ -587,7 +629,7 @@ func (s *Store) distributionPointFromRow(row distributionPointRow) DistributionP
 		Position:      row.Position,
 		ClientCIDRs:   row.ClientCidrs,
 		ClientBaseURL: row.ClientBaseURL,
-		Worker:        worker,
+		Worker:        row.Worker,
 		CreatedAt:     row.CreatedAt,
 		UpdatedAt:     row.UpdatedAt,
 	}
@@ -614,15 +656,16 @@ func reportedSHA256(sha256 string) *string {
 
 // distributionPointRow is the scan target for the munki_distribution_points projection.
 type distributionPointRow struct {
-	ID            int64     `db:"id"`
-	Name          string    `db:"name"`
-	Enabled       bool      `db:"enabled"`
-	Position      int32     `db:"position"`
-	ClientCidrs   []string  `db:"client_cidrs"`
-	ClientBaseURL string    `db:"client_base_url"`
-	Key           string    `db:"key"`
-	CreatedAt     time.Time `db:"created_at"`
-	UpdatedAt     time.Time `db:"updated_at"`
+	ID            int64                    `db:"id"`
+	Name          string                   `db:"name"`
+	Enabled       bool                     `db:"enabled"`
+	Position      int32                    `db:"position"`
+	ClientCidrs   []string                 `db:"client_cidrs"`
+	ClientBaseURL string                   `db:"client_base_url"`
+	Key           string                   `db:"key"`
+	CreatedAt     time.Time                `db:"created_at"`
+	UpdatedAt     time.Time                `db:"updated_at"`
+	Worker        *DistributionPointWorker `db:"worker"`
 }
 
 // distributionPointCreateWrite carries all admin-writable fields for INSERT.

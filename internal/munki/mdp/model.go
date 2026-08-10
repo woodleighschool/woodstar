@@ -49,8 +49,8 @@ type DistributionPoint struct {
 	UpdatedAt     time.Time                `json:"updated_at"`
 }
 
-// DistributionPointWorker describes the latest worker state known by the
-// current Woodstar process.
+// DistributionPointWorker describes the current compatible session or latest
+// incompatible worker observed by Woodstar.
 type DistributionPointWorker struct {
 	Compatible      bool   `json:"compatible"`
 	ProtocolVersion *int   `json:"protocol_version,omitempty"`
