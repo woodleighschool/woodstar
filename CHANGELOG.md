@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.8](https://github.com/woodleighschool/woodstar/compare/0.8.7...0.8.8) (2026-08-10)
+
+
+### Bug Fixes
+
+* **deps:** update tanstack-router monorepo ([#167](https://github.com/woodleighschool/woodstar/issues/167)) ([5694856](https://github.com/woodleighschool/woodstar/commit/569485673d254bd778a50d7f8068b9b13210d3f0))
+* **directory:** reconcile Entra identities by object ID ([#169](https://github.com/woodleighschool/woodstar/issues/169)) ([a1811ca](https://github.com/woodleighschool/woodstar/commit/a1811ca20e7733150c367075b315cb82784ed491))
+* **web:** rebalance wide table layouts ([df9a278](https://github.com/woodleighschool/woodstar/commit/df9a2789216ebde8b3e9c1bb362121f453ad2710))
+
 ## [0.8.7](https://github.com/woodleighschool/woodstar/compare/0.8.6...0.8.7) (2026-08-10)
 
 
