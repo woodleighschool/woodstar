@@ -18,7 +18,7 @@ func RegisterOsquery(
 	streamingSensitive huma.API,
 	reportStore *reports.Store,
 	checkStore *checks.Store,
-	liveQueries *livequery.Manager,
+	liveQueries *livequery.Store,
 	hostStore *hosts.Store,
 	logger *slog.Logger,
 ) {

@@ -145,7 +145,7 @@ func (s *AgentService) dispatchWriteResults(
 		case kindCheck:
 			err = s.handleCheckResult(ctx, host.ID, suffix, rows, status, hasStatus, message)
 		case kindLive:
-			s.handleLiveResult(host, suffix, rows, status, hasStatus, message)
+			err = s.handleLiveResult(ctx, host, suffix, rows, status, hasStatus, message)
 		}
 		if err != nil {
 			return fmt.Errorf("ingest %s: %w", name, err)
@@ -389,22 +389,23 @@ func distributedStatusOK(raw json.RawMessage, hasStatus bool) bool {
 }
 
 func (s *AgentService) handleLiveResult(
+	ctx context.Context,
 	host *hosts.Host,
 	suffix string,
 	rows []map[string]string,
 	status json.RawMessage,
 	hasStatus bool,
 	message string,
-) {
+) error {
 	queryID, ok := parsePositiveSuffix(suffix)
 	if !ok {
-		return
+		return nil
 	}
 	resultStatus := livequery.StatusCollected
 	if !distributedStatusOK(status, hasStatus) {
 		resultStatus = livequery.StatusError
 	}
-	s.deps.LiveQueries.RecordResult(livequery.Result{
+	return s.deps.LiveQueries.RecordResult(ctx, livequery.Result{
 		QueryID:  queryID,
 		HostID:   host.ID,
 		HostName: host.DisplayName,

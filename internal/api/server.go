@@ -94,7 +94,7 @@ type AppDependencies struct {
 
 	Reports     *reports.Store
 	Checks      *checks.Store
-	LiveQueries *livequery.Manager
+	LiveQueries *livequery.Store
 
 	StorageBackend  storage.Backend
 	StorageDelivery *storage.Delivery

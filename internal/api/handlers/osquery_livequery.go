@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 	"reflect"
@@ -17,7 +18,10 @@ import (
 )
 
 const (
-	liveQueriesPath = "/api/osquery/live-queries"
+	liveQueriesPath          = "/api/osquery/live-queries"
+	liveQueryPollInterval    = time.Second
+	liveQueryPingInterval    = 15 * time.Second
+	liveQuerySnapshotTimeout = 2 * time.Second
 )
 
 type OsqueryLiveQueryCreateBody struct {
@@ -68,7 +72,13 @@ type OsqueryLiveQueryCompletedEvent struct {
 	Type string `json:"type" enum:"completed"`
 }
 
-type liveQuerySubscriptionKey struct{}
+type liveQueryStreamKey struct{}
+
+type liveQueryStreamState struct {
+	ID        int64
+	Snapshots []livequery.Snapshot
+	Completed bool
+}
 
 type OsqueryLiveQuerySnapshotEvent struct {
 	Type      string              `json:"type"       enum:"snapshot"`
@@ -83,7 +93,7 @@ type OsqueryLiveQuerySnapshotEvent struct {
 func registerLiveQueries(
 	api huma.API,
 	streamingAPI huma.API,
-	manager *livequery.Manager,
+	store *livequery.Store,
 	hostStore *hosts.Store,
 	logger *slog.Logger,
 ) {
@@ -100,7 +110,11 @@ func registerLiveQueries(
 		if err != nil {
 			return nil, handlerError(ctx, logger, "create-live-query", err)
 		}
-		return &liveQueryCreateOutput{Body: manager.Start(input.Body.SQL, targets)}, nil
+		handle, err := store.Start(ctx, input.Body.SQL, targets)
+		if err != nil {
+			return nil, handlerError(ctx, logger, "create-live-query", err)
+		}
+		return &liveQueryCreateOutput{Body: handle}, nil
 	})
 
 	huma.Register(api, huma.Operation{
@@ -130,8 +144,11 @@ func registerLiveQueries(
 		Summary:       "Delete a live query",
 		DefaultStatus: http.StatusNoContent,
 		Errors:        []int{http.StatusNotFound},
-	}, func(_ context.Context, input *liveQueryInput) (*struct{}, error) {
-		if err := manager.Stop(input.ID); err != nil {
+	}, func(ctx context.Context, input *liveQueryInput) (*struct{}, error) {
+		if err := store.Stop(ctx, input.ID); err != nil {
+			if !errors.Is(err, livequery.ErrLiveQueryNotFound) {
+				return nil, handlerError(ctx, logger, "delete-live-query", err)
+			}
 			return nil, huma.Error404NotFound("live query not found")
 		}
 		return &struct{}{}, nil
@@ -144,17 +161,17 @@ func registerLiveQueries(
 		Tags:        []string{osqueryLiveQueriesTag},
 		Summary:     "Stream live query results",
 		Errors:      []int{http.StatusNotFound},
-		Middlewares: huma.Middlewares{subscribeLiveQuery(streamingAPI, manager)},
+		Middlewares: huma.Middlewares{loadLiveQuery(streamingAPI, store, logger)},
 	}, map[string]any{
 		"ping":      OsqueryLiveQueryPingEvent{},
 		"snapshot":  OsqueryLiveQuerySnapshotEvent{},
 		"completed": OsqueryLiveQueryCompletedEvent{},
 	}, func(ctx context.Context, _ *liveQueryInput, send sse.Sender) {
-		snapshots, ok := ctx.Value(liveQuerySubscriptionKey{}).(<-chan livequery.Snapshot)
+		state, ok := ctx.Value(liveQueryStreamKey{}).(liveQueryStreamState)
 		if !ok {
 			return
 		}
-		streamLiveQuery(ctx, snapshots, send)
+		streamLiveQuery(ctx, store, state, send, logger)
 	})
 	setLiveQueryStreamResponseSchema(streamingAPI)
 }
@@ -187,21 +204,44 @@ func setLiveQueryStreamResponseSchema(api huma.API) {
 	}
 }
 
-func subscribeLiveQuery(api huma.API, manager *livequery.Manager) func(huma.Context, func(huma.Context)) {
+func loadLiveQuery(
+	api huma.API,
+	store *livequery.Store,
+	logger *slog.Logger,
+) func(huma.Context, func(huma.Context)) {
 	return func(ctx huma.Context, next func(huma.Context)) {
 		id, err := strconv.ParseInt(ctx.Param("id"), 10, 64)
 		if err != nil {
 			next(ctx)
 			return
 		}
-		events, release, err := manager.Subscribe(id)
+		snapshots, completed, err := readLiveQuerySnapshots(ctx.Context(), store, id)
 		if err != nil {
+			if !errors.Is(err, livequery.ErrLiveQueryNotFound) {
+				logger.ErrorContext(ctx.Context(), "load live query stream failed",
+					"operation", "stream-live-query", "live_query_id", id, "err", err)
+				_ = huma.WriteErr(api, ctx, http.StatusInternalServerError, "request failed")
+				return
+			}
 			_ = huma.WriteErr(api, ctx, http.StatusNotFound, "live query not found")
 			return
 		}
-		defer release()
-		next(huma.WithValue(ctx, liveQuerySubscriptionKey{}, events))
+		next(huma.WithValue(ctx, liveQueryStreamKey{}, liveQueryStreamState{
+			ID:        id,
+			Snapshots: snapshots,
+			Completed: completed,
+		}))
 	}
+}
+
+func readLiveQuerySnapshots(
+	ctx context.Context,
+	store *livequery.Store,
+	id int64,
+) ([]livequery.Snapshot, bool, error) {
+	readCtx, cancel := context.WithTimeout(ctx, liveQuerySnapshotTimeout)
+	defer cancel()
+	return store.Snapshots(readCtx, id)
 }
 
 func (body OsqueryLiveQueryCreateBody) resolveTargets(
@@ -234,30 +274,68 @@ func (body OsqueryLiveQuerySelectedBody) targetSelection() hosts.TargetSelection
 
 func streamLiveQuery(
 	ctx context.Context,
-	snapshots <-chan livequery.Snapshot,
+	store *livequery.Store,
+	state liveQueryStreamState,
 	send sse.Sender,
+	logger *slog.Logger,
 ) {
-	ticker := time.NewTicker(15 * time.Second)
-	defer ticker.Stop()
+	seen := make(map[int64]livequery.Status, len(state.Snapshots))
+	if !sendLiveQuerySnapshots(state.Snapshots, seen, send) {
+		return
+	}
+	if state.Completed {
+		_ = send.Data(OsqueryLiveQueryCompletedEvent{Type: "completed"})
+		return
+	}
+
+	poll := time.NewTicker(liveQueryPollInterval)
+	defer poll.Stop()
+	ping := time.NewTicker(liveQueryPingInterval)
+	defer ping.Stop()
 
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-ticker.C:
+		case <-ping.C:
 			if err := send.Data(OsqueryLiveQueryPingEvent{Type: "ping"}); err != nil {
 				return
 			}
-		case snapshot, ok := <-snapshots:
-			if !ok {
-				_ = send.Data(OsqueryLiveQueryCompletedEvent{Type: "completed"})
+		case <-poll.C:
+			snapshots, completed, err := readLiveQuerySnapshots(ctx, store, state.ID)
+			if err != nil {
+				if ctx.Err() == nil {
+					logger.WarnContext(ctx, "poll live query stream failed",
+						"operation", "stream-live-query", "live_query_id", state.ID, "err", err)
+				}
 				return
 			}
-			if err := send.Data(OsqueryLiveQuerySnapshotEventFromDomain(snapshot)); err != nil {
+			if !sendLiveQuerySnapshots(snapshots, seen, send) {
+				return
+			}
+			if completed {
+				_ = send.Data(OsqueryLiveQueryCompletedEvent{Type: "completed"})
 				return
 			}
 		}
 	}
+}
+
+func sendLiveQuerySnapshots(
+	snapshots []livequery.Snapshot,
+	seen map[int64]livequery.Status,
+	send sse.Sender,
+) bool {
+	for _, snapshot := range snapshots {
+		if status, ok := seen[snapshot.HostID]; ok && status == snapshot.Status {
+			continue
+		}
+		if err := send.Data(OsqueryLiveQuerySnapshotEventFromDomain(snapshot)); err != nil {
+			return false
+		}
+		seen[snapshot.HostID] = snapshot.Status
+	}
+	return true
 }
 
 func OsqueryLiveQuerySnapshotEventFromDomain(
