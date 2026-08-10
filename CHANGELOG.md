@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.8.7](https://github.com/woodleighschool/woodstar/compare/0.8.6...0.8.7) (2026-08-10)
+
+
+### Features
+
+* **deps:** update dependency lucide-react (1.30.0 → 1.31.0) ([#165](https://github.com/woodleighschool/woodstar/issues/165)) ([081901c](https://github.com/woodleighschool/woodstar/commit/081901ca22b7e189e52e21bd922411664c3a64b3))
+* **deps:** update pnpm (11.20.0 → 11.21.0) ([#166](https://github.com/woodleighschool/woodstar/issues/166)) ([5a7a4d8](https://github.com/woodleighschool/woodstar/commit/5a7a4d8787594c808b2d09ae5c2a9b1fb85b6765))
+* replace enrollment pages with integration overviews ([ab2acfa](https://github.com/woodleighschool/woodstar/commit/ab2acfa6dca53fb4829bd1f83df058cde1e88659))
+
+
+### Bug Fixes
+
+* **mdp:** share worker sessions across replicas ([#155](https://github.com/woodleighschool/woodstar/issues/155)) ([718ffbe](https://github.com/woodleighschool/woodstar/commit/718ffbe3065721c9b56a378704227d6943be640d))
+* **osquery:** share live queries across replicas ([#163](https://github.com/woodleighschool/woodstar/issues/163)) ([a7f2948](https://github.com/woodleighschool/woodstar/commit/a7f29483ab0b1f95070a212971728fc570d0cf1c))
+
 ## [0.8.6](https://github.com/woodleighschool/woodstar/compare/0.8.5...0.8.6) (2026-08-09)
 
 
