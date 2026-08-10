@@ -64,6 +64,7 @@ func softwareTitleWhere(params SoftwareTitleListParams) (string, []any) {
 				FROM software s
 				JOIN host_software_installed_paths paths ON paths.software_id = s.id
 				WHERE s.title_id = st.id
+					AND paths.signature_valid IS TRUE
 					AND (
 						paths.team_identifier ILIKE ` + search + `
 						OR paths.identifier ILIKE ` + search + `
@@ -188,11 +189,11 @@ func (s *Store) loadSoftwareTitleVersions(ctx context.Context, titles []Software
 }
 
 type softwareTitleSigningIdentityRow struct {
-	TitleID        int64    `db:"title_id"`
-	Identifier     string   `db:"identifier"`
-	TeamIdentifier string   `db:"team_identifier"`
-	Authorities    []string `db:"authorities"`
-	HostsCount     int32    `db:"hosts_count"`
+	TitleID        int64  `db:"title_id"`
+	Identifier     string `db:"identifier"`
+	TeamIdentifier string `db:"team_identifier"`
+	Authority      string `db:"authority"`
+	HostsCount     int32  `db:"hosts_count"`
 }
 
 const softwareTitleSigningIdentitiesSQL = `
@@ -200,21 +201,19 @@ SELECT
 	s.title_id,
 	paths.identifier,
 	paths.team_identifier,
-	COALESCE(
-		array_agg(DISTINCT paths.signing_authority ORDER BY paths.signing_authority)
-			FILTER (WHERE paths.signing_authority <> ''),
-		ARRAY[]::text[]
-	) AS authorities,
+	paths.signing_authority AS authority,
 	COUNT(DISTINCT paths.host_id)::integer AS hosts_count
 FROM host_software_installed_paths paths
 JOIN software s ON s.id = paths.software_id
 WHERE s.title_id = ANY($1::bigint[])
+	AND paths.signature_valid IS TRUE
 	AND paths.team_identifier <> ''
-GROUP BY s.title_id, paths.team_identifier, paths.identifier
+GROUP BY s.title_id, paths.team_identifier, paths.identifier, paths.signing_authority
 ORDER BY
 	array_position($1::bigint[], s.title_id),
 	lower(paths.team_identifier),
-	lower(paths.identifier)`
+	lower(paths.identifier),
+	lower(paths.signing_authority)`
 
 func (s *Store) loadSoftwareTitleSigningIdentities(ctx context.Context, titles []SoftwareTitle) error {
 	if len(titles) == 0 {
@@ -250,8 +249,8 @@ func (s *Store) loadSoftwareTitleSigningIdentities(ctx context.Context, titles [
 				Identifier:        row.Identifier,
 				SigningIdentifier: softwareSigningIdentifier(row.TeamIdentifier, row.Identifier),
 				TeamIdentifier:    row.TeamIdentifier,
-				DeveloperName:     softwareDeveloperName(row.TeamIdentifier, row.Authorities),
-				Authorities:       row.Authorities,
+				DeveloperName:     softwareDeveloperName(row.TeamIdentifier, row.Authority),
+				Authority:         row.Authority,
 				HostsCount:        row.HostsCount,
 			},
 		)
@@ -267,23 +266,21 @@ func softwareSigningIdentifier(teamIdentifier, identifier string) string {
 	return teamIdentifier + ":" + identifier
 }
 
-func softwareDeveloperName(teamIdentifier string, authorities []string) string {
+func softwareDeveloperName(teamIdentifier, authority string) string {
 	if teamIdentifier == "" {
 		return ""
 	}
 
 	suffix := " (" + teamIdentifier + ")"
-	for _, authority := range authorities {
-		if !strings.HasSuffix(authority, suffix) {
-			continue
-		}
+	if !strings.HasSuffix(authority, suffix) {
+		return ""
+	}
 
-		prefix := strings.TrimSuffix(authority, suffix)
-		_, name, ok := strings.Cut(prefix, ":")
-		name = strings.TrimSpace(name)
-		if ok && name != "" {
-			return name
-		}
+	prefix := strings.TrimSuffix(authority, suffix)
+	_, name, ok := strings.Cut(prefix, ":")
+	name = strings.TrimSpace(name)
+	if ok && name != "" {
+		return name
 	}
 	return ""
 }

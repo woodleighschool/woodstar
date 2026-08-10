@@ -28,7 +28,7 @@ func TestDetailQueriesDue(t *testing.T) {
 		got.Discovery["software_jetbrains_plugins"] == "" ||
 		got.Discovery["software_go_binaries"] == "" ||
 		got.Discovery["software_python_packages"] == "" ||
-		got.Discovery["software_macos_codesign"] == "" ||
+		got.Discovery["software_macos_signature"] == "" ||
 		got.Discovery["software_macos_executable_sha256"] == "" ||
 		got.Discovery["munki_info"] == "" ||
 		got.Discovery["munki_installs"] == "" {
@@ -44,7 +44,7 @@ func TestDetailQueriesDueDiscoversOsqueryVirtualTables(t *testing.T) {
 		QueryRootDiskDarwin,
 		QueryMunkiInfo,
 		QueryMunkiInstalls,
-		QuerySoftwareMacOSCodesign,
+		QuerySoftwareMacOSSignature,
 	} {
 		discovery := got.Discovery[name]
 		if !strings.Contains(discovery, "FROM osquery_registry") {
@@ -167,15 +167,10 @@ func TestSoftwareQueriesProjectIngestShape(t *testing.T) {
 }
 
 func TestSoftwareEnrichmentQueriesProjectIngestShape(t *testing.T) {
-	codesignSQL := DetailQueries()[QuerySoftwareMacOSCodesign].SQL
-	for _, want := range []string{"path", "team_identifier", "cdhash_sha256"} {
-		if !strings.Contains(codesignSQL, want) {
-			t.Fatalf("codesign SQL missing %q: %s", want, codesignSQL)
-		}
-	}
-
 	signatureSQL := DetailQueries()[QuerySoftwareMacOSSignature].SQL
-	for _, want := range []string{"path", "s.identifier", "team_identifier", "signing_authority"} {
+	for _, want := range []string{
+		"path", "signed", "s.identifier", "cdhash", "team_identifier", "signing_authority",
+	} {
 		if !strings.Contains(signatureSQL, want) {
 			t.Fatalf("signature SQL missing %q: %s", want, signatureSQL)
 		}

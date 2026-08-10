@@ -68,9 +68,12 @@ func TestGetTitleLoadsSigningIdentities(t *testing.T) {
 			Source:           "apps",
 			BundleIdentifier: "com.example.app",
 			InstalledPath:    "/Applications/Example.app",
-			TeamIdentifier:   "TEAMID1234",
-			Identifier:       "com.example.app",
-			SigningAuthority: "Developer ID Application: Example, Inc. (TEAMID1234)",
+			Signature: &SoftwareCodeSignature{
+				Valid:          true,
+				TeamIdentifier: "TEAMID1234",
+				Identifier:     "com.example.app",
+				Authority:      "Developer ID Application: Example, Inc. (TEAMID1234)",
+			},
 		}}); err != nil {
 			t.Fatalf("replace software for %s: %v", hostName, err)
 		}
@@ -96,8 +99,7 @@ func TestGetTitleLoadsSigningIdentities(t *testing.T) {
 		identity.TeamIdentifier != "TEAMID1234" ||
 		identity.DeveloperName != "Example, Inc." ||
 		identity.HostsCount != 2 ||
-		len(identity.Authorities) != 1 ||
-		identity.Authorities[0] != "Developer ID Application: Example, Inc. (TEAMID1234)" {
+		identity.Authority != "Developer ID Application: Example, Inc. (TEAMID1234)" {
 		t.Fatalf("signing identity = %+v, want aggregated observed identity", identity)
 	}
 
@@ -109,6 +111,94 @@ func TestGetTitleLoadsSigningIdentities(t *testing.T) {
 	}
 	if total != 1 || len(titles) != 1 || titles[0].ID != titleID {
 		t.Fatalf("developer name search = (%d, %+v), want title %d", total, titles, titleID)
+	}
+}
+
+func TestGetTitleSeparatesAuthoritiesAndExcludesInvalidSignatures(t *testing.T) {
+	db, ctx := testdb.Open(t)
+	store := NewStore(db)
+	hostStore := hosts.NewStore(db)
+
+	observations := []struct {
+		host      string
+		signature *SoftwareCodeSignature
+	}{
+		{
+			host: "authority-one",
+			signature: &SoftwareCodeSignature{
+				Valid:          true,
+				Identifier:     "com.example.rotated",
+				TeamIdentifier: "TEAMID1234",
+				Authority:      "Developer ID Application: Example One (TEAMID1234)",
+			},
+		},
+		{
+			host: "authority-two",
+			signature: &SoftwareCodeSignature{
+				Valid:          true,
+				Identifier:     "com.example.rotated",
+				TeamIdentifier: "TEAMID1234",
+				Authority:      "Developer ID Application: Example Two (TEAMID1234)",
+			},
+		},
+		{
+			host: "invalid-signature",
+			signature: &SoftwareCodeSignature{
+				Identifier:     "com.example.rotated",
+				TeamIdentifier: "TEAMID1234",
+				Authority:      "Developer ID Application: Invalid (TEAMID1234)",
+			},
+		},
+		{host: "unobserved-signature"},
+	}
+
+	for _, observation := range observations {
+		host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
+			Hardware:     hosts.HostHardware{UUID: observation.host},
+			OrbitNodeKey: observation.host + "-orbit",
+		})
+		if err != nil {
+			t.Fatalf("enroll %s: %v", observation.host, err)
+		}
+		if err := store.ReplaceHostSoftware(ctx, host.ID, []HostSoftwareEntry{{
+			Name:             "Rotated App",
+			Version:          "1.0",
+			Source:           "apps",
+			BundleIdentifier: "com.example.rotated",
+			InstalledPath:    "/Applications/Rotated App.app",
+			Signature:        observation.signature,
+		}}); err != nil {
+			t.Fatalf("replace software for %s: %v", observation.host, err)
+		}
+	}
+
+	var titleID int64
+	if err := db.QueryRow(
+		ctx,
+		`SELECT id FROM software_titles WHERE bundle_identifier = 'com.example.rotated'`,
+	).Scan(&titleID); err != nil {
+		t.Fatalf("get title ID: %v", err)
+	}
+	title, err := store.GetTitle(ctx, titleID)
+	if err != nil {
+		t.Fatalf("GetTitle: %v", err)
+	}
+	if title.SigningIdentities.Count != 2 || len(title.SigningIdentities.Items) != 2 {
+		t.Fatalf("signing identities = %+v, want one row per valid authority", title.SigningIdentities)
+	}
+	if title.SigningIdentities.Items[0].DeveloperName != "Example One" ||
+		title.SigningIdentities.Items[1].DeveloperName != "Example Two" {
+		t.Fatalf("signing identities = %+v, want separate authority names", title.SigningIdentities)
+	}
+
+	params := SoftwareTitleListParams{}
+	params.ListParams.Q = "Invalid"
+	titles, total, err := store.ListTitles(ctx, params)
+	if err != nil {
+		t.Fatalf("ListTitles by invalid authority: %v", err)
+	}
+	if total != 0 || len(titles) != 0 {
+		t.Fatalf("invalid authority search = (%d, %+v), want no titles", total, titles)
 	}
 }
 
@@ -130,7 +220,10 @@ func TestGetTitleLoadsTeamIdentityWithoutIdentifier(t *testing.T) {
 		Source:           "apps",
 		BundleIdentifier: "com.example.team-only",
 		InstalledPath:    "/Applications/Team Only.app",
-		TeamIdentifier:   "TEAMID1234",
+		Signature: &SoftwareCodeSignature{
+			Valid:          true,
+			TeamIdentifier: "TEAMID1234",
+		},
 	}}); err != nil {
 		t.Fatalf("replace software: %v", err)
 	}

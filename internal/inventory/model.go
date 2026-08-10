@@ -25,10 +25,7 @@ type HostSoftwareEntry struct {
 	Arch             string
 	Release          string
 	InstalledPath    string
-	Identifier       string
-	SigningAuthority string
-	TeamIdentifier   string
-	CDHashSHA256     string
+	Signature        *SoftwareCodeSignature
 	ExecutableSHA256 string
 	ExecutablePath   string
 	LastOpenedAt     *time.Time
@@ -50,12 +47,12 @@ type SoftwareVersionList struct {
 
 // SoftwareSigningIdentity is one code-signing identity observed for a software title.
 type SoftwareSigningIdentity struct {
-	Identifier        string   `json:"identifier"`
-	SigningIdentifier string   `json:"signing_identifier"`
-	TeamIdentifier    string   `json:"team_identifier"`
-	DeveloperName     string   `json:"developer_name"`
-	Authorities       []string `json:"authorities" nullable:"false"`
-	HostsCount        int32    `json:"hosts_count"`
+	Identifier        string `json:"identifier"`
+	SigningIdentifier string `json:"signing_identifier"`
+	TeamIdentifier    string `json:"team_identifier"`
+	DeveloperName     string `json:"developer_name"`
+	Authority         string `json:"authority"`
+	HostsCount        int32  `json:"hosts_count"`
 }
 
 // SoftwareSigningIdentityList is the signing identities observed for one software title.
@@ -64,24 +61,29 @@ type SoftwareSigningIdentityList struct {
 	Count int32                     `json:"count"`
 }
 
-// PathSignatureInformation is signing/hash data for one path.
-type PathSignatureInformation struct {
-	InstalledPath    string `json:"installed_path"`
-	Identifier       string `json:"identifier"`
-	SigningAuthority string `json:"signing_authority"`
-	TeamIdentifier   string `json:"team_identifier"`
-	CDHashSHA256     string `json:"hash_sha256"`
-	ExecutableSHA256 string `json:"executable_sha256"`
-	ExecutablePath   string `json:"executable_path"`
+// SoftwareCodeSignature is one code-signing result observed for an installed path.
+type SoftwareCodeSignature struct {
+	Valid          bool   `json:"valid"`
+	Identifier     string `json:"identifier"`
+	Authority      string `json:"authority"`
+	TeamIdentifier string `json:"team_identifier"`
+	CDHash         string `json:"cdhash"`
+}
+
+// SoftwareInstalledPath is one observed installation path and its path-owned metadata.
+type SoftwareInstalledPath struct {
+	Path             string                 `json:"path"`
+	ExecutableSHA256 string                 `json:"executable_sha256"`
+	ExecutablePath   string                 `json:"executable_path"`
+	Signature        *SoftwareCodeSignature `json:"signature,omitempty"`
 }
 
 // HostSoftwareInstalledVersion is a host's installed software version and paths.
 type HostSoftwareInstalledVersion struct {
-	Version              string                     `json:"version"`
-	BundleIdentifier     string                     `json:"bundle_identifier"`
-	InstalledPaths       []string                   `json:"installed_paths"`
-	SignatureInformation []PathSignatureInformation `json:"signature_information"`
-	LastOpenedAt         *time.Time                 `json:"last_opened_at,omitempty"`
+	Version          string                  `json:"version"`
+	BundleIdentifier string                  `json:"bundle_identifier"`
+	Paths            []SoftwareInstalledPath `json:"paths" nullable:"false"`
+	LastOpenedAt     *time.Time              `json:"last_opened_at,omitempty"`
 }
 
 // HostSoftware is software inventory projected for one host.

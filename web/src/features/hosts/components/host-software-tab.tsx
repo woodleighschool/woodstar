@@ -243,8 +243,8 @@ function InstalledPathCell({
 }
 function installedPathsFor(versions: HostSoftwareInstalledVersion[]): InstalledPath[] {
   return versions.flatMap((version) =>
-    version.installed_paths.map((path) => ({
-      path,
+    version.paths.map((item) => ({
+      path: item.path,
       version: version.version,
     })),
   );

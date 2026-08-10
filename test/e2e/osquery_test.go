@@ -387,19 +387,13 @@ func TestOsquery(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear proto
 				"bundle_identifier": bundleID, "installed_path": "/Applications/Visual Studio Code.app",
 			}}
 			requiredOverlays[suffix] = true
-		case "software_macos_codesign":
-			queryRows[name] = []map[string]string{
-				{
-					"path":            "/Applications/Visual Studio Code.app",
-					"team_identifier": "WOODSTAR01",
-					"cdhash_sha256":   "cdhash",
-				},
-			}
 		case "software_macos_signature":
 			queryRows[name] = []map[string]string{
 				{
 					"path":              "/Applications/Visual Studio Code.app",
+					"signed":            "1",
 					"identifier":        bundleID,
+					"cdhash":            "cdhash",
 					"team_identifier":   "WOODSTAR01",
 					"signing_authority": "Developer ID Application: Microsoft Corporation (WOODSTAR01)",
 				},
@@ -712,16 +706,16 @@ func TestOsquery(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear proto
 	}
 	installed := software.Items[0].InstalledVersions[0]
 	if installed.Version != "1.129.1" || installed.BundleIdentifier != bundleID ||
-		len(
-			installed.InstalledPaths,
-		) != 1 || installed.InstalledPaths[0] != "/Applications/Visual Studio Code.app" ||
-		len(installed.SignatureInformation) != 1 ||
-		installed.SignatureInformation[0].Identifier != bundleID ||
-		installed.SignatureInformation[0].SigningAuthority !=
+		len(installed.Paths) != 1 ||
+		installed.Paths[0].Path != "/Applications/Visual Studio Code.app" ||
+		installed.Paths[0].Signature == nil ||
+		!installed.Paths[0].Signature.Valid ||
+		installed.Paths[0].Signature.Identifier != bundleID ||
+		installed.Paths[0].Signature.Authority !=
 			"Developer ID Application: Microsoft Corporation (WOODSTAR01)" ||
-		installed.SignatureInformation[0].TeamIdentifier != "WOODSTAR01" ||
-		installed.SignatureInformation[0].HashSha256 != "cdhash" ||
-		installed.SignatureInformation[0].ExecutableSha256 != "executable-hash" {
+		installed.Paths[0].Signature.TeamIdentifier != "WOODSTAR01" ||
+		installed.Paths[0].Signature.Cdhash != "cdhash" ||
+		installed.Paths[0].ExecutableSha256 != "executable-hash" {
 		t.Fatalf("installed software = %+v, want version, path, and signature projection", installed)
 	}
 
@@ -756,8 +750,7 @@ func TestOsquery(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear proto
 		signingIdentity.TeamIdentifier != "WOODSTAR01" ||
 		signingIdentity.DeveloperName != "Microsoft Corporation" ||
 		signingIdentity.HostsCount != 1 ||
-		len(signingIdentity.Authorities) != 1 ||
-		signingIdentity.Authorities[0] !=
+		signingIdentity.Authority !=
 			"Developer ID Application: Microsoft Corporation (WOODSTAR01)" {
 		t.Fatalf("software signing identity = %+v, want exact observed identity", signingIdentity)
 	}

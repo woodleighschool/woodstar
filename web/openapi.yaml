@@ -710,24 +710,19 @@ components:
       properties:
         bundle_identifier:
           type: string
-        installed_paths:
-          items:
-            type: string
-          type: array
         last_opened_at:
           format: date-time
           type: string
-        signature_information:
+        paths:
           items:
-            $ref: "#/components/schemas/PathSignatureInformation"
+            $ref: "#/components/schemas/SoftwareInstalledPath"
           type: array
         version:
           type: string
       required:
         - version
         - bundle_identifier
-        - installed_paths
-        - signature_information
+        - paths
       type: object
     HostStorage:
       additionalProperties: false
@@ -2930,32 +2925,6 @@ components:
         - items
         - count
       type: object
-    PathSignatureInformation:
-      additionalProperties: false
-      properties:
-        executable_path:
-          type: string
-        executable_sha256:
-          type: string
-        hash_sha256:
-          type: string
-        identifier:
-          type: string
-        installed_path:
-          type: string
-        signing_authority:
-          type: string
-        team_identifier:
-          type: string
-      required:
-        - installed_path
-        - identifier
-        - signing_authority
-        - team_identifier
-        - hash_sha256
-        - executable_sha256
-        - executable_path
-      type: object
     PublicIPDetails:
       additionalProperties: false
       properties:
@@ -3815,13 +3784,47 @@ components:
         - email
         - password
       type: object
+    SoftwareCodeSignature:
+      additionalProperties: false
+      properties:
+        authority:
+          type: string
+        cdhash:
+          type: string
+        identifier:
+          type: string
+        team_identifier:
+          type: string
+        valid:
+          type: boolean
+      required:
+        - valid
+        - identifier
+        - authority
+        - team_identifier
+        - cdhash
+      type: object
+    SoftwareInstalledPath:
+      additionalProperties: false
+      properties:
+        executable_path:
+          type: string
+        executable_sha256:
+          type: string
+        path:
+          type: string
+        signature:
+          $ref: "#/components/schemas/SoftwareCodeSignature"
+      required:
+        - path
+        - executable_sha256
+        - executable_path
+      type: object
     SoftwareSigningIdentity:
       additionalProperties: false
       properties:
-        authorities:
-          items:
-            type: string
-          type: array
+        authority:
+          type: string
         developer_name:
           type: string
         hosts_count:
@@ -3838,7 +3841,7 @@ components:
         - signing_identifier
         - team_identifier
         - developer_name
-        - authorities
+        - authority
         - hosts_count
       type: object
     SoftwareSigningIdentityList:

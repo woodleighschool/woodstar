@@ -49,28 +49,35 @@ ON CONFLICT (host_id, software_id) DO UPDATE SET
 	if entry.InstalledPath == "" {
 		return nil
 	}
+	var signatureValid *bool
+	var signature SoftwareCodeSignature
+	if entry.Signature != nil {
+		signature = *entry.Signature
+		signatureValid = &signature.Valid
+	}
 	_, err = tx.Exec(ctx, `
 INSERT INTO host_software_installed_paths (
     host_id, software_id, installed_path,
-    identifier, signing_authority, team_identifier,
-    cdhash_sha256, executable_sha256, executable_path
+    signature_valid, identifier, signing_authority, team_identifier, cdhash,
+    executable_sha256, executable_path
 )
 VALUES (
     $1, $2, $3,
-    $4, $5, $6,
-    NULLIF($7::text, ''), NULLIF($8::text, ''), NULLIF($9::text, '')
+    $4, $5, $6, $7, NULLIF($8::text, ''),
+    NULLIF($9::text, ''), NULLIF($10::text, '')
 )
 ON CONFLICT (host_id, software_id, installed_path) DO UPDATE SET
+    signature_valid = EXCLUDED.signature_valid,
     identifier = EXCLUDED.identifier,
     signing_authority = EXCLUDED.signing_authority,
     team_identifier = EXCLUDED.team_identifier,
-    cdhash_sha256 = EXCLUDED.cdhash_sha256,
+    cdhash = EXCLUDED.cdhash,
     executable_sha256 = EXCLUDED.executable_sha256,
     executable_path = EXCLUDED.executable_path`,
 		hostID, softwareID,
 		entry.InstalledPath,
-		entry.Identifier, entry.SigningAuthority, entry.TeamIdentifier,
-		entry.CDHashSHA256, entry.ExecutableSHA256, entry.ExecutablePath,
+		signatureValid, signature.Identifier, signature.Authority, signature.TeamIdentifier, signature.CDHash,
+		entry.ExecutableSHA256, entry.ExecutablePath,
 	)
 	return err
 }
