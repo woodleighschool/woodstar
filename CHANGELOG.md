@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.8.10](https://github.com/woodleighschool/woodstar/compare/0.8.9...0.8.10) (2026-08-10)
+
+
+### Bug Fixes
+
+* **compose:** keep postgres internal ([71084f3](https://github.com/woodleighschool/woodstar/commit/71084f30b06eb3d0f11f74206a4b224896004666))
+* **web:** repair combobox filtering and loading ([af98f2e](https://github.com/woodleighschool/woodstar/commit/af98f2e62f19de7a8d77a8355af2974dd0ca3336))
+
+
+### Code Refactoring
+
+* **web:** standardize compact value presentation ([09dc132](https://github.com/woodleighschool/woodstar/commit/09dc1323998c3161724432fccfb995fa8e353c92))
+
 ## [0.8.9](https://github.com/woodleighschool/woodstar/compare/0.8.8...0.8.9) (2026-08-10)
 
 
