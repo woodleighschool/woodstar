@@ -16,8 +16,8 @@ const hostResource = "host"
 type hostSoftwareInput struct {
 	api.ListQueryInput
 
-	ID     int64    `path:"id"`
-	Source []string `          query:"source,omitempty"`
+	ID     int64                      `path:"id"`
+	Source []inventory.SoftwareSource `          query:"source,omitempty"`
 }
 
 func (i hostSoftwareInput) params() (int64, inventory.HostSoftwareListParams) {

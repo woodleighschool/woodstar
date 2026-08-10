@@ -279,7 +279,7 @@ export type HostSoftware = {
     id: number;
     installed_versions: Array<HostSoftwareInstalledVersion>;
     name: string;
-    source: string;
+    source: 'apps' | 'homebrew_packages' | 'chrome_extensions' | 'firefox_addons' | 'safari_extensions' | 'npm_packages' | 'vscode_extensions' | 'jetbrains_plugins' | 'go_binaries' | 'python_packages';
 };
 
 export type HostSoftwareInstalledVersion = {
@@ -1368,14 +1368,13 @@ export type SoftwareSigningIdentityList = {
 };
 
 export type SoftwareTitle = {
-    browser: string;
     bundle_identifier?: string;
     extension_for: string;
     hosts_count: number;
     id: number;
     name: string;
     signing_identities: SoftwareSigningIdentityList;
-    source: string;
+    source: 'apps' | 'homebrew_packages' | 'chrome_extensions' | 'firefox_addons' | 'safari_extensions' | 'npm_packages' | 'vscode_extensions' | 'jetbrains_plugins' | 'go_binaries' | 'python_packages';
     versions: SoftwareVersionList;
 };
 
@@ -2511,7 +2510,7 @@ export type ListHostSoftwareData = {
         page?: number;
         per_page?: number;
         sort?: string;
-        source?: Array<string>;
+        source?: Array<'apps' | 'homebrew_packages' | 'chrome_extensions' | 'firefox_addons' | 'safari_extensions' | 'npm_packages' | 'vscode_extensions' | 'jetbrains_plugins' | 'go_binaries' | 'python_packages'>;
     };
     url: '/api/hosts/{id}/software';
 };
@@ -5969,7 +5968,7 @@ export type ListSoftwareData = {
         page?: number;
         per_page?: number;
         sort?: string;
-        source?: Array<string>;
+        source?: Array<'apps' | 'homebrew_packages' | 'chrome_extensions' | 'firefox_addons' | 'safari_extensions' | 'npm_packages' | 'vscode_extensions' | 'jetbrains_plugins' | 'go_binaries' | 'python_packages'>;
     };
     url: '/api/software';
 };

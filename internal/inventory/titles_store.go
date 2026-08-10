@@ -20,7 +20,6 @@ func (s *Store) ListTitles(ctx context.Context, params SoftwareTitleListParams) 
 	if err != nil {
 		return nil, 0, err
 	}
-	setSoftwareTitleBrowsers(titles)
 	if err := s.loadSoftwareTitleVersions(ctx, titles); err != nil {
 		return nil, 0, err
 	}
@@ -37,7 +36,6 @@ func (s *Store) GetTitle(ctx context.Context, id int64) (*SoftwareTitle, error) 
 		return nil, postgres.GetError(err)
 	}
 	titles := []SoftwareTitle{title}
-	setSoftwareTitleBrowsers(titles)
 	if err := s.loadSoftwareTitleVersions(ctx, titles); err != nil {
 		return nil, err
 	}
@@ -110,23 +108,6 @@ FROM software_titles st
 LEFT JOIN software s ON s.title_id = st.id
 LEFT JOIN host_software hs ON hs.software_id = s.id
 `
-
-func setSoftwareTitleBrowsers(titles []SoftwareTitle) {
-	for i := range titles {
-		titles[i].Browser = browserFor(titles[i].Source, titles[i].ExtensionFor)
-	}
-}
-
-// browserFor returns the browser name when source indicates a browser
-// extension; otherwise empty.
-func browserFor(source, extensionFor string) string {
-	switch source {
-	case SourceChromeExtensions, SourceFirefoxAddons, SourceSafariExtensions:
-		return extensionFor
-	default:
-		return ""
-	}
-}
 
 type softwareTitleVersionRow struct {
 	TitleID          int64  `db:"title_id"`

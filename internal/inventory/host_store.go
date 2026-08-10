@@ -265,20 +265,20 @@ func hostSoftwareWhere(hostID int64, params HostSoftwareListParams) (string, []a
 }
 
 type hostSoftwareScanRow struct {
-	TitleID          int64      `db:"title_id"`
-	TitleName        string     `db:"title_name"`
-	Source           string     `db:"source"`
-	ExtensionFor     string     `db:"extension_for"`
-	SoftwareID       int64      `db:"software_id"`
-	Version          string     `db:"version"`
-	BundleIdentifier string     `db:"bundle_identifier"`
-	LastOpenedAt     *time.Time `db:"last_opened_at"`
-	InstalledPath    string     `db:"installed_path"`
-	SignatureSigned  *bool      `db:"signature_signed"`
-	Identifier       string     `db:"identifier"`
-	SigningAuthority string     `db:"signing_authority"`
-	TeamIdentifier   string     `db:"team_identifier"`
-	CDHash           string     `db:"cdhash"`
-	ExecutableSHA256 string     `db:"executable_sha256"`
-	ExecutablePath   string     `db:"executable_path"`
+	TitleID          int64          `db:"title_id"`
+	TitleName        string         `db:"title_name"`
+	Source           SoftwareSource `db:"source"`
+	ExtensionFor     string         `db:"extension_for"`
+	SoftwareID       int64          `db:"software_id"`
+	Version          string         `db:"version"`
+	BundleIdentifier string         `db:"bundle_identifier"`
+	LastOpenedAt     *time.Time     `db:"last_opened_at"`
+	InstalledPath    string         `db:"installed_path"`
+	SignatureSigned  *bool          `db:"signature_signed"`
+	Identifier       string         `db:"identifier"`
+	SigningAuthority string         `db:"signing_authority"`
+	TeamIdentifier   string         `db:"team_identifier"`
+	CDHash           string         `db:"cdhash"`
+	ExecutableSHA256 string         `db:"executable_sha256"`
+	ExecutablePath   string         `db:"executable_path"`
 }

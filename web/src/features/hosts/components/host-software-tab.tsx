@@ -86,6 +86,7 @@ const softwareColumns: DataTableColumnDef<HostSoftware>[] = [
     enableResizing: false,
     meta: { label: "Type", options: SOURCE_FILTER_OPTIONS },
     enableColumnFilter: true,
+    filterFn: () => true,
   },
   {
     id: "last_opened_at",
@@ -103,7 +104,7 @@ const softwareColumns: DataTableColumnDef<HostSoftware>[] = [
   },
   {
     id: "path",
-    header: () => "File path",
+    header: () => "Installed path",
     enableSorting: false,
     cell: ({ row }) => {
       const versions = row.original.installed_versions;
@@ -121,7 +122,7 @@ const softwareColumns: DataTableColumnDef<HostSoftware>[] = [
     },
     size: 360,
     minSize: 240,
-    meta: { label: "File path" },
+    meta: { label: "Installed path" },
   },
 ];
 export function HostSoftwareTab({ hostId }: { hostId: number | null }) {
@@ -132,7 +133,7 @@ export function HostSoftwareTab({ hostId }: { hostId: number | null }) {
     onSearchChange: (updater) => void navigate({ search: updater, replace: true }),
     filterKeys: SOURCE_FILTER_KEYS,
   });
-  const sources = tableSearch.filters.source ?? [];
+  const sources = search.source ?? [];
   const query = useHostSoftware(hostId, {
     q: tableSearch.q,
     source: expandSoftwareSourceFilters(sources),
@@ -167,7 +168,7 @@ export function HostSoftwareTab({ hostId }: { hostId: number | null }) {
       pending={query.isPlaceholderData}
       empty={
         <PanelEmptyState>
-          {tableSearch.isFiltered ? "No matching software" : "No software yet"}
+          {tableSearch.isFiltered ? "No matching software" : "No observed software"}
         </PanelEmptyState>
       }
     >

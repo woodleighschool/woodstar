@@ -412,7 +412,7 @@ func parseSoftwareRows(rows []map[string]string, enrichment softwareEnrichment) 
 		entries = append(entries, inventory.HostSoftwareEntry{
 			Name:             name,
 			Version:          row["version"],
-			Source:           row["source"],
+			Source:           inventory.SoftwareSource(row["source"]),
 			BundleIdentifier: row["bundle_identifier"],
 			ExtensionID:      row["extension_id"],
 			ExtensionFor:     row["extension_for"],

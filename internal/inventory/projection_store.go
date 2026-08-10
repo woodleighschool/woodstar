@@ -2,12 +2,18 @@ package inventory
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/jackc/pgx/v5"
 )
 
 // ReplaceHostSoftware replaces a host's software snapshot in one transaction.
 func (s *Store) ReplaceHostSoftware(ctx context.Context, hostID int64, entries []HostSoftwareEntry) error {
+	for _, entry := range entries {
+		if entry.Name != "" && !entry.Source.Valid() {
+			return fmt.Errorf("unsupported software source %q", entry.Source)
+		}
+	}
 	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		if err := stageSoftwareSnapshot(ctx, tx, entries); err != nil {
 			return err
@@ -49,7 +55,7 @@ CREATE TEMP TABLE IF NOT EXISTS inventory_software_snapshot (
 
 	validEntries := make([]HostSoftwareEntry, 0, len(entries))
 	for _, entry := range entries {
-		if entry.Name != "" && entry.Source != "" {
+		if entry.Name != "" {
 			validEntries = append(validEntries, entry)
 		}
 	}

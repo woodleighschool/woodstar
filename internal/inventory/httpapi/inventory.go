@@ -16,7 +16,7 @@ import (
 type inventorySoftwareListInput struct {
 	api.ListQueryInput
 
-	Source []string `query:"source,omitempty"`
+	Source []inventory.SoftwareSource `query:"source,omitempty"`
 }
 
 func (i inventorySoftwareListInput) params() inventory.SoftwareTitleListParams {

@@ -3,21 +3,70 @@ package inventory
 import (
 	"time"
 
+	"github.com/danielgtaylor/huma/v2"
+
 	"github.com/woodleighschool/woodstar/internal/listing"
+	"github.com/woodleighschool/woodstar/internal/openapischema"
 )
 
-// Source values come from osquery table names.
+// SoftwareSource identifies the osquery inventory source for observed software.
+type SoftwareSource string
+
 const (
-	SourceChromeExtensions = "chrome_extensions"
-	SourceFirefoxAddons    = "firefox_addons"
-	SourceSafariExtensions = "safari_extensions"
+	SoftwareSourceApps             SoftwareSource = "apps"
+	SoftwareSourceHomebrewPackages SoftwareSource = "homebrew_packages"
+	SoftwareSourceChromeExtensions SoftwareSource = "chrome_extensions"
+	SoftwareSourceFirefoxAddons    SoftwareSource = "firefox_addons"
+	SoftwareSourceSafariExtensions SoftwareSource = "safari_extensions"
+	SoftwareSourceNPMPackages      SoftwareSource = "npm_packages"
+	SoftwareSourceVSCodeExtensions SoftwareSource = "vscode_extensions"
+	SoftwareSourceJetBrainsPlugins SoftwareSource = "jetbrains_plugins"
+	SoftwareSourceGoBinaries       SoftwareSource = "go_binaries"
+	SoftwareSourcePythonPackages   SoftwareSource = "python_packages"
 )
+
+var softwareSourceValues = []SoftwareSource{
+	SoftwareSourceApps,
+	SoftwareSourceHomebrewPackages,
+	SoftwareSourceChromeExtensions,
+	SoftwareSourceFirefoxAddons,
+	SoftwareSourceSafariExtensions,
+	SoftwareSourceNPMPackages,
+	SoftwareSourceVSCodeExtensions,
+	SoftwareSourceJetBrainsPlugins,
+	SoftwareSourceGoBinaries,
+	SoftwareSourcePythonPackages,
+}
+
+// Schema returns the closed OpenAPI schema for SoftwareSource.
+func (SoftwareSource) Schema(_ huma.Registry) *huma.Schema {
+	return openapischema.StringEnum(softwareSourceValues...)
+}
+
+// Valid reports whether the source is produced by Woodstar's software inventory queries.
+func (source SoftwareSource) Valid() bool {
+	switch source {
+	case SoftwareSourceApps,
+		SoftwareSourceHomebrewPackages,
+		SoftwareSourceChromeExtensions,
+		SoftwareSourceFirefoxAddons,
+		SoftwareSourceSafariExtensions,
+		SoftwareSourceNPMPackages,
+		SoftwareSourceVSCodeExtensions,
+		SoftwareSourceJetBrainsPlugins,
+		SoftwareSourceGoBinaries,
+		SoftwareSourcePythonPackages:
+		return true
+	default:
+		return false
+	}
+}
 
 // HostSoftwareEntry is ingest-only installed software.
 type HostSoftwareEntry struct {
 	Name             string
 	Version          string
-	Source           string
+	Source           SoftwareSource
 	BundleIdentifier string
 	ExtensionID      string
 	ExtensionFor     string
@@ -90,7 +139,7 @@ type HostSoftwareInstalledVersion struct {
 type HostSoftware struct {
 	ID                int64                          `json:"id"`
 	Name              string                         `json:"name"`
-	Source            string                         `json:"source"`
+	Source            SoftwareSource                 `json:"source"`
 	ExtensionFor      string                         `json:"extension_for"`
 	InstalledVersions []HostSoftwareInstalledVersion `json:"installed_versions"`
 }
@@ -99,9 +148,8 @@ type HostSoftware struct {
 type SoftwareTitle struct {
 	ID                int64                       `db:"id"                json:"id"`
 	Name              string                      `db:"name"              json:"name"`
-	Source            string                      `db:"source"            json:"source"`
+	Source            SoftwareSource              `db:"source"            json:"source"`
 	ExtensionFor      string                      `db:"extension_for"     json:"extension_for"`
-	Browser           string                      `db:"-"                 json:"browser"`
 	BundleIdentifier  string                      `db:"bundle_identifier" json:"bundle_identifier,omitempty"`
 	Vendor            string                      `db:"vendor"            json:"-"`
 	HostsCount        int32                       `db:"hosts_count"       json:"hosts_count"`
@@ -114,12 +162,12 @@ type SoftwareTitle struct {
 type SoftwareTitleListParams struct {
 	ListParams listing.Params
 
-	SoftwareSources []string
+	SoftwareSources []SoftwareSource
 }
 
 // HostSoftwareListParams controls software installed on one host.
 type HostSoftwareListParams struct {
 	ListParams listing.Params
 
-	SoftwareSources []string
+	SoftwareSources []SoftwareSource
 }

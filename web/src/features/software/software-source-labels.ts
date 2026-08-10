@@ -1,3 +1,7 @@
+import type { SoftwareTitle } from "@lib/api";
+
+type SoftwareSource = SoftwareTitle["source"];
+
 export const SOFTWARE_SOURCE_FILTER_VALUES = [
   "apps",
   "homebrew_packages",
@@ -8,64 +12,50 @@ export const SOFTWARE_SOURCE_FILTER_VALUES = [
   "python_packages",
 ] as const;
 
-const SOFTWARE_SOURCE_GROUPS = [
-  { value: "apps", label: "App", filterLabel: "App", sources: ["apps"] },
-  {
-    value: "homebrew_packages",
-    label: "Homebrew",
-    filterLabel: "Homebrew",
+type SoftwareSourceFilterValue = (typeof SOFTWARE_SOURCE_FILTER_VALUES)[number];
+
+const SOFTWARE_SOURCE_GROUPS = {
+  apps: { filterLabel: "Applications", sources: ["apps"] },
+  homebrew_packages: {
+    filterLabel: "Homebrew Packages",
     sources: ["homebrew_packages"],
   },
-  {
-    value: "browser_plugins",
-    label: "Browser Plugin",
-    filterLabel: "Browser Plugins",
+  browser_plugins: {
+    filterLabel: "Browser Extensions",
     sources: ["chrome_extensions", "firefox_addons", "safari_extensions"],
   },
-  {
-    value: "npm_packages",
-    label: "npm Package",
+  npm_packages: {
     filterLabel: "npm Packages",
     sources: ["npm_packages"],
   },
-  {
-    value: "ide_extensions",
-    label: "IDE Extension",
+  ide_extensions: {
     filterLabel: "IDE Extensions",
     sources: ["vscode_extensions", "jetbrains_plugins"],
   },
-  {
-    value: "go_binaries",
-    label: "Go Binary",
+  go_binaries: {
     filterLabel: "Go Binaries",
     sources: ["go_binaries"],
   },
-  {
-    value: "python_packages",
-    label: "Python Package",
+  python_packages: {
     filterLabel: "Python Packages",
     sources: ["python_packages"],
   },
-] as const;
+} as const satisfies Record<
+  SoftwareSourceFilterValue,
+  { filterLabel: string; sources: readonly SoftwareSource[] }
+>;
 
-export const SOURCE_FILTER_OPTIONS = SOFTWARE_SOURCE_GROUPS.map(({ value, filterLabel }) => ({
+export const SOURCE_FILTER_OPTIONS = SOFTWARE_SOURCE_FILTER_VALUES.map((value) => ({
   value,
-  label: filterLabel,
+  label: SOFTWARE_SOURCE_GROUPS[value].filterLabel,
 }));
 
-const SOURCE_FILTER_SOURCES = new Map<string, readonly string[]>(
-  SOFTWARE_SOURCE_GROUPS.map(({ value, sources }) => [value, sources]),
-);
-
-const SOURCE_LABELS = new Map<string, string>(
-  SOFTWARE_SOURCE_GROUPS.flatMap(({ label, sources }) => sources.map((source) => [source, label])),
-);
-
-export function expandSoftwareSourceFilters(values: string[]): string[] {
-  const expanded = new Set<string>();
+export function expandSoftwareSourceFilters(
+  values: readonly SoftwareSourceFilterValue[],
+): SoftwareSource[] {
+  const expanded = new Set<SoftwareSource>();
   for (const value of values) {
-    const sources = SOURCE_FILTER_SOURCES.get(value) ?? [value];
-    for (const source of sources) {
+    for (const source of SOFTWARE_SOURCE_GROUPS[value].sources) {
       expanded.add(source);
     }
   }
@@ -81,6 +71,7 @@ const EXTENSION_FOR_LABELS: Record<string, string> = {
   edge_beta: "Edge Beta",
   firefox: "Firefox",
   opera: "Opera",
+  safari: "Safari",
   yandex: "Yandex",
   cursor: "Cursor",
   trae: "Trae",
@@ -102,14 +93,45 @@ const EXTENSION_FOR_LABELS: Record<string, string> = {
   webstorm: "WebStorm",
 };
 
-export function softwareSourceLabel(source: string, extensionFor?: string): string {
-  const base = SOURCE_LABELS.get(source) ?? source;
+export function softwareSourceLabel(source: SoftwareSource, extensionFor?: string): string {
   const variant = extensionFor ? EXTENSION_FOR_LABELS[extensionFor] : undefined;
-  return variant ? `${base} (${variant})` : base;
+
+  switch (source) {
+    case "apps":
+      return "Application";
+    case "homebrew_packages":
+      return "Homebrew Package";
+    case "chrome_extensions":
+      return `${variant ?? "Chrome"} Extension`;
+    case "firefox_addons":
+      return `${variant ?? "Firefox"} Add-on`;
+    case "safari_extensions":
+      return `${variant ?? "Safari"} Extension`;
+    case "vscode_extensions":
+      return `${variant ?? "VS Code"} Extension`;
+    case "jetbrains_plugins":
+      return `${variant ?? "JetBrains"} Plugin`;
+    case "npm_packages":
+      return "npm Package";
+    case "go_binaries":
+      return "Go Binary";
+    case "python_packages":
+      return "Python Package";
+    default:
+      return unreachableSoftwareSource(source);
+  }
+}
+
+export function hostCountLabel(count: number): string {
+  return `${count} ${count === 1 ? "host" : "hosts"}`;
 }
 
 export function versionsSummaryLabel(versions: ReadonlyArray<{ version: string }>): string {
   if (versions.length === 0) return "-";
   if (versions.length === 1) return versions[0].version || "-";
   return `${versions.length} versions`;
+}
+
+function unreachableSoftwareSource(source: never): never {
+  throw new Error(`unsupported software source: ${String(source)}`);
 }

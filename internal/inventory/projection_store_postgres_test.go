@@ -47,7 +47,7 @@ func TestReplaceHostSoftwareReconcilesSnapshotAsSet(t *testing.T) {
 	command := HostSoftwareEntry{
 		Name:          "Snapshot CLI",
 		Version:       "2.0",
-		Source:        "packages",
+		Source:        SoftwareSourceHomebrewPackages,
 		Vendor:        "Example",
 		InstalledPath: "/usr/local/bin/snapshot",
 	}
@@ -56,7 +56,6 @@ func TestReplaceHostSoftwareReconcilesSnapshotAsSet(t *testing.T) {
 		app,
 		updatedApp,
 		command,
-		{Name: "ignored-without-source"},
 	}); err != nil {
 		t.Fatalf("replace software snapshot: %v", err)
 	}
@@ -114,5 +113,42 @@ SELECT
 			"reduced snapshot counts = host links %d, paths %d; want 1 each",
 			hostSoftwareCount, pathCount,
 		)
+	}
+}
+
+func TestReplaceHostSoftwareRejectsUnsupportedSourceWithoutReplacingSnapshot(t *testing.T) {
+	db, ctx := testdb.Open(t)
+	store := NewStore(db)
+	hostStore := hosts.NewStore(db, labels.NewStore(db))
+	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
+		Hardware:     hosts.HostHardware{UUID: "inventory-source-host"},
+		OrbitNodeKey: "inventory-source-host-orbit",
+	})
+	if err != nil {
+		t.Fatalf("enroll host: %v", err)
+	}
+	if err := store.ReplaceHostSoftware(ctx, host.ID, []HostSoftwareEntry{{
+		Name:    "Known App",
+		Version: "1.0",
+		Source:  SoftwareSourceApps,
+	}}); err != nil {
+		t.Fatalf("seed software: %v", err)
+	}
+
+	err = store.ReplaceHostSoftware(ctx, host.ID, []HostSoftwareEntry{{
+		Name:    "Unknown App",
+		Version: "1.0",
+		Source:  SoftwareSource("unknown_source"),
+	}})
+	if err == nil {
+		t.Fatal("ReplaceHostSoftware with unsupported source succeeded")
+	}
+
+	rows, count, err := store.ListForHost(ctx, host.ID, HostSoftwareListParams{})
+	if err != nil {
+		t.Fatalf("ListForHost after rejected snapshot: %v", err)
+	}
+	if count != 1 || len(rows) != 1 || rows[0].Name != "Known App" {
+		t.Fatalf("software after rejected snapshot = (%d, %+v), want the prior snapshot", count, rows)
 	}
 }
