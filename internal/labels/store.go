@@ -509,7 +509,10 @@ resolved AS (
 				AND u.user_principal_name = p.email
 			)
 		  )
-		ORDER BY CASE WHEN u.email = p.email THEN 0 ELSE 1 END, u.id
+		ORDER BY
+			CASE WHEN u.email = p.email THEN 0 ELSE 1 END,
+			CASE WHEN u.source <> 'local' THEN 0 ELSE 1 END,
+			u.id
 		LIMIT 1
 	) u ON true
 )`

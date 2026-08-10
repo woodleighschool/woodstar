@@ -117,6 +117,11 @@ func TestLoadDetailResolvesPrimaryUserFromSourceEmail(t *testing.T) {
 		t.Fatalf("enroll host: %v", err)
 	}
 	if _, err := store.pool.Exec(ctx, `
+INSERT INTO users (email, name, password_hash, role)
+VALUES ('test1@woodleigh.vic.edu.au', 'Local Test One', 'password-hash', 'viewer')`); err != nil {
+		t.Fatalf("insert same-email local user: %v", err)
+	}
+	if _, err := store.pool.Exec(ctx, `
 INSERT INTO users (
 	email, name, source, external_id, user_principal_name,
 	mail_nickname, given_name, family_name, department
@@ -619,6 +624,16 @@ func TestHostListSearchesPersistedIdentityNetworkAndPrimaryUserFields(t *testing
 	recordTestHeartbeat(
 		t, ctx, store, host.ID, heartbeats.SourceOsquery, time.Now(), "198.51.100.77", "",
 	)
+	if _, err := store.pool.Exec(ctx, `
+INSERT INTO users (email, name, password_hash, role)
+VALUES (
+	'search.person@woodleigh.vic.edu.au',
+	'Local Search Person',
+	'password-hash',
+	'viewer'
+)`); err != nil {
+		t.Fatalf("insert same-email local user: %v", err)
+	}
 	if _, err := store.pool.Exec(ctx, `
 INSERT INTO users (
 	email, name, source, external_id, user_principal_name,
