@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
-	"net/netip"
 	"time"
 
 	"github.com/CAFxX/httpcompression"
@@ -18,37 +17,9 @@ import (
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/rs/cors"
 
-	"github.com/woodleighschool/woodstar/internal/agentauth"
-	"github.com/woodleighschool/woodstar/internal/api/handlers"
 	"github.com/woodleighschool/woodstar/internal/api/middleware"
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/config"
-	"github.com/woodleighschool/woodstar/internal/directory"
-	"github.com/woodleighschool/woodstar/internal/directory/entra"
-	"github.com/woodleighschool/woodstar/internal/geoip"
-	"github.com/woodleighschool/woodstar/internal/heartbeats"
-	"github.com/woodleighschool/woodstar/internal/hosts"
-	"github.com/woodleighschool/woodstar/internal/inventory"
-	"github.com/woodleighschool/woodstar/internal/labels"
-	"github.com/woodleighschool/woodstar/internal/munki"
-	"github.com/woodleighschool/woodstar/internal/munki/clientresources"
-	"github.com/woodleighschool/woodstar/internal/munki/mdp"
-	mdpprotocol "github.com/woodleighschool/woodstar/internal/munki/mdp/protocol"
-	munkiprotocol "github.com/woodleighschool/woodstar/internal/munki/protocol"
-	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
-	"github.com/woodleighschool/woodstar/internal/orbit"
-	orbitprotocol "github.com/woodleighschool/woodstar/internal/orbit/protocol"
-	"github.com/woodleighschool/woodstar/internal/osquery"
-	"github.com/woodleighschool/woodstar/internal/osquery/checks"
-	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
-	osqueryprotocol "github.com/woodleighschool/woodstar/internal/osquery/protocol"
-	"github.com/woodleighschool/woodstar/internal/osquery/reports"
-	"github.com/woodleighschool/woodstar/internal/santa"
-	"github.com/woodleighschool/woodstar/internal/santa/configurations"
-	"github.com/woodleighschool/woodstar/internal/santa/events"
-	santaprotocol "github.com/woodleighschool/woodstar/internal/santa/protocol"
-	"github.com/woodleighschool/woodstar/internal/santa/rules"
-	"github.com/woodleighschool/woodstar/internal/storage"
 	"github.com/woodleighschool/woodstar/internal/webui"
 )
 
@@ -62,89 +33,66 @@ func init() {
 // Server owns the listener and router.
 type Server struct {
 	httpServer *http.Server
-	deps       *Dependencies
+	config     config.Config
+	logger     *slog.Logger
+	version    string
 }
 
-// Dependencies is everything the HTTP server needs. Package main constructs
-// stores and services; package api owns how they become routes.
-type Dependencies struct {
+// ServerOptions configures shared HTTP infrastructure. Capability services
+// stay in the composition root and are captured only by RegisterRoutes.
+type ServerOptions struct {
 	Config         config.Config
 	Ready          func(context.Context) error
 	Version        string
 	Logger         *slog.Logger
 	WebHandler     *webui.Handler
 	SessionManager *scs.SessionManager
-
-	App       AppDependencies
-	Protocols ProtocolDependencies
+	AuthService    *auth.Service
+	TransferOrigin string
+	RegisterRoutes func(Routes)
 }
 
-// AppDependencies are stores and services used by Woodstar's browser/admin API.
-type AppDependencies struct {
-	AuthService   *auth.Service
-	Users         *directory.UserService
-	Directory     *directory.Store
-	DirectorySync *entra.SyncJobs
-	Hosts         *hosts.Store
-	PrimaryUser   *hosts.PrimaryUserStore
-	Secrets       *agentauth.Store
-	Software      *inventory.Store
-	Labels        *labels.Store
-	GeoIP         func(netip.Addr) (*geoip.Result, error)
-
-	Reports     *reports.Store
-	Checks      *checks.Store
-	LiveQueries *livequery.Store
-
-	StorageBackend  storage.Backend
-	StorageDelivery *storage.Delivery
-	StorageObjects  *storage.ObjectStore
-	StorageIngestor *storage.Ingestor
-
-	MunkiPackages          *munki.PackageService
-	MunkiClientResources   *clientresources.Service
-	MunkiSoftware          *munkisoftware.Store
-	MunkiSoftwareDeletions *munki.SoftwareDeletionService
-	MunkiHostState         *munki.Store
-	MunkiDistribution      *mdp.Store
-
-	SantaConfigurations *configurations.Store
-	SantaEvents         *events.Store
-	SantaRules          *rules.Store
-	SantaState          *santa.HostStateService
+// Routes are the server-owned HTTP surfaces available to capability
+// registrars during application composition.
+type Routes struct {
+	App              AppRoutes
+	Protocols        ProtocolRoutes
+	StorageTransfers chi.Router
 }
 
-// ProtocolDependencies are services mounted as agent-facing wire protocols on
-// the same HTTP server as the app API.
-type ProtocolDependencies struct {
-	AgentAuth agentauth.SecretVerifier
-	Orbit     *orbit.EnrollmentService
-	Osquery   *osquery.AgentService
-	Munki     MunkiProtocolDependencies
-	Santa     *santa.SyncService
+// AppRoutes groups browser/admin APIs by their shared authentication and
+// timeout policy.
+type AppRoutes struct {
+	PasswordLogin       huma.API
+	Session             huma.API
+	Protected           huma.API
+	Ordinary            huma.API
+	Sensitive           huma.API
+	StreamingSensitive  huma.API
+	LongRunningOrdinary huma.API
+	Router              chi.Router
+	Transfers           chi.Router
 }
 
-// MunkiProtocolDependencies are the services backing Munki client and
-// distribution-point protocols.
-type MunkiProtocolDependencies struct {
-	Hosts                *hosts.Store
-	Heartbeats           *heartbeats.Store
-	Repository           *munki.RepositoryService
-	Distribution         *mdp.Store
-	DistributionProtocol *mdpprotocol.Server
-	Delivery             storage.Deliverer
+// ProtocolRoutes groups agent-facing routers by their transport policy.
+type ProtocolRoutes struct {
+	Ordinary   chi.Router
+	Transfers  chi.Router
+	WebSockets chi.Router
 }
 
 // NewServer returns an HTTP server.
-func NewServer(deps *Dependencies) (*Server, error) {
-	handler, err := routes(deps)
+func NewServer(options ServerOptions) (*Server, error) {
+	handler, err := routes(options)
 	if err != nil {
 		return nil, err
 	}
 	return &Server{
-		deps: deps,
+		config:  options.Config,
+		logger:  options.Logger,
+		version: options.Version,
 		httpServer: &http.Server{
-			Addr:              fmt.Sprintf("%s:%d", deps.Config.Host, deps.Config.Port),
+			Addr:              fmt.Sprintf("%s:%d", options.Config.Host, options.Config.Port),
 			Handler:           handler,
 			ReadHeaderTimeout: 15 * time.Second,
 			IdleTimeout:       180 * time.Second,
@@ -159,8 +107,7 @@ func (s *Server) Addr() string {
 
 // Serve starts the server on listener and blocks until shutdown or failure.
 func (s *Server) Serve(listener net.Listener) error {
-	defer s.deps.Protocols.Munki.DistributionProtocol.Close()
-	cfg := s.deps.Config
+	cfg := s.config
 	transport := "http"
 	serve := func() error { return s.httpServer.Serve(listener) }
 	if cfg.TLSConfigured() {
@@ -169,13 +116,13 @@ func (s *Server) Serve(listener net.Listener) error {
 			return s.httpServer.ServeTLS(listener, cfg.TLSCertFile, cfg.TLSKeyFile)
 		}
 	}
-	s.deps.Logger.With("component", "server").Info(
+	s.logger.With("component", "server").Info(
 		"starting woodstar",
 		"operation", "start",
 		"addr", s.httpServer.Addr,
 		"server_url", cfg.ServerURL,
 		"transport", transport,
-		"version", s.deps.Version,
+		"version", s.version,
 	)
 	if err := serve(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return err
@@ -185,101 +132,84 @@ func (s *Server) Serve(listener net.Listener) error {
 
 // Shutdown gracefully stops the HTTP server.
 func (s *Server) Shutdown(ctx context.Context) error {
-	s.deps.Logger.With("component", "server").InfoContext(
+	s.logger.With("component", "server").InfoContext(
 		ctx,
 		"stopping woodstar",
 		"operation", "shutdown",
 	)
-	s.deps.Protocols.Munki.DistributionProtocol.Close()
 	return s.httpServer.Shutdown(ctx)
 }
 
-func routes(deps *Dependencies) (http.Handler, error) {
+func routes(options ServerOptions) (http.Handler, error) {
 	compression, err := compressionMiddleware()
 	if err != nil {
 		return nil, fmt.Errorf("create HTTP compression adapter: %w", err)
 	}
 
 	r := chi.NewRouter()
-	r.Use(clientIPMiddleware(deps.Config))
+	r.Use(clientIPMiddleware(options.Config))
 	r.Use(chimiddleware.RequestID)
-	r.Use(middleware.SecurityHeaders(deps.App.StorageBackend.TransferOrigin()))
-	r.Use(corsMiddleware(deps.Config))
+	r.Use(middleware.SecurityHeaders(options.TransferOrigin))
+	r.Use(corsMiddleware(options.Config))
 
 	ordinary := r.With(requestTimeoutMiddleware(defaultRequestTimeout), compression)
 	ordinary.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte("alive\n"))
 	})
 	ordinary.Get("/readyz", func(w http.ResponseWriter, req *http.Request) {
-		if err := deps.Ready(req.Context()); err != nil {
+		if err := options.Ready(req.Context()); err != nil {
 			http.Error(w, "not ready", http.StatusServiceUnavailable)
 			return
 		}
 		_, _ = w.Write([]byte("ready\n"))
 	})
 
-	r.Group(func(r chi.Router) {
-		protocolRoutes(r, compression, deps)
+	var protocols ProtocolRoutes
+	r.Group(func(group chi.Router) {
+		protocols = newProtocolRoutes(group, compression, options.Logger)
 	})
-	r.Group(func(r chi.Router) {
-		browserRoutes(r, compression, deps)
+
+	var app AppRoutes
+	var storageTransfers chi.Router
+	r.Group(func(group chi.Router) {
+		app, storageTransfers = newBrowserRoutes(group, compression, options)
 	})
+
+	if options.RegisterRoutes != nil {
+		options.RegisterRoutes(Routes{
+			App:              app,
+			Protocols:        protocols,
+			StorageTransfers: storageTransfers,
+		})
+	}
+	options.WebHandler.RegisterRoutes(app.Router)
 
 	return r, nil
 }
 
-// protocolRoutes mounts every agent-facing protocol endpoint. They are wire
-// protocols that live beside the app API on the same HTTP server.
-func protocolRoutes(
+func newProtocolRoutes(
 	r chi.Router,
 	compression func(http.Handler) http.Handler,
-	deps *Dependencies,
-) {
-	requestLogger := middleware.RequestLogger(deps.Logger)
-	ordinary := r.With(requestTimeoutMiddleware(defaultRequestTimeout), compression, requestLogger)
-	transfers := r.With(requestLogger)
-	websockets := r.With(requestLogger)
-
-	orbitprotocol.NewServer(
-		deps.Protocols.Orbit,
-		deps.Logger.With("component", "orbit"),
-	).RegisterRoutes(ordinary)
-	osqueryprotocol.NewServer(
-		deps.Protocols.Osquery,
-		deps.Logger.With("component", "osquery"),
-	).RegisterRoutes(ordinary)
-	munkiServer := munkiprotocol.NewServer(
-		deps.Protocols.AgentAuth,
-		deps.Protocols.Munki.Hosts,
-		deps.Protocols.Munki.Repository,
-		deps.Protocols.Munki.Heartbeats,
-		deps.Protocols.Munki.Distribution,
-		deps.Protocols.Munki.Delivery,
-		deps.Logger.With("component", "munki"),
-	)
-	munkiServer.RegisterRoutes(ordinary, transfers)
-	deps.Protocols.Munki.DistributionProtocol.RegisterRoutes(ordinary, websockets)
-	santaprotocol.NewServer(
-		deps.Protocols.AgentAuth,
-		deps.Protocols.Santa,
-		deps.Logger.With("component", "santa"),
-	).RegisterRoutes(ordinary)
+	logger *slog.Logger,
+) ProtocolRoutes {
+	requestLogger := middleware.RequestLogger(logger)
+	return ProtocolRoutes{
+		Ordinary:   r.With(requestTimeoutMiddleware(defaultRequestTimeout), compression, requestLogger),
+		Transfers:  r.With(requestLogger),
+		WebSockets: r.With(requestLogger),
+	}
 }
 
-func browserRoutes(
+func newBrowserRoutes(
 	r chi.Router,
 	compression func(http.Handler) http.Handler,
-	deps *Dependencies,
-) {
-	requestLogger := middleware.RequestLogger(deps.Logger)
-	storage.RegisterTransferRoutes(
-		r.With(requestLogger),
-		deps.App.StorageBackend,
-		deps.Logger.With("component", "storage"),
-	)
+	options ServerOptions,
+) (AppRoutes, chi.Router) {
+	requestLogger := middleware.RequestLogger(options.Logger)
+	storageTransfers := r.With(requestLogger)
 
-	sessionMiddleware := deps.SessionManager.LoadAndSave
-	crossOriginProtection := middleware.CrossOriginProtection(deps.Config.CORSAllowedOrigins)
+	sessionMiddleware := options.SessionManager.LoadAndSave
+	crossOriginProtection := middleware.CrossOriginProtection(options.Config.CORSAllowedOrigins)
 	passwordLoginLimiter := middleware.NewPasswordLoginLimiter()
 	// Reject excess attempts before session loading so the denied path cannot
 	// reach the session store or any password-authentication work.
@@ -307,8 +237,8 @@ func browserRoutes(
 		sessionMiddleware,
 		crossOriginProtection,
 	)
-	mount(passwordLogin, ordinary, transfers, streaming, longRunning, deps)
-	deps.WebHandler.RegisterRoutes(ordinary)
+	apis := newAppAPIs(passwordLogin, ordinary, streaming, longRunning, options.Version)
+	return newAppRoutes(ordinary, transfers, apis, options.AuthService), storageTransfers
 }
 
 type appAPIs struct {
@@ -334,110 +264,72 @@ func newAppAPIs(
 	}
 }
 
-func mount(
-	passwordLogin chi.Router,
-	ordinary chi.Router,
-	transfers chi.Router,
-	streaming chi.Router,
-	longRunning chi.Router,
-	deps *Dependencies,
-) {
-	apis := newAppAPIs(passwordLogin, ordinary, streaming, longRunning, deps.Version)
-	registerAppRoutes(ordinary, transfers, apis, deps)
-}
-
-func registerAppRoutes(
+func newAppRoutes(
 	ordinaryRouter chi.Router,
 	transferRouter chi.Router,
 	apis appAPIs,
-	deps *Dependencies,
-) {
+	authService *auth.Service,
+) AppRoutes {
 	session := huma.NewGroup(apis.ordinary)
-	session.UseMiddleware(middleware.OptionalHumaAuth(apis.ordinary, deps.App.AuthService))
+	session.UseMiddleware(middleware.OptionalHumaAuth(apis.ordinary, authService))
 
-	protected := newProtectedGroup(apis.ordinary, deps.App.AuthService)
+	protected := newProtectedGroup(apis.ordinary, authService)
 	ordinary := newOrdinaryGroup(protected)
 	sensitive := newSensitiveGroup(protected)
 
 	streamingSensitive := newSensitiveGroup(
-		newProtectedGroup(apis.streaming, deps.App.AuthService),
+		newProtectedGroup(apis.streaming, authService),
 	)
 	longRunningOrdinary := newOrdinaryGroup(
-		newProtectedGroup(apis.longRunning, deps.App.AuthService),
+		newProtectedGroup(apis.longRunning, authService),
 	)
 
-	apiLogger := deps.Logger.With("component", "api")
+	return AppRoutes{
+		PasswordLogin:       apis.passwordLogin,
+		Session:             session,
+		Protected:           protected,
+		Ordinary:            ordinary,
+		Sensitive:           sensitive,
+		StreamingSensitive:  streamingSensitive,
+		LongRunningOrdinary: longRunningOrdinary,
+		Router:              ordinaryRouter,
+		Transfers:           transferRouter,
+	}
+}
 
-	// Create handlers
-	handlers.RegisterAuth(handlers.AuthHandlerDeps{
-		PasswordLogin: apis.passwordLogin,
-		Session:       session,
-		Protected:     protected,
-		Router:        ordinaryRouter,
-		AuthService:   deps.App.AuthService,
-		Users:         deps.App.Users,
-		Logger:        apiLogger,
-	})
-	handlers.RegisterDirectory(
-		ordinary,
-		deps.App.Users,
-		deps.App.Directory,
-		deps.App.DirectorySync,
-		apiLogger,
-	)
-	handlers.RegisterHosts(
-		ordinary,
-		deps.App.Hosts,
-		deps.App.PrimaryUser,
-		deps.App.MunkiHostState,
-		deps.App.SantaState,
-		deps.App.MunkiDistribution,
-		deps.App.GeoIP,
-		apiLogger,
-	)
-	handlers.RegisterInventory(ordinary, deps.App.Software, apiLogger)
-	handlers.RegisterLabels(ordinary, deps.App.Labels, apiLogger)
-	handlers.RegisterAgentAuth(sensitive, deps.App.Secrets, apiLogger)
-	handlers.RegisterOsquery(
-		ordinary,
-		sensitive,
-		streamingSensitive,
-		deps.App.Reports,
-		deps.App.Checks,
-		deps.App.LiveQueries,
-		deps.App.Hosts,
-		apiLogger,
-	)
-	handlers.RegisterMunki(handlers.MunkiHandlerDeps{
-		API:             ordinary,
-		LongRunningAPI:  longRunningOrdinary,
-		TransferRouter:  transferRouter,
-		AuthService:     deps.App.AuthService,
-		HostState:       deps.App.MunkiHostState,
-		Software:        deps.App.MunkiSoftware,
-		DeleteSoftware:  deps.App.MunkiSoftwareDeletions,
-		Packages:        deps.App.MunkiPackages,
-		ClientResources: deps.App.MunkiClientResources,
-		Objects:         deps.App.StorageObjects,
-		Ingestor:        deps.App.StorageIngestor,
-		Delivery:        deps.App.StorageDelivery,
-		Distribution:    deps.App.MunkiDistribution,
-		Connections:     deps.Protocols.Munki.DistributionProtocol,
-		Logger:          apiLogger,
-	})
-	handlers.RegisterSanta(
-		ordinary,
-		deps.App.SantaState,
-		deps.App.SantaConfigurations,
-		deps.App.SantaRules,
-		deps.App.SantaEvents,
-		apiLogger,
-	)
+// NewSchema returns an app API and route surfaces configured for OpenAPI
+// registration without runtime authentication middleware.
+func NewSchema(version string) (huma.API, AppRoutes) {
+	r := chi.NewRouter()
+	apis := newAppAPIs(r, r, r, r, version)
+
+	session := huma.NewGroup(apis.ordinary)
+	protected := newDocumentedProtectedGroup(apis.ordinary)
+	ordinary := newOrdinaryGroup(protected)
+	sensitive := newSensitiveGroup(protected)
+	streamingSensitive := newSensitiveGroup(newDocumentedProtectedGroup(apis.streaming))
+	longRunningOrdinary := newOrdinaryGroup(newDocumentedProtectedGroup(apis.longRunning))
+
+	return apis.ordinary, AppRoutes{
+		PasswordLogin:       apis.passwordLogin,
+		Session:             session,
+		Protected:           protected,
+		Ordinary:            ordinary,
+		Sensitive:           sensitive,
+		StreamingSensitive:  streamingSensitive,
+		LongRunningOrdinary: longRunningOrdinary,
+	}
 }
 
 func newProtectedGroup(api huma.API, authService *auth.Service) *huma.Group {
 	protected := huma.NewGroup(api)
 	protected.UseMiddleware(middleware.RequireHumaAuth(api, authService))
+	protected.UseModifier(middleware.ProtectedOperation(api))
+	return protected
+}
+
+func newDocumentedProtectedGroup(api huma.API) *huma.Group {
+	protected := huma.NewGroup(api)
 	protected.UseModifier(middleware.ProtectedOperation(api))
 	return protected
 }
@@ -458,7 +350,7 @@ func newSensitiveGroup(protected huma.API) *huma.Group {
 func humaConfig(version string) huma.Config {
 	cfg := huma.DefaultConfig("API", version)
 	cfg.Info.License = &huma.License{Name: "Apache-2.0"}
-	handlers.ConfigureOpenAPI(cfg.OpenAPI)
+	configureOpenAPI(cfg.OpenAPI)
 
 	// Don't emit docs or schema routes, useless for us.
 	cfg.OpenAPIPath = ""
@@ -483,18 +375,6 @@ func humaConfig(version string) huma.Config {
 	}
 
 	return cfg
-}
-
-// BuildSchemaAPI builds the app API for OpenAPI schema generation only. Route
-// registration binds handlers but never invokes them, so nil stores and
-// services are valid here.
-func BuildSchemaAPI(version string) huma.API {
-	r := chi.NewRouter()
-	apis := newAppAPIs(r, r, r, r, version)
-	registerAppRoutes(r, r, apis, &Dependencies{
-		Logger: slog.New(slog.DiscardHandler),
-	})
-	return apis.ordinary
 }
 
 // clientIPMiddleware maps the configured client-IP source to its chi middleware.

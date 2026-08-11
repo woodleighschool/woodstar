@@ -20,35 +20,48 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/woodleighschool/woodstar/internal/agentauth"
+	agentauthapi "github.com/woodleighschool/woodstar/internal/agentauth/httpapi"
 	"github.com/woodleighschool/woodstar/internal/api"
 	"github.com/woodleighschool/woodstar/internal/auth"
+	authapi "github.com/woodleighschool/woodstar/internal/auth/httpapi"
 	"github.com/woodleighschool/woodstar/internal/backgroundjobs"
 	"github.com/woodleighschool/woodstar/internal/buildinfo"
 	"github.com/woodleighschool/woodstar/internal/config"
 	"github.com/woodleighschool/woodstar/internal/directory"
 	"github.com/woodleighschool/woodstar/internal/directory/entra"
+	directoryapi "github.com/woodleighschool/woodstar/internal/directory/httpapi"
 	"github.com/woodleighschool/woodstar/internal/geoip"
 	"github.com/woodleighschool/woodstar/internal/heartbeats"
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	hostsapi "github.com/woodleighschool/woodstar/internal/hosts/httpapi"
 	"github.com/woodleighschool/woodstar/internal/inventory"
+	inventoryapi "github.com/woodleighschool/woodstar/internal/inventory/httpapi"
 	"github.com/woodleighschool/woodstar/internal/labels"
+	labelsapi "github.com/woodleighschool/woodstar/internal/labels/httpapi"
 	"github.com/woodleighschool/woodstar/internal/logging"
 	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/munki/clientresources"
+	munkiapi "github.com/woodleighschool/woodstar/internal/munki/httpapi"
 	"github.com/woodleighschool/woodstar/internal/munki/mdp"
 	mdpprotocol "github.com/woodleighschool/woodstar/internal/munki/mdp/protocol"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
+	munkiprotocol "github.com/woodleighschool/woodstar/internal/munki/protocol"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
 	"github.com/woodleighschool/woodstar/internal/orbit"
+	orbitprotocol "github.com/woodleighschool/woodstar/internal/orbit/protocol"
 	"github.com/woodleighschool/woodstar/internal/osquery"
 	"github.com/woodleighschool/woodstar/internal/osquery/checks"
+	osqueryapi "github.com/woodleighschool/woodstar/internal/osquery/httpapi"
 	"github.com/woodleighschool/woodstar/internal/osquery/ingest"
 	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
+	osqueryprotocol "github.com/woodleighschool/woodstar/internal/osquery/protocol"
 	"github.com/woodleighschool/woodstar/internal/osquery/reports"
 	"github.com/woodleighschool/woodstar/internal/postgres"
 	"github.com/woodleighschool/woodstar/internal/santa"
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 	"github.com/woodleighschool/woodstar/internal/santa/events"
+	santaapi "github.com/woodleighschool/woodstar/internal/santa/httpapi"
+	santaprotocol "github.com/woodleighschool/woodstar/internal/santa/protocol"
 	"github.com/woodleighschool/woodstar/internal/santa/rules"
 	"github.com/woodleighschool/woodstar/internal/santa/syncstate"
 	"github.com/woodleighschool/woodstar/internal/storage"
@@ -143,7 +156,7 @@ func run(parent context.Context, cfg config.Config) error {
 		return fmt.Errorf("init storage: %w", err)
 	}
 
-	deps, starters, err := buildDependencies(
+	app, err := buildApplication(
 		ctx,
 		cfg,
 		pool,
@@ -155,34 +168,31 @@ func run(parent context.Context, cfg config.Config) error {
 	if err != nil {
 		return fmt.Errorf("build services: %w", err)
 	}
-	server, err := api.NewServer(deps)
+	defer app.close()
+
+	listener, err := new(net.ListenConfig).Listen(ctx, "tcp", app.server.Addr())
 	if err != nil {
-		return fmt.Errorf("build HTTP server: %w", err)
+		return fmt.Errorf("listen %s: %w", app.server.Addr(), err)
 	}
 
-	listener, err := new(net.ListenConfig).Listen(ctx, "tcp", server.Addr())
-	if err != nil {
-		return fmt.Errorf("listen %s: %w", server.Addr(), err)
-	}
-
-	stopJobs, err := start(ctx, starters...)
+	stopJobs, err := start(ctx, app.starters...)
 	if err != nil {
 		return fmt.Errorf("start background services: %w", err)
 	}
 	defer stopJobs()
 
-	return runServer(ctx, server, listener)
+	return runServer(ctx, app, listener)
 }
 
 func runServer(
 	ctx context.Context,
-	server *api.Server,
+	app *application,
 	listener net.Listener,
 ) error {
 	errc := make(chan error, 1)
 
 	go func() {
-		errc <- server.Serve(listener)
+		errc <- app.server.Serve(listener)
 	}()
 
 	select {
@@ -196,7 +206,7 @@ func runServer(
 		shutdownCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), gracefulShutdownTimeout)
 		defer cancel()
 
-		if err := server.Shutdown(shutdownCtx); err != nil {
+		if err := app.shutdown(shutdownCtx); err != nil {
 			return fmt.Errorf("shutdown server: %w", err)
 		}
 
@@ -208,7 +218,23 @@ func runServer(
 	}
 }
 
-func buildDependencies(
+type application struct {
+	server                    *api.Server
+	starters                  []starter
+	munkiDistributionProtocol *mdpprotocol.Server
+}
+
+func (app *application) close() {
+	app.munkiDistributionProtocol.Close()
+}
+
+func (app *application) shutdown(ctx context.Context) error {
+	app.close()
+	return app.server.Shutdown(ctx)
+}
+
+//nolint:funlen // Keep the complete application graph visible in the composition root.
+func buildApplication(
 	ctx context.Context,
 	cfg config.Config,
 	pool *pgxpool.Pool,
@@ -216,7 +242,7 @@ func buildDependencies(
 	logger *slog.Logger,
 	storageBackend storage.Backend,
 	geoLookup func(netip.Addr) (*geoip.Result, error),
-) (*api.Dependencies, []starter, error) {
+) (*application, error) {
 	storageDelivery := storage.NewDelivery(storageBackend)
 
 	// Core stores.
@@ -260,7 +286,7 @@ func buildDependencies(
 	userService := directory.NewUserService(directoryStore)
 	authService, err := newAuth(ctx, cfg, userService, sessions)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	orbitAgent := orbit.NewEnrollmentService(hostStore, secretStore, primaryUsers, heartbeatStore)
 
@@ -300,7 +326,7 @@ func buildDependencies(
 		munkiDistributionLogger,
 	)
 	if err != nil {
-		return nil, nil, fmt.Errorf("configure MDP protocol: %w", err)
+		return nil, fmt.Errorf("configure MDP protocol: %w", err)
 	}
 	munkiPackageService := munki.NewPackageService(munki.PackageServiceDependencies{
 		Packages:               packageStore,
@@ -330,75 +356,120 @@ func buildDependencies(
 		logger,
 	)
 	if err != nil {
-		return nil, nil, err
+		munkiDistributionProtocol.Close()
+		return nil, err
 	}
 
-	deps := &api.Dependencies{
+	apiLogger := logger.With("component", "api")
+	server, err := api.NewServer(api.ServerOptions{
 		Config:         cfg,
 		Ready:          pool.Ping,
 		Version:        buildinfo.Version,
 		Logger:         logger,
 		SessionManager: sessions,
+		AuthService:    authService,
+		TransferOrigin: storageBackend.TransferOrigin(),
 		WebHandler: webui.NewHandler(webui.HandlerOptions{
 			FS:        webdist.DistDirFS,
 			Version:   buildinfo.Version,
 			ServerURL: cfg.ServerURL,
 			Logger:    logger.With("component", "web"),
 		}),
-		App: api.AppDependencies{
-			AuthService:   authService,
-			Users:         userService,
-			Directory:     directoryStore,
-			DirectorySync: directorySync,
-			Hosts:         hostStore,
-			PrimaryUser:   primaryUsers,
-			Secrets:       secretStore,
-			Software:      inventoryStore,
-			Labels:        labelStore,
-			GeoIP:         geoLookup,
+		RegisterRoutes: func(routes api.Routes) {
+			storage.RegisterTransferRoutes(routes.StorageTransfers, storageBackend, storageLogger)
 
-			Reports:     reportStore,
-			Checks:      checkStore,
-			LiveQueries: liveQueries,
+			authapi.RegisterAPI(routes.App, authapi.Dependencies{
+				AuthService: authService,
+				Users:       userService,
+				Logger:      apiLogger,
+			})
+			directoryapi.RegisterAPI(routes.App, userService, directoryStore, directorySync, apiLogger)
+			hostsapi.RegisterAPI(
+				routes.App,
+				hostStore,
+				primaryUsers,
+				munkiHostState,
+				santaState,
+				munkiDistribution,
+				geoLookup,
+				apiLogger,
+			)
+			inventoryapi.RegisterAPI(routes.App, inventoryStore, apiLogger)
+			labelsapi.RegisterAPI(routes.App, labelStore, apiLogger)
+			agentauthapi.RegisterAPI(routes.App, secretStore, apiLogger)
+			osqueryapi.RegisterAPI(
+				routes.App,
+				reportStore,
+				checkStore,
+				liveQueries,
+				hostStore,
+				apiLogger,
+			)
+			munkiapi.RegisterAPI(routes.App, munkiapi.Dependencies{
+				AuthService:     authService,
+				HostState:       munkiHostState,
+				Software:        munkiSoftwareStore,
+				DeleteSoftware:  munkiSoftwareDeletions,
+				Packages:        munkiPackageService,
+				ClientResources: clientResourceService,
+				Objects:         objectStore,
+				Ingestor:        storageIngestor,
+				Delivery:        storageDelivery,
+				Distribution:    munkiDistribution,
+				Connections:     munkiDistributionProtocol,
+				Logger:          apiLogger,
+			})
+			santaapi.RegisterAPI(
+				routes.App,
+				santaState,
+				configurationStore,
+				ruleStore,
+				eventStore,
+				apiLogger,
+			)
 
-			StorageBackend:  storageBackend,
-			StorageDelivery: storageDelivery,
-			StorageObjects:  objectStore,
-			StorageIngestor: storageIngestor,
-
-			MunkiPackages:          munkiPackageService,
-			MunkiClientResources:   clientResourceService,
-			MunkiSoftware:          munkiSoftwareStore,
-			MunkiSoftwareDeletions: munkiSoftwareDeletions,
-			MunkiHostState:         munkiHostState,
-			MunkiDistribution:      munkiDistribution,
-
-			SantaConfigurations: configurationStore,
-			SantaEvents:         eventStore,
-			SantaRules:          ruleStore,
-			SantaState:          santaState,
+			orbitprotocol.NewServer(
+				orbitAgent,
+				logger.With("component", "orbit"),
+			).RegisterRoutes(routes.Protocols.Ordinary)
+			osqueryprotocol.NewServer(
+				osqueryAgent,
+				logger.With("component", "osquery"),
+			).RegisterRoutes(routes.Protocols.Ordinary)
+			munkiprotocol.NewServer(
+				secretStore,
+				hostStore,
+				munkiRepository,
+				heartbeatStore,
+				munkiDistribution,
+				storageDelivery,
+				logger.With("component", "munki"),
+			).RegisterRoutes(routes.Protocols.Ordinary, routes.Protocols.Transfers)
+			munkiDistributionProtocol.RegisterRoutes(
+				routes.Protocols.Ordinary,
+				routes.Protocols.WebSockets,
+			)
+			santaprotocol.NewServer(
+				secretStore,
+				santaSync,
+				logger.With("component", "santa"),
+			).RegisterRoutes(routes.Protocols.Ordinary)
 		},
-		Protocols: api.ProtocolDependencies{
-			AgentAuth: secretStore,
-			Orbit:     orbitAgent,
-			Osquery:   osqueryAgent,
-			Munki: api.MunkiProtocolDependencies{
-				Hosts:                hostStore,
-				Heartbeats:           heartbeatStore,
-				Repository:           munkiRepository,
-				Distribution:         munkiDistribution,
-				DistributionProtocol: munkiDistributionProtocol,
-				Delivery:             storageDelivery,
-			},
-			Santa: santaSync,
-		},
+	})
+	if err != nil {
+		munkiDistributionProtocol.Close()
+		return nil, fmt.Errorf("build HTTP server: %w", err)
 	}
 	starters := []starter{
 		storageUploadCleanupStarter(storageIngestor, cfg.StorageTransferTTL, storageLogger),
 		backgroundJobsStarter(jobs, logger.With("component", "background_jobs")),
 	}
 
-	return deps, starters, nil
+	return &application{
+		server:                    server,
+		starters:                  starters,
+		munkiDistributionProtocol: munkiDistributionProtocol,
+	}, nil
 }
 
 func newBackgroundJobs(

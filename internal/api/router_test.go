@@ -1,14 +1,60 @@
 package api
 
 import (
+	"context"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"testing/fstest"
 
+	"github.com/alexedwards/scs/v2"
+	"github.com/alexedwards/scs/v2/memstore"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 
 	"github.com/woodleighschool/woodstar/internal/config"
+	"github.com/woodleighschool/woodstar/internal/webui"
 )
+
+func TestServerMountsComposedRoutes(t *testing.T) {
+	sessions := scs.New()
+	sessions.Store = memstore.New()
+	logger := slog.New(slog.DiscardHandler)
+
+	server, err := NewServer(ServerOptions{
+		Config: config.Config{
+			ClientIPSource: config.ClientIPSourceRemoteAddr,
+		},
+		Ready:          func(context.Context) error { return nil },
+		Version:        "test",
+		Logger:         logger,
+		SessionManager: sessions,
+		WebHandler: webui.NewHandler(webui.HandlerOptions{
+			FS: fstest.MapFS{
+				"index.html": {Data: []byte("<!doctype html><html><body>web</body></html>")},
+			},
+			Version:   "test",
+			ServerURL: "https://woodstar.example",
+			Logger:    logger,
+		}),
+		RegisterRoutes: func(routes Routes) {
+			routes.App.Router.Get("/api/composed", func(w http.ResponseWriter, _ *http.Request) {
+				_, _ = w.Write([]byte("composed\n"))
+			})
+		},
+	})
+	if err != nil {
+		t.Fatalf("NewServer: %v", err)
+	}
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/composed", nil)
+	server.httpServer.Handler.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK || recorder.Body.String() != "composed\n" {
+		t.Fatalf("response = %d %q, want composed route", recorder.Code, recorder.Body.String())
+	}
+}
 
 // TestClientIPHeaderSourceUsesTrustedHeaderOverXFF proves the header source
 // reads only the configured proxy header and ignores an attacker-supplied
