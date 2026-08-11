@@ -247,11 +247,12 @@ func buildApplication(
 
 	// Core stores.
 	labelStore := labels.NewStore(pool)
-	directoryStore := directory.NewStore(pool)
-	hostStore, heartbeatStore := newHostStores(pool)
+	directoryStore := directory.NewStore(pool, labelStore)
+	hostStore := hosts.NewStore(pool, labelStore)
+	heartbeatStore := heartbeats.NewStore(pool)
 	secretStore := agentauth.NewStore(pool)
 	inventoryStore := inventory.NewStore(pool)
-	primaryUsers := hosts.NewPrimaryUserStore(pool)
+	primaryUsers := hosts.NewPrimaryUserStore(pool, labelStore)
 
 	// Osquery stores.
 	reportStore := reports.NewStore(pool)
@@ -547,10 +548,6 @@ func newBackgroundJobs(
 	}
 	directorySync := entra.NewSyncJobs(entraService != nil, jobs)
 	return jobs, directorySync, nil
-}
-
-func newHostStores(pool *pgxpool.Pool) (*hosts.Store, *heartbeats.Store) {
-	return hosts.NewStore(pool), heartbeats.NewStore(pool)
 }
 
 func storageUploadCleanupStarter(

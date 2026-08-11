@@ -11,6 +11,7 @@ import (
 	"golang.org/x/term"
 
 	"github.com/woodleighschool/woodstar/internal/directory"
+	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/postgres"
 )
 
@@ -146,7 +147,8 @@ func withUserService(
 		return fmt.Errorf("open database: %w", err)
 	}
 	defer pool.Close()
-	return action(directory.NewUserService(directory.NewStore(pool)))
+	labelStore := labels.NewStore(pool)
+	return action(directory.NewUserService(directory.NewStore(pool, labelStore)))
 }
 
 func commandPassword(cmd *cobra.Command, value string) (string, error) {

@@ -8,7 +8,6 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/listing"
 	"github.com/woodleighschool/woodstar/internal/postgres"
 )
@@ -16,11 +15,15 @@ import (
 // Store persists directory users, groups, memberships, and source snapshots.
 type Store struct {
 	pool   *pgxpool.Pool
-	labels *labels.Store
+	labels derivedLabelRefresher
 }
 
-func NewStore(pool *pgxpool.Pool) *Store {
-	return &Store{pool: pool, labels: labels.NewStore(pool)}
+type derivedLabelRefresher interface {
+	RefreshDerivedTx(ctx context.Context, tx pgx.Tx) error
+}
+
+func NewStore(pool *pgxpool.Pool, labelRefresher derivedLabelRefresher) *Store {
+	return &Store{pool: pool, labels: labelRefresher}
 }
 
 type userRow struct {

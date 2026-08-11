@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
 )
 
@@ -51,7 +52,7 @@ func TestGetTitleLoadsVersionCollection(t *testing.T) {
 func TestGetTitleLoadsSigningIdentities(t *testing.T) {
 	db, ctx := testdb.Open(t)
 	store := NewStore(db)
-	hostStore := hosts.NewStore(db)
+	hostStore := hosts.NewStore(db, labels.NewStore(db))
 
 	for _, hostName := range []string{"signing-host-one", "signing-host-two"} {
 		host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
@@ -114,7 +115,7 @@ func TestGetTitleLoadsSigningIdentities(t *testing.T) {
 func TestGetTitleLoadsTeamIdentityWithoutIdentifier(t *testing.T) {
 	db, ctx := testdb.Open(t)
 	store := NewStore(db)
-	hostStore := hosts.NewStore(db)
+	hostStore := hosts.NewStore(db, labels.NewStore(db))
 
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
 		Hardware:     hosts.HostHardware{UUID: "team-only-host"},

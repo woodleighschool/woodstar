@@ -12,12 +12,13 @@ import (
 	"github.com/alexedwards/scs/v2/memstore"
 
 	"github.com/woodleighschool/woodstar/internal/directory"
+	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
 )
 
 func TestPersistedUserLoginStartsSession(t *testing.T) {
 	database, ctx := testdb.Open(t)
-	users := directory.NewUserService(directory.NewStore(database))
+	users := directory.NewUserService(directory.NewStore(database, labels.NewStore(database)))
 	created, err := users.Create(ctx, directory.UserCreate{
 		Email:    "admin@example.test",
 		Name:     "Persisted Admin",
@@ -59,7 +60,7 @@ func TestPersistedUserLoginStartsSession(t *testing.T) {
 
 func TestSessionReloadsPersistedUser(t *testing.T) {
 	database, ctx := testdb.Open(t)
-	users := directory.NewUserService(directory.NewStore(database))
+	users := directory.NewUserService(directory.NewStore(database, labels.NewStore(database)))
 	created, err := users.Create(ctx, directory.UserCreate{
 		Email:    "admin@example.test",
 		Name:     "Original Name",
@@ -99,7 +100,7 @@ func TestSessionReloadsPersistedUser(t *testing.T) {
 
 func TestDeletedUserSessionIsRejected(t *testing.T) {
 	database, ctx := testdb.Open(t)
-	users := directory.NewUserService(directory.NewStore(database))
+	users := directory.NewUserService(directory.NewStore(database, labels.NewStore(database)))
 	created, err := users.Create(ctx, directory.UserCreate{
 		Email:    "admin@example.test",
 		Name:     "Persisted Admin",
@@ -130,7 +131,7 @@ func TestDeletedUserSessionIsRejected(t *testing.T) {
 
 func TestMissingLoginPerformsDummyPasswordVerification(t *testing.T) {
 	database, ctx := testdb.Open(t)
-	users := directory.NewUserService(directory.NewStore(database))
+	users := directory.NewUserService(directory.NewStore(database, labels.NewStore(database)))
 	sessions := testSessionManager()
 	service := testAuthService(t, users, sessions)
 	service.dummyHash = "not-an-argon2-hash"

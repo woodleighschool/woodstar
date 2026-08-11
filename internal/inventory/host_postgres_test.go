@@ -8,6 +8,7 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
 )
 
@@ -23,7 +24,7 @@ func TestListForHostMissingHost(t *testing.T) {
 
 func TestListForHostEmptyHost(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	hostStore := hosts.NewStore(db)
+	hostStore := hosts.NewStore(db, labels.NewStore(db))
 	store := NewStore(db)
 
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{

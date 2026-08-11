@@ -8,13 +8,14 @@ import (
 	"time"
 
 	"github.com/woodleighschool/woodstar/internal/fault"
+	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/listing"
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
 )
 
 func TestDeleteRemovesLocalUsers(t *testing.T) {
 	database, ctx := testdb.Open(t)
-	store := NewStore(database)
+	store := NewStore(database, labels.NewStore(database))
 	service := newTestUserService(store)
 	if _, err := service.Create(ctx, UserCreate{
 		Email:    "other-admin@example.test",
@@ -45,7 +46,7 @@ func TestDeleteRemovesLocalUsers(t *testing.T) {
 
 func TestDeleteSoftDeletesDirectoryUsers(t *testing.T) {
 	database, ctx := testdb.Open(t)
-	store := NewStore(database)
+	store := NewStore(database, labels.NewStore(database))
 	service := newTestUserService(store)
 	if _, err := service.Create(ctx, UserCreate{
 		Email:    "local-admin@example.test",
@@ -123,7 +124,7 @@ WHERE id = $1`, userID).Scan(&source, &externalID, &role, &deletedAt); err != ni
 
 func TestListFiltersUsers(t *testing.T) {
 	database, ctx := testdb.Open(t)
-	store := NewStore(database)
+	store := NewStore(database, labels.NewStore(database))
 	service := newTestUserService(store)
 
 	if err := store.ApplyProviderSnapshot(ctx, SourceEntra, ProviderSnapshot{
@@ -221,7 +222,7 @@ WHERE external_id = 'engineering'`).Scan(&engineeringGroupID); err != nil {
 
 func TestListDepartmentsReturnsDirectoryDepartments(t *testing.T) {
 	database, ctx := testdb.Open(t)
-	store := NewStore(database)
+	store := NewStore(database, labels.NewStore(database))
 
 	if err := store.ApplyProviderSnapshot(ctx, SourceEntra, ProviderSnapshot{
 		GeneratedAt: time.Now().UTC(),

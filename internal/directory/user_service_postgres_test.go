@@ -7,12 +7,13 @@ import (
 	"testing"
 
 	"github.com/woodleighschool/woodstar/internal/fault"
+	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
 )
 
 func TestUserMutationsAllowZeroPersistedAdministrators(t *testing.T) {
 	database, ctx := testdb.Open(t)
-	service := newTestUserService(NewStore(database))
+	service := newTestUserService(NewStore(database, labels.NewStore(database)))
 	admin, err := service.Create(ctx, UserCreate{
 		Email:    "admin@example.test",
 		Name:     "Admin",
@@ -49,7 +50,7 @@ func TestUserMutationsAllowZeroPersistedAdministrators(t *testing.T) {
 
 func TestCreateHashesPassword(t *testing.T) {
 	database, ctx := testdb.Open(t)
-	service := newTestUserService(NewStore(database))
+	service := newTestUserService(NewStore(database, labels.NewStore(database)))
 
 	user, err := service.Create(ctx, UserCreate{
 		Email:    "local@example.test",
@@ -78,7 +79,7 @@ func TestCreateHashesPassword(t *testing.T) {
 
 func TestCreateRollsBackWhenDerivedLabelsCannotRefresh(t *testing.T) {
 	database, ctx := testdb.Open(t)
-	store := NewStore(database)
+	store := NewStore(database, labels.NewStore(database))
 	if _, err := database.Exec(ctx, `
 INSERT INTO labels (name, criteria, label_type, label_membership_type)
 VALUES ('Invalid derived label', '{"attribute":"invalid","values":["value"]}', 'regular', 'derived')`); err != nil {
@@ -110,7 +111,7 @@ VALUES ('Invalid derived label', '{"attribute":"invalid","values":["value"]}', '
 
 func TestUpdateHashesPassword(t *testing.T) {
 	database, ctx := testdb.Open(t)
-	service := newTestUserService(NewStore(database))
+	service := newTestUserService(NewStore(database, labels.NewStore(database)))
 	role := RoleAdmin
 	user, err := service.Create(ctx, UserCreate{
 		Email:    "local@example.test",
@@ -146,7 +147,7 @@ func TestUpdateHashesPassword(t *testing.T) {
 
 func TestSetPasswordByEmailHashesPassword(t *testing.T) {
 	database, ctx := testdb.Open(t)
-	service := newTestUserService(NewStore(database))
+	service := newTestUserService(NewStore(database, labels.NewStore(database)))
 	user, err := service.Create(ctx, UserCreate{
 		Email:    "local@example.test",
 		Name:     "Local User",
@@ -179,7 +180,7 @@ func TestSetPasswordByEmailHashesPassword(t *testing.T) {
 
 func TestUpdateAccountHashesPassword(t *testing.T) {
 	database, ctx := testdb.Open(t)
-	service := newTestUserService(NewStore(database))
+	service := newTestUserService(NewStore(database, labels.NewStore(database)))
 	user, err := service.Create(ctx, UserCreate{
 		Email:    "local@example.test",
 		Name:     "Local User",
@@ -213,7 +214,7 @@ func TestUpdateAccountHashesPassword(t *testing.T) {
 
 func TestSetAndClearAccountAPIKey(t *testing.T) {
 	database, ctx := testdb.Open(t)
-	service := newTestUserService(NewStore(database))
+	service := newTestUserService(NewStore(database, labels.NewStore(database)))
 	user, err := service.Create(ctx, UserCreate{
 		Email:    "local@example.test",
 		Name:     "Local User",

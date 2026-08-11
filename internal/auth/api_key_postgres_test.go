@@ -10,12 +10,13 @@ import (
 	"github.com/alexedwards/scs/v2/memstore"
 
 	"github.com/woodleighschool/woodstar/internal/directory"
+	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
 )
 
 func TestRotateAPIKeyReplacesPreviousCredential(t *testing.T) {
 	database, ctx := testdb.Open(t)
-	userService := directory.NewUserService(directory.NewStore(database))
+	userService := directory.NewUserService(directory.NewStore(database, labels.NewStore(database)))
 	user, err := userService.Create(ctx, directory.UserCreate{
 		Email:    "api@example.test",
 		Name:     "API User",

@@ -710,7 +710,8 @@ func TestCheckResultsFiltersByMembershipStatus(t *testing.T) {
 func newPostgresCheckStore(t *testing.T) (*Store, *labels.Store, *hosts.Store, context.Context) {
 	t.Helper()
 	database, ctx := testdb.Open(t)
-	return NewStore(database), labels.NewStore(database), hosts.NewStore(database), ctx
+	labelStore := labels.NewStore(database)
+	return NewStore(database), labelStore, hosts.NewStore(database, labelStore), ctx
 }
 
 func createManualLabel(t *testing.T, ctx context.Context, store *labels.Store, name string) *labels.Label {

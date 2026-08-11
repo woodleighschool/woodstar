@@ -17,6 +17,7 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/api"
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/santa"
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 	"github.com/woodleighschool/woodstar/internal/santa/events"
@@ -26,7 +27,7 @@ import (
 func santaEventsRouter(t *testing.T) *chi.Mux {
 	t.Helper()
 	db, ctx := testdb.Open(t)
-	hostStore := hosts.NewStore(db)
+	hostStore := hosts.NewStore(db, labels.NewStore(db))
 	santaStore := santa.NewStore(db)
 	eventsStore := events.NewStore(db)
 

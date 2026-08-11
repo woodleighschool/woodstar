@@ -21,8 +21,8 @@ type hostLabelReader interface {
 	ListForHost(ctx context.Context, hostID int64) ([]labels.Label, error)
 }
 
-func NewStore(pool *pgxpool.Pool) *Store {
-	return &Store{pool: pool, labels: labels.NewStore(pool)}
+func NewStore(pool *pgxpool.Pool, labelReader hostLabelReader) *Store {
+	return &Store{pool: pool, labels: labelReader}
 }
 
 func (s *Store) Delete(ctx context.Context, id int64) error {

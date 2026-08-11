@@ -12,13 +12,14 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
 )
 
 func TestPruneUnreferencedSoftwarePreservesReferencedVersions(t *testing.T) {
 	db, ctx := testdb.Open(t)
 	store := NewStore(db)
-	hostStore := hosts.NewStore(db)
+	hostStore := hosts.NewStore(db, labels.NewStore(db))
 	hostOne := enrollCleanupTestHost(t, ctx, hostStore, "cleanup-shared-one")
 	hostTwo := enrollCleanupTestHost(t, ctx, hostStore, "cleanup-shared-two")
 
@@ -92,7 +93,7 @@ WHERE bundle_identifier = 'com.example.cleanup'`).Scan(&titleID); err != nil {
 func TestPruneUnreferencedSoftwareAllowsFreshObservation(t *testing.T) {
 	db, ctx := testdb.Open(t)
 	store := NewStore(db)
-	hostStore := hosts.NewStore(db)
+	hostStore := hosts.NewStore(db, labels.NewStore(db))
 	host := enrollCleanupTestHost(t, ctx, hostStore, "cleanup-reobserved")
 	entry := cleanupTestSoftware("1.0")
 
@@ -132,7 +133,7 @@ WHERE host_id = $1 AND software_id = $2`, host.ID, newSoftwareID).Scan(&links); 
 func TestPruneUnreferencedSoftwareAfterHostDeletion(t *testing.T) {
 	db, ctx := testdb.Open(t)
 	store := NewStore(db)
-	hostStore := hosts.NewStore(db)
+	hostStore := hosts.NewStore(db, labels.NewStore(db))
 	host := enrollCleanupTestHost(t, ctx, hostStore, "cleanup-deleted-host")
 	if err := store.ReplaceHostSoftware(ctx, host.ID, []HostSoftwareEntry{cleanupTestSoftware("1.0")}); err != nil {
 		t.Fatalf("report software: %v", err)
@@ -157,7 +158,7 @@ func TestPruneUnreferencedSoftwareAfterHostDeletion(t *testing.T) {
 func TestPruneUnreferencedSoftwareSkipsLockedInventory(t *testing.T) {
 	db, ctx := testdb.Open(t)
 	store := NewStore(db)
-	hostStore := hosts.NewStore(db)
+	hostStore := hosts.NewStore(db, labels.NewStore(db))
 	host := enrollCleanupTestHost(t, ctx, hostStore, "cleanup-concurrent")
 	entry := cleanupTestSoftware("1.0")
 	if err := store.ReplaceHostSoftware(ctx, host.ID, []HostSoftwareEntry{entry}); err != nil {

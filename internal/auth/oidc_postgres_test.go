@@ -7,12 +7,13 @@ import (
 	"testing"
 
 	"github.com/woodleighschool/woodstar/internal/directory"
+	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
 )
 
 func TestSSOLoginStartsPersistedUserSession(t *testing.T) {
 	database, ctx := testdb.Open(t)
-	store := directory.NewStore(database)
+	store := directory.NewStore(database, labels.NewStore(database))
 	users := directory.NewUserService(store)
 	if _, err := users.Create(ctx, directory.UserCreate{
 		Email:    "admin@example.test",
@@ -62,7 +63,7 @@ func TestSSOLoginStartsPersistedUserSession(t *testing.T) {
 
 func TestSSOLoginRejectsLocalOnlyUser(t *testing.T) {
 	database, ctx := testdb.Open(t)
-	users := directory.NewUserService(directory.NewStore(database))
+	users := directory.NewUserService(directory.NewStore(database, labels.NewStore(database)))
 	if _, err := users.Create(ctx, directory.UserCreate{
 		Email:    "local@example.test",
 		Name:     "Local User",

@@ -7,12 +7,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
 )
 
 func TestListAndGetGroups(t *testing.T) {
 	database, ctx := testdb.Open(t)
-	store := NewStore(database)
+	store := NewStore(database, labels.NewStore(database))
 	seedGroups(t, ctx, store)
 
 	groups, count, err := store.ListGroups(ctx, GroupListParams{Values: []string{"staff"}})

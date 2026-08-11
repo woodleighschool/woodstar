@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/woodleighschool/woodstar/internal/heartbeats"
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/listing"
 	"github.com/woodleighschool/woodstar/internal/santa"
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
@@ -38,7 +39,7 @@ func newUploadedEventFixture(t *testing.T) uploadedEventFixture {
 	t.Helper()
 
 	db, ctx := testdb.Open(t)
-	hostStore := hosts.NewStore(db)
+	hostStore := hosts.NewStore(db, labels.NewStore(db))
 	store := santa.NewStore(db)
 	eventStore := santaevents.NewStore(db)
 	service := santa.NewSyncService(santa.Dependencies{
@@ -265,7 +266,7 @@ func assertEventUploadPersistsSigningChain(t *testing.T, fixture uploadedEventFi
 
 func TestEventUploadRequestsAndCollectsBundleBinaries(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	hostStore := hosts.NewStore(db)
+	hostStore := hosts.NewStore(db, labels.NewStore(db))
 	eventStore := santaevents.NewStore(db)
 	service := santa.NewSyncService(santa.Dependencies{
 		HostStore:      santa.NewStore(db),
@@ -360,7 +361,7 @@ func TestEventUploadRequestsAndCollectsBundleBinaries(t *testing.T) {
 
 func TestEventUploadDerivesBundleCompletionFromFinalBatchState(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	hostStore := hosts.NewStore(db)
+	hostStore := hosts.NewStore(db, labels.NewStore(db))
 	eventStore := santaevents.NewStore(db)
 	service := santa.NewSyncService(santa.Dependencies{
 		HostStore:      santa.NewStore(db),
@@ -427,7 +428,7 @@ GROUP BY b.id`, bundleHash).Scan(&binaryCount, &collectedCount, &uploadedAt); er
 
 func TestEventUploadReopensBundleWhenExpectedCountIncreases(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	hostStore := hosts.NewStore(db)
+	hostStore := hosts.NewStore(db, labels.NewStore(db))
 	eventStore := santaevents.NewStore(db)
 	service := santa.NewSyncService(santa.Dependencies{
 		HostStore:      santa.NewStore(db),
@@ -488,7 +489,7 @@ func TestEventUploadReopensBundleWhenExpectedCountIncreases(t *testing.T) {
 
 func TestEventUploadIngestsFileAccessEvents(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	hostStore := hosts.NewStore(db)
+	hostStore := hosts.NewStore(db, labels.NewStore(db))
 	eventStore := santaevents.NewStore(db)
 	service := santa.NewSyncService(santa.Dependencies{
 		HostStore:      santa.NewStore(db),
@@ -608,7 +609,7 @@ func TestEventUploadIngestsFileAccessEvents(t *testing.T) {
 
 func TestEventListCursorFiltersAndRetention(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	hostStore := hosts.NewStore(db)
+	hostStore := hosts.NewStore(db, labels.NewStore(db))
 	store := santa.NewStore(db)
 	eventStore := santaevents.NewStore(db)
 	service := santa.NewSyncService(santa.Dependencies{
@@ -727,7 +728,7 @@ func TestEventListCursorFiltersAndRetention(t *testing.T) {
 
 func TestEventUploadDeduplicatesSigningChainsAcrossConcurrentUploads(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	hostStore := hosts.NewStore(db)
+	hostStore := hosts.NewStore(db, labels.NewStore(db))
 	eventStore := santaevents.NewStore(db)
 	service := santa.NewSyncService(santa.Dependencies{
 		HostStore:      santa.NewStore(db),
@@ -855,7 +856,7 @@ func assertConcurrentEventUploads(
 	t.Helper()
 
 	db, ctx := testdb.Open(t)
-	hostStore := hosts.NewStore(db)
+	hostStore := hosts.NewStore(db, labels.NewStore(db))
 	eventStore := santaevents.NewStore(db)
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
 		Hardware:     hosts.HostHardware{UUID: "santa-reversed-batches-" + pauseTable},

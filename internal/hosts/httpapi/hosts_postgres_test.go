@@ -35,7 +35,7 @@ import (
 
 func TestDeleteHostsDecodesCollectionIDs(t *testing.T) {
 	database, ctx := testdb.Open(t)
-	store := hosts.NewStore(database)
+	store := hosts.NewStore(database, labels.NewStore(database))
 	seeded := make([]*hosts.Host, 0, 3)
 	for _, name := range []string{"delete-host-a", "delete-host-b", "keep-host"} {
 		host, err := store.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
@@ -86,9 +86,9 @@ func TestDeleteHostsDecodesCollectionIDs(t *testing.T) {
 
 func TestHostPrimaryUserMutationsRefreshDerivedLabels(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	hostStore := hosts.NewStore(db)
-	primaryUserStore := hosts.NewPrimaryUserStore(db)
 	labelStore := labels.NewStore(db)
+	hostStore := hosts.NewStore(db, labelStore)
+	primaryUserStore := hosts.NewPrimaryUserStore(db, labelStore)
 	primaryUsers := primaryUserStore
 
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
@@ -179,7 +179,7 @@ RETURNING id`).Scan(&manualUserID); err != nil {
 
 func TestHostResponsesBatchEnrichFlatAgentContract(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	hostStore := hosts.NewStore(db)
+	hostStore := hosts.NewStore(db, labels.NewStore(db))
 	now := time.Now().UTC().Truncate(time.Microsecond)
 	host, err := hostStore.UpsertOnOsqueryEnroll(ctx, hosts.InventoryUpdate{
 		Hardware:       hosts.HostHardware{UUID: "host-agent-contract"},
@@ -262,7 +262,7 @@ VALUES ($1, 'osquery', $2, '198.51.100.40', 'osquery/5.14')`, host.ID, now); err
 
 func TestHostResponsesEnrichPublicIP(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	hostStore := hosts.NewStore(db)
+	hostStore := hosts.NewStore(db, labels.NewStore(db))
 	host, err := hostStore.UpsertOnOsqueryEnroll(ctx, hosts.InventoryUpdate{
 		Hardware:       hosts.HostHardware{UUID: "host-public-ip-enrichment"},
 		OsqueryNodeKey: "host-public-ip-enrichment-osquery",

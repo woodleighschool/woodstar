@@ -5,11 +5,13 @@ package labels
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strconv"
 	"testing"
 	"time"
 
 	"github.com/jackc/pgerrcode"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -324,6 +326,91 @@ func TestRefreshDerivedLabelsRecomputesMembership(t *testing.T) {
 	}
 	if matched {
 		t.Fatalf("host %d still has label %d after criteria no longer matches", hostID, label.ID)
+	}
+}
+
+func TestRefreshDerivedLabelsForHostDoesNotRefreshOtherHosts(t *testing.T) {
+	db, ctx := testdb.Open(t)
+	store := NewStore(db)
+	hostA := insertHost(t, db, "derived-host-refresh-a")
+	hostB := insertHost(t, db, "derived-host-refresh-b")
+	aliceID := insertUser(t, db, "derived-host-alice", "derived-host-alice@example.test", "Engineering")
+	bobID := insertUser(t, db, "derived-host-bob", "derived-host-bob@example.test", "Engineering")
+	linkHostPrimaryUser(t, db, hostA, "derived-host-alice@example.test")
+	linkHostPrimaryUser(t, db, hostB, "derived-host-bob@example.test")
+	staffID := insertDirectoryGroup(t, db, "derived-host-staff", "Staff")
+	linkDirectoryGroupMembership(t, db, aliceID, staffID)
+	linkDirectoryGroupMembership(t, db, bobID, staffID)
+
+	criteria := []Criteria{
+		{Attribute: DerivedAttributeUserDepartment, Values: []string{"Engineering"}},
+		{Attribute: DerivedAttributeDirectoryGroup, Values: []string{"derived-host-staff"}},
+		{
+			Attribute: DerivedAttributeUser,
+			Values:    []string{strconv.FormatInt(aliceID, 10), strconv.FormatInt(bobID, 10)},
+		},
+	}
+	derivedLabels := make([]*Label, len(criteria))
+	for i := range criteria {
+		label, err := store.Create(ctx, LabelMutation{
+			Name:                fmt.Sprintf("Host-scoped derived %d", i),
+			LabelMembershipType: LabelMembershipTypeDerived,
+			Criteria:            &criteria[i],
+		})
+		if err != nil {
+			t.Fatalf("create derived label %d: %v", i, err)
+		}
+		derivedLabels[i] = label
+	}
+
+	if _, err := db.Exec(ctx, `
+UPDATE host_primary_user_sources
+SET email = 'unmatched@example.test'
+WHERE host_id = ANY($1::bigint[])`, []int64{hostA, hostB}); err != nil {
+		t.Fatalf("make derived memberships stale: %v", err)
+	}
+	if err := pgx.BeginFunc(ctx, db, func(tx pgx.Tx) error {
+		return store.RefreshDerivedForHostTx(ctx, tx, hostA)
+	}); err != nil {
+		t.Fatalf("refresh host derived labels: %v", err)
+	}
+
+	for _, label := range derivedLabels {
+		matchedA, err := hostHasLabel(ctx, db, hostA, label.ID)
+		if err != nil {
+			t.Fatalf("lookup refreshed host membership: %v", err)
+		}
+		if matchedA {
+			t.Fatalf("refreshed host %d still has label %d", hostA, label.ID)
+		}
+		matchedB, err := hostHasLabel(ctx, db, hostB, label.ID)
+		if err != nil {
+			t.Fatalf("lookup unrelated host membership: %v", err)
+		}
+		if !matchedB {
+			t.Fatalf("unrelated host %d lost stale label %d", hostB, label.ID)
+		}
+	}
+
+	if _, err := db.Exec(ctx, `
+UPDATE host_primary_user_sources
+SET email = 'derived-host-alice@example.test'
+WHERE host_id = $1`, hostA); err != nil {
+		t.Fatalf("restore refreshed host primary user: %v", err)
+	}
+	if err := pgx.BeginFunc(ctx, db, func(tx pgx.Tx) error {
+		return store.RefreshDerivedForHostTx(ctx, tx, hostA)
+	}); err != nil {
+		t.Fatalf("restore host derived labels: %v", err)
+	}
+	for _, label := range derivedLabels {
+		matched, err := hostHasLabel(ctx, db, hostA, label.ID)
+		if err != nil {
+			t.Fatalf("lookup restored host membership: %v", err)
+		}
+		if !matched {
+			t.Fatalf("restored host %d missing label %d", hostA, label.ID)
+		}
 	}
 }
 

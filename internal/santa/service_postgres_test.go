@@ -24,8 +24,8 @@ func TestSyncServiceRuleDownloadUsesPreflightSnapshot(t *testing.T) {
 	)
 
 	db, ctx := testdb.Open(t)
-	hostStore := hosts.NewStore(db)
 	labelStore := labels.NewStore(db)
+	hostStore := hosts.NewStore(db, labelStore)
 	ruleStore := santarules.NewStore(db)
 	service := santa.NewSyncService(santa.Dependencies{
 		HostStore:      santa.NewStore(db),

@@ -258,24 +258,68 @@ func (s *Store) RefreshDerived(ctx context.Context) error {
 
 // RefreshDerivedTx recomputes derived membership inside the caller's transaction.
 func (s *Store) RefreshDerivedTx(ctx context.Context, tx pgx.Tx) error {
-	rows, err := tx.Query(ctx, `
-SELECT id, criteria
-FROM labels
-WHERE label_membership_type = 'derived'
-ORDER BY id`)
-	if err != nil {
-		return err
-	}
-	derived, err := pgx.CollectRows(rows, pgx.RowToStructByName[derivedLabelRow])
+	return refreshDerivedTx(ctx, tx, derivedRefreshScope{})
+}
+
+// RefreshDerivedForHostTx recomputes one host's derived memberships inside the caller's transaction.
+func (s *Store) RefreshDerivedForHostTx(ctx context.Context, tx pgx.Tx, hostID int64) error {
+	return refreshDerivedTx(ctx, tx, derivedRefreshScope{hostID: &hostID})
+}
+
+type derivedRefreshScope struct {
+	labelID *int64
+	hostID  *int64
+}
+
+func refreshDerivedTx(ctx context.Context, tx pgx.Tx, scope derivedRefreshScope) error {
+	derived, err := listDerivedLabels(ctx, tx, scope.labelID)
 	if err != nil {
 		return err
 	}
 	for _, label := range derived {
-		if err := refreshDerivedMembership(ctx, tx, label.ID, label.Criteria.value); err != nil {
+		if err := validateCriteria(label.Criteria.value); err != nil {
 			return err
 		}
 	}
-	return nil
+	labelID, hostID := scope.values()
+	if _, err := tx.Exec(ctx, deleteDerivedMembershipsSQL, labelID, hostID); err != nil {
+		return err
+	}
+	_, err = tx.Exec(ctx, insertDerivedMembershipsSQL(), labelID, hostID)
+	return err
+}
+
+func (scope derivedRefreshScope) values() (any, any) {
+	var labelID any
+	if scope.labelID != nil {
+		labelID = *scope.labelID
+	}
+	var hostID any
+	if scope.hostID != nil {
+		hostID = *scope.hostID
+	}
+	return labelID, hostID
+}
+
+const deleteDerivedMembershipsSQL = `
+DELETE FROM label_membership AS membership
+USING labels AS label
+WHERE membership.label_id = label.id
+  AND label.label_membership_type = 'derived'
+  AND ($1::bigint IS NULL OR membership.label_id = $1)
+  AND ($2::bigint IS NULL OR membership.host_id = $2)`
+
+func listDerivedLabels(ctx context.Context, q postgres.Queryer, labelID *int64) ([]derivedLabelRow, error) {
+	rows, err := q.Query(ctx, `
+SELECT id, criteria
+FROM labels
+WHERE label_membership_type = 'derived'
+  AND ($1::bigint IS NULL OR id = $1)
+ORDER BY id`, labelID)
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, pgx.RowToStructByName[derivedLabelRow])
 }
 
 func labelListWhere(params LabelListParams) (string, []any) {
@@ -404,7 +448,7 @@ func replaceMembership(
 	case LabelMembershipTypeManual:
 		return replaceManualMembership(ctx, tx, labelID, params.HostIDs)
 	case LabelMembershipTypeDerived:
-		return refreshDerivedMembership(ctx, tx, labelID, params.Criteria)
+		return refreshDerivedTx(ctx, tx, derivedRefreshScope{labelID: &labelID})
 	case LabelMembershipTypeDynamic:
 		return deleteMembership(ctx, tx, labelID)
 	default:
@@ -430,30 +474,6 @@ SELECT $1, unnest($2::bigint[])`, labelID, hostIDs); err != nil {
 func deleteMembership(ctx context.Context, tx pgx.Tx, labelID int64) error {
 	_, err := tx.Exec(ctx, `DELETE FROM label_membership WHERE label_id = $1`, labelID)
 	return err
-}
-
-func refreshDerivedMembership(ctx context.Context, tx pgx.Tx, labelID int64, criteria *Criteria) error {
-	if err := validateCriteria(criteria); err != nil {
-		return err
-	}
-	if err := deleteMembership(ctx, tx, labelID); err != nil {
-		return err
-	}
-
-	values := normalizeCriteriaValues(criteria.Values)
-	switch criteria.Attribute {
-	case DerivedAttributeUserDepartment:
-		_, err := tx.Exec(ctx, insertUserDepartmentMembershipSQL(), labelID, values)
-		return err
-	case DerivedAttributeDirectoryGroup:
-		_, err := tx.Exec(ctx, insertDirectoryGroupMembershipSQL(), labelID, values)
-		return err
-	case DerivedAttributeUser:
-		_, err := tx.Exec(ctx, insertUserMembershipSQL(), labelID, values)
-		return err
-	default:
-		return fmt.Errorf("%w: unknown derived label attribute", fault.ErrInvalidInput)
-	}
 }
 
 func labelSelectSQL() string {
@@ -490,6 +510,7 @@ WITH preferred AS (
 		email,
 		source::text AS source
 	FROM host_primary_user_sources
+	WHERE $2::bigint IS NULL OR host_id = $2
 	ORDER BY host_id, ` + primaryUserSourceOrderSQL() + `, source
 ),
 resolved AS (
@@ -518,31 +539,44 @@ resolved AS (
 )`
 }
 
-func insertUserDepartmentMembershipSQL() string {
-	return resolvedPrimaryUsersSQL() + `
+func insertDerivedMembershipsSQL() string {
+	return resolvedPrimaryUsersSQL() + `,
+criteria AS (
+	SELECT
+		label.id AS label_id,
+		label.criteria->>'attribute' AS attribute,
+		btrim(criterion.value) AS value
+	FROM labels AS label
+	CROSS JOIN LATERAL jsonb_array_elements_text(label.criteria->'values') AS criterion(value)
+	WHERE label.label_membership_type = 'derived'
+	  AND ($1::bigint IS NULL OR label.id = $1)
+	  AND btrim(criterion.value) <> ''
+),
+matching_memberships AS (
+	SELECT criteria.label_id, resolved.host_id
+	FROM resolved
+	JOIN criteria
+	  ON criteria.attribute = '` + string(DerivedAttributeUserDepartment) + `'
+	 AND criteria.value = resolved.department
+	UNION
+	SELECT criteria.label_id, resolved.host_id
+	FROM resolved
+	JOIN directory_group_memberships AS group_membership
+	  ON group_membership.user_id = resolved.user_id
+	JOIN directory_groups AS directory_group
+	  ON directory_group.id = group_membership.group_id
+	JOIN criteria
+	  ON criteria.attribute = '` + string(DerivedAttributeDirectoryGroup) + `'
+	 AND criteria.value = directory_group.external_id
+	UNION
+	SELECT criteria.label_id, resolved.host_id
+	FROM resolved
+	JOIN criteria
+	  ON criteria.attribute = '` + string(DerivedAttributeUser) + `'
+	 AND criteria.value = resolved.user_id::text
+)
 INSERT INTO label_membership (label_id, host_id)
-SELECT DISTINCT $1::bigint, resolved.host_id
-FROM resolved
-WHERE resolved.department = ANY($2::text[])
-ON CONFLICT (label_id, host_id) DO UPDATE SET updated_at = now()`
-}
-
-func insertDirectoryGroupMembershipSQL() string {
-	return resolvedPrimaryUsersSQL() + `
-INSERT INTO label_membership (label_id, host_id)
-SELECT DISTINCT $1::bigint, resolved.host_id
-FROM resolved
-JOIN directory_group_memberships dgm ON dgm.user_id = resolved.user_id
-JOIN directory_groups dg ON dg.id = dgm.group_id
-WHERE dg.external_id = ANY($2::text[])
-ON CONFLICT (label_id, host_id) DO UPDATE SET updated_at = now()`
-}
-
-func insertUserMembershipSQL() string {
-	return resolvedPrimaryUsersSQL() + `
-INSERT INTO label_membership (label_id, host_id)
-SELECT DISTINCT $1::bigint, resolved.host_id
-FROM resolved
-WHERE resolved.user_id::text = ANY($2::text[])
+SELECT label_id, host_id
+FROM matching_memberships
 ON CONFLICT (label_id, host_id) DO UPDATE SET updated_at = now()`
 }

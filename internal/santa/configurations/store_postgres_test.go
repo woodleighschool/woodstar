@@ -106,8 +106,8 @@ func editableConfiguration(firstLabelID, secondLabelID, thirdLabelID int64) conf
 
 func TestConfigurationResolverUsesFirstMatchingPosition(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	hostStore := hosts.NewStore(db)
 	labelStore := labels.NewStore(db)
+	hostStore := hosts.NewStore(db, labelStore)
 	store := configurations.NewStore(db)
 
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
@@ -189,8 +189,8 @@ func TestConfigurationResolverUsesFirstMatchingPosition(t *testing.T) {
 
 func TestConfigurationResolverUsesExclusions(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	hostStore := hosts.NewStore(db)
 	labelStore := labels.NewStore(db)
+	hostStore := hosts.NewStore(db, labelStore)
 	store := configurations.NewStore(db)
 
 	studentHost, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
@@ -252,8 +252,8 @@ func TestConfigurationResolverUsesExclusions(t *testing.T) {
 
 func TestConfigurationResolverRequiresIncludeTarget(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	hostStore := hosts.NewStore(db)
 	labelStore := labels.NewStore(db)
+	hostStore := hosts.NewStore(db, labelStore)
 	store := configurations.NewStore(db)
 
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{

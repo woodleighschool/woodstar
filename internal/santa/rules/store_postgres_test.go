@@ -133,8 +133,8 @@ func TestRuleMissingLabelFallsThroughToNotFound(t *testing.T) {
 
 func TestRuleResolverUsesExcludeAndIncludePriority(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	hostStore := hosts.NewStore(db)
 	labelStore := labels.NewStore(db)
+	hostStore := hosts.NewStore(db, labelStore)
 	store := rules.NewStore(db)
 
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
@@ -197,7 +197,7 @@ func TestRuleResolverUsesExcludeAndIncludePriority(t *testing.T) {
 
 func TestRuleResolverAllowsAllHostsInclude(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	hostStore := hosts.NewStore(db)
+	hostStore := hosts.NewStore(db, labels.NewStore(db))
 	store := rules.NewStore(db)
 
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
@@ -240,7 +240,7 @@ func TestListRuleStatusesForHostMissingHost(t *testing.T) {
 
 func TestListRuleStatusesForHostEmptyHost(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	hostStore := hosts.NewStore(db)
+	hostStore := hosts.NewStore(db, labels.NewStore(db))
 	store := rules.NewStore(db)
 
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
@@ -262,8 +262,8 @@ func TestListRuleStatusesForHostEmptyHost(t *testing.T) {
 
 func TestBundleRuleExpandsToBinaryHostRules(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	hostStore := hosts.NewStore(db)
 	labelStore := labels.NewStore(db)
+	hostStore := hosts.NewStore(db, labelStore)
 	store := rules.NewStore(db)
 
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{

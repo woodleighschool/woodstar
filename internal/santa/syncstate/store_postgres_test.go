@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/santa/syncstate"
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
 )
@@ -495,7 +496,7 @@ func countRows(t *testing.T, ctx context.Context, db *pgxpool.Pool, table string
 func createHost(t *testing.T, ctx context.Context, db *pgxpool.Pool, suffix string) *hosts.Host {
 	t.Helper()
 
-	host, err := hosts.NewStore(db).UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
+	host, err := hosts.NewStore(db, labels.NewStore(db)).UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
 		Hardware:     hosts.HostHardware{UUID: "syncstate-" + suffix + "-host"},
 		OrbitNodeKey: "syncstate-" + suffix + "-orbit",
 	})

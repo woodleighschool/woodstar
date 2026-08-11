@@ -183,8 +183,8 @@ func TestPackageUninstallPolicyRoundTripsIndependently(t *testing.T) {
 
 func TestMunkiSoftwareExclusionOverridesAllHostsInclude(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	hostStore := hosts.NewStore(db)
 	labelStore := labels.NewStore(db)
+	hostStore := hosts.NewStore(db, labelStore)
 	stores := newMunkiStores(db)
 
 	excludedHost, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
@@ -389,8 +389,8 @@ func requireErrorIs(t *testing.T, operation string, err error, target error) {
 
 func TestEffectivePackagesForHostKeepsLatestCandidates(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	hostStore := hosts.NewStore(db)
 	labelStore := labels.NewStore(db)
+	hostStore := hosts.NewStore(db, labelStore)
 	stores := newMunkiStores(db)
 
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
@@ -485,8 +485,8 @@ func TestPackageProjectsSoftwareIcon(t *testing.T) {
 func TestRepositoryServiceScopesCatalogAndFilesByHost(t *testing.T) {
 	db, ctx := testdb.Open(t)
 	stores := newMunkiStores(db)
-	hostStore := hosts.NewStore(db)
 	labelStore := labels.NewStore(db)
+	hostStore := hosts.NewStore(db, labelStore)
 	firstHostID, firstLabelID := createRepositoryScopeHost(t, ctx, hostStore, labelStore, "first", "1")
 	secondHostID, secondLabelID := createRepositoryScopeHost(t, ctx, hostStore, labelStore, "second", "2")
 	firstNames := createFirstRepositoryScope(t, ctx, stores, firstLabelID)
@@ -691,8 +691,8 @@ func repositoryCatalogNames(
 
 func TestEffectivePackagesForHostUsesPriorityForSchoolTargets(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	hostStore := hosts.NewStore(db)
 	labelStore := labels.NewStore(db)
+	hostStore := hosts.NewStore(db, labelStore)
 	stores := newMunkiStores(db)
 
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
@@ -747,8 +747,8 @@ func TestEffectivePackagesForHostUsesPriorityForSchoolTargets(t *testing.T) {
 
 func TestEffectivePackagesForHostUsesRowOrderNotActionRank(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	hostStore := hosts.NewStore(db)
 	labelStore := labels.NewStore(db)
+	hostStore := hosts.NewStore(db, labelStore)
 	stores := newMunkiStores(db)
 
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
@@ -804,8 +804,8 @@ func TestEffectivePackagesForHostUsesRowOrderNotActionRank(t *testing.T) {
 
 func TestPackagePreservesBlockingApplicationStates(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	hostStore := hosts.NewStore(db)
 	labelStore := labels.NewStore(db)
+	hostStore := hosts.NewStore(db, labelStore)
 	stores := newMunkiStores(db)
 
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
@@ -1271,8 +1271,8 @@ func TestTargetMissingLabelFallsThroughToNotFound(t *testing.T) {
 
 func TestHostMunkiStateKeepsDesiredSoftwareSeparateFromExactObservations(t *testing.T) { //nolint:cyclop,funlen,gocognit // One desired/observed database lifecycle.
 	db, ctx := testdb.Open(t)
-	hostStore := hosts.NewStore(db)
 	labelStore := labels.NewStore(db)
+	hostStore := hosts.NewStore(db, labelStore)
 	stores := newMunkiStores(db)
 
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{

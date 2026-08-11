@@ -15,12 +15,13 @@ import (
 	apimiddleware "github.com/woodleighschool/woodstar/internal/api/middleware"
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/directory"
+	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
 )
 
 func TestLoginInvalidCredentialsMessage(t *testing.T) {
 	database, ctx := testdb.Open(t)
-	userService := directory.NewUserService(directory.NewStore(database))
+	userService := directory.NewUserService(directory.NewStore(database, labels.NewStore(database)))
 	if _, err := userService.Create(ctx, directory.UserCreate{
 		Email:    "admin@example.test",
 		Name:     "Test Admin",
@@ -72,7 +73,7 @@ func TestLoginInvalidCredentialsMessage(t *testing.T) {
 
 func TestSuccessfulPasswordLoginConsumesCapacityWithoutLimitingOIDC(t *testing.T) {
 	database, ctx := testdb.Open(t)
-	userService := directory.NewUserService(directory.NewStore(database))
+	userService := directory.NewUserService(directory.NewStore(database, labels.NewStore(database)))
 	if _, err := userService.Create(ctx, directory.UserCreate{
 		Email:    "admin@example.test",
 		Name:     "Test Admin",

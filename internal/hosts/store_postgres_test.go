@@ -107,7 +107,7 @@ func TestInventoryRefreshRequestLifecycle(t *testing.T) {
 
 func TestLoadDetailResolvesPrimaryUserFromSourceEmail(t *testing.T) {
 	store, ctx := newPostgresHostStore(t)
-	primaryUsers := NewPrimaryUserStore(store.pool)
+	primaryUsers := NewPrimaryUserStore(store.pool, labels.NewStore(store.pool))
 
 	host, err := store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
 		Hardware:     HostHardware{UUID: "test-primary-user-direct-user"},
@@ -167,7 +167,7 @@ VALUES (
 
 func TestPrimaryUserManualSourceOverridesReportedSource(t *testing.T) {
 	store, ctx := newPostgresHostStore(t)
-	primaryUsers := NewPrimaryUserStore(store.pool)
+	primaryUsers := NewPrimaryUserStore(store.pool, labels.NewStore(store.pool))
 
 	host, err := store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
 		Hardware:     HostHardware{UUID: "test-primary-user-manual-override"},
@@ -258,7 +258,7 @@ VALUES
 
 func TestPrimaryUserStoreReturnsNotFoundForMissingHost(t *testing.T) {
 	store, ctx := newPostgresHostStore(t)
-	primaryUsers := NewPrimaryUserStore(store.pool)
+	primaryUsers := NewPrimaryUserStore(store.pool, labels.NewStore(store.pool))
 
 	if err := primaryUsers.Upsert(
 		ctx,
@@ -290,7 +290,7 @@ INSERT INTO labels (name, criteria, label_type, label_membership_type)
 VALUES ('Invalid derived label', '{"attribute":"invalid","values":["value"]}', 'regular', 'derived')`); err != nil {
 		t.Fatalf("insert invalid derived label: %v", err)
 	}
-	primaryUsers := NewPrimaryUserStore(store.pool)
+	primaryUsers := NewPrimaryUserStore(store.pool, labels.NewStore(store.pool))
 
 	err = primaryUsers.Upsert(ctx, host.ID, "rollback@example.test", PrimaryUserSourceManual)
 	if err == nil {
@@ -307,6 +307,87 @@ WHERE host_id = $1 AND source = 'manual'`, host.ID).Scan(&count); err != nil {
 	if count != 0 {
 		t.Fatalf("persisted primary users = %d, want 0", count)
 	}
+}
+
+func TestPrimaryUserStoreRefreshesOnlyTheAffectedHost(t *testing.T) {
+	database, ctx := testdb.Open(t)
+	labelStore := labels.NewStore(database)
+	store := NewStore(database, labelStore)
+	primaryUsers := NewPrimaryUserStore(database, labelStore)
+
+	createHost := func(hardwareUUID string) *Host {
+		t.Helper()
+		host, err := store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
+			Hardware:     HostHardware{UUID: hardwareUUID},
+			OrbitNodeKey: hardwareUUID + "-orbit",
+		})
+		if err != nil {
+			t.Fatalf("enroll host %q: %v", hardwareUUID, err)
+		}
+		return host
+	}
+	affected := createHost("primary-user-refresh-affected")
+	unrelated := createHost("primary-user-refresh-unrelated")
+	if _, err := database.Exec(ctx, `
+INSERT INTO users (email, name, source, external_id, user_principal_name, department)
+VALUES
+	('engineering@example.test', 'Engineering User', 'entra', 'engineering-user', 'engineering@example.test', 'Engineering'),
+	('operations@example.test', 'Operations User', 'entra', 'operations-user', 'operations@example.test', 'Operations')`); err != nil {
+		t.Fatalf("insert directory users: %v", err)
+	}
+	for _, hostID := range []int64{affected.ID, unrelated.ID} {
+		if err := primaryUsers.Upsert(
+			ctx,
+			hostID,
+			"engineering@example.test",
+			PrimaryUserSourceManual,
+		); err != nil {
+			t.Fatalf("seed host %d primary user: %v", hostID, err)
+		}
+	}
+	derivedLabel, err := labelStore.Create(ctx, labels.LabelMutation{
+		Name:                "Engineering primary users",
+		LabelMembershipType: labels.LabelMembershipTypeDerived,
+		Criteria: &labels.Criteria{
+			Attribute: labels.DerivedAttributeUserDepartment,
+			Values:    []string{"Engineering"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("create derived label: %v", err)
+	}
+	if _, err := database.Exec(ctx, `
+UPDATE host_primary_user_sources
+SET email = 'operations@example.test'
+WHERE host_id = $1 AND source = 'manual'`, unrelated.ID); err != nil {
+		t.Fatalf("make unrelated membership stale: %v", err)
+	}
+	if err := primaryUsers.Upsert(
+		ctx,
+		affected.ID,
+		"operations@example.test",
+		PrimaryUserSourceManual,
+	); err != nil {
+		t.Fatalf("change affected primary user: %v", err)
+	}
+
+	assertMembership := func(hostID int64, want bool) {
+		t.Helper()
+		var got bool
+		if err := database.QueryRow(ctx, `
+SELECT EXISTS (
+	SELECT 1
+	FROM label_membership
+	WHERE label_id = $1 AND host_id = $2
+)`, derivedLabel.ID, hostID).Scan(&got); err != nil {
+			t.Fatalf("lookup host %d membership: %v", hostID, err)
+		}
+		if got != want {
+			t.Fatalf("host %d membership = %t, want %t", hostID, got, want)
+		}
+	}
+	assertMembership(affected.ID, false)
+	assertMembership(unrelated.ID, true)
 }
 
 // New hosts land in All Hosts.
@@ -581,7 +662,7 @@ func TestHostListFiltersAndSortsByFlattenedContactFields(t *testing.T) {
 
 func TestHostListSearchesPersistedIdentityNetworkAndPrimaryUserFields(t *testing.T) {
 	store, ctx := newPostgresHostStore(t)
-	primaryUsers := NewPrimaryUserStore(store.pool)
+	primaryUsers := NewPrimaryUserStore(store.pool, labels.NewStore(store.pool))
 	host, err := store.UpsertOnOsqueryEnroll(ctx, InventoryUpdate{
 		ComputerName:   "Searchable Mac",
 		Hardware:       HostHardware{UUID: "test-search-host", Serial: "C02SEARCH123"},
@@ -935,5 +1016,5 @@ func hostIDs(hosts []Host) []int64 {
 func newPostgresHostStore(t *testing.T) (*Store, context.Context) {
 	t.Helper()
 	database, ctx := testdb.Open(t)
-	return NewStore(database), ctx
+	return NewStore(database, labels.NewStore(database)), ctx
 }

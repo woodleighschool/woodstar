@@ -11,7 +11,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/woodleighschool/woodstar/internal/fault"
-	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/openapischema"
 	"github.com/woodleighschool/woodstar/internal/postgres"
 	"github.com/woodleighschool/woodstar/internal/validation"
@@ -36,11 +35,15 @@ func (PrimaryUserSource) Schema(_ huma.Registry) *huma.Schema {
 // PrimaryUserStore persists host primary-user source observations.
 type PrimaryUserStore struct {
 	pool   *pgxpool.Pool
-	labels *labels.Store
+	labels hostDerivedLabelRefresher
 }
 
-func NewPrimaryUserStore(pool *pgxpool.Pool) *PrimaryUserStore {
-	return &PrimaryUserStore{pool: pool, labels: labels.NewStore(pool)}
+type hostDerivedLabelRefresher interface {
+	RefreshDerivedForHostTx(ctx context.Context, tx pgx.Tx, hostID int64) error
+}
+
+func NewPrimaryUserStore(pool *pgxpool.Pool, labelRefresher hostDerivedLabelRefresher) *PrimaryUserStore {
+	return &PrimaryUserStore{pool: pool, labels: labelRefresher}
 }
 
 func (s *PrimaryUserStore) Upsert(ctx context.Context, hostID int64, email string, source PrimaryUserSource) error {
@@ -52,7 +55,7 @@ func (s *PrimaryUserStore) Upsert(ctx context.Context, hostID int64, email strin
 		if err := upsertPrimaryUser(ctx, tx, hostID, email, source); err != nil {
 			return err
 		}
-		return s.labels.RefreshDerivedTx(ctx, tx)
+		return s.labels.RefreshDerivedForHostTx(ctx, tx, hostID)
 	})
 }
 
@@ -79,7 +82,7 @@ func (s *PrimaryUserStore) Delete(ctx context.Context, hostID int64, source Prim
 		if err := deletePrimaryUser(ctx, tx, hostID, source); err != nil {
 			return err
 		}
-		return s.labels.RefreshDerivedTx(ctx, tx)
+		return s.labels.RefreshDerivedForHostTx(ctx, tx, hostID)
 	})
 }
 

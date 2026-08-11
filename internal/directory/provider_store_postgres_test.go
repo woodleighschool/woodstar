@@ -8,12 +8,13 @@ import (
 	"time"
 
 	"github.com/woodleighschool/woodstar/internal/fault"
+	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
 )
 
 func TestProviderSnapshotKeepsLocalAndEntraUsersSeparate(t *testing.T) {
 	database, ctx := testdb.Open(t)
-	store := NewStore(database)
+	store := NewStore(database, labels.NewStore(database))
 	service := newTestUserService(store)
 
 	local, err := service.Create(ctx, UserCreate{
@@ -76,7 +77,7 @@ WHERE source = 'entra' AND external_id = 'provider-identity'`).Scan(
 
 func TestSSOLookupDoesNotUseUPNAsAlternateAccountIdentifier(t *testing.T) {
 	database, ctx := testdb.Open(t)
-	store := NewStore(database)
+	store := NewStore(database, labels.NewStore(database))
 	service := newTestUserService(store)
 
 	if err := store.ApplyProviderSnapshot(ctx, SourceEntra, ProviderSnapshot{
@@ -108,7 +109,7 @@ func TestSSOLookupDoesNotUseUPNAsAlternateAccountIdentifier(t *testing.T) {
 
 func TestApplyProviderSnapshotRevokesLastProviderAdministrator(t *testing.T) {
 	database, ctx := testdb.Open(t)
-	store := NewStore(database)
+	store := NewStore(database, labels.NewStore(database))
 	service := newTestUserService(store)
 
 	provider := store
@@ -152,7 +153,7 @@ RETURNING id`).Scan(&adminID); err != nil {
 
 func TestApplyProviderSnapshotRollsBackWhenDerivedLabelsCannotRefresh(t *testing.T) {
 	database, ctx := testdb.Open(t)
-	store := NewStore(database)
+	store := NewStore(database, labels.NewStore(database))
 	if _, err := database.Exec(ctx, `
 INSERT INTO labels (name, criteria, label_type, label_membership_type)
 VALUES ('Invalid derived label', '{"attribute":"invalid","values":["value"]}', 'regular', 'derived')`); err != nil {
@@ -186,7 +187,7 @@ VALUES ('Invalid derived label', '{"attribute":"invalid","values":["value"]}', '
 
 func TestApplyProviderSnapshotReconcilesUsersAndGroups(t *testing.T) {
 	database, ctx := testdb.Open(t)
-	store := NewStore(database)
+	store := NewStore(database, labels.NewStore(database))
 
 	first := ProviderSnapshot{
 		GeneratedAt: time.Now().UTC(),
@@ -319,7 +320,7 @@ func TestApplyProviderSnapshotReconcilesUsersAndGroups(t *testing.T) {
 
 func TestApplyProviderSnapshotKeepsReplacedEntraObjectsDistinct(t *testing.T) {
 	database, ctx := testdb.Open(t)
-	store := NewStore(database)
+	store := NewStore(database, labels.NewStore(database))
 
 	user := ProviderUser{
 		ExternalID:        "old-object-id",
@@ -390,7 +391,7 @@ RETURNING id`).Scan(&oldUserID); err != nil {
 
 func TestApplyProviderSnapshotReconcilesEmailSwapByExternalID(t *testing.T) {
 	database, ctx := testdb.Open(t)
-	store := NewStore(database)
+	store := NewStore(database, labels.NewStore(database))
 	service := newTestUserService(store)
 
 	users := []ProviderUser{
@@ -460,7 +461,7 @@ func TestApplyProviderSnapshotReconcilesEmailSwapByExternalID(t *testing.T) {
 
 func TestApplyProviderSnapshotPreservesExistingLocalUser(t *testing.T) {
 	database, ctx := testdb.Open(t)
-	store := NewStore(database)
+	store := NewStore(database, labels.NewStore(database))
 
 	var localID int64
 	if err := store.pool.QueryRow(ctx, `
