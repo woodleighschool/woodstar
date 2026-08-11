@@ -24,7 +24,7 @@ import { Field, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@component
 import { Spinner } from "@components/ui/spinner";
 import { useAuth } from "@features/auth/queries";
 import { useHosts } from "@features/hosts/queries";
-import { useLabels } from "@features/labels/queries";
+import { LabelPicker } from "@features/labels/components/label-picker";
 import {
   createCheckResultColumns,
   type CheckResultRow,
@@ -35,8 +35,7 @@ import {
   resultColumnNames,
   SnapshotResultRows,
 } from "@features/osquery/reports/query-results";
-import type { Host, Label } from "@lib/api";
-import { MAX_PAGE_SIZE } from "@lib/pagination";
+import type { Host } from "@lib/api";
 
 import {
   type LiveQuerySnapshot,
@@ -74,15 +73,14 @@ export function LiveRunner({
   const create = useCreateLiveQuery();
   const stop = useStopLiveQuery();
   const [step, setStep] = useState<LiveRunStep>("targets");
-  const [selectedLabels, setSelectedLabels] = useState<Label[]>([]);
+  const [selectedLabelIDs, setSelectedLabelIDs] = useState<number[]>([]);
   const [selectedHosts, setSelectedHosts] = useState<Host[]>([]);
   const [liveQueryId, setLiveQueryId] = useState<number | null>(null);
   const [runTargetCount, setRunTargetCount] = useState(0);
   const [stopRequested, setStopRequested] = useState(false);
   const stream = useLiveQueryStream(liveQueryId);
   const selectedHostIDs = useMemo(() => selectedHosts.map((host) => host.id), [selectedHosts]);
-  const selectedLabelIDs = useMemo(() => selectedLabels.map((label) => label.id), [selectedLabels]);
-  const hasTargets = selectedLabels.length > 0 || selectedHosts.length > 0;
+  const hasTargets = selectedLabelIDs.length > 0 || selectedHosts.length > 0;
   const targetSelection = useMemo<OsqueryLiveQueryTargetCountBody>(
     () => ({
       selected: {
@@ -156,9 +154,9 @@ export function LiveRunner({
       {step === "targets" ? (
         <>
           <TargetPicker
-            selectedLabels={selectedLabels}
+            selectedLabelIDs={selectedLabelIDs}
             selectedHosts={selectedHosts}
-            onLabelsChange={setSelectedLabels}
+            onLabelIDsChange={setSelectedLabelIDs}
             onHostsChange={setSelectedHosts}
           />
           <TargetSummary metrics={targetMetrics.data} error={targetMetrics.error?.message} />
@@ -338,43 +336,42 @@ function CheckRunResults({ snapshots }: { snapshots: LiveQuerySnapshot[] }) {
   );
 }
 function TargetPicker({
-  selectedLabels,
+  selectedLabelIDs,
   selectedHosts,
-  onLabelsChange,
+  onLabelIDsChange,
   onHostsChange,
 }: {
-  selectedLabels: Label[];
+  selectedLabelIDs: number[];
   selectedHosts: Host[];
-  onLabelsChange: (labels: Label[]) => void;
+  onLabelIDsChange: (labelIDs: number[]) => void;
   onHostsChange: (hosts: Host[]) => void;
 }) {
-  const labels = useLabels({
-    per_page: MAX_PAGE_SIZE,
-    sort: encodeSort("name"),
-  });
   const [hostSearch, setHostSearch] = useState("");
   const hosts = useHosts({
     q: hostSearch,
     per_page: 8,
     sort: encodeSort("display_name"),
   });
-  const labelRows = labels.data?.items ?? [];
   const hostRows = hosts.data?.items ?? [];
   return (
     <FieldSet className="max-w-3xl">
       <FieldLegend>Targets</FieldLegend>
       <FieldGroup>
-        <LabelCombobox
-          labels={labelRows}
-          value={selectedLabels}
-          isFetching={labels.isFetching}
-          onChange={onLabelsChange}
-        />
+        <Field>
+          <FieldLabel htmlFor="live-label-targets">Labels</FieldLabel>
+          <LabelPicker
+            id="live-label-targets"
+            value={selectedLabelIDs}
+            onChange={onLabelIDsChange}
+            includeBuiltins
+            placeholder="Add label"
+          />
+        </Field>
         <HostCombobox
           hosts={hostRows}
           value={selectedHosts}
           inputValue={hostSearch}
-          isFetching={hosts.isFetching}
+          loading={hosts.isLoading || hosts.isPlaceholderData}
           onInputValueChange={setHostSearch}
           onChange={onHostsChange}
         />
@@ -382,76 +379,23 @@ function TargetPicker({
     </FieldSet>
   );
 }
-function LabelCombobox({
-  labels,
-  value,
-  isFetching,
-  onChange,
-}: {
-  labels: Label[];
-  value: Label[];
-  isFetching: boolean;
-  onChange: (labels: Label[]) => void;
-}) {
-  const anchorRef = useComboboxAnchor();
-  return (
-    <Field>
-      <FieldLabel htmlFor="live-label-targets">Labels</FieldLabel>
-      <Combobox
-        multiple
-        items={labels}
-        value={value}
-        onValueChange={onChange}
-        itemToStringLabel={(label) => label.name}
-        itemToStringValue={(label) => String(label.id)}
-        isItemEqualToValue={(label, selected) => label.id === selected.id}
-      >
-        <ComboboxChips ref={anchorRef}>
-          <ComboboxValue>
-            {(selected: Label[]) => (
-              <>
-                {selected.map((label) => (
-                  <ComboboxChip key={label.id}>{label.name}</ComboboxChip>
-                ))}
-                <ComboboxChipsInput id="live-label-targets" placeholder="Add label" />
-              </>
-            )}
-          </ComboboxValue>
-          {isFetching ? <Spinner className="size-3.5" /> : null}
-        </ComboboxChips>
-        {isFetching ? null : (
-          <ComboboxContent anchor={anchorRef}>
-            <ComboboxEmpty>No Labels Found.</ComboboxEmpty>
-            <ComboboxList>
-              {(label) => (
-                <ComboboxItem key={label.id} value={label}>
-                  {label.name}
-                </ComboboxItem>
-              )}
-            </ComboboxList>
-          </ComboboxContent>
-        )}
-      </Combobox>
-    </Field>
-  );
-}
 function HostCombobox({
   hosts,
   value,
   inputValue,
-  isFetching,
+  loading,
   onInputValueChange,
   onChange,
 }: {
   hosts: Host[];
   value: Host[];
   inputValue: string;
-  isFetching: boolean;
+  loading: boolean;
   onInputValueChange: (value: string) => void;
   onChange: (hosts: Host[]) => void;
 }) {
   const anchorRef = useComboboxAnchor();
-  const items = isFetching ? [] : hosts;
+  const items = loading ? [] : hosts;
   return (
     <Field>
       <FieldLabel htmlFor="live-host-targets">Hosts</FieldLabel>
@@ -467,7 +411,7 @@ function HostCombobox({
         itemToStringValue={(host) => String(host.id)}
         isItemEqualToValue={(host, selected) => host.id === selected.id}
       >
-        <ComboboxChips ref={anchorRef}>
+        <ComboboxChips ref={anchorRef} aria-busy={loading}>
           <ComboboxValue>
             {(selected: Host[]) => (
               <>
@@ -478,9 +422,9 @@ function HostCombobox({
               </>
             )}
           </ComboboxValue>
-          {isFetching ? <Spinner className="size-3.5" /> : null}
+          {loading ? <Spinner className="size-3.5" /> : null}
         </ComboboxChips>
-        {isFetching ? null : (
+        {loading ? null : (
           <ComboboxContent anchor={anchorRef}>
             <ComboboxEmpty>No Hosts Found.</ComboboxEmpty>
             <ComboboxList>

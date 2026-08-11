@@ -10,6 +10,7 @@ import { useMemo, useState } from "react";
 
 import { DataTable } from "@components/data-table/data-table";
 import { DataTableFacetedFilter } from "@components/data-table/data-table-faceted-filter";
+import { DataTableSearchInput } from "@components/data-table/data-table-search-input";
 import { DATA_TABLE_DEFAULT_COLUMN } from "@components/data-table/data-table-sizing";
 import { selectColumn } from "@components/data-table/select-column";
 import {
@@ -20,7 +21,6 @@ import {
 import { encodeSort } from "@components/data-table/use-data-table-search";
 import { PanelEmptyState } from "@components/panel-empty-state";
 import { QueryError } from "@components/query-error";
-import { Input } from "@components/ui/input";
 import { useGroups } from "@features/directory/groups/queries";
 import { useUserDepartments, useUsers } from "@features/directory/users/queries";
 import { useHosts } from "@features/hosts/queries";
@@ -80,6 +80,7 @@ export function HostSelector({
       searchPlaceholder="Search hosts"
       selectedCount={value.length}
       isLoading={hosts.isLoading}
+      isPlaceholderData={hosts.isPlaceholderData}
       error={hosts.error?.message}
       selectedRowIds={value.map(String)}
       onSelectedRowIdsChange={(ids) =>
@@ -149,6 +150,7 @@ function DepartmentSelector({
       searchPlaceholder="Search departments"
       selectedCount={value.length}
       isLoading={departments.isLoading}
+      isPlaceholderData={departments.isPlaceholderData}
       error={departments.error?.message}
       selectedRowIds={value}
       onSelectedRowIdsChange={onChange}
@@ -201,6 +203,7 @@ function GroupSelector({
       searchPlaceholder="Search groups"
       selectedCount={value.length}
       isLoading={groups.isLoading}
+      isPlaceholderData={groups.isPlaceholderData}
       error={groups.error?.message}
       selectedRowIds={value}
       onSelectedRowIdsChange={onChange}
@@ -253,6 +256,7 @@ function UserSelector({
       searchPlaceholder="Search users"
       selectedCount={value.length}
       isLoading={users.isLoading}
+      isPlaceholderData={users.isPlaceholderData}
       error={users.error?.message}
       selectedRowIds={value}
       onSelectedRowIdsChange={onChange}
@@ -276,7 +280,7 @@ interface SelectorControls {
   setPagination: React.Dispatch<React.SetStateAction<PaginationState>>;
   setSorting: React.Dispatch<React.SetStateAction<SortingState>>;
   setColumnFilters: (updater: Updater<ColumnFiltersState>) => void;
-  setSearch: (next: string) => void;
+  setSearch: (next: string | undefined) => void;
 }
 
 function useSelectorControls(defaultSorting: SortingState): SelectorControls {
@@ -303,8 +307,8 @@ function useSelectorControls(defaultSorting: SortingState): SelectorControls {
     columnFilters,
     setPagination,
     setSorting,
-    setSearch: (next: string) => {
-      setQ(next);
+    setSearch: (next: string | undefined) => {
+      setQ(next ?? "");
       resetPage();
     },
     setColumnFilters: (updater) => {
@@ -322,6 +326,7 @@ interface SelectorTableProps<TData extends DataTableRowData> {
   searchPlaceholder: string;
   selectedCount: number;
   isLoading: boolean;
+  isPlaceholderData: boolean;
   error?: string;
   selectedRowIds: string[];
   onSelectedRowIdsChange: (ids: string[]) => void;
@@ -339,6 +344,7 @@ function SelectorTable<TData extends DataTableRowData>({
   searchPlaceholder,
   selectedCount,
   isLoading,
+  isPlaceholderData,
   error,
   selectedRowIds,
   onSelectedRowIdsChange,
@@ -391,6 +397,7 @@ function SelectorTable<TData extends DataTableRowData>({
   return (
     <DataTable
       table={table}
+      pending={isPlaceholderData}
       pageSizeOptions={SELECTOR_PAGE_SIZE_OPTIONS}
       empty={
         isLoading ? (
@@ -400,11 +407,11 @@ function SelectorTable<TData extends DataTableRowData>({
         )
       }
     >
-      <Input
+      <DataTableSearchInput
         value={controls.q}
-        onChange={(event) => controls.setSearch(event.target.value)}
+        onValueChange={controls.setSearch}
+        loading={isLoading || isPlaceholderData}
         placeholder={searchPlaceholder}
-        className="w-full max-w-sm"
       />
       <DataTableFacetedFilter
         column={table.getColumn("select")}

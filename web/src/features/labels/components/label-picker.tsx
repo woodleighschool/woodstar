@@ -21,6 +21,7 @@ import type { Label } from "@lib/api";
 import { MAX_PAGE_SIZE } from "@lib/pagination";
 
 interface LabelPickerProps {
+  id?: string;
   value: number[];
   onChange: (value: number[]) => void;
   selectionMode?: "multiple" | "single";
@@ -34,6 +35,7 @@ interface LabelPickerProps {
 }
 
 export function LabelPicker({
+  id,
   value,
   onChange,
   selectionMode = "multiple",
@@ -70,6 +72,7 @@ export function LabelPicker({
     return (
       <SingleLabelCombobox
         key={selectedLabel?.id ?? "none"}
+        id={id}
         items={items}
         selected={selectedLabel}
         emptyPlaceholder={emptyPlaceholder}
@@ -93,7 +96,7 @@ export function LabelPicker({
       isItemEqualToValue={(label, candidate) => label.id === candidate.id}
       onValueChange={(next) => onChange(next.map((label) => label.id))}
     >
-      <ComboboxChips ref={anchorRef} className="h-auto min-h-9 pr-2">
+      <ComboboxChips ref={anchorRef} className="h-auto min-h-9 pr-2" aria-busy={labels.isLoading}>
         <ComboboxValue>
           {(current: Label[]) => (
             <>
@@ -101,6 +104,7 @@ export function LabelPicker({
                 <ComboboxChip key={label.id}>{label.name}</ComboboxChip>
               ))}
               <ComboboxChipsInput
+                id={id}
                 className="h-[calc(--spacing(5.5))] min-w-16 flex-1 p-0 text-sm"
                 placeholder={
                   items.length === 0 ? (emptyPlaceholder ?? "No Labels Available") : placeholder
@@ -124,6 +128,7 @@ export function LabelPicker({
 }
 
 function SingleLabelCombobox({
+  id,
   items,
   selected,
   emptyPlaceholder,
@@ -134,6 +139,7 @@ function SingleLabelCombobox({
   loading,
   onChange,
 }: {
+  id?: string;
   items: Label[];
   selected: Label | null;
   emptyPlaceholder?: string;
@@ -161,6 +167,7 @@ function SingleLabelCombobox({
       }}
     >
       <ComboboxInput
+        id={id}
         className="w-full"
         placeholder={items.length === 0 ? (emptyPlaceholder ?? "No Labels Available") : placeholder}
         required={required}
