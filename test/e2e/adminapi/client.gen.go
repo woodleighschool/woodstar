@@ -907,6 +907,42 @@ func (e SantaRemovableMediaPolicyAction) Valid() bool {
 	}
 }
 
+// Defines values for SantaRemovableMediaPolicyRemountFlags.
+const (
+	Async    SantaRemovableMediaPolicyRemountFlags = "async"
+	MinusJ   SantaRemovableMediaPolicyRemountFlags = "-j"
+	Nobrowse SantaRemovableMediaPolicyRemountFlags = "nobrowse"
+	Nodev    SantaRemovableMediaPolicyRemountFlags = "nodev"
+	Noexec   SantaRemovableMediaPolicyRemountFlags = "noexec"
+	Noowners SantaRemovableMediaPolicyRemountFlags = "noowners"
+	Nosuid   SantaRemovableMediaPolicyRemountFlags = "nosuid"
+	Rdonly   SantaRemovableMediaPolicyRemountFlags = "rdonly"
+)
+
+// Valid indicates whether the value is a known member of the SantaRemovableMediaPolicyRemountFlags enum.
+func (e SantaRemovableMediaPolicyRemountFlags) Valid() bool {
+	switch e {
+	case Async:
+		return true
+	case MinusJ:
+		return true
+	case Nobrowse:
+		return true
+	case Nodev:
+		return true
+	case Noexec:
+		return true
+	case Noowners:
+		return true
+	case Nosuid:
+		return true
+	case Rdonly:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for SantaRuleRuleType.
 const (
 	SantaRuleRuleTypeBinary      SantaRuleRuleType = "binary"
@@ -2426,14 +2462,17 @@ type SantaLabelMatch struct {
 
 // SantaRemovableMediaPolicy defines model for SantaRemovableMediaPolicy.
 type SantaRemovableMediaPolicy struct {
-	Action *SantaRemovableMediaPolicyAction `json:"action,omitempty"`
+	Action SantaRemovableMediaPolicyAction `json:"action"`
 
 	// RemountFlags Mount flags required when action is remount.
-	RemountFlags *[]string `json:"remount_flags,omitempty"`
+	RemountFlags *[]SantaRemovableMediaPolicyRemountFlags `json:"remount_flags,omitempty"`
 }
 
 // SantaRemovableMediaPolicyAction defines model for SantaRemovableMediaPolicy.Action.
 type SantaRemovableMediaPolicyAction string
+
+// SantaRemovableMediaPolicyRemountFlags defines model for SantaRemovableMediaPolicy.RemountFlags.
+type SantaRemovableMediaPolicyRemountFlags string
 
 // SantaRule defines model for SantaRule.
 type SantaRule struct {
@@ -2502,7 +2541,6 @@ type SantaRuleSyncSummary struct {
 	AppliedCount    int32      `json:"applied_count"`
 	DesiredCount    int32      `json:"desired_count"`
 	LastCleanSyncAt *time.Time `json:"last_clean_sync_at,omitempty"`
-	PendingCount    int32      `json:"pending_count"`
 }
 
 // SantaRuleTargets defines model for SantaRuleTargets.
@@ -2741,6 +2779,9 @@ type CreateOsqueryReportJSONRequestBody = OsqueryReportMutation
 
 // CreateSantaConfigurationJSONRequestBody defines body for CreateSantaConfiguration for application/json ContentType.
 type CreateSantaConfigurationJSONRequestBody = SantaConfigurationMutation
+
+// UpdateSantaConfigurationJSONRequestBody defines body for UpdateSantaConfiguration for application/json ContentType.
+type UpdateSantaConfigurationJSONRequestBody = SantaConfigurationMutation
 
 // CreateSantaRuleJSONRequestBody defines body for CreateSantaRule for application/json ContentType.
 type CreateSantaRuleJSONRequestBody = SantaRuleMutation
@@ -3284,6 +3325,25 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /api/santa/configurations (the `CreateSantaConfiguration` operationId).
 	CreateSantaConfiguration(ctx context.Context, body CreateSantaConfigurationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteSantaConfiguration Delete a configuration
+	//
+	// Corresponds with DELETE /api/santa/configurations/{id} (the `DeleteSantaConfiguration` operationId).
+	DeleteSantaConfiguration(ctx context.Context, id int64, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateSantaConfigurationWithBody Update a configuration
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /api/santa/configurations/{id} (the `UpdateSantaConfiguration` operationId).
+	UpdateSantaConfigurationWithBody(ctx context.Context, id int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateSantaConfiguration Update a configuration
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /api/santa/configurations/{id} (the `UpdateSantaConfiguration` operationId).
+	UpdateSantaConfiguration(ctx context.Context, id int64, body UpdateSantaConfigurationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListSantaEvents List execution events
 	//
@@ -4006,6 +4066,55 @@ func (c *Client) CreateSantaConfigurationWithBody(ctx context.Context, contentTy
 // Corresponds with POST /api/santa/configurations (the `CreateSantaConfiguration` operationId).
 func (c *Client) CreateSantaConfiguration(ctx context.Context, body CreateSantaConfigurationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewCreateSantaConfigurationRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeleteSantaConfiguration Delete a configuration
+//
+// Corresponds with DELETE /api/santa/configurations/{id} (the `DeleteSantaConfiguration` operationId).
+func (c *Client) DeleteSantaConfiguration(ctx context.Context, id int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteSantaConfigurationRequest(c.Server, id)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateSantaConfigurationWithBody Update a configuration
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /api/santa/configurations/{id} (the `UpdateSantaConfiguration` operationId).
+func (c *Client) UpdateSantaConfigurationWithBody(ctx context.Context, id int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateSantaConfigurationRequestWithBody(c.Server, id, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateSantaConfiguration Update a configuration
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /api/santa/configurations/{id} (the `UpdateSantaConfiguration` operationId).
+func (c *Client) UpdateSantaConfiguration(ctx context.Context, id int64, body UpdateSantaConfigurationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateSantaConfigurationRequest(c.Server, id, body)
 	if err != nil {
 		return nil, err
 	}
@@ -5749,6 +5858,87 @@ func NewCreateSantaConfigurationRequestWithBody(server string, contentType strin
 	return req, nil
 }
 
+// NewDeleteSantaConfigurationRequest constructs an http.Request for the DeleteSantaConfiguration method
+func NewDeleteSantaConfigurationRequest(server string, id int64) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "id", id, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: "int64"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/santa/configurations/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdateSantaConfigurationRequest calls the generic UpdateSantaConfiguration builder with application/json body
+func NewUpdateSantaConfigurationRequest(server string, id int64, body UpdateSantaConfigurationJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateSantaConfigurationRequestWithBody(server, id, "application/json", bodyReader)
+}
+
+// NewUpdateSantaConfigurationRequestWithBody constructs an http.Request for the UpdateSantaConfiguration method, with any body, and a specified content type
+func NewUpdateSantaConfigurationRequestWithBody(server string, id int64, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "id", id, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: "int64"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/santa/configurations/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewListSantaEventsRequest constructs an http.Request for the ListSantaEvents method
 func NewListSantaEventsRequest(server string, params *ListSantaEventsParams) (*http.Request, error) {
 	var err error
@@ -6446,6 +6636,27 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /api/santa/configurations (the `CreateSantaConfiguration` operationId).
 	CreateSantaConfigurationWithResponse(ctx context.Context, body CreateSantaConfigurationJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateSantaConfigurationResponse, error)
+
+	// DeleteSantaConfigurationWithResponse Delete a configuration
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /api/santa/configurations/{id} (the `DeleteSantaConfiguration` operationId).
+	DeleteSantaConfigurationWithResponse(ctx context.Context, id int64, reqEditors ...RequestEditorFn) (*DeleteSantaConfigurationResponse, error)
+
+	// UpdateSantaConfigurationWithBodyWithResponse Update a configuration
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /api/santa/configurations/{id} (the `UpdateSantaConfiguration` operationId).
+	UpdateSantaConfigurationWithBodyWithResponse(ctx context.Context, id int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateSantaConfigurationResponse, error)
+
+	// UpdateSantaConfigurationWithResponse Update a configuration
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /api/santa/configurations/{id} (the `UpdateSantaConfiguration` operationId).
+	UpdateSantaConfigurationWithResponse(ctx context.Context, id int64, body UpdateSantaConfigurationJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateSantaConfigurationResponse, error)
 
 	// ListSantaEventsWithResponse List execution events
 	//
@@ -8735,6 +8946,165 @@ func (r CreateSantaConfigurationResponse) ContentType() string {
 	return ""
 }
 
+type DeleteSantaConfigurationResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON401 the response for an HTTP 401 `application/problem+json` response
+	ApplicationproblemJSON401 *ErrorModel
+	// ApplicationproblemJSON403 the response for an HTTP 403 `application/problem+json` response
+	ApplicationproblemJSON403 *ErrorModel
+	// ApplicationproblemJSON404 the response for an HTTP 404 `application/problem+json` response
+	ApplicationproblemJSON404 *ErrorModel
+	// ApplicationproblemJSON422 the response for an HTTP 422 `application/problem+json` response
+	ApplicationproblemJSON422 *ErrorModel
+	// ApplicationproblemJSON500 the response for an HTTP 500 `application/problem+json` response
+	ApplicationproblemJSON500 *ErrorModel
+}
+
+// GetApplicationproblemJSON401 returns the response for an HTTP 401 `application/problem+json` response
+func (r DeleteSantaConfigurationResponse) GetApplicationproblemJSON401() *ErrorModel {
+	return r.ApplicationproblemJSON401
+}
+
+// GetApplicationproblemJSON403 returns the response for an HTTP 403 `application/problem+json` response
+func (r DeleteSantaConfigurationResponse) GetApplicationproblemJSON403() *ErrorModel {
+	return r.ApplicationproblemJSON403
+}
+
+// GetApplicationproblemJSON404 returns the response for an HTTP 404 `application/problem+json` response
+func (r DeleteSantaConfigurationResponse) GetApplicationproblemJSON404() *ErrorModel {
+	return r.ApplicationproblemJSON404
+}
+
+// GetApplicationproblemJSON422 returns the response for an HTTP 422 `application/problem+json` response
+func (r DeleteSantaConfigurationResponse) GetApplicationproblemJSON422() *ErrorModel {
+	return r.ApplicationproblemJSON422
+}
+
+// GetApplicationproblemJSON500 returns the response for an HTTP 500 `application/problem+json` response
+func (r DeleteSantaConfigurationResponse) GetApplicationproblemJSON500() *ErrorModel {
+	return r.ApplicationproblemJSON500
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteSantaConfigurationResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteSantaConfigurationResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteSantaConfigurationResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteSantaConfigurationResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UpdateSantaConfigurationResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *SantaConfiguration
+	// ApplicationproblemJSON400 the response for an HTTP 400 `application/problem+json` response
+	ApplicationproblemJSON400 *ErrorModel
+	// ApplicationproblemJSON401 the response for an HTTP 401 `application/problem+json` response
+	ApplicationproblemJSON401 *ErrorModel
+	// ApplicationproblemJSON403 the response for an HTTP 403 `application/problem+json` response
+	ApplicationproblemJSON403 *ErrorModel
+	// ApplicationproblemJSON404 the response for an HTTP 404 `application/problem+json` response
+	ApplicationproblemJSON404 *ErrorModel
+	// ApplicationproblemJSON409 the response for an HTTP 409 `application/problem+json` response
+	ApplicationproblemJSON409 *ErrorModel
+	// ApplicationproblemJSON422 the response for an HTTP 422 `application/problem+json` response
+	ApplicationproblemJSON422 *ErrorModel
+	// ApplicationproblemJSON500 the response for an HTTP 500 `application/problem+json` response
+	ApplicationproblemJSON500 *ErrorModel
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r UpdateSantaConfigurationResponse) GetJSON200() *SantaConfiguration {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON400 returns the response for an HTTP 400 `application/problem+json` response
+func (r UpdateSantaConfigurationResponse) GetApplicationproblemJSON400() *ErrorModel {
+	return r.ApplicationproblemJSON400
+}
+
+// GetApplicationproblemJSON401 returns the response for an HTTP 401 `application/problem+json` response
+func (r UpdateSantaConfigurationResponse) GetApplicationproblemJSON401() *ErrorModel {
+	return r.ApplicationproblemJSON401
+}
+
+// GetApplicationproblemJSON403 returns the response for an HTTP 403 `application/problem+json` response
+func (r UpdateSantaConfigurationResponse) GetApplicationproblemJSON403() *ErrorModel {
+	return r.ApplicationproblemJSON403
+}
+
+// GetApplicationproblemJSON404 returns the response for an HTTP 404 `application/problem+json` response
+func (r UpdateSantaConfigurationResponse) GetApplicationproblemJSON404() *ErrorModel {
+	return r.ApplicationproblemJSON404
+}
+
+// GetApplicationproblemJSON409 returns the response for an HTTP 409 `application/problem+json` response
+func (r UpdateSantaConfigurationResponse) GetApplicationproblemJSON409() *ErrorModel {
+	return r.ApplicationproblemJSON409
+}
+
+// GetApplicationproblemJSON422 returns the response for an HTTP 422 `application/problem+json` response
+func (r UpdateSantaConfigurationResponse) GetApplicationproblemJSON422() *ErrorModel {
+	return r.ApplicationproblemJSON422
+}
+
+// GetApplicationproblemJSON500 returns the response for an HTTP 500 `application/problem+json` response
+func (r UpdateSantaConfigurationResponse) GetApplicationproblemJSON500() *ErrorModel {
+	return r.ApplicationproblemJSON500
+}
+
+// GetBody returns the raw response body bytes
+func (r UpdateSantaConfigurationResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateSantaConfigurationResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateSantaConfigurationResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UpdateSantaConfigurationResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListSantaEventsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -9659,6 +10029,45 @@ func (c *ClientWithResponses) CreateSantaConfigurationWithResponse(ctx context.C
 		return nil, err
 	}
 	return ParseCreateSantaConfigurationResponse(rsp)
+}
+
+// DeleteSantaConfigurationWithResponse Delete a configuration
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /api/santa/configurations/{id} (the `DeleteSantaConfiguration` operationId).
+func (c *ClientWithResponses) DeleteSantaConfigurationWithResponse(ctx context.Context, id int64, reqEditors ...RequestEditorFn) (*DeleteSantaConfigurationResponse, error) {
+	rsp, err := c.DeleteSantaConfiguration(ctx, id, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteSantaConfigurationResponse(rsp)
+}
+
+// UpdateSantaConfigurationWithBodyWithResponse Update a configuration
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /api/santa/configurations/{id} (the `UpdateSantaConfiguration` operationId).
+func (c *ClientWithResponses) UpdateSantaConfigurationWithBodyWithResponse(ctx context.Context, id int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateSantaConfigurationResponse, error) {
+	rsp, err := c.UpdateSantaConfigurationWithBody(ctx, id, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateSantaConfigurationResponse(rsp)
+}
+
+// UpdateSantaConfigurationWithResponse Update a configuration
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /api/santa/configurations/{id} (the `UpdateSantaConfiguration` operationId).
+func (c *ClientWithResponses) UpdateSantaConfigurationWithResponse(ctx context.Context, id int64, body UpdateSantaConfigurationJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateSantaConfigurationResponse, error) {
+	rsp, err := c.UpdateSantaConfiguration(ctx, id, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateSantaConfigurationResponse(rsp)
 }
 
 // ListSantaEventsWithResponse List execution events
@@ -11497,6 +11906,138 @@ func ParseCreateSantaConfigurationResponse(rsp *http.Response) (*CreateSantaConf
 			return nil, err
 		}
 		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON422 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteSantaConfigurationResponse parses an HTTP response from a DeleteSantaConfigurationWithResponse call
+func ParseDeleteSantaConfigurationResponse(rsp *http.Response) (*DeleteSantaConfigurationResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteSantaConfigurationResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON422 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateSantaConfigurationResponse parses an HTTP response from a UpdateSantaConfigurationWithResponse call
+func ParseUpdateSantaConfigurationResponse(rsp *http.Response) (*UpdateSantaConfigurationResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateSantaConfigurationResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest SantaConfiguration
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
 		var dest ErrorModel

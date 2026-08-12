@@ -57,49 +57,49 @@ func ruleCountsFromProto(req *syncv1.PreflightRequest) syncstate.RuleCounts {
 }
 
 func applyConfigurationToPreflightResponse(resp *syncv1.PreflightResponse, config *configurations.Configuration) error {
-	clientMode, err := protoClientMode(config.ClientMode)
+	settings := config.SyncSettings
+	clientMode, err := protoClientMode(settings.ClientMode)
 	if err != nil {
 		return err
 	}
 	resp.ClientMode = clientMode
-	resp.EnableBundles = &config.EnableBundles
-	resp.EnableTransitiveRules = &config.EnableTransitiveRules
-	resp.EnableAllEventUpload = &config.EnableAllEventUpload
-	resp.DisableUnknownEventUpload = &config.DisableUnknownEventUpload
-	fileAccessAction, err := protoFileAccessAction(config.OverrideFileAccessAction)
+	resp.EnableBundles = &settings.EnableBundles
+	resp.EnableTransitiveRules = &settings.EnableTransitiveRules
+	resp.EnableAllEventUpload = &settings.EnableAllEventUpload
+	resp.DisableUnknownEventUpload = &settings.DisableUnknownEventUpload
+	fileAccessAction, err := protoFileAccessAction(settings.OverrideFileAccessAction)
 	if err != nil {
 		return err
 	}
 	resp.OverrideFileAccessAction = &fileAccessAction
-	resp.FullSyncIntervalSeconds = uint32(config.FullSyncIntervalSeconds) //nolint:gosec // Persisted configurations require at least 60 seconds.
-	resp.BatchSize = uint32(config.BatchSize)                             //nolint:gosec // Persisted configurations require a value from 5 through 100.
-	if config.AllowedPathRegex != "" {
-		resp.AllowedPathRegex = &config.AllowedPathRegex
-	}
-	if config.BlockedPathRegex != "" {
-		resp.BlockedPathRegex = &config.BlockedPathRegex
-	}
-	if config.EventDetailURL != "" {
-		resp.EventDetailUrl = &config.EventDetailURL
-	}
-	if config.EventDetailText != "" {
-		resp.EventDetailText = &config.EventDetailText
-	}
-	resp.RemovableMediaPolicy = protoRemovableMediaPolicy(config.RemovableMediaPolicy)
-	resp.EncryptedRemovableMediaPolicy = protoRemovableMediaPolicy(config.EncryptedRemovableMediaPolicy)
+	resp.FullSyncIntervalSeconds = uint32(settings.FullSyncIntervalSeconds) //nolint:gosec // Persisted values require at least 60 seconds.
+	resp.BatchSize = uint32(settings.BatchSize)                             //nolint:gosec // Persisted values range from 5 through 100.
+	resp.AllowedPathRegex = settings.AllowedPathRegex
+	resp.BlockedPathRegex = settings.BlockedPathRegex
+	resp.EventDetailUrl = settings.EventDetailURL
+	resp.EventDetailText = settings.EventDetailText
+	resp.RemovableMediaPolicy = protoRemovableMediaPolicy(settings.RemovableMediaPolicy)
+	resp.EncryptedRemovableMediaPolicy = protoRemovableMediaPolicy(settings.EncryptedRemovableMediaPolicy)
 	return nil
 }
 
-func protoRemovableMediaPolicy(policy configurations.RemovableMediaPolicy) *syncv1.RemovableMediaPolicy {
+func protoRemovableMediaPolicy(policy *configurations.RemovableMediaPolicy) *syncv1.RemovableMediaPolicy {
+	if policy == nil {
+		return nil
+	}
 	switch policy.Action {
 	case configurations.RemovableMediaActionAllow:
 		return &syncv1.RemovableMediaPolicy{Action: &syncv1.RemovableMediaPolicy_Allow{Allow: true}}
 	case configurations.RemovableMediaActionBlock:
 		return &syncv1.RemovableMediaPolicy{Action: &syncv1.RemovableMediaPolicy_Block{Block: true}}
 	case configurations.RemovableMediaActionRemount:
+		flags := make([]string, len(policy.RemountFlags))
+		for i, flag := range policy.RemountFlags {
+			flags[i] = string(flag)
+		}
 		return &syncv1.RemovableMediaPolicy{
 			Action: &syncv1.RemovableMediaPolicy_Remount{
-				Remount: &syncv1.RemountPolicy{Flags: policy.RemountFlags},
+				Remount: &syncv1.RemountPolicy{Flags: flags},
 			},
 		}
 	default:

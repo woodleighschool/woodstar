@@ -11,11 +11,13 @@ import (
 
 func baseline(name string) configurations.ConfigurationMutation {
 	return configurations.ConfigurationMutation{
-		Name:                     name,
-		ClientMode:               configurations.ClientModeMonitor,
-		OverrideFileAccessAction: configurations.FileAccessActionNone,
-		FullSyncIntervalSeconds:  600,
-		BatchSize:                50,
+		Name: name,
+		SyncSettings: configurations.SyncSettings{
+			ClientMode:               configurations.ClientModeMonitor,
+			OverrideFileAccessAction: configurations.FileAccessActionNone,
+			FullSyncIntervalSeconds:  600,
+			BatchSize:                50,
+		},
 	}
 }
 
@@ -51,8 +53,23 @@ func TestConfigurationMutationValidate(t *testing.T) {
 			m.Targets = configurationTargets(labelRefs(1), labelRefs(1))
 		}},
 		{name: "remount without flags", mutate: func(m *configurations.ConfigurationMutation) {
-			m.RemovableMediaPolicy = configurations.RemovableMediaPolicy{
+			m.RemovableMediaPolicy = &configurations.RemovableMediaPolicy{
 				Action: configurations.RemovableMediaActionRemount,
+			}
+		}},
+		{name: "unknown remount flag", mutate: func(m *configurations.ConfigurationMutation) {
+			m.RemovableMediaPolicy = &configurations.RemovableMediaPolicy{
+				Action:       configurations.RemovableMediaActionRemount,
+				RemountFlags: []configurations.RemountFlag{"unknown"},
+			}
+		}},
+		{name: "duplicate remount flag", mutate: func(m *configurations.ConfigurationMutation) {
+			m.RemovableMediaPolicy = &configurations.RemovableMediaPolicy{
+				Action: configurations.RemovableMediaActionRemount,
+				RemountFlags: []configurations.RemountFlag{
+					configurations.RemountFlagNoExec,
+					configurations.RemountFlagNoExec,
+				},
 			}
 		}},
 	}
@@ -66,6 +83,108 @@ func TestConfigurationMutationValidate(t *testing.T) {
 				t.Fatalf("Validate error = %v, want ErrInvalidInput", err)
 			}
 		})
+	}
+}
+
+func TestConfigurationMutationAcceptsEveryRemountFlag(t *testing.T) {
+	t.Parallel()
+
+	for _, flag := range configurations.RemountFlagValues {
+		t.Run(string(flag), func(t *testing.T) {
+			t.Parallel()
+			mutation := baseline("Remount " + string(flag))
+			mutation.RemovableMediaPolicy = &configurations.RemovableMediaPolicy{
+				Action:       configurations.RemovableMediaActionRemount,
+				RemountFlags: []configurations.RemountFlag{flag},
+			}
+			if err := mutation.Validate(); err != nil {
+				t.Fatalf("Validate error = %v, want valid remount flag", err)
+			}
+		})
+	}
+}
+
+func TestSyncPolicyDigestIncludesIdentityAndExcludesDisplayMetadata(t *testing.T) {
+	t.Parallel()
+
+	configuration := &configurations.Configuration{
+		ID:          1,
+		Name:        "First",
+		Description: "First description",
+		SyncSettings: configurations.SyncSettings{
+			ClientMode:               configurations.ClientModeLockdown,
+			OverrideFileAccessAction: configurations.FileAccessActionNone,
+			FullSyncIntervalSeconds:  600,
+			BatchSize:                50,
+			BlockedPathRegex:         new(`^/private/tmp/`),
+		},
+	}
+	first, err := configurations.SyncPolicyDigest(configuration)
+	if err != nil {
+		t.Fatalf("digest first configuration: %v", err)
+	}
+	configuration.Name = "Second"
+	configuration.Description = "Second description"
+	configuration.Position = 9
+	configuration.Targets = configurationTargets(labelRefs(99), nil)
+	second, err := configurations.SyncPolicyDigest(configuration)
+	if err != nil {
+		t.Fatalf("digest second configuration: %v", err)
+	}
+	if first != second {
+		t.Fatalf("metadata changed digest from %q to %q", first, second)
+	}
+
+	configuration.ID = 2
+	changedIdentity, err := configurations.SyncPolicyDigest(configuration)
+	if err != nil {
+		t.Fatalf("digest changed identity: %v", err)
+	}
+	if changedIdentity == first {
+		t.Fatal("changing configuration identity did not change the digest")
+	}
+
+	configuration.ID = 1
+	configuration.BlockedPathRegex = nil
+	changedSettings, err := configurations.SyncPolicyDigest(configuration)
+	if err != nil {
+		t.Fatalf("digest changed settings: %v", err)
+	}
+	if changedSettings == first {
+		t.Fatal("removing a device setting did not change the digest")
+	}
+}
+
+func TestSyncPolicyDigestDistinguishesNoConfigurationAndConcreteSettings(t *testing.T) {
+	t.Parallel()
+
+	undefined, err := configurations.SyncPolicyDigest(nil)
+	if err != nil {
+		t.Fatalf("digest undefined settings: %v", err)
+	}
+	configuration := configurations.Configuration{
+		ID: 1,
+		SyncSettings: configurations.SyncSettings{
+			ClientMode:               configurations.ClientModeMonitor,
+			OverrideFileAccessAction: configurations.FileAccessActionNone,
+			FullSyncIntervalSeconds:  600,
+			BatchSize:                50,
+		},
+	}
+	configured, err := configurations.SyncPolicyDigest(&configuration)
+	if err != nil {
+		t.Fatalf("digest configured defaults: %v", err)
+	}
+	configuration.EnableBundles = true
+	enabled, err := configurations.SyncPolicyDigest(&configuration)
+	if err != nil {
+		t.Fatalf("digest enabled bundles: %v", err)
+	}
+	if undefined == configured {
+		t.Fatal("no configuration and a selected configuration have the same digest")
+	}
+	if configured == enabled {
+		t.Fatal("changing a concrete setting did not change the digest")
 	}
 }
 

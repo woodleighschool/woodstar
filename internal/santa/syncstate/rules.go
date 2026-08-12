@@ -5,6 +5,8 @@ import (
 	"slices"
 )
 
+const cleanSyncTombstoneIdentifier = "babd20c244e498bf4c19374cd3de5c0a63a50c7d5f6cac77d915e5eb8d638e6b"
+
 type Target struct {
 	RuleType      string `json:"rule_type"`
 	Identifier    string `json:"identifier"`
@@ -13,7 +15,6 @@ type Target struct {
 	CustomMessage string `json:"custom_message,omitempty"`
 	CustomURL     string `json:"custom_url,omitempty"`
 	AppName       string `json:"notification_app_name,omitempty"`
-	PayloadHash   string `json:"payload_hash"`
 }
 
 type PayloadRule struct {
@@ -24,22 +25,17 @@ type PayloadRule struct {
 	CustomMessage string `json:"custom_message,omitempty"`
 	CustomURL     string `json:"custom_url,omitempty"`
 	AppName       string `json:"notification_app_name,omitempty"`
-	PayloadHash   string `json:"payload_hash,omitempty"`
 	Removed       bool   `json:"removed,omitempty"`
-}
-
-func (target Target) Key() string {
-	return target.RuleType + "\x00" + target.Identifier + "\x00" + target.PayloadHash
 }
 
 func (target Target) identityKey() string {
 	return target.RuleType + "\x00" + target.Identifier
 }
 
-func TargetSet(targets []Target) map[string]bool {
-	out := make(map[string]bool, len(targets))
+func TargetSet(targets []Target) map[Target]bool {
+	out := make(map[Target]bool, len(targets))
 	for _, target := range targets {
-		out[target.Key()] = true
+		out[target] = true
 	}
 	return out
 }
@@ -54,7 +50,7 @@ func normalSyncPayload(desired []Target, applied []Target) []PayloadRule {
 	for _, target := range desired {
 		currentIdentities[target.identityKey()] = struct{}{}
 		current, ok := appliedByIdentity[target.identityKey()]
-		if !ok || current.PayloadHash != target.PayloadHash {
+		if !ok || current != target {
 			payload = append(payload, payloadRuleFromTarget(target))
 		}
 	}
@@ -81,6 +77,18 @@ func fullSyncPayload(targets []Target) []PayloadRule {
 	return sortedPayloadRules(payload)
 }
 
+func cleanSyncPayload(targets []Target) []PayloadRule {
+	payload := fullSyncPayload(targets)
+	if len(payload) != 0 {
+		return payload
+	}
+	return []PayloadRule{{
+		RuleType:   "binary",
+		Identifier: cleanSyncTombstoneIdentifier,
+		Removed:    true,
+	}}
+}
+
 func payloadRuleFromTarget(target Target) PayloadRule {
 	return PayloadRule{
 		RuleType:      target.RuleType,
@@ -90,7 +98,6 @@ func payloadRuleFromTarget(target Target) PayloadRule {
 		CustomMessage: target.CustomMessage,
 		CustomURL:     target.CustomURL,
 		AppName:       target.AppName,
-		PayloadHash:   target.PayloadHash,
 	}
 }
 
@@ -98,6 +105,33 @@ func targetsEqual(a []Target, b []Target) bool {
 	return slices.EqualFunc(sortedTargets(a), sortedTargets(b), func(left Target, right Target) bool {
 		return left == right
 	})
+}
+
+func transitiveAuthorityRemoved(applied []Target, desired []Target) bool {
+	desiredAuthorities := transitiveAuthorities(desired)
+	for authority := range transitiveAuthorities(applied) {
+		if _, ok := desiredAuthorities[authority]; !ok {
+			return true
+		}
+	}
+	return false
+}
+
+func transitiveAuthorities(targets []Target) map[string]struct{} {
+	authorities := make(map[string]struct{})
+	for _, target := range targets {
+		var authority string
+		switch target.Policy {
+		case "allowlist_compiler":
+			authority = target.identityKey() + "\x00allowlist_compiler"
+		case "cel":
+			authority = target.identityKey() + "\x00cel\x00" + target.CELExpression
+		default:
+			continue
+		}
+		authorities[authority] = struct{}{}
+	}
+	return authorities
 }
 
 func sortedTargets(targets []Target) []Target {
@@ -109,7 +143,7 @@ func sortedTargets(targets []Target) []Target {
 		if n := cmp.Compare(left.Identifier, right.Identifier); n != 0 {
 			return n
 		}
-		return cmp.Compare(left.PayloadHash, right.PayloadHash)
+		return 0
 	})
 	return out
 }
@@ -121,9 +155,6 @@ func sortedPayloadRules(rules []PayloadRule) []PayloadRule {
 			return n
 		}
 		if n := cmp.Compare(left.Identifier, right.Identifier); n != 0 {
-			return n
-		}
-		if n := cmp.Compare(left.PayloadHash, right.PayloadHash); n != 0 {
 			return n
 		}
 		switch {

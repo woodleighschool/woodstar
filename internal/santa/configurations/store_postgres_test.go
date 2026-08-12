@@ -42,10 +42,12 @@ func TestConfigurationStorePersistsEditableShape(t *testing.T) {
 		config.Position != 0 || config.ClientMode != configurations.ClientModeLockdown {
 		t.Fatalf("configuration = %+v, want baseline lockdown policy", config)
 	}
-	if !config.EnableBundles ||
-		!config.DisableUnknownEventUpload ||
+	if !config.EnableBundles || !config.DisableUnknownEventUpload ||
 		config.OverrideFileAccessAction != configurations.FileAccessActionDisable ||
-		len(config.RemovableMediaPolicy.RemountFlags) != 2 {
+		config.RemovableMediaPolicy == nil ||
+		len(config.RemovableMediaPolicy.RemountFlags) != 2 ||
+		config.RemovableMediaPolicy.RemountFlags[0] != configurations.RemountFlagReadOnly ||
+		config.RemovableMediaPolicy.RemountFlags[1] != configurations.RemountFlagNoSUID {
 		t.Fatalf("settings were not preserved: %+v", config)
 	}
 	if !sameLabelRefs(config.Targets.Include, labelRefs(firstLabelID, secondLabelID)) ||
@@ -77,14 +79,139 @@ func TestConfigurationStoreUpdateReplacesEditableShape(t *testing.T) {
 		updated.ClientMode != configurations.ClientModeMonitor {
 		t.Fatalf("updated configuration = %+v", updated)
 	}
-	if updated.EnableBundles ||
-		updated.DisableUnknownEventUpload ||
+	if updated.EnableBundles || updated.DisableUnknownEventUpload ||
 		updated.OverrideFileAccessAction != configurations.FileAccessActionNone ||
-		!updated.RemovableMediaPolicy.IsZero() {
+		updated.RemovableMediaPolicy != nil {
 		t.Fatalf("update did not replace settings: %+v", updated)
 	}
 	if !sameLabelRefs(updated.Targets.Include, labelRefs(thirdLabelID)) || len(updated.Targets.Exclude) != 0 {
 		t.Fatalf("updated targets = %+v, want only include label %d", updated.Targets, thirdLabelID)
+	}
+}
+
+func TestConfigurationStoreDatabaseRejectsInvalidRemountFlags(t *testing.T) {
+	db, ctx := testdb.Open(t)
+	store := configurations.NewStore(db)
+	configuration, err := store.Create(ctx, baseline("Remount constraints"))
+	if err != nil {
+		t.Fatalf("create configuration: %v", err)
+	}
+
+	for _, tt := range []struct {
+		name  string
+		query string
+	}{
+		{
+			name: "flags without action",
+			query: `UPDATE santa_configurations
+			        SET removable_media_action = NULL,
+			            removable_media_remount_flags = ARRAY['noexec']::santa_remount_flag[]
+			        WHERE id = $1`,
+		},
+		{
+			name: "flags with allow action",
+			query: `UPDATE santa_configurations
+			        SET removable_media_action = 'allow',
+			            removable_media_remount_flags = ARRAY['noexec']::santa_remount_flag[]
+			        WHERE id = $1`,
+		},
+		{
+			name: "empty remount flags",
+			query: `UPDATE santa_configurations
+			        SET removable_media_action = 'remount',
+			            removable_media_remount_flags = ARRAY[]::santa_remount_flag[]
+			        WHERE id = $1`,
+		},
+		{
+			name: "duplicate remount flags",
+			query: `UPDATE santa_configurations
+			        SET removable_media_action = 'remount',
+			            removable_media_remount_flags = ARRAY['noexec', 'noexec']::santa_remount_flag[]
+			        WHERE id = $1`,
+		},
+		{
+			name: "null remount flag",
+			query: `UPDATE santa_configurations
+			        SET removable_media_action = 'remount',
+			            removable_media_remount_flags = ARRAY['noexec', NULL]::santa_remount_flag[]
+			        WHERE id = $1`,
+		},
+		{
+			name: "multidimensional remount flags",
+			query: `UPDATE santa_configurations
+			        SET removable_media_action = 'remount',
+			            removable_media_remount_flags = ARRAY[
+			                ARRAY['noexec'], ARRAY['nosuid']
+			            ]::santa_remount_flag[]
+			        WHERE id = $1`,
+		},
+		{
+			name: "unsupported remount flag",
+			query: `UPDATE santa_configurations
+			        SET removable_media_action = 'remount',
+			            removable_media_remount_flags = ARRAY['unsupported']::santa_remount_flag[]
+			        WHERE id = $1`,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			if _, err := db.Exec(ctx, tt.query, configuration.ID); err == nil {
+				t.Fatal("invalid removable-media state was accepted")
+			}
+		})
+	}
+}
+
+func TestConfigurationStoreDatabaseRequiresConcreteSettings(t *testing.T) {
+	db, ctx := testdb.Open(t)
+	store := configurations.NewStore(db)
+	configuration, err := store.Create(ctx, baseline("Required settings constraints"))
+	if err != nil {
+		t.Fatalf("create configuration: %v", err)
+	}
+
+	for _, tt := range []struct {
+		name  string
+		query string
+	}{
+		{name: "client mode", query: "UPDATE santa_configurations SET client_mode = NULL WHERE id = $1"},
+		{name: "bundle scanning", query: "UPDATE santa_configurations SET enable_bundles = NULL WHERE id = $1"},
+		{name: "transitive rules", query: "UPDATE santa_configurations SET enable_transitive_rules = NULL WHERE id = $1"},
+		{name: "all event upload", query: "UPDATE santa_configurations SET enable_all_event_upload = NULL WHERE id = $1"},
+		{name: "unknown event upload", query: "UPDATE santa_configurations SET disable_unknown_event_upload = NULL WHERE id = $1"},
+		{name: "file access override", query: "UPDATE santa_configurations SET override_file_access_action = NULL WHERE id = $1"},
+		{name: "full sync interval", query: "UPDATE santa_configurations SET full_sync_interval_seconds = NULL WHERE id = $1"},
+		{name: "batch size", query: "UPDATE santa_configurations SET batch_size = NULL WHERE id = $1"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			if _, err := db.Exec(ctx, tt.query, configuration.ID); err == nil {
+				t.Fatal("NULL setting was accepted")
+			}
+		})
+	}
+}
+
+func TestConfigurationStoreDatabaseRejectsEmptyOptionalStrings(t *testing.T) {
+	db, ctx := testdb.Open(t)
+	store := configurations.NewStore(db)
+	configuration, err := store.Create(ctx, baseline("Optional string constraints"))
+	if err != nil {
+		t.Fatalf("create configuration: %v", err)
+	}
+
+	for _, tt := range []struct {
+		name  string
+		query string
+	}{
+		{name: "allowed path regex", query: "UPDATE santa_configurations SET allowed_path_regex = '  ' WHERE id = $1"},
+		{name: "blocked path regex", query: "UPDATE santa_configurations SET blocked_path_regex = '  ' WHERE id = $1"},
+		{name: "event detail URL", query: "UPDATE santa_configurations SET event_detail_url = '  ' WHERE id = $1"},
+		{name: "event detail text", query: "UPDATE santa_configurations SET event_detail_text = '  ' WHERE id = $1"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			if _, err := db.Exec(ctx, tt.query, configuration.ID); err == nil {
+				t.Fatal("empty optional setting was accepted")
+			}
+		})
 	}
 }
 
@@ -96,9 +223,12 @@ func editableConfiguration(firstLabelID, secondLabelID, thirdLabelID int64) conf
 	mutation.DisableUnknownEventUpload = true
 	mutation.OverrideFileAccessAction = configurations.FileAccessActionDisable
 	mutation.FullSyncIntervalSeconds = 120
-	mutation.RemovableMediaPolicy = configurations.RemovableMediaPolicy{
-		Action:       configurations.RemovableMediaActionRemount,
-		RemountFlags: []string{"rw", "nosuid"},
+	mutation.RemovableMediaPolicy = &configurations.RemovableMediaPolicy{
+		Action: configurations.RemovableMediaActionRemount,
+		RemountFlags: []configurations.RemountFlag{
+			configurations.RemountFlagNoSUID,
+			configurations.RemountFlagReadOnly,
+		},
 	}
 	mutation.Targets = configurationTargets(labelRefs(firstLabelID, secondLabelID), labelRefs(thirdLabelID))
 	return mutation

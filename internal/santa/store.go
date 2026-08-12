@@ -143,7 +143,7 @@ func (s *Store) LoadObservedHostState(ctx context.Context, hostID int64) (*HostS
 }
 
 func (s *Store) syncSummary(ctx context.Context, hostID int64) (RuleSyncSummary, error) {
-	var desired, applied, pending int32
+	var desired, applied int32
 	err := s.pool.QueryRow(ctx, `
 		SELECT
 			(
@@ -155,14 +155,9 @@ func (s *Store) syncSummary(ctx context.Context, hostID int64) (RuleSyncSummary,
 				SELECT count(*)::integer
 				FROM santa_sync_targets st
 				WHERE st.host_id = $1 AND st.phase = 'applied'
-			) AS applied_count,
-			COALESCE(
-				(SELECT ss.pending_payload_rule_count FROM santa_sync_state ss WHERE ss.host_id = $1),
-				0
-			)::integer AS pending_count`, hostID).Scan(&desired, &applied, &pending)
+			) AS applied_count`, hostID).Scan(&desired, &applied)
 	return RuleSyncSummary{
 		DesiredCount: desired,
 		AppliedCount: applied,
-		PendingCount: pending,
 	}, err
 }

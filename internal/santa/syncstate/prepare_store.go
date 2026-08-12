@@ -12,6 +12,7 @@ import (
 func (s *Store) PreparePending(
 	ctx context.Context,
 	hostID int64,
+	policyDigest string,
 	desired []Target,
 	reported RuleCounts,
 	requestCleanSync bool,
@@ -23,27 +24,29 @@ func (s *Store) PreparePending(
 	if err := validateRulesHash(clientRulesHash); err != nil {
 		return "", err
 	}
+	if err := validatePolicyDigest(policyDigest); err != nil {
+		return "", err
+	}
 	desired = sortedTargets(desired)
 
-	var pendingFullSync bool
+	var pendingSyncType SyncType
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		applied, err := loadPriorState(ctx, tx, hostID)
 		if err != nil {
 			return err
 		}
-		pendingFullSync = applied.requiresFullSync(desired, reported, requestCleanSync, clientRulesHash)
-
-		payload := normalSyncPayload(desired, applied.targets)
-		if pendingFullSync {
-			payload = fullSyncPayload(desired)
-		}
+		pendingSyncType = applied.requiredSyncType(
+			policyDigest,
+			desired,
+			reported,
+			requestCleanSync,
+			clientRulesHash,
+		)
 
 		if err := upsertPreflight(ctx, tx, preflightParams{
 			hostID:          hostID,
-			pendingFullSync: pendingFullSync,
-			payload:         payload,
-			desired:         desired,
-			reported:        reported,
+			policyDigest:    policyDigest,
+			pendingSyncType: pendingSyncType,
 			clientRulesHash: clientRulesHash,
 		}); err != nil {
 			return err
@@ -53,29 +56,26 @@ func (s *Store) PreparePending(
 	if err != nil {
 		return "", err
 	}
-	if pendingFullSync {
-		return SyncTypeClean, nil
-	}
-	return SyncTypeNormal, nil
+	return pendingSyncType, nil
 }
 
 // priorState is the applied sync state loaded at the start of a preflight.
 type priorState struct {
-	exists             bool
+	policyDigest       *string
 	targets            []Target
-	confirmedRulesHash string
+	confirmedRulesHash *string
 }
 
 func loadPriorState(ctx context.Context, tx pgx.Tx, hostID int64) (priorState, error) {
-	var confirmedRulesHash string
+	var state priorState
 	err := tx.QueryRow(
 		ctx,
-		`SELECT confirmed_rules_hash FROM santa_sync_state WHERE host_id = $1`,
+		`SELECT applied_policy_digest, confirmed_rules_hash
+		 FROM santa_sync_state WHERE host_id = $1`,
 		hostID,
-	).Scan(&confirmedRulesHash)
-	exists := true
+	).Scan(&state.policyDigest, &state.confirmedRulesHash)
 	if errors.Is(err, pgx.ErrNoRows) {
-		exists = false
+		state = priorState{}
 	} else if err != nil {
 		return priorState{}, err
 	}
@@ -83,109 +83,61 @@ func loadPriorState(ctx context.Context, tx pgx.Tx, hostID int64) (priorState, e
 	if err != nil {
 		return priorState{}, err
 	}
-	return priorState{exists: exists, targets: targets, confirmedRulesHash: confirmedRulesHash}, nil
+	state.targets = targets
+	return state, nil
 }
 
-func (p priorState) requiresFullSync(
+func (p priorState) requiredSyncType(
+	policyDigest string,
 	desired []Target,
 	reported RuleCounts,
 	requestCleanSync bool,
 	clientRulesHash string,
-) bool {
-	return requestCleanSync ||
-		!p.exists ||
-		(p.confirmedRulesHash != "" && p.confirmedRulesHash != clientRulesHash) ||
-		(targetsEqual(desired, p.targets) && !countTargets(desired).MatchesReported(reported))
+) SyncType {
+	if p.policyDigest == nil || *p.policyDigest != policyDigest {
+		return SyncTypeCleanAll
+	}
+	if transitiveAuthorityRemoved(p.targets, desired) {
+		return SyncTypeCleanAll
+	}
+	if requestCleanSync ||
+		(p.confirmedRulesHash != nil && *p.confirmedRulesHash != clientRulesHash) ||
+		(targetsEqual(desired, p.targets) && !countTargets(desired).MatchesReported(reported)) {
+		return SyncTypeClean
+	}
+	return SyncTypeNormal
 }
 
 type preflightParams struct {
 	hostID          int64
-	pendingFullSync bool
-	payload         []PayloadRule
-	desired         []Target
-	reported        RuleCounts
+	policyDigest    string
+	pendingSyncType SyncType
 	clientRulesHash string
 }
 
 const upsertPreflightSQL = `
 INSERT INTO santa_sync_state (
     host_id,
-    pending_full_sync,
-    pending_payload_rule_count,
-    pending_preflight_at,
+    pending_sync_type,
+    pending_policy_digest,
     preflight_rules_hash,
-    desired_binary_rule_count,
-    desired_certificate_rule_count,
-    desired_teamid_rule_count,
-    desired_signingid_rule_count,
-    desired_cdhash_rule_count,
-    desired_compiler_rule_count,
-    binary_rule_count,
-    certificate_rule_count,
-    teamid_rule_count,
-    signingid_rule_count,
-    cdhash_rule_count,
-    compiler_rule_count,
-    transitive_rule_count,
-    last_rule_sync_attempt_at,
-    last_reported_counts_match_at,
     updated_at
 )
 VALUES (
-    $1, $2, $3, now(), $4,
-    $5, $6, $7, $8, $9, $10,
-    $11, $12, $13, $14, $15, $16, $17,
-    now(),
-    CASE WHEN $18::boolean THEN now() ELSE NULL END,
-    now()
+    $1, $2::santa_sync_type, $3, $4, now()
 )
 ON CONFLICT (host_id) DO UPDATE SET
-    pending_full_sync = EXCLUDED.pending_full_sync,
-    pending_payload_rule_count = EXCLUDED.pending_payload_rule_count,
-    pending_preflight_at = EXCLUDED.pending_preflight_at,
+    pending_sync_type = EXCLUDED.pending_sync_type,
+    pending_policy_digest = EXCLUDED.pending_policy_digest,
     preflight_rules_hash = EXCLUDED.preflight_rules_hash,
-    desired_binary_rule_count = EXCLUDED.desired_binary_rule_count,
-    desired_certificate_rule_count = EXCLUDED.desired_certificate_rule_count,
-    desired_teamid_rule_count = EXCLUDED.desired_teamid_rule_count,
-    desired_signingid_rule_count = EXCLUDED.desired_signingid_rule_count,
-    desired_cdhash_rule_count = EXCLUDED.desired_cdhash_rule_count,
-    desired_compiler_rule_count = EXCLUDED.desired_compiler_rule_count,
-    binary_rule_count = EXCLUDED.binary_rule_count,
-    certificate_rule_count = EXCLUDED.certificate_rule_count,
-    teamid_rule_count = EXCLUDED.teamid_rule_count,
-    signingid_rule_count = EXCLUDED.signingid_rule_count,
-    cdhash_rule_count = EXCLUDED.cdhash_rule_count,
-    compiler_rule_count = EXCLUDED.compiler_rule_count,
-    transitive_rule_count = EXCLUDED.transitive_rule_count,
-    last_rule_sync_attempt_at = EXCLUDED.last_rule_sync_attempt_at,
-    last_reported_counts_match_at = CASE
-        WHEN $18::boolean THEN EXCLUDED.last_reported_counts_match_at
-        ELSE santa_sync_state.last_reported_counts_match_at
-    END,
     updated_at = now()`
 
 func upsertPreflight(ctx context.Context, tx pgx.Tx, p preflightParams) error {
-	desiredCounts := countTargets(p.desired)
-	countsMatch := desiredCounts.MatchesReported(p.reported)
 	_, err := tx.Exec(ctx, upsertPreflightSQL,
 		p.hostID,
-		p.pendingFullSync,
-		len(p.payload),
+		p.pendingSyncType,
+		p.policyDigest,
 		p.clientRulesHash,
-		desiredCounts.Binary,
-		desiredCounts.Certificate,
-		desiredCounts.TeamID,
-		desiredCounts.SigningID,
-		desiredCounts.CDHash,
-		desiredCounts.Compiler,
-		p.reported.Binary,
-		p.reported.Certificate,
-		p.reported.TeamID,
-		p.reported.SigningID,
-		p.reported.CDHash,
-		p.reported.Compiler,
-		p.reported.Transitive,
-		countsMatch,
 	)
 	return err
 }

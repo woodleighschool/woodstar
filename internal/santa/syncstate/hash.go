@@ -9,11 +9,19 @@ import (
 )
 
 func validateRulesHash(rulesHash string) error {
-	if len(rulesHash) != 32 || strings.ToLower(rulesHash) != rulesHash {
-		return fmt.Errorf("%w: rules_hash must be 32 lowercase hexadecimal characters", fault.ErrInvalidInput)
+	return validateHexDigest("rules_hash", rulesHash, 32)
+}
+
+func validatePolicyDigest(digest string) error {
+	return validateHexDigest("policy digest", digest, 64)
+}
+
+func validateHexDigest(name string, value string, length int) error {
+	if len(value) != length || strings.ToLower(value) != value {
+		return fmt.Errorf("%w: %s must be %d lowercase hexadecimal characters", fault.ErrInvalidInput, name, length)
 	}
-	if _, err := hex.DecodeString(rulesHash); err != nil {
-		return fmt.Errorf("%w: rules_hash must be 32 lowercase hexadecimal characters", fault.ErrInvalidInput)
+	if _, err := hex.DecodeString(value); err != nil {
+		return fmt.Errorf("%w: %s must be %d lowercase hexadecimal characters", fault.ErrInvalidInput, name, length)
 	}
 	return nil
 }

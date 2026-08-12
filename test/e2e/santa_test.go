@@ -30,14 +30,9 @@ const santaProtobufContentType = "application/x-protobuf"
 var santaProtocolFixtures embed.FS
 
 type santaSyncCheckpoint struct {
-	RulesReceived       int32
-	RulesProcessed      int32
 	ConfirmedRulesHash  string
-	PendingFullSync     bool
-	PendingPayloadCount int32
-	PendingPreflightAt  *time.Time
-	LastSyncAttemptAt   *time.Time
-	LastSyncSuccessAt   *time.Time
+	AppliedPolicyDigest string
+	PendingSyncType     *string
 	LastCleanSyncAt     *time.Time
 	DesiredTargetCount  int32
 	AppliedTargetCount  int32
@@ -141,27 +136,28 @@ RETURNING id`,
 		t.Fatalf("created agent secret = %+v, want active Santa secret", createdSecret)
 	}
 
+	configurationMutation := adminapi.SantaConfigurationMutation{
+		Name:                      "Santa Integration Configuration",
+		ClientMode:                adminapi.SantaConfigurationMutationClientMode("lockdown"),
+		EnableBundles:             true,
+		EnableTransitiveRules:     true,
+		EnableAllEventUpload:      true,
+		DisableUnknownEventUpload: true,
+		OverrideFileAccessAction:  adminapi.SantaConfigurationMutationOverrideFileAccessAction("audit_only"),
+		FullSyncIntervalSeconds:   600,
+		BatchSize:                 50,
+		AllowedPathRegex:          new(`^/Applications/`),
+		BlockedPathRegex:          new(`^/tmp/`),
+		EventDetailUrl:            new(ruleURL),
+		EventDetailText:           new("More information"),
+		Targets: adminapi.SantaConfigurationTargets{
+			Include: []adminapi.LabelRef{{LabelId: label.Id}},
+			Exclude: []adminapi.LabelRef{},
+		},
+	}
 	configurationResponse, err := server.Admin.CreateSantaConfigurationWithResponse(
 		t.Context(),
-		adminapi.SantaConfigurationMutation{
-			Name:                      "Santa Integration Configuration",
-			ClientMode:                "lockdown",
-			EnableBundles:             true,
-			EnableTransitiveRules:     true,
-			EnableAllEventUpload:      true,
-			DisableUnknownEventUpload: true,
-			OverrideFileAccessAction:  "audit_only",
-			FullSyncIntervalSeconds:   600,
-			BatchSize:                 50,
-			AllowedPathRegex:          new(`^/Applications/`),
-			BlockedPathRegex:          new(`^/tmp/`),
-			EventDetailUrl:            new(ruleURL),
-			EventDetailText:           new("More information"),
-			Targets: adminapi.SantaConfigurationTargets{
-				Include: []adminapi.LabelRef{{LabelId: label.Id}},
-				Exclude: []adminapi.LabelRef{},
-			},
-		},
+		configurationMutation,
 	)
 	configurationResponse = requireAPIResponse(
 		t,
@@ -297,11 +293,9 @@ RETURNING id`,
 	)
 
 	firstCheckpoint := loadSantaSyncCheckpoint(t, database, hostID)
-	if firstCheckpoint.RulesReceived != 1 || firstCheckpoint.RulesProcessed != 1 ||
-		firstCheckpoint.ConfirmedRulesHash != acknowledgedHash || firstCheckpoint.PendingFullSync ||
-		firstCheckpoint.PendingPayloadCount != 0 || firstCheckpoint.PendingPreflightAt != nil ||
+	if firstCheckpoint.ConfirmedRulesHash != acknowledgedHash ||
+		len(firstCheckpoint.AppliedPolicyDigest) != 64 || firstCheckpoint.PendingSyncType != nil ||
 		firstCheckpoint.DesiredTargetCount != 1 || firstCheckpoint.AppliedTargetCount != 1 ||
-		firstCheckpoint.LastSyncAttemptAt == nil || firstCheckpoint.LastSyncSuccessAt == nil ||
 		firstCheckpoint.LastCleanSyncAt == nil {
 		t.Fatalf("first sync checkpoint = %+v, want promoted clean acknowledgement", firstCheckpoint)
 	}
@@ -324,12 +318,11 @@ RETURNING id`,
 	)
 
 	secondCheckpoint := loadSantaSyncCheckpoint(t, database, hostID)
-	if secondCheckpoint.RulesReceived != 0 || secondCheckpoint.RulesProcessed != 0 ||
-		secondCheckpoint.ConfirmedRulesHash != acknowledgedHash || secondCheckpoint.PendingFullSync ||
-		secondCheckpoint.PendingPayloadCount != 0 || secondCheckpoint.PendingPreflightAt != nil ||
+	if secondCheckpoint.ConfirmedRulesHash != acknowledgedHash ||
+		len(secondCheckpoint.AppliedPolicyDigest) != 64 || secondCheckpoint.PendingSyncType != nil ||
 		secondCheckpoint.DesiredTargetCount != 1 || secondCheckpoint.AppliedTargetCount != 1 ||
-		secondCheckpoint.LastSyncAttemptAt == nil || secondCheckpoint.LastSyncSuccessAt == nil ||
-		secondCheckpoint.LastCleanSyncAt == nil {
+		secondCheckpoint.LastCleanSyncAt == nil ||
+		!secondCheckpoint.LastCleanSyncAt.Equal(*firstCheckpoint.LastCleanSyncAt) {
 		t.Fatalf("second sync checkpoint = %+v, want empty normal acknowledgement", secondCheckpoint)
 	}
 
@@ -345,7 +338,7 @@ RETURNING id`,
 		hostState.Configuration.MatchedViaLabel.Id != label.Id ||
 		hostState.Configuration.MatchedViaLabel.Name != label.Name ||
 		hostState.RuleSync.DesiredCount != 1 || hostState.RuleSync.AppliedCount != 1 ||
-		hostState.RuleSync.PendingCount != 0 || hostState.RuleSync.LastCleanSyncAt == nil {
+		hostState.RuleSync.LastCleanSyncAt == nil {
 		t.Fatalf("public Santa host state = %+v, want matched applied configuration", hostState)
 	}
 
@@ -485,6 +478,147 @@ WHERE host_id = $1`, hostID).Scan(
 			unknownObservationCount,
 		)
 	}
+
+	configurationMutation.BlockedPathRegex = nil
+	updateResponse, err := server.Admin.UpdateSantaConfigurationWithResponse(
+		t.Context(),
+		configuration.Id,
+		configurationMutation,
+	)
+	updateResponse = requireAPIResponse(
+		t,
+		"remove Santa blocked path setting",
+		http.StatusOK,
+		updateResponse,
+		err,
+	)
+	if updateResponse.JSON200 == nil || updateResponse.JSON200.BlockedPathRegex != nil {
+		t.Fatalf("updated configuration = %+v, want omitted blocked path regex", updateResponse.JSON200)
+	}
+
+	var removedSettingPreflight syncv1.PreflightResponse
+	client.postFixture(
+		"preflight",
+		"preflight_normal.json",
+		nil,
+		&syncv1.PreflightRequest{},
+		&removedSettingPreflight,
+	)
+	if removedSettingPreflight.SyncType == nil ||
+		removedSettingPreflight.GetSyncType() != syncv1.SyncType_CLEAN_ALL ||
+		removedSettingPreflight.BlockedPathRegex != nil ||
+		removedSettingPreflight.AllowedPathRegex == nil {
+		t.Fatalf(
+			"preflight after removing blocked path = %+v, want CLEAN_ALL with only blocked path omitted",
+			&removedSettingPreflight,
+		)
+	}
+	if rules := client.downloadRules(); len(rules) != 1 {
+		t.Fatalf("policy cleanup downloaded %d rules, want complete desired set", len(rules))
+	}
+	client.postFixture(
+		"postflight",
+		"postflight_clean.json",
+		nil,
+		&syncv1.PostflightRequest{},
+		&syncv1.PostflightResponse{},
+	)
+	removedSettingCheckpoint := loadSantaSyncCheckpoint(t, database, hostID)
+	if removedSettingCheckpoint.AppliedPolicyDigest == secondCheckpoint.AppliedPolicyDigest ||
+		removedSettingCheckpoint.LastCleanSyncAt == nil ||
+		!removedSettingCheckpoint.LastCleanSyncAt.After(*secondCheckpoint.LastCleanSyncAt) {
+		t.Fatalf(
+			"checkpoint after removing setting = %+v, want newly applied clean policy",
+			removedSettingCheckpoint,
+		)
+	}
+
+	var convergedSettingPreflight syncv1.PreflightResponse
+	client.postFixture(
+		"preflight",
+		"preflight_normal.json",
+		nil,
+		&syncv1.PreflightRequest{},
+		&convergedSettingPreflight,
+	)
+	if convergedSettingPreflight.SyncType == nil ||
+		convergedSettingPreflight.GetSyncType() != syncv1.SyncType_NORMAL ||
+		convergedSettingPreflight.BlockedPathRegex != nil {
+		t.Fatalf(
+			"converged preflight after removing blocked path = %+v, want NORMAL with setting omitted",
+			&convergedSettingPreflight,
+		)
+	}
+	if rules := client.downloadRules(); len(rules) != 0 {
+		t.Fatalf("converged policy downloaded rules = %+v, want none", rules)
+	}
+	client.postFixture(
+		"postflight",
+		"postflight_normal.json",
+		nil,
+		&syncv1.PostflightRequest{},
+		&syncv1.PostflightResponse{},
+	)
+	convergedSettingCheckpoint := loadSantaSyncCheckpoint(t, database, hostID)
+	if convergedSettingCheckpoint.LastCleanSyncAt == nil ||
+		!convergedSettingCheckpoint.LastCleanSyncAt.Equal(*removedSettingCheckpoint.LastCleanSyncAt) {
+		t.Fatalf(
+			"converged setting checkpoint = %+v, want clean timestamp unchanged",
+			convergedSettingCheckpoint,
+		)
+	}
+
+	deleteResponse, err := server.Admin.DeleteSantaConfigurationWithResponse(t.Context(), configuration.Id)
+	requireAPIResponse(t, "delete Santa configuration", http.StatusNoContent, deleteResponse, err)
+
+	var noConfigurationPreflight syncv1.PreflightResponse
+	client.postFixture(
+		"preflight",
+		"preflight_normal.json",
+		nil,
+		&syncv1.PreflightRequest{},
+		&noConfigurationPreflight,
+	)
+	requireSantaPreflightSettingsOmitted(t, &noConfigurationPreflight, syncv1.SyncType_CLEAN_ALL)
+	if rules := client.downloadRules(); len(rules) != 1 {
+		t.Fatalf("configuration removal downloaded %d rules, want complete desired set", len(rules))
+	}
+	client.postFixture(
+		"postflight",
+		"postflight_clean.json",
+		nil,
+		&syncv1.PostflightRequest{},
+		&syncv1.PostflightResponse{},
+	)
+	noConfigurationCheckpoint := loadSantaSyncCheckpoint(t, database, hostID)
+	if noConfigurationCheckpoint.AppliedPolicyDigest == convergedSettingCheckpoint.AppliedPolicyDigest ||
+		noConfigurationCheckpoint.LastCleanSyncAt == nil ||
+		!noConfigurationCheckpoint.LastCleanSyncAt.After(*convergedSettingCheckpoint.LastCleanSyncAt) {
+		t.Fatalf(
+			"checkpoint after removing configuration = %+v, want newly applied clean policy",
+			noConfigurationCheckpoint,
+		)
+	}
+
+	var convergedNoConfigurationPreflight syncv1.PreflightResponse
+	client.postFixture(
+		"preflight",
+		"preflight_normal.json",
+		nil,
+		&syncv1.PreflightRequest{},
+		&convergedNoConfigurationPreflight,
+	)
+	requireSantaPreflightSettingsOmitted(t, &convergedNoConfigurationPreflight, syncv1.SyncType_NORMAL)
+	if rules := client.downloadRules(); len(rules) != 0 {
+		t.Fatalf("converged configuration removal downloaded rules = %+v, want none", rules)
+	}
+	client.postFixture(
+		"postflight",
+		"postflight_normal.json",
+		nil,
+		&syncv1.PostflightRequest{},
+		&syncv1.PostflightResponse{},
+	)
 }
 
 func (client santaProtocolFixtureClient) postFixture(
@@ -675,8 +809,8 @@ func (client santaProtocolFixtureClient) downloadRules() []*syncv1.Rule {
 func requireSantaPreflightConfiguration(t *testing.T, response *syncv1.PreflightResponse) {
 	t.Helper()
 
-	if response.SyncType == nil || response.GetSyncType() != syncv1.SyncType_CLEAN {
-		t.Fatalf("first sync type = %v, want present CLEAN", response.SyncType)
+	if response.SyncType == nil || response.GetSyncType() != syncv1.SyncType_CLEAN_ALL {
+		t.Fatalf("first sync type = %v, want present CLEAN_ALL", response.SyncType)
 	}
 	if response.GetClientMode() != syncv1.ClientMode_LOCKDOWN ||
 		response.GetFullSyncIntervalSeconds() != 600 || response.GetBatchSize() != 50 {
@@ -712,6 +846,30 @@ func requireSantaPreflightConfiguration(t *testing.T, response *syncv1.Preflight
 			"configured event detail = %v/%v, want present integration values",
 			response.EventDetailUrl,
 			response.EventDetailText,
+		)
+	}
+}
+
+func requireSantaPreflightSettingsOmitted(
+	t *testing.T,
+	response *syncv1.PreflightResponse,
+	wantSyncType syncv1.SyncType,
+) {
+	t.Helper()
+
+	if response.SyncType == nil || response.GetSyncType() != wantSyncType ||
+		response.GetClientMode() != syncv1.ClientMode_UNKNOWN_CLIENT_MODE ||
+		response.GetFullSyncIntervalSeconds() != 0 || response.GetBatchSize() != 0 ||
+		response.EnableBundles != nil || response.EnableTransitiveRules != nil ||
+		response.EnableAllEventUpload != nil || response.DisableUnknownEventUpload != nil ||
+		response.OverrideFileAccessAction != nil || response.AllowedPathRegex != nil ||
+		response.BlockedPathRegex != nil || response.GetRemovableMediaPolicy() != nil ||
+		response.GetEncryptedRemovableMediaPolicy() != nil || response.EventDetailUrl != nil ||
+		response.EventDetailText != nil {
+		t.Fatalf(
+			"preflight without configuration = %+v, want %s with all Woodstar settings omitted",
+			response,
+			wantSyncType,
 		)
 	}
 }
@@ -778,14 +936,9 @@ func loadSantaSyncCheckpoint(t *testing.T, database *pgx.Conn, hostID int64) san
 	var checkpoint santaSyncCheckpoint
 	err := database.QueryRow(t.Context(), `
 SELECT
-    rules_received,
-    rules_processed,
     confirmed_rules_hash,
-    pending_full_sync,
-    pending_payload_rule_count,
-    pending_preflight_at,
-    last_rule_sync_attempt_at,
-    last_rule_sync_success_at,
+    applied_policy_digest,
+    pending_sync_type::text,
     last_clean_sync_at,
     (SELECT count(*)::integer
      FROM santa_sync_targets
@@ -795,14 +948,9 @@ SELECT
      WHERE host_id = $1 AND phase = 'applied') AS applied_target_count
 FROM santa_sync_state
 WHERE host_id = $1`, hostID).Scan(
-		&checkpoint.RulesReceived,
-		&checkpoint.RulesProcessed,
 		&checkpoint.ConfirmedRulesHash,
-		&checkpoint.PendingFullSync,
-		&checkpoint.PendingPayloadCount,
-		&checkpoint.PendingPreflightAt,
-		&checkpoint.LastSyncAttemptAt,
-		&checkpoint.LastSyncSuccessAt,
+		&checkpoint.AppliedPolicyDigest,
+		&checkpoint.PendingSyncType,
 		&checkpoint.LastCleanSyncAt,
 		&checkpoint.DesiredTargetCount,
 		&checkpoint.AppliedTargetCount,
@@ -815,15 +963,10 @@ WHERE host_id = $1`, hostID).Scan(
 
 func (checkpoint santaSyncCheckpoint) String() string {
 	return fmt.Sprintf(
-		"received=%d processed=%d hash=%q pending_full=%t pending_count=%d pending_at=%v attempt=%v success=%v clean=%v desired=%d applied=%d",
-		checkpoint.RulesReceived,
-		checkpoint.RulesProcessed,
+		"hash=%q applied_policy=%q pending_type=%v clean=%v desired=%d applied=%d",
 		checkpoint.ConfirmedRulesHash,
-		checkpoint.PendingFullSync,
-		checkpoint.PendingPayloadCount,
-		checkpoint.PendingPreflightAt,
-		checkpoint.LastSyncAttemptAt,
-		checkpoint.LastSyncSuccessAt,
+		checkpoint.AppliedPolicyDigest,
+		checkpoint.PendingSyncType,
 		checkpoint.LastCleanSyncAt,
 		checkpoint.DesiredTargetCount,
 		checkpoint.AppliedTargetCount,

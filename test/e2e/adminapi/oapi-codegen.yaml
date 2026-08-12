@@ -36,6 +36,8 @@ output-options:
     - create-osquery-report
     - list-osquery-report-snapshots
     - create-santa-configuration
+    - update-santa-configuration
+    - delete-santa-configuration
     - create-santa-rule
     - list-santa-events
     - get-host-santa-state

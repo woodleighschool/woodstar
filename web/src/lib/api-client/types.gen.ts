@@ -1269,11 +1269,11 @@ export type SantaProcess = {
 };
 
 export type SantaRemovableMediaPolicy = {
-    action?: 'allow' | 'block' | 'remount';
+    action: 'allow' | 'block' | 'remount';
     /**
      * Mount flags required when action is remount.
      */
-    remount_flags?: Array<string>;
+    remount_flags?: Array<'rdonly' | 'noexec' | 'nosuid' | 'nobrowse' | 'noowners' | 'nodev' | '-j' | 'async'>;
 };
 
 export type SantaRule = {
@@ -1323,7 +1323,6 @@ export type SantaRuleSyncSummary = {
     applied_count: number;
     desired_count: number;
     last_clean_sync_at?: string;
-    pending_count: number;
 };
 
 export type SantaRuleTargets = {

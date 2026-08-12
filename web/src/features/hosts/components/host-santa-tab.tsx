@@ -117,7 +117,6 @@ export function HostSantaTab({ hostId, santa, stateError, onStateRetry }: HostSa
             label="Rule Sync"
             value={`${santa.rule_sync.applied_count} applied / ${santa.rule_sync.desired_count} desired`}
           />
-          <KeyValueRow label="Pending Rules" value={santa.rule_sync.pending_count} />
         </KeyValueSection>
       ) : null}
 

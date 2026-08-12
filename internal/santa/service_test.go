@@ -129,6 +129,47 @@ func TestSyncServicePropagatesRecorderErrorsBeforeStageWork(t *testing.T) {
 	}
 }
 
+func TestSyncServicePreflightPlansAgainstResolvedConfiguration(t *testing.T) {
+	configuration := &configurations.ConfigurationMatch{
+		Configuration: configurations.Configuration{
+			ID:   42,
+			Name: "Restricted",
+			SyncSettings: configurations.SyncSettings{
+				BlockedPathRegex: new(`^/private/tmp/`),
+			},
+		},
+	}
+	syncStore := &recordingSyncStore{}
+	service := NewSyncService(Dependencies{
+		HostStore:      &testHostStore{hostID: 7},
+		Configurations: staticConfigurationResolver{configuration: configuration},
+		Events:         &testEventStore{},
+		Rules:          testRuleStore{},
+		Sync:           syncStore,
+		Heartbeats:     &heartbeatRecorder{},
+	})
+
+	response, err := service.Preflight(
+		t.Context(),
+		"machine-1",
+		heartbeats.Contact{},
+		PreflightRequest{RulesHash: "00000000000000000000000000000000"},
+	)
+	if err != nil {
+		t.Fatalf("preflight: %v", err)
+	}
+	wantDigest, err := configurations.SyncPolicyDigest(&configuration.Configuration)
+	if err != nil {
+		t.Fatalf("digest configuration: %v", err)
+	}
+	if syncStore.policyDigest != wantDigest {
+		t.Fatalf("planned policy digest = %q, want %q", syncStore.policyDigest, wantDigest)
+	}
+	if response.Configuration == nil || response.Configuration.ID != 42 {
+		t.Fatalf("preflight configuration = %+v, want resolved configuration", response.Configuration)
+	}
+}
+
 func newTestSyncService(hostID int64, hostErr error, recorder contactRecorder) (*SyncService, *testEventStore) {
 	eventStore := &testEventStore{}
 	service := NewSyncService(Dependencies{
@@ -159,6 +200,17 @@ func (testConfigurationResolver) ResolveConfigurationForHost(context.Context, in
 	return nil, nil
 }
 
+type staticConfigurationResolver struct {
+	configuration *configurations.ConfigurationMatch
+}
+
+func (r staticConfigurationResolver) ResolveConfigurationForHost(
+	context.Context,
+	int64,
+) (*configurations.ConfigurationMatch, error) {
+	return r.configuration, nil
+}
+
 type testEventStore struct{ calls int }
 
 func (s *testEventStore) IngestEvents(
@@ -183,12 +235,32 @@ type testSyncStore struct{}
 func (testSyncStore) PreparePending(
 	context.Context,
 	int64,
+	string,
 	[]syncstate.Target,
 	syncstate.RuleCounts,
 	bool,
 	string,
 ) (syncstate.SyncType, error) {
 	return syncstate.SyncTypeNormal, nil
+}
+
+type recordingSyncStore struct {
+	testSyncStore
+
+	policyDigest string
+}
+
+func (s *recordingSyncStore) PreparePending(
+	_ context.Context,
+	_ int64,
+	policyDigest string,
+	_ []syncstate.Target,
+	_ syncstate.RuleCounts,
+	_ bool,
+	_ string,
+) (syncstate.SyncType, error) {
+	s.policyDigest = policyDigest
+	return syncstate.SyncTypeCleanAll, nil
 }
 
 func (testSyncStore) LoadPendingPayloadPage(

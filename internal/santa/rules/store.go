@@ -12,7 +12,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/listing"
 	"github.com/woodleighschool/woodstar/internal/postgres"
-	"github.com/woodleighschool/woodstar/internal/santa/payloadhash"
 	"github.com/woodleighschool/woodstar/internal/santa/syncstate"
 	"github.com/woodleighschool/woodstar/internal/targeting"
 )
@@ -266,7 +265,7 @@ func (s *Store) ListRuleStatusesForHost(
 	statuses := make([]RuleStatus, 0, len(hostRules))
 	for i, rule := range hostRules {
 		target := targets[i]
-		appliedRule := applied[target.Key()]
+		appliedRule := applied[target]
 		statuses = append(statuses, RuleStatus{
 			HostRule: rule,
 			Applied:  appliedRule,
@@ -307,7 +306,7 @@ func hostRulesFromRows(rows []hostRuleRow) []HostRule {
 	return rules
 }
 
-func (s *Store) appliedSyncTargetSet(ctx context.Context, hostID int64) (map[string]bool, error) {
+func (s *Store) appliedSyncTargetSet(ctx context.Context, hostID int64) (map[syncstate.Target]bool, error) {
 	type appliedRow struct {
 		RuleType            string `db:"rule_type"`
 		Identifier          string `db:"identifier"`
@@ -316,7 +315,6 @@ func (s *Store) appliedSyncTargetSet(ctx context.Context, hostID int64) (map[str
 		CustomMessage       string `db:"custom_message"`
 		CustomURL           string `db:"custom_url"`
 		NotificationAppName string `db:"notification_app_name"`
-		PayloadHash         string `db:"payload_hash"`
 	}
 	qrows, err := s.pool.Query(ctx, `
 		SELECT
@@ -326,8 +324,7 @@ func (s *Store) appliedSyncTargetSet(ctx context.Context, hostID int64) (map[str
 			cel_expression,
 			custom_message,
 			custom_url,
-			notification_app_name,
-			payload_hash
+			notification_app_name
 		FROM santa_sync_targets
 		WHERE host_id = $1 AND phase = 'applied'`, hostID)
 	if err != nil {
@@ -347,7 +344,6 @@ func (s *Store) appliedSyncTargetSet(ctx context.Context, hostID int64) (map[str
 			CustomMessage: row.CustomMessage,
 			CustomURL:     row.CustomURL,
 			AppName:       row.NotificationAppName,
-			PayloadHash:   row.PayloadHash,
 		}
 	}
 	return syncstate.TargetSet(applied), nil
@@ -598,22 +594,9 @@ func SyncTargetsFromRules(rules []HostRule) []syncstate.Target {
 			CustomURL:     rule.CustomURL,
 			AppName:       rule.AppName,
 		}
-		target.PayloadHash = syncTargetPayloadHash(target)
 		targets = append(targets, target)
 	}
 	return targets
-}
-
-func syncTargetPayloadHash(target syncstate.Target) string {
-	return payloadhash.Hash(
-		target.RuleType,
-		target.Identifier,
-		target.Policy,
-		target.CELExpression,
-		target.CustomMessage,
-		target.CustomURL,
-		target.AppName,
-	)
 }
 
 func ruleSelectSQL() string {

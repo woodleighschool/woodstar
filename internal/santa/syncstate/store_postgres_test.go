@@ -19,6 +19,9 @@ import (
 const (
 	emptyRulesHash  = "00000000000000000000000000000000"
 	syncedRulesHash = "11111111111111111111111111111111"
+	settingsDigest  = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	changedDigest   = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	removedDigest   = "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
 )
 
 func TestPreparePendingNormalSyncSendsChangedRulesAndRemovals(t *testing.T) {
@@ -33,21 +36,22 @@ func TestPreparePendingNormalSyncSendsChangedRulesAndRemovals(t *testing.T) {
 	if syncType, err := store.PreparePending(
 		ctx,
 		host.ID,
+		settingsDigest,
 		initial,
 		syncstate.RuleCounts{},
 		false,
 		emptyRulesHash,
 	); err != nil {
 		t.Fatalf("initial prepare: %v", err)
-	} else if syncType != syncstate.SyncTypeClean {
-		t.Fatalf("initial sync type = %q, want clean", syncType)
+	} else if syncType != syncstate.SyncTypeCleanAll {
+		t.Fatalf("initial sync type = %q, want clean all", syncType)
 	}
 	if err := store.PromotePending(
 		ctx,
 		host.ID,
 		2,
 		2,
-		syncstate.SyncTypeClean,
+		syncstate.SyncTypeCleanAll,
 		syncedRulesHash,
 	); err != nil {
 		t.Fatalf("promote initial: %v", err)
@@ -57,7 +61,7 @@ func TestPreparePendingNormalSyncSendsChangedRulesAndRemovals(t *testing.T) {
 		target("binary", "stay", "blocklist", "stay-hash"),
 		target("certificate", "new-cert", "blocklist", "new-cert-hash"),
 	}
-	syncType, err := store.PreparePending(ctx, host.ID, next, syncstate.RuleCounts{
+	syncType, err := store.PreparePending(ctx, host.ID, settingsDigest, next, syncstate.RuleCounts{
 		Binary: 2,
 	}, false, syncedRulesHash)
 	if err != nil {
@@ -85,6 +89,7 @@ func TestPreparePendingCleanSyncsWhenReportedCountsDrift(t *testing.T) {
 	if _, err := store.PreparePending(
 		ctx,
 		host.ID,
+		settingsDigest,
 		desired,
 		syncstate.RuleCounts{},
 		false,
@@ -106,6 +111,7 @@ func TestPreparePendingCleanSyncsWhenReportedCountsDrift(t *testing.T) {
 	syncType, err := store.PreparePending(
 		ctx,
 		host.ID,
+		settingsDigest,
 		desired,
 		syncstate.RuleCounts{},
 		false,
@@ -126,6 +132,206 @@ func TestPreparePendingCleanSyncsWhenReportedCountsDrift(t *testing.T) {
 	}
 }
 
+func TestPreparePendingUsesPolicyBoundaries(t *testing.T) {
+	db, ctx := testdb.Open(t)
+	store := syncstate.NewStore(db)
+	host := createHost(t, ctx, db, "policy-boundaries")
+	desired := []syncstate.Target{target("binary", "known", "allowlist", "known-hash")}
+
+	if syncType, err := store.PreparePending(
+		ctx, host.ID, settingsDigest, desired, syncstate.RuleCounts{}, false, emptyRulesHash,
+	); err != nil {
+		t.Fatalf("prepare unknown policy: %v", err)
+	} else if syncType != syncstate.SyncTypeCleanAll {
+		t.Fatalf("unknown policy sync type = %q, want clean all", syncType)
+	}
+	if err := store.PromotePending(
+		ctx, host.ID, 1, 1, syncstate.SyncTypeCleanAll, syncedRulesHash,
+	); err != nil {
+		t.Fatalf("promote first policy: %v", err)
+	}
+
+	if syncType, err := store.PreparePending(
+		ctx, host.ID, changedDigest, desired, syncstate.RuleCounts{Binary: 1}, false, syncedRulesHash,
+	); err != nil {
+		t.Fatalf("prepare changed policy: %v", err)
+	} else if syncType != syncstate.SyncTypeCleanAll {
+		t.Fatalf("changed policy sync type = %q, want clean all", syncType)
+	}
+	if err := store.PromotePending(
+		ctx, host.ID, 1, 1, syncstate.SyncTypeClean, syncedRulesHash,
+	); !errors.Is(err, fault.ErrInvalidInput) {
+		t.Fatalf("accept clean for changed policy = %v, want invalid input", err)
+	}
+	if syncType, err := store.PreparePending(
+		ctx, host.ID, changedDigest, desired, syncstate.RuleCounts{Binary: 1}, false, syncedRulesHash,
+	); err != nil {
+		t.Fatalf("retry changed policy: %v", err)
+	} else if syncType != syncstate.SyncTypeCleanAll {
+		t.Fatalf("retry sync type = %q, want clean all", syncType)
+	}
+	if err := store.PromotePending(
+		ctx, host.ID, 1, 1, syncstate.SyncTypeCleanAll, syncedRulesHash,
+	); err != nil {
+		t.Fatalf("promote changed policy: %v", err)
+	}
+
+	if syncType, err := store.PreparePending(
+		ctx, host.ID, removedDigest, desired, syncstate.RuleCounts{Binary: 1}, false, syncedRulesHash,
+	); err != nil {
+		t.Fatalf("prepare removed configuration: %v", err)
+	} else if syncType != syncstate.SyncTypeCleanAll {
+		t.Fatalf("removed configuration sync type = %q, want clean all", syncType)
+	}
+}
+
+func TestPreparePendingEmptyCleanUsesTombstoneAndConverges(t *testing.T) {
+	db, ctx := testdb.Open(t)
+	store := syncstate.NewStore(db)
+	host := createHost(t, ctx, db, "empty-clean")
+
+	if syncType, err := store.PreparePending(
+		ctx, host.ID, settingsDigest, nil, syncstate.RuleCounts{}, false, emptyRulesHash,
+	); err != nil {
+		t.Fatalf("prepare empty clean: %v", err)
+	} else if syncType != syncstate.SyncTypeCleanAll {
+		t.Fatalf("empty initial sync type = %q, want clean all", syncType)
+	}
+	page, err := store.LoadPendingPayloadPage(ctx, host.ID, "", 10)
+	if err != nil {
+		t.Fatalf("load empty clean payload: %v", err)
+	}
+	if len(page.Rules) != 1 || page.Rules[0].RuleType != "binary" ||
+		len(page.Rules[0].Identifier) != 64 || !page.Rules[0].Removed {
+		t.Fatalf("empty clean payload = %+v, want one stable binary removal", page.Rules)
+	}
+	if err := store.PromotePending(
+		ctx, host.ID, 1, 1, syncstate.SyncTypeCleanAll, syncedRulesHash,
+	); err != nil {
+		t.Fatalf("promote empty clean: %v", err)
+	}
+
+	if syncType, err := store.PreparePending(
+		ctx, host.ID, settingsDigest, nil, syncstate.RuleCounts{}, false, syncedRulesHash,
+	); err != nil {
+		t.Fatalf("prepare converged empty policy: %v", err)
+	} else if syncType != syncstate.SyncTypeNormal {
+		t.Fatalf("converged empty sync type = %q, want normal", syncType)
+	}
+	page, err = store.LoadPendingPayloadPage(ctx, host.ID, "", 10)
+	if err != nil {
+		t.Fatalf("load converged payload: %v", err)
+	}
+	if len(page.Rules) != 0 {
+		t.Fatalf("converged payload = %+v, want no rules", page.Rules)
+	}
+}
+
+func TestPreparePendingCleanAllWhenTransitiveAuthorityIsRemoved(t *testing.T) {
+	db, ctx := testdb.Open(t)
+	store := syncstate.NewStore(db)
+	host := createHost(t, ctx, db, "transitive-authority")
+	compiler := []syncstate.Target{
+		target("binary", "compiler", "allowlist_compiler", "compiler-hash"),
+	}
+
+	if _, err := store.PreparePending(
+		ctx, host.ID, settingsDigest, compiler, syncstate.RuleCounts{}, false, emptyRulesHash,
+	); err != nil {
+		t.Fatalf("prepare compiler authority: %v", err)
+	}
+	if err := store.PromotePending(
+		ctx, host.ID, 1, 1, syncstate.SyncTypeCleanAll, syncedRulesHash,
+	); err != nil {
+		t.Fatalf("promote compiler authority: %v", err)
+	}
+
+	ordinary := []syncstate.Target{target("binary", "compiler", "allowlist", "ordinary-hash")}
+	if syncType, err := store.PreparePending(
+		ctx,
+		host.ID,
+		settingsDigest,
+		ordinary,
+		syncstate.RuleCounts{Binary: 1, Compiler: 1},
+		false,
+		syncedRulesHash,
+	); err != nil {
+		t.Fatalf("prepare removed compiler authority: %v", err)
+	} else if syncType != syncstate.SyncTypeCleanAll {
+		t.Fatalf("removed compiler authority sync type = %q, want clean all", syncType)
+	}
+}
+
+func TestPreparePendingTreatsCELAsTransitiveAuthority(t *testing.T) {
+	for _, tt := range []struct {
+		name     string
+		desired  []syncstate.Target
+		wantType syncstate.SyncType
+	}{
+		{name: "removed", wantType: syncstate.SyncTypeCleanAll},
+		{
+			name: "expression changed",
+			desired: []syncstate.Target{{
+				RuleType:      "binary",
+				Identifier:    "cel-authority",
+				Policy:        "cel",
+				CELExpression: "target.signing_id == 'second' ? ALLOWLIST_COMPILER : BLOCKLIST",
+			}},
+			wantType: syncstate.SyncTypeCleanAll,
+		},
+		{
+			name: "payload metadata changed",
+			desired: []syncstate.Target{{
+				RuleType:      "binary",
+				Identifier:    "cel-authority",
+				Policy:        "cel",
+				CELExpression: "target.signing_id == 'first' ? ALLOWLIST_COMPILER : BLOCKLIST",
+				CustomMessage: "Updated message",
+			}},
+			wantType: syncstate.SyncTypeNormal,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			db, ctx := testdb.Open(t)
+			store := syncstate.NewStore(db)
+			host := createHost(t, ctx, db, "cel-"+tt.name)
+			initial := []syncstate.Target{{
+				RuleType:      "binary",
+				Identifier:    "cel-authority",
+				Policy:        "cel",
+				CELExpression: "target.signing_id == 'first' ? ALLOWLIST_COMPILER : BLOCKLIST",
+			}}
+
+			if _, err := store.PreparePending(
+				ctx, host.ID, settingsDigest, initial, syncstate.RuleCounts{}, false, emptyRulesHash,
+			); err != nil {
+				t.Fatalf("prepare initial CEL authority: %v", err)
+			}
+			if err := store.PromotePending(
+				ctx, host.ID, 1, 1, syncstate.SyncTypeCleanAll, syncedRulesHash,
+			); err != nil {
+				t.Fatalf("promote initial CEL authority: %v", err)
+			}
+
+			syncType, err := store.PreparePending(
+				ctx,
+				host.ID,
+				settingsDigest,
+				tt.desired,
+				syncstate.RuleCounts{Binary: 1},
+				false,
+				syncedRulesHash,
+			)
+			if err != nil {
+				t.Fatalf("prepare changed CEL authority: %v", err)
+			}
+			if syncType != tt.wantType {
+				t.Fatalf("sync type = %q, want %q", syncType, tt.wantType)
+			}
+		})
+	}
+}
+
 func TestPreparePendingIgnoresClientLocalTransitiveRulesForCountDrift(t *testing.T) {
 	db, ctx := testdb.Open(t)
 	store := syncstate.NewStore(db)
@@ -138,6 +344,7 @@ func TestPreparePendingIgnoresClientLocalTransitiveRulesForCountDrift(t *testing
 	if _, err := store.PreparePending(
 		ctx,
 		host.ID,
+		settingsDigest,
 		desired,
 		syncstate.RuleCounts{},
 		false,
@@ -150,13 +357,13 @@ func TestPreparePendingIgnoresClientLocalTransitiveRulesForCountDrift(t *testing
 		host.ID,
 		2,
 		2,
-		syncstate.SyncTypeClean,
+		syncstate.SyncTypeCleanAll,
 		syncedRulesHash,
 	); err != nil {
 		t.Fatalf("promote initial: %v", err)
 	}
 
-	syncType, err := store.PreparePending(ctx, host.ID, desired, syncstate.RuleCounts{
+	syncType, err := store.PreparePending(ctx, host.ID, settingsDigest, desired, syncstate.RuleCounts{
 		Binary:     3,
 		Compiler:   1,
 		Transitive: 1,
@@ -192,6 +399,7 @@ func TestLoadPendingPayloadPagePaginatesDeterministically(t *testing.T) {
 	if _, err := store.PreparePending(
 		ctx,
 		host.ID,
+		settingsDigest,
 		desired,
 		syncstate.RuleCounts{},
 		true,
@@ -234,7 +442,7 @@ func TestLoadPendingPayloadPagePaginatesDeterministically(t *testing.T) {
 	}
 }
 
-func TestPromotePendingRecordsAttemptsAndOnlyPromotesProcessedPayload(t *testing.T) {
+func TestPromotePendingOnlyPromotesValidatedPayload(t *testing.T) {
 	db, ctx := testdb.Open(t)
 	store := syncstate.NewStore(db)
 	host := createHost(t, ctx, db, "promote")
@@ -243,6 +451,7 @@ func TestPromotePendingRecordsAttemptsAndOnlyPromotesProcessedPayload(t *testing
 	if _, err := store.PreparePending(
 		ctx,
 		host.ID,
+		settingsDigest,
 		desired,
 		syncstate.RuleCounts{},
 		false,
@@ -255,7 +464,7 @@ func TestPromotePendingRecordsAttemptsAndOnlyPromotesProcessedPayload(t *testing
 		host.ID,
 		1,
 		0,
-		syncstate.SyncTypeClean,
+		syncstate.SyncTypeCleanAll,
 		syncedRulesHash,
 	); !errors.Is(err, fault.ErrInvalidInput) {
 		t.Fatalf("mismatch promote error = %v, want invalid input", err)
@@ -270,7 +479,7 @@ func TestPromotePendingRecordsAttemptsAndOnlyPromotesProcessedPayload(t *testing
 	if got := payloadSummary(page.Rules); got != "binary:known:allowlist:false" {
 		t.Fatalf("pending payload after mismatch = %q, want desired rule", got)
 	}
-	for _, attempt := range []struct {
+	for _, invalid := range []struct {
 		name           string
 		rulesReceived  uint32
 		rulesProcessed uint32
@@ -281,7 +490,7 @@ func TestPromotePendingRecordsAttemptsAndOnlyPromotesProcessedPayload(t *testing
 			name:           "received count",
 			rulesReceived:  0,
 			rulesProcessed: 1,
-			syncType:       syncstate.SyncTypeClean,
+			syncType:       syncstate.SyncTypeCleanAll,
 			rulesHash:      syncedRulesHash,
 		},
 		{
@@ -295,18 +504,18 @@ func TestPromotePendingRecordsAttemptsAndOnlyPromotesProcessedPayload(t *testing
 			name:           "rules hash",
 			rulesReceived:  1,
 			rulesProcessed: 1,
-			syncType:       syncstate.SyncTypeClean,
+			syncType:       syncstate.SyncTypeCleanAll,
 			rulesHash:      "not-a-rules-hash",
 		},
 	} {
-		t.Run(attempt.name, func(t *testing.T) {
+		t.Run(invalid.name, func(t *testing.T) {
 			err := store.PromotePending(
 				ctx,
 				host.ID,
-				attempt.rulesReceived,
-				attempt.rulesProcessed,
-				attempt.syncType,
-				attempt.rulesHash,
+				invalid.rulesReceived,
+				invalid.rulesProcessed,
+				invalid.syncType,
+				invalid.rulesHash,
 			)
 			if !errors.Is(err, fault.ErrInvalidInput) {
 				t.Fatalf("promote error = %v, want invalid input", err)
@@ -319,7 +528,7 @@ func TestPromotePendingRecordsAttemptsAndOnlyPromotesProcessedPayload(t *testing
 		host.ID,
 		1,
 		1,
-		syncstate.SyncTypeClean,
+		syncstate.SyncTypeCleanAll,
 		syncedRulesHash,
 	); err != nil {
 		t.Fatalf("successful promote: %v", err)
@@ -345,6 +554,7 @@ func TestPreparePendingUsesRulesHashToDetectClientDrift(t *testing.T) {
 	if _, err := store.PreparePending(
 		ctx,
 		host.ID,
+		settingsDigest,
 		desired,
 		syncstate.RuleCounts{},
 		false,
@@ -357,7 +567,7 @@ func TestPreparePendingUsesRulesHashToDetectClientDrift(t *testing.T) {
 		host.ID,
 		1,
 		1,
-		syncstate.SyncTypeClean,
+		syncstate.SyncTypeCleanAll,
 		syncedRulesHash,
 	); err != nil {
 		t.Fatalf("promote initial: %v", err)
@@ -366,6 +576,7 @@ func TestPreparePendingUsesRulesHashToDetectClientDrift(t *testing.T) {
 	syncType, err := store.PreparePending(
 		ctx,
 		host.ID,
+		settingsDigest,
 		desired,
 		syncstate.RuleCounts{Binary: 1},
 		false,
@@ -388,6 +599,7 @@ func TestPromotePendingValidatesEmptySyncHashAndPendingState(t *testing.T) {
 	if _, err := store.PreparePending(
 		ctx,
 		host.ID,
+		settingsDigest,
 		desired,
 		syncstate.RuleCounts{},
 		false,
@@ -400,7 +612,7 @@ func TestPromotePendingValidatesEmptySyncHashAndPendingState(t *testing.T) {
 		host.ID,
 		1,
 		1,
-		syncstate.SyncTypeClean,
+		syncstate.SyncTypeCleanAll,
 		syncedRulesHash,
 	); err != nil {
 		t.Fatalf("promote initial: %v", err)
@@ -408,6 +620,7 @@ func TestPromotePendingValidatesEmptySyncHashAndPendingState(t *testing.T) {
 	if syncType, err := store.PreparePending(
 		ctx,
 		host.ID,
+		settingsDigest,
 		desired,
 		syncstate.RuleCounts{Binary: 1},
 		false,
@@ -450,12 +663,12 @@ func TestPromotePendingValidatesEmptySyncHashAndPendingState(t *testing.T) {
 	}
 }
 
-func target(ruleType string, identifier string, policy string, payloadHash string) syncstate.Target {
+func target(ruleType string, identifier string, policy string, payloadVariant string) syncstate.Target {
 	return syncstate.Target{
-		RuleType:    ruleType,
-		Identifier:  identifier,
-		Policy:      policy,
-		PayloadHash: payloadHash,
+		RuleType:      ruleType,
+		Identifier:    identifier,
+		Policy:        policy,
+		CustomMessage: payloadVariant,
 	}
 }
 

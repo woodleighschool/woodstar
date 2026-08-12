@@ -57,6 +57,7 @@ type syncStore interface {
 	PreparePending(
 		ctx context.Context,
 		hostID int64,
+		policyDigest string,
 		targets []syncstate.Target,
 		reported syncstate.RuleCounts,
 		requestCleanSync bool,
@@ -100,6 +101,19 @@ func (s *SyncService) Preflight(
 	); err != nil {
 		return PreflightResponse{}, err
 	}
+	configuration, err := s.deps.Configurations.ResolveConfigurationForHost(ctx, hostID)
+	if err != nil {
+		return PreflightResponse{}, err
+	}
+	var configuredPolicy *configurations.Configuration
+	if configuration != nil {
+		configuredPolicy = &configuration.Configuration
+	}
+	policyDigest, err := configurations.SyncPolicyDigest(configuredPolicy)
+	if err != nil {
+		return PreflightResponse{}, err
+	}
+
 	rules, err := s.deps.Rules.ResolveRulesForHost(ctx, hostID)
 	if err != nil {
 		return PreflightResponse{}, err
@@ -108,6 +122,7 @@ func (s *SyncService) Preflight(
 	syncType, err := s.deps.Sync.PreparePending(
 		ctx,
 		hostID,
+		policyDigest,
 		targets,
 		req.RuleCounts,
 		req.RequestCleanSync,
@@ -118,13 +133,7 @@ func (s *SyncService) Preflight(
 	}
 
 	resp := PreflightResponse{SyncType: syncType}
-	configuration, err := s.deps.Configurations.ResolveConfigurationForHost(ctx, hostID)
-	if err != nil {
-		return PreflightResponse{}, err
-	}
-	if configuration != nil {
-		resp.Configuration = &configuration.Configuration
-	}
+	resp.Configuration = configuredPolicy
 	return resp, nil
 }
 

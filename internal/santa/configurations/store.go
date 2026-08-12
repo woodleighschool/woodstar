@@ -121,9 +121,9 @@ func (s *Store) Create(ctx context.Context, params ConfigurationMutation) (*Conf
 				@allowed_path_regex,
 				@blocked_path_regex,
 				@removable_media_action::santa_removable_media_action,
-				@removable_media_remount_flags::text[],
+				@removable_media_remount_flags::santa_remount_flag[],
 				@encrypted_removable_media_action::santa_removable_media_action,
-				@encrypted_removable_media_remount_flags::text[],
+				@encrypted_removable_media_remount_flags::santa_remount_flag[],
 				@event_detail_url,
 				@event_detail_text
 			)
@@ -164,9 +164,9 @@ func (s *Store) Update(ctx context.Context, id int64, params ConfigurationMutati
 				allowed_path_regex = @allowed_path_regex,
 				blocked_path_regex = @blocked_path_regex,
 				removable_media_action = @removable_media_action::santa_removable_media_action,
-				removable_media_remount_flags = @removable_media_remount_flags::text[],
+				removable_media_remount_flags = @removable_media_remount_flags::santa_remount_flag[],
 				encrypted_removable_media_action = @encrypted_removable_media_action::santa_removable_media_action,
-				encrypted_removable_media_remount_flags = @encrypted_removable_media_remount_flags::text[],
+				encrypted_removable_media_remount_flags = @encrypted_removable_media_remount_flags::santa_remount_flag[],
 				event_detail_url = @event_detail_url,
 				event_detail_text = @event_detail_text,
 				updated_at = now()
@@ -269,7 +269,7 @@ func (s *Store) ResolveConfigurationForHost(ctx context.Context, hostID int64) (
 			c.name,
 			c.description,
 			c.position,
-			c.client_mode,
+			c.client_mode::text AS client_mode,
 			c.enable_bundles,
 			c.enable_transitive_rules,
 			c.enable_all_event_upload,
@@ -479,58 +479,68 @@ type configurationRow struct {
 	OverrideFileAccessAction            string    `db:"override_file_access_action"`
 	FullSyncIntervalSeconds             int32     `db:"full_sync_interval_seconds"`
 	BatchSize                           int32     `db:"batch_size"`
-	AllowedPathRegex                    string    `db:"allowed_path_regex"`
-	BlockedPathRegex                    string    `db:"blocked_path_regex"`
+	AllowedPathRegex                    *string   `db:"allowed_path_regex"`
+	BlockedPathRegex                    *string   `db:"blocked_path_regex"`
 	RemovableMediaAction                *string   `db:"removable_media_action"`
 	RemovableMediaRemountFlags          []string  `db:"removable_media_remount_flags"`
 	EncryptedRemovableMediaAction       *string   `db:"encrypted_removable_media_action"`
 	EncryptedRemovableMediaRemountFlags []string  `db:"encrypted_removable_media_remount_flags"`
-	EventDetailURL                      string    `db:"event_detail_url"`
-	EventDetailText                     string    `db:"event_detail_text"`
+	EventDetailURL                      *string   `db:"event_detail_url"`
+	EventDetailText                     *string   `db:"event_detail_text"`
 	CreatedAt                           time.Time `db:"created_at"`
 	UpdatedAt                           time.Time `db:"updated_at"`
 }
 
 func configurationFromRow(row configurationRow) Configuration {
 	return Configuration{
-		ID:                        row.ID,
-		Name:                      row.Name,
-		Description:               row.Description,
-		Position:                  row.Position,
-		ClientMode:                ClientMode(row.ClientMode),
-		EnableBundles:             row.EnableBundles,
-		EnableTransitiveRules:     row.EnableTransitiveRules,
-		EnableAllEventUpload:      row.EnableAllEventUpload,
-		DisableUnknownEventUpload: row.DisableUnknownEventUpload,
-		OverrideFileAccessAction:  FileAccessAction(row.OverrideFileAccessAction),
-		FullSyncIntervalSeconds:   row.FullSyncIntervalSeconds,
-		BatchSize:                 row.BatchSize,
-		AllowedPathRegex:          row.AllowedPathRegex,
-		BlockedPathRegex:          row.BlockedPathRegex,
-		RemovableMediaPolicy: removableMediaPolicyFromRow(
-			row.RemovableMediaAction,
-			row.RemovableMediaRemountFlags,
-		),
-		EncryptedRemovableMediaPolicy: removableMediaPolicyFromRow(
-			row.EncryptedRemovableMediaAction,
-			row.EncryptedRemovableMediaRemountFlags,
-		),
-		EventDetailURL:  row.EventDetailURL,
-		EventDetailText: row.EventDetailText,
-		Targets:         emptyConfigurationTargets(),
-		CreatedAt:       row.CreatedAt,
-		UpdatedAt:       row.UpdatedAt,
+		ID:          row.ID,
+		Name:        row.Name,
+		Description: row.Description,
+		Position:    row.Position,
+		SyncSettings: SyncSettings{
+			ClientMode:                ClientMode(row.ClientMode),
+			EnableBundles:             row.EnableBundles,
+			EnableTransitiveRules:     row.EnableTransitiveRules,
+			EnableAllEventUpload:      row.EnableAllEventUpload,
+			DisableUnknownEventUpload: row.DisableUnknownEventUpload,
+			OverrideFileAccessAction:  FileAccessAction(row.OverrideFileAccessAction),
+			FullSyncIntervalSeconds:   row.FullSyncIntervalSeconds,
+			BatchSize:                 row.BatchSize,
+			AllowedPathRegex:          row.AllowedPathRegex,
+			BlockedPathRegex:          row.BlockedPathRegex,
+			RemovableMediaPolicy: removableMediaPolicyFromRow(
+				row.RemovableMediaAction,
+				row.RemovableMediaRemountFlags,
+			),
+			EncryptedRemovableMediaPolicy: removableMediaPolicyFromRow(
+				row.EncryptedRemovableMediaAction,
+				row.EncryptedRemovableMediaRemountFlags,
+			),
+			EventDetailURL:  row.EventDetailURL,
+			EventDetailText: row.EventDetailText,
+		},
+		Targets:   emptyConfigurationTargets(),
+		CreatedAt: row.CreatedAt,
+		UpdatedAt: row.UpdatedAt,
 	}
 }
 
-func removableMediaPolicyFromRow(action *string, flags []string) RemovableMediaPolicy {
+func removableMediaPolicyFromRow(action *string, flags []string) *RemovableMediaPolicy {
 	if action == nil {
-		return RemovableMediaPolicy{}
+		return nil
 	}
-	return RemovableMediaPolicy{
+	return &RemovableMediaPolicy{
 		Action:       RemovableMediaAction(*action),
-		RemountFlags: flags,
+		RemountFlags: remountFlagsFromStrings(flags),
 	}
+}
+
+func remountFlagsFromStrings(flags []string) []RemountFlag {
+	out := make([]RemountFlag, len(flags))
+	for i, flag := range flags {
+		out[i] = RemountFlag(flag)
+	}
+	return out
 }
 
 type configurationWrite struct {
@@ -545,14 +555,14 @@ type configurationWrite struct {
 	OverrideFileAccessAction            string   `db:"override_file_access_action"`
 	FullSyncIntervalSeconds             int32    `db:"full_sync_interval_seconds"`
 	BatchSize                           int32    `db:"batch_size"`
-	AllowedPathRegex                    string   `db:"allowed_path_regex"`
-	BlockedPathRegex                    string   `db:"blocked_path_regex"`
+	AllowedPathRegex                    *string  `db:"allowed_path_regex"`
+	BlockedPathRegex                    *string  `db:"blocked_path_regex"`
 	RemovableMediaAction                *string  `db:"removable_media_action"`
 	RemovableMediaRemountFlags          []string `db:"removable_media_remount_flags"`
 	EncryptedRemovableMediaAction       *string  `db:"encrypted_removable_media_action"`
 	EncryptedRemovableMediaRemountFlags []string `db:"encrypted_removable_media_remount_flags"`
-	EventDetailURL                      string   `db:"event_detail_url"`
-	EventDetailText                     string   `db:"event_detail_text"`
+	EventDetailURL                      *string  `db:"event_detail_url"`
+	EventDetailText                     *string  `db:"event_detail_text"`
 }
 
 func newConfigurationWrite(p ConfigurationMutation) configurationWrite {
@@ -580,12 +590,19 @@ func newConfigurationWrite(p ConfigurationMutation) configurationWrite {
 	}
 }
 
-func removableMediaWriteFields(policy RemovableMediaPolicy) (*string, []string) {
-	if policy.Action == "" {
+func removableMediaWriteFields(policy *RemovableMediaPolicy) (*string, []string) {
+	if policy == nil {
 		return nil, nil
 	}
 	action := string(policy.Action)
-	return &action, policy.RemountFlags
+	if policy.Action != RemovableMediaActionRemount {
+		return &action, nil
+	}
+	flags := make([]string, len(policy.RemountFlags))
+	for i, flag := range policy.RemountFlags {
+		flags[i] = string(flag)
+	}
+	return &action, flags
 }
 
 func configurationSelectSQL() string {
@@ -595,7 +612,7 @@ SELECT
 	c.name,
 	c.description,
 	c.position,
-	c.client_mode,
+	c.client_mode::text AS client_mode,
 	c.enable_bundles,
 	c.enable_transitive_rules,
 	c.enable_all_event_upload,

@@ -3001,6 +3001,8 @@ components:
           type: string
         batch_size:
           format: int32
+          maximum: 100
+          minimum: 5
           type: integer
         blocked_path_regex:
           type: string
@@ -3028,9 +3030,11 @@ components:
         event_detail_text:
           type: string
         event_detail_url:
+          format: uri
           type: string
         full_sync_interval_seconds:
           format: int32
+          minimum: 60
           type: integer
         id:
           format: int64
@@ -3058,6 +3062,9 @@ components:
         - name
         - description
         - position
+        - targets
+        - created_at
+        - updated_at
         - client_mode
         - enable_bundles
         - enable_transitive_rules
@@ -3066,9 +3073,6 @@ components:
         - override_file_access_action
         - full_sync_interval_seconds
         - batch_size
-        - targets
-        - created_at
-        - updated_at
       type: object
     SantaConfigurationMatch:
       additionalProperties: false
@@ -3077,6 +3081,8 @@ components:
           type: string
         batch_size:
           format: int32
+          maximum: 100
+          minimum: 5
           type: integer
         blocked_path_regex:
           type: string
@@ -3104,9 +3110,11 @@ components:
         event_detail_text:
           type: string
         event_detail_url:
+          format: uri
           type: string
         full_sync_interval_seconds:
           format: int32
+          minimum: 60
           type: integer
         id:
           format: int64
@@ -3136,6 +3144,9 @@ components:
         - name
         - description
         - position
+        - targets
+        - created_at
+        - updated_at
         - client_mode
         - enable_bundles
         - enable_transitive_rules
@@ -3144,9 +3155,6 @@ components:
         - override_file_access_action
         - full_sync_interval_seconds
         - batch_size
-        - targets
-        - created_at
-        - updated_at
       type: object
     SantaConfigurationMutation:
       additionalProperties: false
@@ -3202,6 +3210,7 @@ components:
           $ref: "#/components/schemas/SantaConfigurationTargets"
       required:
         - name
+        - targets
         - client_mode
         - enable_bundles
         - enable_transitive_rules
@@ -3210,7 +3219,6 @@ components:
         - override_file_access_action
         - full_sync_interval_seconds
         - batch_size
-        - targets
       type: object
     SantaConfigurationReorderBody:
       additionalProperties: false
@@ -3568,8 +3576,19 @@ components:
         remount_flags:
           description: Mount flags required when action is remount.
           items:
+            enum:
+              - rdonly
+              - noexec
+              - nosuid
+              - nobrowse
+              - noowners
+              - nodev
+              - -j
+              - async
             type: string
           type: array
+      required:
+        - action
       type: object
     SantaRule:
       additionalProperties: false
@@ -3734,13 +3753,9 @@ components:
         last_clean_sync_at:
           format: date-time
           type: string
-        pending_count:
-          format: int32
-          type: integer
       required:
         - desired_count
         - applied_count
-        - pending_count
       type: object
     SantaRuleTargets:
       additionalProperties: false

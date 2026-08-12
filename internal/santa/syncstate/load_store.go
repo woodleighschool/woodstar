@@ -34,33 +34,33 @@ func (s *Store) LoadPendingPayloadPage(
 		return PayloadRulePage{}, err
 	}
 
-	var state santaPendingStateRow
+	var pendingSyncType *string
 	err = s.pool.QueryRow(ctx,
-		`SELECT pending_payload_rule_count, pending_full_sync FROM santa_sync_state WHERE host_id = $1`,
+		`SELECT pending_sync_type::text
+		 FROM santa_sync_state WHERE host_id = $1`,
 		hostID,
-	).Scan(&state.PendingPayloadRuleCount, &state.PendingFullSync)
+	).Scan(&pendingSyncType)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return PayloadRulePage{}, nil
 	}
 	if err != nil {
 		return PayloadRulePage{}, err
 	}
-	if state.PendingPayloadRuleCount == 0 {
+	if pendingSyncType == nil {
 		return PayloadRulePage{}, nil
 	}
 	desired, err := loadTargets(ctx, s.pool, hostID, phaseDesired)
 	if err != nil {
 		return PayloadRulePage{}, err
 	}
-	payload := fullSyncPayload(desired)
-	if !state.PendingFullSync {
+	payload := cleanSyncPayload(desired)
+	if SyncType(*pendingSyncType) == SyncTypeNormal {
 		applied, err := loadTargets(ctx, s.pool, hostID, phaseApplied)
 		if err != nil {
 			return PayloadRulePage{}, err
 		}
 		payload = normalSyncPayload(desired, applied)
 	}
-
 	start := int(offset)
 	if start >= len(payload) {
 		return PayloadRulePage{}, nil

@@ -21,7 +21,6 @@ type targetRow struct {
 	CustomMessage       string `db:"custom_message"`
 	CustomURL           string `db:"custom_url"`
 	NotificationAppName string `db:"notification_app_name"`
-	PayloadHash         string `db:"payload_hash"`
 }
 
 const listTargetsSQL = `
@@ -32,8 +31,7 @@ SELECT
     cel_expression,
     custom_message,
     custom_url,
-    notification_app_name,
-    payload_hash
+    notification_app_name
 FROM santa_sync_targets
 WHERE host_id = $1 AND phase = $2::santa_sync_target_phase
 ORDER BY position`
@@ -59,16 +57,16 @@ func insertTargets(ctx context.Context, tx pgx.Tx, hostID int64, phase string, t
 		if _, err := tx.Exec(ctx, `
 INSERT INTO santa_sync_targets (
     host_id, phase, position, rule_type, identifier, policy,
-    cel_expression, custom_message, custom_url, notification_app_name, payload_hash
+    cel_expression, custom_message, custom_url, notification_app_name
 )
 VALUES (
     $1, $2::santa_sync_target_phase, $3, $4::santa_rule_type, $5, $6::santa_policy,
-    $7, $8, $9, $10, $11
+    $7, $8, $9, $10
 )`,
 			hostID, phase, int32(position),
 			target.RuleType, target.Identifier, target.Policy,
 			target.CELExpression, target.CustomMessage, target.CustomURL,
-			target.AppName, target.PayloadHash,
+			target.AppName,
 		); err != nil {
 			return err
 		}
@@ -85,6 +83,5 @@ func targetFromRow(row targetRow) Target {
 		CustomMessage: row.CustomMessage,
 		CustomURL:     row.CustomURL,
 		AppName:       row.NotificationAppName,
-		PayloadHash:   row.PayloadHash,
 	}
 }
