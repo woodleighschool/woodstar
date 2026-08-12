@@ -275,6 +275,18 @@ func TestApplyProviderSnapshotReconcilesUsersAndGroups(t *testing.T) {
 	if bobDeletedAt == nil {
 		t.Fatal("bob deleted_at is nil, want soft-deleted after missing from snapshot")
 	}
+	var bobMembershipCount int
+	if err := store.pool.QueryRow(ctx, `
+		SELECT count(*)
+		FROM directory_group_memberships membership
+		JOIN users ON users.id = membership.user_id
+		WHERE users.source = 'entra' AND users.external_id = 'u-bob'
+	`).Scan(&bobMembershipCount); err != nil {
+		t.Fatalf("count Bob memberships after second snapshot: %v", err)
+	}
+	if bobMembershipCount != 0 {
+		t.Fatalf("Bob membership count = %d, want 0 after missing from snapshot", bobMembershipCount)
+	}
 
 	var groupExternalID string
 	if err := store.pool.
