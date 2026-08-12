@@ -284,9 +284,8 @@ export type HostSoftware = {
 
 export type HostSoftwareInstalledVersion = {
     bundle_identifier: string;
-    installed_paths: Array<string>;
     last_opened_at?: string;
-    signature_information: Array<PathSignatureInformation>;
+    paths: Array<SoftwareInstalledPath>;
     version: string;
 };
 
@@ -1068,16 +1067,6 @@ export type PageUser = {
     items: Array<User>;
 };
 
-export type PathSignatureInformation = {
-    executable_path: string;
-    executable_sha256: string;
-    hash_sha256: string;
-    identifier: string;
-    installed_path: string;
-    signing_authority: string;
-    team_identifier: string;
-};
-
 export type PublicIpDetails = {
     asn?: number;
     city?: string;
@@ -1349,8 +1338,23 @@ export type SessionCreateInputBody = {
     password: string;
 };
 
+export type SoftwareCodeSignature = {
+    authority: string;
+    cdhash: string;
+    identifier: string;
+    team_identifier: string;
+    valid: boolean;
+};
+
+export type SoftwareInstalledPath = {
+    executable_path: string;
+    executable_sha256: string;
+    path: string;
+    signature?: SoftwareCodeSignature;
+};
+
 export type SoftwareSigningIdentity = {
-    authorities: Array<string>;
+    authority: string;
     developer_name: string;
     hosts_count: number;
     identifier: string;

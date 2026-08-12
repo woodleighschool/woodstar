@@ -1598,11 +1598,10 @@ type HostSoftware struct {
 
 // HostSoftwareInstalledVersion defines model for HostSoftwareInstalledVersion.
 type HostSoftwareInstalledVersion struct {
-	BundleIdentifier     string                     `json:"bundle_identifier"`
-	InstalledPaths       []string                   `json:"installed_paths"`
-	LastOpenedAt         *time.Time                 `json:"last_opened_at,omitempty"`
-	SignatureInformation []PathSignatureInformation `json:"signature_information"`
-	Version              string                     `json:"version"`
+	BundleIdentifier string                  `json:"bundle_identifier"`
+	LastOpenedAt     *time.Time              `json:"last_opened_at,omitempty"`
+	Paths            []SoftwareInstalledPath `json:"paths"`
+	Version          string                  `json:"version"`
 }
 
 // HostStorage defines model for HostStorage.
@@ -2246,17 +2245,6 @@ type PageSoftwareTitle struct {
 	Items []SoftwareTitle `json:"items"`
 }
 
-// PathSignatureInformation defines model for PathSignatureInformation.
-type PathSignatureInformation struct {
-	ExecutablePath   string `json:"executable_path"`
-	ExecutableSha256 string `json:"executable_sha256"`
-	HashSha256       string `json:"hash_sha256"`
-	Identifier       string `json:"identifier"`
-	InstalledPath    string `json:"installed_path"`
-	SigningAuthority string `json:"signing_authority"`
-	TeamIdentifier   string `json:"team_identifier"`
-}
-
 // PublicIPDetails defines model for PublicIPDetails.
 type PublicIPDetails struct {
 	Asn               *int32                     `json:"asn,omitempty"`
@@ -2565,14 +2553,31 @@ type SessionCreateInputBody struct {
 	Password string              `json:"password"`
 }
 
+// SoftwareCodeSignature defines model for SoftwareCodeSignature.
+type SoftwareCodeSignature struct {
+	Authority      string `json:"authority"`
+	Cdhash         string `json:"cdhash"`
+	Identifier     string `json:"identifier"`
+	TeamIdentifier string `json:"team_identifier"`
+	Valid          bool   `json:"valid"`
+}
+
+// SoftwareInstalledPath defines model for SoftwareInstalledPath.
+type SoftwareInstalledPath struct {
+	ExecutablePath   string                 `json:"executable_path"`
+	ExecutableSha256 string                 `json:"executable_sha256"`
+	Path             string                 `json:"path"`
+	Signature        *SoftwareCodeSignature `json:"signature,omitempty"`
+}
+
 // SoftwareSigningIdentity defines model for SoftwareSigningIdentity.
 type SoftwareSigningIdentity struct {
-	Authorities       []string `json:"authorities"`
-	DeveloperName     string   `json:"developer_name"`
-	HostsCount        int32    `json:"hosts_count"`
-	Identifier        string   `json:"identifier"`
-	SigningIdentifier string   `json:"signing_identifier"`
-	TeamIdentifier    string   `json:"team_identifier"`
+	Authority         string `json:"authority"`
+	DeveloperName     string `json:"developer_name"`
+	HostsCount        int32  `json:"hosts_count"`
+	Identifier        string `json:"identifier"`
+	SigningIdentifier string `json:"signing_identifier"`
+	TeamIdentifier    string `json:"team_identifier"`
 }
 
 // SoftwareSigningIdentityList defines model for SoftwareSigningIdentityList.

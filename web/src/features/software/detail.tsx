@@ -120,10 +120,12 @@ function SoftwareSigningIdentities({ title }: { title: SoftwareTitle }) {
         </TableHeader>
         <TableBody>
           {identities.map((identity) => (
-            <TableRow key={`${identity.team_identifier}:${identity.identifier}`}>
+            <TableRow
+              key={`${identity.team_identifier}:${identity.identifier}:${identity.authority}`}
+            >
               <TableCell className="font-medium">{identity.identifier || "-"}</TableCell>
               <TableCell>{identity.team_identifier}</TableCell>
-              <TableCell>{identity.authorities.join(", ") || "-"}</TableCell>
+              <TableCell>{identity.authority || "-"}</TableCell>
               <TableCell className="text-right tabular-nums">{identity.hosts_count}</TableCell>
             </TableRow>
           ))}

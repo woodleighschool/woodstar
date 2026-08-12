@@ -32,53 +32,40 @@ func TestSoftwareDeveloperName(t *testing.T) {
 	tests := []struct {
 		name           string
 		teamIdentifier string
-		authorities    []string
+		authority      string
 		want           string
 	}{
 		{
 			name:           "developer ID authority",
 			teamIdentifier: "2BUA8C4S2C",
-			authorities: []string{
-				"Developer ID Application: AgileBits Inc. (2BUA8C4S2C)",
-			},
-			want: "AgileBits Inc.",
-		},
-		{
-			name:           "matching authority after unrelated authority",
-			teamIdentifier: "TEAMID1234",
-			authorities: []string{
-				"Apple Root CA",
-				"Apple Distribution: Example, Inc. (TEAMID1234)",
-			},
-			want: "Example, Inc.",
+			authority:      "Developer ID Application: AgileBits Inc. (2BUA8C4S2C)",
+			want:           "AgileBits Inc.",
 		},
 		{
 			name:           "mismatched team identifier",
 			teamIdentifier: "TEAMID1234",
-			authorities: []string{
-				"Developer ID Application: Example, Inc. (OTHERTEAM1)",
-			},
+			authority:      "Developer ID Application: Example, Inc. (OTHERTEAM1)",
 		},
 		{
 			name:           "authority without developer name shape",
 			teamIdentifier: "TEAMID1234",
-			authorities:    []string{"Example, Inc. (TEAMID1234)"},
+			authority:      "Example, Inc. (TEAMID1234)",
 		},
 		{
 			name:           "authority without team identifier",
 			teamIdentifier: "TEAMID1234",
-			authorities:    []string{"Developer ID Application: Example, Inc."},
+			authority:      "Developer ID Application: Example, Inc.",
 		},
 		{name: "missing authority", teamIdentifier: "TEAMID1234"},
 		{
-			name:        "missing team identifier",
-			authorities: []string{"Developer ID Application: Example, Inc. (TEAMID1234)"},
+			name:      "missing team identifier",
+			authority: "Developer ID Application: Example, Inc. (TEAMID1234)",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := softwareDeveloperName(tt.teamIdentifier, tt.authorities); got != tt.want {
+			if got := softwareDeveloperName(tt.teamIdentifier, tt.authority); got != tt.want {
 				t.Fatalf("softwareDeveloperName() = %q, want %q", got, tt.want)
 			}
 		})

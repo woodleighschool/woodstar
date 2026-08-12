@@ -32,7 +32,6 @@ const (
 	QuerySoftwareJetBrainsPlugins    = "software_jetbrains_plugins"
 	QuerySoftwareGoBinaries          = "software_go_binaries"
 	QuerySoftwarePythonPackages      = "software_python_packages"
-	QuerySoftwareMacOSCodesign       = "software_macos_codesign"
 	QuerySoftwareMacOSSignature      = "software_macos_signature"
 	QuerySoftwareMacOSExecutableHash = "software_macos_executable_sha256"
 )
@@ -43,7 +42,6 @@ var queryFS embed.FS
 var tableDiscoverySQL = map[string]string{
 	"battery":           tableDiscovery("battery"),
 	"certificates":      tableDiscovery("certificates"),
-	"codesign":          tableDiscovery("codesign"),
 	"disk_space":        tableDiscovery("disk_space"),
 	"executable_hashes": tableDiscovery("executable_hashes"),
 	"go_binaries":       tableDiscovery("go_binaries"),
@@ -199,12 +197,6 @@ func softwareDetailQueries() map[string]DetailQuery {
 		QuerySoftwarePythonPackages: {
 			SQL:       mustQuery("queries/software_python_packages.sql"),
 			Discovery: osqueryVersionAtLeastSQL(5, 16),
-			Optional:  true,
-			Ingest:    IngestSoftwareEnrichment,
-		},
-		QuerySoftwareMacOSCodesign: {
-			SQL:       mustQuery("queries/software_macos_codesign.sql"),
-			Discovery: tableExistsSQL("codesign"),
 			Optional:  true,
 			Ingest:    IngestSoftwareEnrichment,
 		},
