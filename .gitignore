@@ -6,14 +6,17 @@
 *.out
 
 # Build and tool outputs
-/bin/
 /woodstar
-/.local/
+/.air/
+/bin/
+/dist/
+/tmp/
 /.gocache/
+/.local/
+coverage.out
 __pycache__/
-build-errors.log
 
-# Local file-backend blob storage (WOODSTAR_STORAGE_KIND=file)
+# Local file storage
 /data/
 
 # Go workspace overrides
@@ -25,23 +28,23 @@ go.work.sum
 node_modules/
 *.tsbuildinfo
 vite.config.js
-.vite/
 vite.config.d.ts
+.vite/
 dist/
 !web/dist/
 web/dist/*
 !web/dist/.gitkeep
 
-# Local mise overrides
+# Local Mise overrides
 .mise.local.toml
 .mise.local.lock
 
-# Env files
+# Local configuration
 .env
 .env.*
 !.env.example
 
-# Editor / IDE
+# Editor and IDE
 .vscode/
 
 # macOS

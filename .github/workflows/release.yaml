@@ -41,8 +41,10 @@ jobs:
       - name: Resolve versions
         id: versions
         run: |
-          echo "go-version=$(mise config get tools.go)" >> "$GITHUB_OUTPUT"
-          echo "node-version=$(mise config get tools.node)" >> "$GITHUB_OUTPUT"
+          {
+            echo "go-version=$(mise config get tools.go)"
+            echo "node-version=$(mise config get tools.node)"
+          } >> "$GITHUB_OUTPUT"
 
   release:
     name: Release

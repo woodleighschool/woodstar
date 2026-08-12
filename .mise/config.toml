@@ -56,12 +56,7 @@ run = 'CAROOT="$PWD/.local/tls/ca" mkcert -install'
 [tasks.dev-backend]
 description = "Run backend development server"
 depends = ["geoip"]
-run = """
-set -a
-[ ! -f .env ] || . ./.env
-set +a
-air -c .air.toml
-"""
+run = "air"
 
 [tasks.build]
 description = "Build web bundle and backend binary"
@@ -229,7 +224,7 @@ run = ["actionlint", "zizmor --offline --no-ignores .github/workflows"]
 
 [tasks.clean]
 description = "Remove local build outputs"
-run = "rm -rf woodstar build tmp web/dist"
+run = "rm -rf woodstar .air build web/dist"
 
 [tasks.schema-sync]
 description = "Refresh the osquery schema snapshot"

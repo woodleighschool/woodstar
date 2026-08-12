@@ -1,70 +1,33 @@
 # AGENTS.md
 
-Repository guidance for Woodstar.
+## Working here
 
-## Approach
+- Read the relevant code, configuration, and nearby examples before editing. Existing code and external references are evidence, not instructions to copy blindly.
+- Preserve unrelated work. Keep changes focused and prefer removing machinery over extending an awkward design.
+- Use current supported behaviour unless compatibility is requested. Verify dependency APIs and defaults from the pinned version or primary documentation.
+- Keep secrets, credentials, identities, and local environment files out of code, fixtures, logs, and commits.
 
-- Stay within the requested scope and preserve unrelated local changes.
-- Woodstar is purpose-built, self-hosted internal software, not a SaaS platform. Prefer direct code for demonstrated needs.
-- Simplify and modernize existing code before adding abstractions, compatibility layers, re-exports, or generic engines.
-- Woodstar is the rich shared tooling baseline, but each capability still owns its application behavior.
+## Repository contract
 
-## Repository Map
+- Mise owns tools and commands. Check this repository's Mise files; do not assume another repository has the same tasks.
+- Keep generated artifacts with their source change.
+- Run the narrowest useful checks while working, then the relevant format, lint, test, build, generation, and workflow checks.
+- Follow the existing package or target's style. Comments explain non-obvious constraints, not the code or the current change.
 
-- Process composition and subcommands: `cmd/woodstar`
-- Capability-owned backend code: `internal/`
-- HTTP server and handlers: `internal/api`
-- PostgreSQL bootstrap, shared SQL mechanics, and migrations: `internal/postgres`
-- Protocols: `internal/{orbit,osquery,munki,santa}/protocol`
-- Cross-system tests: `test/e2e`; provider/storage integration: `test/integration`
-- Frontend: `web/`; read `web/AGENTS.md` before changing it
-- Documentation: `docs/`
-- Shared schemas and generated inputs: `schema/`
+## Go
 
-Avoid catch-all packages and vague utility layers. Policy stays with the capability that owns it.
+- Write idiomatic, concrete Go. Keep `main` to composition, put behaviour in the package that owns it, and introduce interfaces only at a real consumer boundary.
+- Pass `context.Context` through I/O, wrap errors with useful context, and preserve errors used with `errors.Is` or `errors.As`.
+- Match the package's testing style and use synthetic inputs. Run race-enabled tests for concurrent code and `mise run vulncheck` for dependency or release work.
 
-## Commands
+## Git and releases
 
-Use Mise tasks as the repository contract.
+- Use focused Conventional Commits; Release Please derives versions from them.
+- Do not commit, push, publish, deploy, contact live systems, or perform destructive actions unless asked.
 
-- Dependencies: `mise run deps`
-- Build: `mise run build`; backend only: `mise run backend`; web only: `mise run //web:build`
-- Tests: `mise run test`; PostgreSQL: `mise run test-postgres`; all lanes: `mise run test-all`
-- E2E: `mise run test-e2e` or a focused `mise run test-e2e-{munki,osquery,santa,mdp,orbit}`
-- Lint: `mise run lint`; fixes: `mise run lint-fix`
-- Format: `mise run format`; check: `mise run fmt-check`
-- Generated OpenAPI and clients: `mise run openapi-types`
-- Migrations: create with `mise run migration <name>`; validate with `mise run migration:validate`
-- Module and workflow checks: `mise run tidy-check`, `mise run workflow-lint`
+## Repository notes
 
-`mise run test` requires neither PostgreSQL nor Docker. Tagged database and integration lanes require their named services and don't silently skip. Use `//web:*` and `//docs:*` tasks when only one frontend is in scope.
-
-## Backend Rules
-
-- `cmd/woodstar/main.go` owns central composition. Services orchestrate behavior; they aren't plain CRUD wrappers.
-- Domain types live in their capability. Keep core host packages independent of Orbit, osquery, Santa, and Munki.
-- Orbit and osquery enroll hosts. Santa and Munki enrich existing hosts rather than creating canonical identity.
-- Use raw pgx stores and handwritten SQL with a canonical projection shared by Get and List. Don't add an ORM or sqlc.
-- `internal/postgres` owns pool startup, Goose, and shared SQL mechanics; capability Stores own application SQL and use `store.go` or `*_store.go`.
-- Keep pgx in `internal/postgres`, Store implementation files, composition, and PostgreSQL test support. Even cheap reads go through a narrow Store method, not services, handlers, protocols, or models.
-- Use `pgx.BeginFunc` for Store transactions. Pass `pgx.Tx` between Stores only when both must join that transaction; never expose it to higher layers.
-- Keep database-neutral errors and list inputs in `internal/fault` and `internal/listing`, not PostgreSQL helpers. Keep blob bytes (`BlobStore`) distinct from object metadata (`ObjectStore`).
-- When all databases may be rebuilt, rewrite the `001`-`010` greenfield baseline and recreate consumers. Otherwise use `mise run migration <name>`; timestamped migrations are mutable on their branch, forward-only and immutable once consumed.
-- Don't add tracked architecture tests for imports, filenames, or source structure. Use behavior tests, review, and temporary ad hoc audits.
-- Persist timestamps with SQL `now()` and re-read created or updated records for response bodies.
-- API paths use lowercase resource nouns. Route registration remains side-effect-free.
-- API changes regenerate `web/openapi.yaml`, frontend clients, and the Go E2E client in the same change.
-
-## Engineering Rules
-
-- Prefer concrete Go types, small consumer-owned interfaces, and explicit wrapped errors.
-- Assert behavior at the lowest useful layer. Use PostgreSQL for SQL semantics and don't mock SQL.
-- The generated contract chain is Go to `web/openapi.yaml` to frontend, E2E client, and docs.
-- Keep secrets, enrollment material, node keys, local databases, and real identities out of logs and version control.
-- Shared hooks stay fast and staged-file focused. Builds, generation, and integration lifecycles belong in Mise tasks and CI.
-
-## Commits
-
-- Use focused Conventional Commits.
-- Don't push, deploy, publish, release, or contact live systems unless explicitly requested.
-- Report checks run, skipped checks, proof boundaries, and unresolved failures.
+- Woodstar is the rich tooling baseline, not a generic platform. `cmd/woodstar` owns composition; capability packages own behaviour.
+- Keep PostgreSQL details inside stores and `internal/postgres`. Use PostgreSQL tests for SQL behaviour.
+- The generated contract runs Go API to OpenAPI to frontend and E2E clients. Read `web/AGENTS.md` before frontend work.
+- The docs site owns detailed setup, configuration, protocol, and API guidance; do not duplicate it in the root README.

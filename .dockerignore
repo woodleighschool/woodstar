@@ -2,21 +2,23 @@
 .gitignore
 .dockerignore
 Dockerfile.dockerignore
-deploy/docker/*.dockerignore
 
 .env
 .env.*
-!.env.example
 
 /woodstar
+/.air/
 /bin/
 /build/
 /tmp/
 /.gocache/
 *.log
 
-**/node_modules/
+web/node_modules/
 web/dist/
 web/.vite/
 web/*.tsbuildinfo
 web/vite.config.js
+web/vite.config.d.ts
+
+.DS_Store
