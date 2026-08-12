@@ -43,7 +43,7 @@ export const navSections: NavMenu[] = [
         items: linkOptions([
           { label: "Overview", to: "/osquery", activeOptions: { exact: true } },
           { label: "Reports", to: "/osquery/reports" },
-          { label: "Checks", to: "/osquery/checks" },
+          { label: "Policies", to: "/osquery/policies" },
         ]),
       },
       {

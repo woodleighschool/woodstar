@@ -1,20 +1,20 @@
 import { TextLink } from "@components/link";
 
-import type { CheckResultStatus } from "./model";
+import type { PolicyResultStatus } from "./model";
 
-export function CheckResultCountLink({
-  checkId,
+export function PolicyResultCountLink({
+  policyId,
   count,
   status,
 }: {
-  checkId: number;
+  policyId: number;
   count: number;
-  status: CheckResultStatus;
+  status: PolicyResultStatus;
 }) {
   return (
     <TextLink
-      to="/osquery/checks/$id"
-      params={{ id: String(checkId) }}
+      to="/osquery/policies/$id"
+      params={{ id: String(policyId) }}
       search={{ tab: "results", status: [status] }}
       className="w-fit"
     >

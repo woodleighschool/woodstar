@@ -16,9 +16,9 @@ import (
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/osquery/catalog"
-	"github.com/woodleighschool/woodstar/internal/osquery/checks"
 	"github.com/woodleighschool/woodstar/internal/osquery/ingest"
 	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
+	"github.com/woodleighschool/woodstar/internal/osquery/policies"
 	"github.com/woodleighschool/woodstar/internal/osquery/reports"
 )
 
@@ -277,7 +277,7 @@ func newTestAgentService(recorder heartbeatRecorder, hostStore *fakeHostStore) *
 	return NewAgentService(Dependencies{
 		HostStore:      hostStore,
 		ReportStore:    fakeReportStore{},
-		CheckStore:     fakeCheckStore{},
+		PolicyStore:    fakePolicyStore{},
 		LabelEvaluator: fakeLabelEvaluator{},
 		LiveQueries:    fakeLiveQueries{},
 		SecretStore:    fakeSecretVerifier{ok: true},
@@ -308,13 +308,21 @@ func (fakeLabelEvaluator) Finalize(context.Context, *hosts.Host, []ingest.LabelR
 	return nil
 }
 
-type fakeCheckStore struct{}
+type fakePolicyStore struct{}
 
-func (fakeCheckStore) ApplicableForHost(context.Context, *hosts.Host) ([]checks.Check, error) {
+func (fakePolicyStore) IssueEvaluationsForHost(context.Context, *hosts.Host) ([]policies.Evaluation, error) {
 	return nil, nil
 }
 
-func (fakeCheckStore) UpsertMembership(context.Context, int64, string, int64, *bool) error {
+func (fakePolicyStore) RecordEvaluation(
+	context.Context,
+	int64,
+	string,
+	int64,
+	int64,
+	int64,
+	policies.EvaluationResult,
+) error {
 	return nil
 }
 

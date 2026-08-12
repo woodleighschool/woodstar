@@ -10,15 +10,15 @@ Woodstar is self-hosted macOS management for the gaps Intune leaves. Woodstar pr
 
 - **Managed software** through Munki.
 - **Execution rules and events** through Santa.
-- **Inventory, reports, checks, and live queries** through osquery.
+- **Inventory, reports, policies, remediation, and live queries** through osquery.
 - **Host enrollment** through Orbit or osquery.
 
 ## Clients
 
 | Client  | What the client uses Woodstar for                            |
 | ------- | ------------------------------------------------------------ |
-| Orbit   | Enrollment and basic host details                            |
-| osquery | Inventory, reports, checks, labels, and live queries         |
+| Orbit   | Enrollment, basic host details, and remediation execution    |
+| osquery | Inventory, reports, policies, labels, and live queries       |
 | Santa   | Client configuration, rules, and execution events            |
 | Munki   | Software assignments, repository data, and package downloads |
 

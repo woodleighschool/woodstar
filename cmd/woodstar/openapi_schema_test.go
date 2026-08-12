@@ -172,7 +172,7 @@ func TestAdminRoutesUseResourceMethods(t *testing.T) {
 		"/api/hosts",
 		"/api/munki/packages",
 		"/api/munki/software",
-		"/api/osquery/checks",
+		"/api/osquery/policies",
 		"/api/osquery/reports",
 		"/api/santa/configurations",
 		"/api/santa/rules",

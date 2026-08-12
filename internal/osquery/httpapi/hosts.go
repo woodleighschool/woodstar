@@ -9,21 +9,21 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/api"
 	"github.com/woodleighschool/woodstar/internal/hosts"
-	"github.com/woodleighschool/woodstar/internal/osquery/checks"
+	"github.com/woodleighschool/woodstar/internal/osquery/policies"
 	"github.com/woodleighschool/woodstar/internal/osquery/reports"
 )
 
 const hostResource = "host"
 
-type hostOsqueryChecksInput struct {
+type hostOsqueryPoliciesInput struct {
 	api.ListQueryInput
 
-	ID     int64                `path:"id"`
-	Status []checks.CheckStatus `          query:"status,omitempty"`
+	ID     int64                   `path:"id"`
+	Status []policies.PolicyStatus `          query:"status,omitempty"`
 }
 
-func (input hostOsqueryChecksInput) params() checks.CheckResultListParams {
-	return checks.CheckResultListParams{
+func (input hostOsqueryPoliciesInput) params() policies.PolicyResultListParams {
+	return policies.PolicyResultListParams{
 		ListParams: input.Params(),
 		Statuses:   input.Status,
 	}
@@ -43,59 +43,59 @@ func (input hostOsqueryReportsInput) params() reports.ReportSnapshotListParams {
 	}
 }
 
-type hostOsqueryChecksOutput struct {
-	Body api.Page[checks.CheckHostStatus]
+type hostOsqueryPoliciesOutput struct {
+	Body api.Page[policies.PolicyHostStatus]
 }
 
 type hostOsqueryReportsOutput struct {
 	Body api.Page[reports.ReportSnapshot]
 }
 
-//nolint:dupl // Host checks and reports are distinct subresources; two parallel handlers do not justify generic registration machinery.
-func registerHostOsqueryChecks(
+//nolint:dupl // Host policies and reports are distinct subresources; two parallel handlers do not justify generic registration machinery.
+func registerHostOsqueryPolicies(
 	humaAPI huma.API,
-	checkStore *checks.Store,
+	policyStore *policies.Store,
 	hostStore *hosts.Store,
 	logger *slog.Logger,
 ) {
 	huma.Register(humaAPI, huma.Operation{
-		OperationID: "list-host-osquery-checks",
+		OperationID: "list-host-osquery-policies",
 		Method:      http.MethodGet,
-		Path:        "/api/hosts/{id}/osquery/checks",
+		Path:        "/api/hosts/{id}/osquery/policies",
 		Tags:        []string{api.TagHosts},
-		Summary:     "List checks for a host",
+		Summary:     "List policies for a host",
 		Errors:      []int{http.StatusNotFound},
-	}, func(ctx context.Context, input *hostOsqueryChecksInput) (*hostOsqueryChecksOutput, error) {
+	}, func(ctx context.Context, input *hostOsqueryPoliciesInput) (*hostOsqueryPoliciesOutput, error) {
 		host, err := hostStore.GetByID(ctx, input.ID)
 		if err != nil {
 			return nil, api.ResourceError(
 				ctx,
 				logger,
-				"list-host-osquery-checks",
+				"list-host-osquery-policies",
 				hostResource,
 				err,
 				"host_id",
 				input.ID,
 			)
 		}
-		rows, count, err := checkStore.HostChecks(ctx, host, input.params())
+		rows, count, err := policyStore.HostPolicies(ctx, host, input.params())
 		if err != nil {
 			return nil, api.HandlerError(
 				ctx,
 				logger,
-				"list-host-osquery-checks",
+				"list-host-osquery-policies",
 				err,
 				"host_id",
 				input.ID,
 			)
 		}
-		return &hostOsqueryChecksOutput{
-			Body: api.Page[checks.CheckHostStatus]{Items: rows, Count: count},
+		return &hostOsqueryPoliciesOutput{
+			Body: api.Page[policies.PolicyHostStatus]{Items: rows, Count: count},
 		}, nil
 	})
 }
 
-//nolint:dupl // Host checks and reports are distinct subresources; two parallel handlers do not justify generic registration machinery.
+//nolint:dupl // Host policies and reports are distinct subresources; two parallel handlers do not justify generic registration machinery.
 func registerHostOsqueryReports(
 	humaAPI huma.API,
 	reportStore *reports.Store,

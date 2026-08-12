@@ -42,7 +42,7 @@ export function LiveRunButton({
   id,
   sql,
 }: {
-  kind: "report" | "check";
+  kind: "report" | "policy";
   id: number;
   sql: string;
 }) {

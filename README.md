@@ -11,7 +11,7 @@ Manages macOS devices with Munki, Santa, and Orbit/osquery.
 - Host enrollment, hardware, software, users, and query results
 - Munki repositories, manifests, packages, and assignments
 - Santa rules, client configuration, sync, and events
-- osquery reports, checks, live queries, and dynamic labels
+- osquery reports, policies, live queries, and dynamic labels
 - Entra directory sync for people, groups, and user affinity
 - Distribution-point workers for local package delivery
 

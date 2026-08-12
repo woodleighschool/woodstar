@@ -14,7 +14,7 @@ import type {
   HostDetail,
   MunkiHostState,
   OsqueryReportSnapshot,
-  PageCheckHostStatus,
+  PagePolicyHostStatus,
   PageHost,
   PageHostManifestSoftware,
   PageHostSoftware,
@@ -30,7 +30,7 @@ import {
   getHostMunkiState,
   getHostSantaState,
   listHostMunkiSoftware,
-  listHostOsqueryChecks,
+  listHostOsqueryPolicies,
   listHostOsqueryReports,
   listHosts,
   listHostSantaRules,
@@ -42,7 +42,7 @@ import {
 } from "@lib/api";
 import type {
   ListHostMunkiSoftwareData,
-  ListHostOsqueryChecksData,
+  ListHostOsqueryPoliciesData,
   ListHostOsqueryReportsData,
   ListHostSantaRulesData,
   ListHostSoftwareData,
@@ -64,8 +64,8 @@ export const hostKeys = {
     ["hosts", "detail", id, "munki", "software", "list", params ?? {}] as const,
   osqueryReports: (id: number | null, params?: QueryParams) =>
     ["hosts", "detail", id, "osquery", "reports", params ?? {}] as const,
-  osqueryChecks: (id: number | null, params?: QueryParams) =>
-    ["hosts", "detail", id, "osquery", "checks", params ?? {}] as const,
+  osqueryPolicies: (id: number | null, params?: QueryParams) =>
+    ["hosts", "detail", id, "osquery", "policies", params ?? {}] as const,
   santaState: (id: number | null) => ["hosts", "detail", id, "santa"] as const,
   santaRules: (id: number | null, params?: QueryParams) =>
     ["hosts", "detail", id, "santa", "rules", "list", params ?? {}] as const,
@@ -77,7 +77,7 @@ const HOST_REFRESH_MS = 30_000;
 type HostListParams = NonNullable<ListHostsData["query"]>;
 type HostSoftwareListParams = NonNullable<ListHostSoftwareData["query"]>;
 type HostMunkiSoftwareParams = NonNullable<ListHostMunkiSoftwareData["query"]>;
-type HostOsqueryChecksParams = NonNullable<ListHostOsqueryChecksData["query"]>;
+type HostOsqueryPoliciesParams = NonNullable<ListHostOsqueryPoliciesData["query"]>;
 type HostOsqueryReportsParams = NonNullable<ListHostOsqueryReportsData["query"]>;
 type HostSantaRulesParams = NonNullable<ListHostSantaRulesData["query"]>;
 type RefetchOptions = { refetchInterval?: number | false };
@@ -270,12 +270,12 @@ export function useHostOsqueryReports(id: number | null, params: HostOsqueryRepo
   });
 }
 
-export function useHostOsqueryChecks(id: number | null, params: HostOsqueryChecksParams = {}) {
-  const queryParams = hostOsqueryChecksQueryParams(params);
-  return useQuery<PageCheckHostStatus, ApiError>({
-    queryKey: hostKeys.osqueryChecks(id, queryParams),
+export function useHostOsqueryPolicies(id: number | null, params: HostOsqueryPoliciesParams = {}) {
+  const queryParams = hostOsqueryPoliciesQueryParams(params);
+  return useQuery<PagePolicyHostStatus, ApiError>({
+    queryKey: hostKeys.osqueryPolicies(id, queryParams),
     queryFn: ({ signal }) =>
-      unwrap(listHostOsqueryChecks({ path: detailPath(id), query: queryParams, signal })),
+      unwrap(listHostOsqueryPolicies({ path: detailPath(id), query: queryParams, signal })),
     enabled: id !== null,
     placeholderData: keepPreviousData,
     refetchInterval: HOST_REFRESH_MS,
@@ -303,7 +303,7 @@ function hostOsqueryReportsQueryParams(params: HostOsqueryReportsParams) {
   };
 }
 
-function hostOsqueryChecksQueryParams(params: HostOsqueryChecksParams) {
+function hostOsqueryPoliciesQueryParams(params: HostOsqueryPoliciesParams) {
   return {
     ...baseListParams(params),
     status: params.status,

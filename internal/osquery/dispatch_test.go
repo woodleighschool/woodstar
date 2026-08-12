@@ -14,6 +14,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/osquery/catalog"
 	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
+	"github.com/woodleighschool/woodstar/internal/osquery/policies"
 )
 
 func TestQueryFailureLogLevels(t *testing.T) {
@@ -34,15 +35,15 @@ func TestQueryFailureLogLevels(t *testing.T) {
 			wantLevel: "DEBUG",
 		},
 		{
-			name: "check",
+			name: "policy",
 			invoke: func(t *testing.T, service *AgentService) {
 				t.Helper()
-				suffix := "10_" + queryHash("SELECT 1")
-				if err := service.handleCheckResult(
+				suffix := "10_" + queryHash("SELECT 1") + "_1_1"
+				if err := service.handlePolicyResult(
 					t.Context(), 42, suffix, nil, json.RawMessage(`1`), true,
 					"distributed query is denylisted",
 				); err != nil {
-					t.Fatalf("handle check result: %v", err)
+					t.Fatalf("handle policy result: %v", err)
 				}
 			},
 			wantLevel: "DEBUG",
@@ -91,8 +92,8 @@ func TestQueryFailureLogLevels(t *testing.T) {
 				&slog.HandlerOptions{Level: slog.LevelDebug},
 			))
 			service := &AgentService{deps: Dependencies{
-				Logger:     logger,
-				CheckStore: fakeCheckStore{},
+				Logger:      logger,
+				PolicyStore: fakePolicyStore{},
 			}}
 
 			tt.invoke(t, service)
@@ -127,9 +128,9 @@ func TestParseQueryNameRejectsUnknownNames(t *testing.T) {
 
 func TestHashedQueryNameRoundTrip(t *testing.T) {
 	sql := "select 1;"
-	name := queryNameForSQL(kindCheck, 15, sql)
+	name := queryNameForSQL(kindPolicy, 15, sql)
 	kind, suffix, ok := parseQueryName(name)
-	if !ok || kind != kindCheck {
+	if !ok || kind != kindPolicy {
 		t.Fatalf("parseQueryName(%q) = %q, %q, %t", name, kind, suffix, ok)
 	}
 	id, hash, ok := parseQueryIdentity(suffix)
@@ -160,6 +161,32 @@ func TestHashedQueryNameRoundTrip(t *testing.T) {
 				ok,
 			)
 		}
+	}
+}
+
+func TestPolicyEvaluationNameRoundTrip(t *testing.T) {
+	evaluation := policies.Evaluation{
+		PolicyID: 15,
+		Query:    "select 1;",
+		Revision: 3,
+		Sequence: 8,
+	}
+	name := queryNameForEvaluation(kindPolicy, evaluation)
+	kind, suffix, ok := parseQueryName(name)
+	if !ok || kind != kindPolicy {
+		t.Fatalf("parseQueryName(%q) = %q, %q, %t", name, kind, suffix, ok)
+	}
+	policyID, hash, revision, sequence, ok := parsePolicyEvaluationIdentity(suffix)
+	if !ok || policyID != 15 || hash != queryHash(evaluation.Query) || revision != 3 || sequence != 8 {
+		t.Fatalf(
+			"parsePolicyEvaluationIdentity(%q) = %d, %q, %d, %d, %t",
+			suffix,
+			policyID,
+			hash,
+			revision,
+			sequence,
+			ok,
+		)
 	}
 }
 

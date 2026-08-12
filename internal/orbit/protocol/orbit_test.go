@@ -193,6 +193,66 @@ func TestOrbitRoutesRejectMalformedAndOversizedJSON(t *testing.T) {
 	}
 }
 
+func TestOrbitScriptEndpointsUseStockContract(t *testing.T) {
+	t.Parallel()
+	service := &stubEnrollmentService{
+		claimScriptResponse: &orbit.ScriptResponse{
+			HostID:         42,
+			ExecutionID:    "execution-id",
+			ScriptContents: "#!/bin/zsh\nexit 0\n",
+			Timeout:        300,
+		},
+	}
+	router := newOrbitRouter(service)
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequestWithContext(
+		t.Context(),
+		http.MethodPost,
+		"/api/fleet/orbit/scripts/request",
+		strings.NewReader(`{"orbit_node_key":"node-key","execution_id":"execution-id"}`),
+	)
+	request.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("script request status = %d, want 200; body: %s", recorder.Code, recorder.Body.String())
+	}
+	var response orbit.ScriptResponse
+	if err := json.NewDecoder(recorder.Body).Decode(&response); err != nil {
+		t.Fatalf("decode script response: %v", err)
+	}
+	if response.ExecutionID != "execution-id" ||
+		response.ScriptContents != "#!/bin/zsh\nexit 0\n" ||
+		response.Timeout != 300 ||
+		response.ExitCode != nil {
+		t.Fatalf("script response = %+v, want Fleet-compatible queued execution", response)
+	}
+	if service.claimScriptRequest.OrbitNodeKey != "node-key" ||
+		service.claimScriptRequest.ExecutionID != "execution-id" {
+		t.Fatalf("script request = %+v", service.claimScriptRequest)
+	}
+
+	result := orbit.ScriptResult{
+		OrbitNodeKey: "node-key",
+		ExecutionID:  "execution-id",
+		Output:       "complete",
+		Runtime:      2,
+		ExitCode:     0,
+		Timeout:      300,
+	}
+	doOrbitJSON(
+		t,
+		router,
+		http.MethodPost,
+		"/api/fleet/orbit/scripts/result",
+		result,
+		http.StatusOK,
+	)
+	if service.scriptResult != result {
+		t.Fatalf("script result = %+v, want %+v", service.scriptResult, result)
+	}
+}
+
 type stubEnrollmentService struct {
 	enrollErr                  error
 	configErr                  error
@@ -200,6 +260,11 @@ type stubEnrollmentService struct {
 	setDeviceAuthTokenErr      error
 	validateDeviceAuthTokenErr error
 	configContact              heartbeats.Contact
+	claimScriptResponse        *orbit.ScriptResponse
+	claimScriptRequest         orbit.ScriptRequest
+	claimScriptErr             error
+	scriptResult               orbit.ScriptResult
+	scriptResultErr            error
 }
 
 func (s *stubEnrollmentService) Enroll(
@@ -225,6 +290,27 @@ func (s *stubEnrollmentService) SetDeviceAuthToken(context.Context, string, stri
 
 func (s *stubEnrollmentService) ValidateDeviceAuthToken(context.Context, string, heartbeats.Contact) error {
 	return s.validateDeviceAuthTokenErr
+}
+
+func (s *stubEnrollmentService) ClaimScript(
+	_ context.Context,
+	req orbit.ScriptRequest,
+	_ heartbeats.Contact,
+) (*orbit.ScriptResponse, error) {
+	s.claimScriptRequest = req
+	if s.claimScriptResponse == nil {
+		return &orbit.ScriptResponse{}, s.claimScriptErr
+	}
+	return s.claimScriptResponse, s.claimScriptErr
+}
+
+func (s *stubEnrollmentService) RecordScriptResult(
+	_ context.Context,
+	result orbit.ScriptResult,
+	_ heartbeats.Contact,
+) error {
+	s.scriptResult = result
+	return s.scriptResultErr
 }
 
 func newOrbitRouter(service enrollmentService) http.Handler {

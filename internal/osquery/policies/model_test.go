@@ -1,4 +1,4 @@
-package checks
+package policies
 
 import (
 	"errors"
@@ -8,33 +8,33 @@ import (
 	"github.com/woodleighschool/woodstar/internal/targeting"
 )
 
-func TestCheckMutationValidate(t *testing.T) {
+func TestPolicyMutationValidate(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		name    string
-		in      CheckMutation
+		in      PolicyMutation
 		wantErr bool
 	}{
 		{
 			name: "valid",
-			in:   CheckMutation{Name: "Gatekeeper disabled", Query: "select 1;"},
+			in:   PolicyMutation{Name: "Gatekeeper disabled", Query: "select 1;"},
 		},
 		{
 			name:    "missing name",
-			in:      CheckMutation{Query: "select 1;"},
+			in:      PolicyMutation{Query: "select 1;"},
 			wantErr: true,
 		},
 		{
 			name:    "missing query",
-			in:      CheckMutation{Name: "No query"},
+			in:      PolicyMutation{Name: "No query"},
 			wantErr: true,
 		},
 		{
 			name: "duplicate include label",
-			in: CheckMutation{
+			in: PolicyMutation{
 				Name:  "Duplicate include",
 				Query: "select 1;",
-				Targets: CheckTargets{
+				Targets: PolicyTargets{
 					Include: []targeting.LabelRef{{LabelID: 1}, {LabelID: 1}},
 				},
 			},
@@ -42,10 +42,10 @@ func TestCheckMutationValidate(t *testing.T) {
 		},
 		{
 			name: "non-positive include label",
-			in: CheckMutation{
+			in: PolicyMutation{
 				Name:  "Zero include",
 				Query: "select 1;",
-				Targets: CheckTargets{
+				Targets: PolicyTargets{
 					Include: []targeting.LabelRef{{LabelID: 0}},
 				},
 			},
@@ -53,10 +53,10 @@ func TestCheckMutationValidate(t *testing.T) {
 		},
 		{
 			name: "duplicate exclude label",
-			in: CheckMutation{
+			in: PolicyMutation{
 				Name:  "Duplicate exclude",
 				Query: "select 1;",
-				Targets: CheckTargets{
+				Targets: PolicyTargets{
 					Exclude: []targeting.LabelRef{{LabelID: 2}, {LabelID: 2}},
 				},
 			},
@@ -64,10 +64,10 @@ func TestCheckMutationValidate(t *testing.T) {
 		},
 		{
 			name: "include exclude overlap",
-			in: CheckMutation{
+			in: PolicyMutation{
 				Name:  "Overlap",
 				Query: "select 1;",
-				Targets: CheckTargets{
+				Targets: PolicyTargets{
 					Include: []targeting.LabelRef{{LabelID: 3}},
 					Exclude: []targeting.LabelRef{{LabelID: 3}},
 				},
@@ -92,13 +92,13 @@ func TestCheckMutationValidate(t *testing.T) {
 	}
 }
 
-func TestValidateCheckStatusFilters(t *testing.T) {
+func TestValidatePolicyStatusFilters(t *testing.T) {
 	t.Parallel()
 
-	if err := validateCheckStatusFilters(CheckStatusValues); err != nil {
-		t.Fatalf("validateCheckStatusFilters(%q) = %v, want nil", CheckStatusValues, err)
+	if err := validatePolicyStatusFilters(PolicyStatusValues); err != nil {
+		t.Fatalf("validatePolicyStatusFilters(%q) = %v, want nil", PolicyStatusValues, err)
 	}
-	if err := validateCheckStatusFilters([]CheckStatus{"unknown"}); !errors.Is(err, fault.ErrInvalidInput) {
+	if err := validatePolicyStatusFilters([]PolicyStatus{"unknown"}); !errors.Is(err, fault.ErrInvalidInput) {
 		t.Fatalf("unknown status error = %v, want ErrInvalidInput", err)
 	}
 }

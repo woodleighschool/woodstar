@@ -132,8 +132,8 @@ func TestHostDetailQueriesProjectIngestShape(t *testing.T) {
 	}
 
 	orbitSQL := strings.TrimSpace(DetailQueries()[QueryOrbitInfo].SQL)
-	if orbitSQL != "SELECT version FROM orbit_info;" {
-		t.Fatalf("orbit_info SQL = %q, want version only", orbitSQL)
+	if orbitSQL != "SELECT version, scripts_enabled FROM orbit_info;" {
+		t.Fatalf("orbit_info SQL = %q, want version and script capability", orbitSQL)
 	}
 }
 

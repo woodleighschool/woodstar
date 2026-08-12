@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, ServerSentEventsResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { BulkDeleteHostsData, BulkDeleteHostsErrors, BulkDeleteHostsResponses, BulkDeleteMunkiPackagesData, BulkDeleteMunkiPackagesErrors, BulkDeleteMunkiPackagesResponses, BulkDeleteMunkiSoftwareData, BulkDeleteMunkiSoftwareErrors, BulkDeleteMunkiSoftwareResponses, BulkDeleteOsqueryChecksData, BulkDeleteOsqueryChecksErrors, BulkDeleteOsqueryChecksResponses, BulkDeleteOsqueryReportsData, BulkDeleteOsqueryReportsErrors, BulkDeleteOsqueryReportsResponses, BulkDeleteSantaConfigurationsData, BulkDeleteSantaConfigurationsErrors, BulkDeleteSantaConfigurationsResponses, BulkDeleteSantaRulesData, BulkDeleteSantaRulesErrors, BulkDeleteSantaRulesResponses, ClearHostPrimaryUserData, ClearHostPrimaryUserErrors, ClearHostPrimaryUserResponses, CompleteMunkiPackageInstallerMultipartData, CompleteMunkiPackageInstallerMultipartErrors, CompleteMunkiPackageInstallerMultipartResponses, CompleteMunkiPackageInstallerUploadData, CompleteMunkiPackageInstallerUploadErrors, CompleteMunkiPackageInstallerUploadResponses, CountLiveQueryTargetsData, CountLiveQueryTargetsErrors, CountLiveQueryTargetsResponses, CreateAgentSecretData, CreateAgentSecretErrors, CreateAgentSecretResponses, CreateLabelData, CreateLabelErrors, CreateLabelResponses, CreateLiveQueryData, CreateLiveQueryErrors, CreateLiveQueryResponses, CreateMunkiClientResourcesArchiveUploadData, CreateMunkiClientResourcesArchiveUploadErrors, CreateMunkiClientResourcesArchiveUploadResponses, CreateMunkiClientResourcesBannerUploadData, CreateMunkiClientResourcesBannerUploadErrors, CreateMunkiClientResourcesBannerUploadResponses, CreateMunkiClientResourcesData, CreateMunkiClientResourcesErrors, CreateMunkiClientResourcesResponses, CreateMunkiDistributionPointData, CreateMunkiDistributionPointErrors, CreateMunkiDistributionPointResponses, CreateMunkiIconUploadData, CreateMunkiIconUploadErrors, CreateMunkiIconUploadResponses, CreateMunkiPackageData, CreateMunkiPackageErrors, CreateMunkiPackageInstallerMultipartData, CreateMunkiPackageInstallerMultipartErrors, CreateMunkiPackageInstallerMultipartResponses, CreateMunkiPackageInstallerUploadData, CreateMunkiPackageInstallerUploadErrors, CreateMunkiPackageInstallerUploadResponses, CreateMunkiPackageResponses, CreateMunkiSoftwareData, CreateMunkiSoftwareErrors, CreateMunkiSoftwareResponses, CreateOsqueryCheckData, CreateOsqueryCheckErrors, CreateOsqueryCheckResponses, CreateOsqueryReportData, CreateOsqueryReportErrors, CreateOsqueryReportResponses, CreateSantaConfigurationData, CreateSantaConfigurationErrors, CreateSantaConfigurationResponses, CreateSantaRuleData, CreateSantaRuleErrors, CreateSantaRuleResponses, CreateSessionData, CreateSessionErrors, CreateSessionResponses, CreateUserData, CreateUserErrors, CreateUserResponses, DeleteAgentSecretData, DeleteAgentSecretErrors, DeleteAgentSecretResponses, DeleteHostData, DeleteHostErrors, DeleteHostResponses, DeleteLabelData, DeleteLabelErrors, DeleteLabelResponses, DeleteLiveQueryData, DeleteLiveQueryErrors, DeleteLiveQueryResponses, DeleteMunkiClientResourcesArchiveUploadData, DeleteMunkiClientResourcesArchiveUploadErrors, DeleteMunkiClientResourcesArchiveUploadResponses, DeleteMunkiClientResourcesBannerUploadData, DeleteMunkiClientResourcesBannerUploadErrors, DeleteMunkiClientResourcesBannerUploadResponses, DeleteMunkiClientResourcesData, DeleteMunkiClientResourcesErrors, DeleteMunkiClientResourcesResponses, DeleteMunkiDistributionPointData, DeleteMunkiDistributionPointErrors, DeleteMunkiDistributionPointResponses, DeleteMunkiPackageInstallerUploadData, DeleteMunkiPackageInstallerUploadErrors, DeleteMunkiPackageInstallerUploadResponses, DeleteMunkiSoftwareData, DeleteMunkiSoftwareErrors, DeleteMunkiSoftwareResponses, DeleteOsqueryCheckData, DeleteOsqueryCheckErrors, DeleteOsqueryCheckResponses, DeleteOsqueryReportData, DeleteOsqueryReportErrors, DeleteOsqueryReportResponses, DeleteSantaConfigurationData, DeleteSantaConfigurationErrors, DeleteSantaConfigurationResponses, DeleteSantaRuleData, DeleteSantaRuleErrors, DeleteSantaRuleResponses, DeleteSessionData, DeleteSessionErrors, DeleteSessionResponses, DeleteUserData, DeleteUserErrors, DeleteUserResponses, GetAccountData, GetAccountErrors, GetAccountResponses, GetDirectorySyncData, GetDirectorySyncErrors, GetDirectorySyncResponses, GetGroupData, GetGroupErrors, GetGroupResponses, GetHostData, GetHostErrors, GetHostMunkiStateData, GetHostMunkiStateErrors, GetHostMunkiStateResponses, GetHostResponses, GetHostSantaStateData, GetHostSantaStateErrors, GetHostSantaStateResponses, GetLabelData, GetLabelErrors, GetLabelResponses, GetMunkiClientResourcesData, GetMunkiClientResourcesErrors, GetMunkiClientResourcesResponses, GetMunkiDistributionPointData, GetMunkiDistributionPointErrors, GetMunkiDistributionPointResponses, GetMunkiPackageData, GetMunkiPackageErrors, GetMunkiPackageResponses, GetMunkiSoftwareData, GetMunkiSoftwareErrors, GetMunkiSoftwareResponses, GetOsqueryCheckData, GetOsqueryCheckErrors, GetOsqueryCheckResponses, GetOsqueryReportData, GetOsqueryReportErrors, GetOsqueryReportResponses, GetSantaConfigurationData, GetSantaConfigurationErrors, GetSantaConfigurationResponses, GetSantaEventData, GetSantaEventErrors, GetSantaEventResponses, GetSantaFileAccessEventData, GetSantaFileAccessEventErrors, GetSantaFileAccessEventResponses, GetSantaRuleData, GetSantaRuleErrors, GetSantaRuleResponses, GetSessionData, GetSessionErrors, GetSessionResponses, GetSoftwareData, GetSoftwareErrors, GetSoftwareResponses, GetUserData, GetUserErrors, GetUserResponses, ListAgentSecretsData, ListAgentSecretsErrors, ListAgentSecretsResponses, ListGroupsData, ListGroupsErrors, ListGroupsResponses, ListHostMunkiSoftwareData, ListHostMunkiSoftwareErrors, ListHostMunkiSoftwareResponses, ListHostOsqueryChecksData, ListHostOsqueryChecksErrors, ListHostOsqueryChecksResponses, ListHostOsqueryReportsData, ListHostOsqueryReportsErrors, ListHostOsqueryReportsResponses, ListHostSantaRulesData, ListHostSantaRulesErrors, ListHostSantaRulesResponses, ListHostsData, ListHostsErrors, ListHostSoftwareData, ListHostSoftwareErrors, ListHostSoftwareResponses, ListHostsResponses, ListLabelsData, ListLabelsErrors, ListLabelsResponses, ListMunkiClientResourcesData, ListMunkiClientResourcesErrors, ListMunkiClientResourcesResponses, ListMunkiDistributionPointsData, ListMunkiDistributionPointsErrors, ListMunkiDistributionPointsResponses, ListMunkiIconsData, ListMunkiIconsErrors, ListMunkiIconsResponses, ListMunkiPackagesData, ListMunkiPackagesErrors, ListMunkiPackagesResponses, ListMunkiSoftwareData, ListMunkiSoftwareErrors, ListMunkiSoftwareResponses, ListOsqueryCheckResultsData, ListOsqueryCheckResultsErrors, ListOsqueryCheckResultsResponses, ListOsqueryChecksData, ListOsqueryChecksErrors, ListOsqueryChecksResponses, ListOsqueryReportsData, ListOsqueryReportsErrors, ListOsqueryReportSnapshotsData, ListOsqueryReportSnapshotsErrors, ListOsqueryReportSnapshotsResponses, ListOsqueryReportsResponses, ListSantaConfigurationsData, ListSantaConfigurationsErrors, ListSantaConfigurationsResponses, ListSantaEventsData, ListSantaEventsErrors, ListSantaEventsResponses, ListSantaFileAccessEventsData, ListSantaFileAccessEventsErrors, ListSantaFileAccessEventsResponses, ListSantaRulesData, ListSantaRulesErrors, ListSantaRulesResponses, ListSoftwareData, ListSoftwareErrors, ListSoftwareResponses, ListUserDepartmentsData, ListUserDepartmentsErrors, ListUserDepartmentsResponses, ListUsersData, ListUsersErrors, ListUsersResponses, ReorderMunkiDistributionPointsData, ReorderMunkiDistributionPointsErrors, ReorderMunkiDistributionPointsResponses, ReorderSantaConfigurationsData, ReorderSantaConfigurationsErrors, ReorderSantaConfigurationsResponses, RequestHostInventoryRefreshData, RequestHostInventoryRefreshErrors, RequestHostInventoryRefreshResponses, RevokeAccountApiKeyData, RevokeAccountApiKeyErrors, RevokeAccountApiKeyResponses, RotateAccountApiKeyData, RotateAccountApiKeyErrors, RotateAccountApiKeyResponses, RotateMunkiDistributionPointKeyData, RotateMunkiDistributionPointKeyErrors, RotateMunkiDistributionPointKeyResponses, SetHostPrimaryUserData, SetHostPrimaryUserErrors, SetHostPrimaryUserResponses, SetMunkiSoftwareIconData, SetMunkiSoftwareIconErrors, SetMunkiSoftwareIconResponses, SignMunkiPackageInstallerPartData, SignMunkiPackageInstallerPartErrors, SignMunkiPackageInstallerPartResponses, StreamLiveQueryData, StreamLiveQueryErrors, StreamLiveQueryResponse, StreamLiveQueryResponses, TriggerDirectorySyncData, TriggerDirectorySyncErrors, TriggerDirectorySyncResponses, UpdateAccountData, UpdateAccountErrors, UpdateAccountResponses, UpdateAgentSecretData, UpdateAgentSecretErrors, UpdateAgentSecretResponses, UpdateLabelData, UpdateLabelErrors, UpdateLabelResponses, UpdateMunkiClientResourcesData, UpdateMunkiClientResourcesErrors, UpdateMunkiClientResourcesResponses, UpdateMunkiDistributionPointData, UpdateMunkiDistributionPointErrors, UpdateMunkiDistributionPointResponses, UpdateMunkiPackageData, UpdateMunkiPackageErrors, UpdateMunkiPackageResponses, UpdateMunkiSoftwareData, UpdateMunkiSoftwareErrors, UpdateMunkiSoftwareResponses, UpdateOsqueryCheckData, UpdateOsqueryCheckErrors, UpdateOsqueryCheckResponses, UpdateOsqueryReportData, UpdateOsqueryReportErrors, UpdateOsqueryReportResponses, UpdateSantaConfigurationData, UpdateSantaConfigurationErrors, UpdateSantaConfigurationResponses, UpdateSantaRuleData, UpdateSantaRuleErrors, UpdateSantaRuleResponses, UpdateUserData, UpdateUserErrors, UpdateUserResponses } from './types.gen';
+import type { BulkDeleteHostsData, BulkDeleteHostsErrors, BulkDeleteHostsResponses, BulkDeleteMunkiPackagesData, BulkDeleteMunkiPackagesErrors, BulkDeleteMunkiPackagesResponses, BulkDeleteMunkiSoftwareData, BulkDeleteMunkiSoftwareErrors, BulkDeleteMunkiSoftwareResponses, BulkDeleteOsqueryPoliciesData, BulkDeleteOsqueryPoliciesErrors, BulkDeleteOsqueryPoliciesResponses, BulkDeleteOsqueryReportsData, BulkDeleteOsqueryReportsErrors, BulkDeleteOsqueryReportsResponses, BulkDeleteSantaConfigurationsData, BulkDeleteSantaConfigurationsErrors, BulkDeleteSantaConfigurationsResponses, BulkDeleteSantaRulesData, BulkDeleteSantaRulesErrors, BulkDeleteSantaRulesResponses, ClearHostPrimaryUserData, ClearHostPrimaryUserErrors, ClearHostPrimaryUserResponses, CompleteMunkiPackageInstallerMultipartData, CompleteMunkiPackageInstallerMultipartErrors, CompleteMunkiPackageInstallerMultipartResponses, CompleteMunkiPackageInstallerUploadData, CompleteMunkiPackageInstallerUploadErrors, CompleteMunkiPackageInstallerUploadResponses, CountLiveQueryTargetsData, CountLiveQueryTargetsErrors, CountLiveQueryTargetsResponses, CreateAgentSecretData, CreateAgentSecretErrors, CreateAgentSecretResponses, CreateLabelData, CreateLabelErrors, CreateLabelResponses, CreateLiveQueryData, CreateLiveQueryErrors, CreateLiveQueryResponses, CreateMunkiClientResourcesArchiveUploadData, CreateMunkiClientResourcesArchiveUploadErrors, CreateMunkiClientResourcesArchiveUploadResponses, CreateMunkiClientResourcesBannerUploadData, CreateMunkiClientResourcesBannerUploadErrors, CreateMunkiClientResourcesBannerUploadResponses, CreateMunkiClientResourcesData, CreateMunkiClientResourcesErrors, CreateMunkiClientResourcesResponses, CreateMunkiDistributionPointData, CreateMunkiDistributionPointErrors, CreateMunkiDistributionPointResponses, CreateMunkiIconUploadData, CreateMunkiIconUploadErrors, CreateMunkiIconUploadResponses, CreateMunkiPackageData, CreateMunkiPackageErrors, CreateMunkiPackageInstallerMultipartData, CreateMunkiPackageInstallerMultipartErrors, CreateMunkiPackageInstallerMultipartResponses, CreateMunkiPackageInstallerUploadData, CreateMunkiPackageInstallerUploadErrors, CreateMunkiPackageInstallerUploadResponses, CreateMunkiPackageResponses, CreateMunkiSoftwareData, CreateMunkiSoftwareErrors, CreateMunkiSoftwareResponses, CreateOsqueryPolicyData, CreateOsqueryPolicyErrors, CreateOsqueryPolicyResponses, CreateOsqueryReportData, CreateOsqueryReportErrors, CreateOsqueryReportResponses, CreateSantaConfigurationData, CreateSantaConfigurationErrors, CreateSantaConfigurationResponses, CreateSantaRuleData, CreateSantaRuleErrors, CreateSantaRuleResponses, CreateSessionData, CreateSessionErrors, CreateSessionResponses, CreateUserData, CreateUserErrors, CreateUserResponses, DeleteAgentSecretData, DeleteAgentSecretErrors, DeleteAgentSecretResponses, DeleteHostData, DeleteHostErrors, DeleteHostResponses, DeleteLabelData, DeleteLabelErrors, DeleteLabelResponses, DeleteLiveQueryData, DeleteLiveQueryErrors, DeleteLiveQueryResponses, DeleteMunkiClientResourcesArchiveUploadData, DeleteMunkiClientResourcesArchiveUploadErrors, DeleteMunkiClientResourcesArchiveUploadResponses, DeleteMunkiClientResourcesBannerUploadData, DeleteMunkiClientResourcesBannerUploadErrors, DeleteMunkiClientResourcesBannerUploadResponses, DeleteMunkiClientResourcesData, DeleteMunkiClientResourcesErrors, DeleteMunkiClientResourcesResponses, DeleteMunkiDistributionPointData, DeleteMunkiDistributionPointErrors, DeleteMunkiDistributionPointResponses, DeleteMunkiPackageInstallerUploadData, DeleteMunkiPackageInstallerUploadErrors, DeleteMunkiPackageInstallerUploadResponses, DeleteMunkiSoftwareData, DeleteMunkiSoftwareErrors, DeleteMunkiSoftwareResponses, DeleteOsqueryPolicyData, DeleteOsqueryPolicyErrors, DeleteOsqueryPolicyResponses, DeleteOsqueryReportData, DeleteOsqueryReportErrors, DeleteOsqueryReportResponses, DeleteSantaConfigurationData, DeleteSantaConfigurationErrors, DeleteSantaConfigurationResponses, DeleteSantaRuleData, DeleteSantaRuleErrors, DeleteSantaRuleResponses, DeleteSessionData, DeleteSessionErrors, DeleteSessionResponses, DeleteUserData, DeleteUserErrors, DeleteUserResponses, GetAccountData, GetAccountErrors, GetAccountResponses, GetDirectorySyncData, GetDirectorySyncErrors, GetDirectorySyncResponses, GetGroupData, GetGroupErrors, GetGroupResponses, GetHostData, GetHostErrors, GetHostMunkiStateData, GetHostMunkiStateErrors, GetHostMunkiStateResponses, GetHostResponses, GetHostSantaStateData, GetHostSantaStateErrors, GetHostSantaStateResponses, GetLabelData, GetLabelErrors, GetLabelResponses, GetMunkiClientResourcesData, GetMunkiClientResourcesErrors, GetMunkiClientResourcesResponses, GetMunkiDistributionPointData, GetMunkiDistributionPointErrors, GetMunkiDistributionPointResponses, GetMunkiPackageData, GetMunkiPackageErrors, GetMunkiPackageResponses, GetMunkiSoftwareData, GetMunkiSoftwareErrors, GetMunkiSoftwareResponses, GetOsqueryPolicyData, GetOsqueryPolicyErrors, GetOsqueryPolicyRemediationRunData, GetOsqueryPolicyRemediationRunErrors, GetOsqueryPolicyRemediationRunResponses, GetOsqueryPolicyRemediationSourceData, GetOsqueryPolicyRemediationSourceErrors, GetOsqueryPolicyRemediationSourceResponses, GetOsqueryPolicyResponses, GetOsqueryReportData, GetOsqueryReportErrors, GetOsqueryReportResponses, GetSantaConfigurationData, GetSantaConfigurationErrors, GetSantaConfigurationResponses, GetSantaEventData, GetSantaEventErrors, GetSantaEventResponses, GetSantaFileAccessEventData, GetSantaFileAccessEventErrors, GetSantaFileAccessEventResponses, GetSantaRuleData, GetSantaRuleErrors, GetSantaRuleResponses, GetSessionData, GetSessionErrors, GetSessionResponses, GetSoftwareData, GetSoftwareErrors, GetSoftwareResponses, GetUserData, GetUserErrors, GetUserResponses, ListAgentSecretsData, ListAgentSecretsErrors, ListAgentSecretsResponses, ListGroupsData, ListGroupsErrors, ListGroupsResponses, ListHostMunkiSoftwareData, ListHostMunkiSoftwareErrors, ListHostMunkiSoftwareResponses, ListHostOsqueryPoliciesData, ListHostOsqueryPoliciesErrors, ListHostOsqueryPoliciesResponses, ListHostOsqueryReportsData, ListHostOsqueryReportsErrors, ListHostOsqueryReportsResponses, ListHostSantaRulesData, ListHostSantaRulesErrors, ListHostSantaRulesResponses, ListHostsData, ListHostsErrors, ListHostSoftwareData, ListHostSoftwareErrors, ListHostSoftwareResponses, ListHostsResponses, ListLabelsData, ListLabelsErrors, ListLabelsResponses, ListMunkiClientResourcesData, ListMunkiClientResourcesErrors, ListMunkiClientResourcesResponses, ListMunkiDistributionPointsData, ListMunkiDistributionPointsErrors, ListMunkiDistributionPointsResponses, ListMunkiIconsData, ListMunkiIconsErrors, ListMunkiIconsResponses, ListMunkiPackagesData, ListMunkiPackagesErrors, ListMunkiPackagesResponses, ListMunkiSoftwareData, ListMunkiSoftwareErrors, ListMunkiSoftwareResponses, ListOsqueryPoliciesData, ListOsqueryPoliciesErrors, ListOsqueryPoliciesResponses, ListOsqueryPolicyResultsData, ListOsqueryPolicyResultsErrors, ListOsqueryPolicyResultsResponses, ListOsqueryReportsData, ListOsqueryReportsErrors, ListOsqueryReportSnapshotsData, ListOsqueryReportSnapshotsErrors, ListOsqueryReportSnapshotsResponses, ListOsqueryReportsResponses, ListSantaConfigurationsData, ListSantaConfigurationsErrors, ListSantaConfigurationsResponses, ListSantaEventsData, ListSantaEventsErrors, ListSantaEventsResponses, ListSantaFileAccessEventsData, ListSantaFileAccessEventsErrors, ListSantaFileAccessEventsResponses, ListSantaRulesData, ListSantaRulesErrors, ListSantaRulesResponses, ListSoftwareData, ListSoftwareErrors, ListSoftwareResponses, ListUserDepartmentsData, ListUserDepartmentsErrors, ListUserDepartmentsResponses, ListUsersData, ListUsersErrors, ListUsersResponses, ReorderMunkiDistributionPointsData, ReorderMunkiDistributionPointsErrors, ReorderMunkiDistributionPointsResponses, ReorderSantaConfigurationsData, ReorderSantaConfigurationsErrors, ReorderSantaConfigurationsResponses, RequestHostInventoryRefreshData, RequestHostInventoryRefreshErrors, RequestHostInventoryRefreshResponses, ResetOsqueryPolicyResultData, ResetOsqueryPolicyResultErrors, ResetOsqueryPolicyResultResponses, RevokeAccountApiKeyData, RevokeAccountApiKeyErrors, RevokeAccountApiKeyResponses, RotateAccountApiKeyData, RotateAccountApiKeyErrors, RotateAccountApiKeyResponses, RotateMunkiDistributionPointKeyData, RotateMunkiDistributionPointKeyErrors, RotateMunkiDistributionPointKeyResponses, RunOsqueryPolicyRemediationData, RunOsqueryPolicyRemediationErrors, RunOsqueryPolicyRemediationResponses, SetHostPrimaryUserData, SetHostPrimaryUserErrors, SetHostPrimaryUserResponses, SetMunkiSoftwareIconData, SetMunkiSoftwareIconErrors, SetMunkiSoftwareIconResponses, SignMunkiPackageInstallerPartData, SignMunkiPackageInstallerPartErrors, SignMunkiPackageInstallerPartResponses, StreamLiveQueryData, StreamLiveQueryErrors, StreamLiveQueryResponse, StreamLiveQueryResponses, TriggerDirectorySyncData, TriggerDirectorySyncErrors, TriggerDirectorySyncResponses, UpdateAccountData, UpdateAccountErrors, UpdateAccountResponses, UpdateAgentSecretData, UpdateAgentSecretErrors, UpdateAgentSecretResponses, UpdateLabelData, UpdateLabelErrors, UpdateLabelResponses, UpdateMunkiClientResourcesData, UpdateMunkiClientResourcesErrors, UpdateMunkiClientResourcesResponses, UpdateMunkiDistributionPointData, UpdateMunkiDistributionPointErrors, UpdateMunkiDistributionPointResponses, UpdateMunkiPackageData, UpdateMunkiPackageErrors, UpdateMunkiPackageResponses, UpdateMunkiSoftwareData, UpdateMunkiSoftwareErrors, UpdateMunkiSoftwareResponses, UpdateOsqueryPolicyData, UpdateOsqueryPolicyErrors, UpdateOsqueryPolicyResponses, UpdateOsqueryReportData, UpdateOsqueryReportErrors, UpdateOsqueryReportResponses, UpdateSantaConfigurationData, UpdateSantaConfigurationErrors, UpdateSantaConfigurationResponses, UpdateSantaRuleData, UpdateSantaRuleErrors, UpdateSantaRuleResponses, UpdateUserData, UpdateUserErrors, UpdateUserResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -281,16 +281,16 @@ export const listHostMunkiSoftware = <ThrowOnError extends boolean = false>(opti
 });
 
 /**
- * List checks for a host
+ * List policies for a host
  */
-export const listHostOsqueryChecks = <ThrowOnError extends boolean = false>(options: Options<ListHostOsqueryChecksData, ThrowOnError>): RequestResult<ListHostOsqueryChecksResponses, ListHostOsqueryChecksErrors, ThrowOnError> => (options.client ?? client).get<ListHostOsqueryChecksResponses, ListHostOsqueryChecksErrors, ThrowOnError>({
+export const listHostOsqueryPolicies = <ThrowOnError extends boolean = false>(options: Options<ListHostOsqueryPoliciesData, ThrowOnError>): RequestResult<ListHostOsqueryPoliciesResponses, ListHostOsqueryPoliciesErrors, ThrowOnError> => (options.client ?? client).get<ListHostOsqueryPoliciesResponses, ListHostOsqueryPoliciesErrors, ThrowOnError>({
     querySerializer: { parameters: { status: { array: { explode: false } } } },
     security: [{
             in: 'cookie',
             name: 'woodstar_session',
             type: 'apiKey'
         }, { scheme: 'bearer', type: 'http' }],
-    url: '/api/hosts/{id}/osquery/checks',
+    url: '/api/hosts/{id}/osquery/policies',
     ...options
 });
 
@@ -983,107 +983,6 @@ export const setMunkiSoftwareIcon = <ThrowOnError extends boolean = false>(optio
 });
 
 /**
- * Delete checks
- */
-export const bulkDeleteOsqueryChecks = <ThrowOnError extends boolean = false>(options: Options<BulkDeleteOsqueryChecksData, ThrowOnError>): RequestResult<BulkDeleteOsqueryChecksResponses, BulkDeleteOsqueryChecksErrors, ThrowOnError> => (options.client ?? client).delete<BulkDeleteOsqueryChecksResponses, BulkDeleteOsqueryChecksErrors, ThrowOnError>({
-    querySerializer: { parameters: { ids: { array: { explode: false } } } },
-    security: [{
-            in: 'cookie',
-            name: 'woodstar_session',
-            type: 'apiKey'
-        }, { scheme: 'bearer', type: 'http' }],
-    url: '/api/osquery/checks',
-    ...options
-});
-
-/**
- * List checks
- */
-export const listOsqueryChecks = <ThrowOnError extends boolean = false>(options?: Options<ListOsqueryChecksData, ThrowOnError>): RequestResult<ListOsqueryChecksResponses, ListOsqueryChecksErrors, ThrowOnError> => (options?.client ?? client).get<ListOsqueryChecksResponses, ListOsqueryChecksErrors, ThrowOnError>({
-    security: [{
-            in: 'cookie',
-            name: 'woodstar_session',
-            type: 'apiKey'
-        }, { scheme: 'bearer', type: 'http' }],
-    url: '/api/osquery/checks',
-    ...options
-});
-
-/**
- * Create a check
- */
-export const createOsqueryCheck = <ThrowOnError extends boolean = false>(options: Options<CreateOsqueryCheckData, ThrowOnError>): RequestResult<CreateOsqueryCheckResponses, CreateOsqueryCheckErrors, ThrowOnError> => (options.client ?? client).post<CreateOsqueryCheckResponses, CreateOsqueryCheckErrors, ThrowOnError>({
-    security: [{
-            in: 'cookie',
-            name: 'woodstar_session',
-            type: 'apiKey'
-        }, { scheme: 'bearer', type: 'http' }],
-    url: '/api/osquery/checks',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Delete a check
- */
-export const deleteOsqueryCheck = <ThrowOnError extends boolean = false>(options: Options<DeleteOsqueryCheckData, ThrowOnError>): RequestResult<DeleteOsqueryCheckResponses, DeleteOsqueryCheckErrors, ThrowOnError> => (options.client ?? client).delete<DeleteOsqueryCheckResponses, DeleteOsqueryCheckErrors, ThrowOnError>({
-    security: [{
-            in: 'cookie',
-            name: 'woodstar_session',
-            type: 'apiKey'
-        }, { scheme: 'bearer', type: 'http' }],
-    url: '/api/osquery/checks/{id}',
-    ...options
-});
-
-/**
- * Get a check
- */
-export const getOsqueryCheck = <ThrowOnError extends boolean = false>(options: Options<GetOsqueryCheckData, ThrowOnError>): RequestResult<GetOsqueryCheckResponses, GetOsqueryCheckErrors, ThrowOnError> => (options.client ?? client).get<GetOsqueryCheckResponses, GetOsqueryCheckErrors, ThrowOnError>({
-    security: [{
-            in: 'cookie',
-            name: 'woodstar_session',
-            type: 'apiKey'
-        }, { scheme: 'bearer', type: 'http' }],
-    url: '/api/osquery/checks/{id}',
-    ...options
-});
-
-/**
- * Update a check
- */
-export const updateOsqueryCheck = <ThrowOnError extends boolean = false>(options: Options<UpdateOsqueryCheckData, ThrowOnError>): RequestResult<UpdateOsqueryCheckResponses, UpdateOsqueryCheckErrors, ThrowOnError> => (options.client ?? client).put<UpdateOsqueryCheckResponses, UpdateOsqueryCheckErrors, ThrowOnError>({
-    security: [{
-            in: 'cookie',
-            name: 'woodstar_session',
-            type: 'apiKey'
-        }, { scheme: 'bearer', type: 'http' }],
-    url: '/api/osquery/checks/{id}',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * List check results
- */
-export const listOsqueryCheckResults = <ThrowOnError extends boolean = false>(options: Options<ListOsqueryCheckResultsData, ThrowOnError>): RequestResult<ListOsqueryCheckResultsResponses, ListOsqueryCheckResultsErrors, ThrowOnError> => (options.client ?? client).get<ListOsqueryCheckResultsResponses, ListOsqueryCheckResultsErrors, ThrowOnError>({
-    querySerializer: { parameters: { status: { array: { explode: false } } } },
-    security: [{
-            in: 'cookie',
-            name: 'woodstar_session',
-            type: 'apiKey'
-        }, { scheme: 'bearer', type: 'http' }],
-    url: '/api/osquery/checks/{id}/results',
-    ...options
-});
-
-/**
  * Create a live query
  */
 export const createLiveQuery = <ThrowOnError extends boolean = false>(options: Options<CreateLiveQueryData, ThrowOnError>): RequestResult<CreateLiveQueryResponses, CreateLiveQueryErrors, ThrowOnError> => (options.client ?? client).post<CreateLiveQueryResponses, CreateLiveQueryErrors, ThrowOnError>({
@@ -1140,6 +1039,159 @@ export const streamLiveQuery = <ThrowOnError extends boolean = false>(options: O
             type: 'apiKey'
         }, { scheme: 'bearer', type: 'http' }],
     url: '/api/osquery/live-queries/{id}/stream',
+    ...options
+});
+
+/**
+ * Delete policies
+ */
+export const bulkDeleteOsqueryPolicies = <ThrowOnError extends boolean = false>(options: Options<BulkDeleteOsqueryPoliciesData, ThrowOnError>): RequestResult<BulkDeleteOsqueryPoliciesResponses, BulkDeleteOsqueryPoliciesErrors, ThrowOnError> => (options.client ?? client).delete<BulkDeleteOsqueryPoliciesResponses, BulkDeleteOsqueryPoliciesErrors, ThrowOnError>({
+    querySerializer: { parameters: { ids: { array: { explode: false } } } },
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/osquery/policies',
+    ...options
+});
+
+/**
+ * List policies
+ */
+export const listOsqueryPolicies = <ThrowOnError extends boolean = false>(options?: Options<ListOsqueryPoliciesData, ThrowOnError>): RequestResult<ListOsqueryPoliciesResponses, ListOsqueryPoliciesErrors, ThrowOnError> => (options?.client ?? client).get<ListOsqueryPoliciesResponses, ListOsqueryPoliciesErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/osquery/policies',
+    ...options
+});
+
+/**
+ * Create a policy
+ */
+export const createOsqueryPolicy = <ThrowOnError extends boolean = false>(options: Options<CreateOsqueryPolicyData, ThrowOnError>): RequestResult<CreateOsqueryPolicyResponses, CreateOsqueryPolicyErrors, ThrowOnError> => (options.client ?? client).post<CreateOsqueryPolicyResponses, CreateOsqueryPolicyErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/osquery/policies',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Delete a policy
+ */
+export const deleteOsqueryPolicy = <ThrowOnError extends boolean = false>(options: Options<DeleteOsqueryPolicyData, ThrowOnError>): RequestResult<DeleteOsqueryPolicyResponses, DeleteOsqueryPolicyErrors, ThrowOnError> => (options.client ?? client).delete<DeleteOsqueryPolicyResponses, DeleteOsqueryPolicyErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/osquery/policies/{id}',
+    ...options
+});
+
+/**
+ * Get a policy
+ */
+export const getOsqueryPolicy = <ThrowOnError extends boolean = false>(options: Options<GetOsqueryPolicyData, ThrowOnError>): RequestResult<GetOsqueryPolicyResponses, GetOsqueryPolicyErrors, ThrowOnError> => (options.client ?? client).get<GetOsqueryPolicyResponses, GetOsqueryPolicyErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/osquery/policies/{id}',
+    ...options
+});
+
+/**
+ * Update a policy
+ */
+export const updateOsqueryPolicy = <ThrowOnError extends boolean = false>(options: Options<UpdateOsqueryPolicyData, ThrowOnError>): RequestResult<UpdateOsqueryPolicyResponses, UpdateOsqueryPolicyErrors, ThrowOnError> => (options.client ?? client).put<UpdateOsqueryPolicyResponses, UpdateOsqueryPolicyErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/osquery/policies/{id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Get latest policy remediation run
+ */
+export const getOsqueryPolicyRemediationRun = <ThrowOnError extends boolean = false>(options: Options<GetOsqueryPolicyRemediationRunData, ThrowOnError>): RequestResult<GetOsqueryPolicyRemediationRunResponses, GetOsqueryPolicyRemediationRunErrors, ThrowOnError> => (options.client ?? client).get<GetOsqueryPolicyRemediationRunResponses, GetOsqueryPolicyRemediationRunErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/osquery/policies/{id}/hosts/{host_id}/remediation',
+    ...options
+});
+
+/**
+ * Run policy remediation
+ */
+export const runOsqueryPolicyRemediation = <ThrowOnError extends boolean = false>(options: Options<RunOsqueryPolicyRemediationData, ThrowOnError>): RequestResult<RunOsqueryPolicyRemediationResponses, RunOsqueryPolicyRemediationErrors, ThrowOnError> => (options.client ?? client).post<RunOsqueryPolicyRemediationResponses, RunOsqueryPolicyRemediationErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/osquery/policies/{id}/hosts/{host_id}/remediation',
+    ...options
+});
+
+/**
+ * Reset a policy result
+ */
+export const resetOsqueryPolicyResult = <ThrowOnError extends boolean = false>(options: Options<ResetOsqueryPolicyResultData, ThrowOnError>): RequestResult<ResetOsqueryPolicyResultResponses, ResetOsqueryPolicyResultErrors, ThrowOnError> => (options.client ?? client).post<ResetOsqueryPolicyResultResponses, ResetOsqueryPolicyResultErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/osquery/policies/{id}/hosts/{host_id}/reset',
+    ...options
+});
+
+/**
+ * Get policy remediation source
+ */
+export const getOsqueryPolicyRemediationSource = <ThrowOnError extends boolean = false>(options: Options<GetOsqueryPolicyRemediationSourceData, ThrowOnError>): RequestResult<GetOsqueryPolicyRemediationSourceResponses, GetOsqueryPolicyRemediationSourceErrors, ThrowOnError> => (options.client ?? client).get<GetOsqueryPolicyRemediationSourceResponses, GetOsqueryPolicyRemediationSourceErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/osquery/policies/{id}/remediation',
+    ...options
+});
+
+/**
+ * List policy results
+ */
+export const listOsqueryPolicyResults = <ThrowOnError extends boolean = false>(options: Options<ListOsqueryPolicyResultsData, ThrowOnError>): RequestResult<ListOsqueryPolicyResultsResponses, ListOsqueryPolicyResultsErrors, ThrowOnError> => (options.client ?? client).get<ListOsqueryPolicyResultsResponses, ListOsqueryPolicyResultsErrors, ThrowOnError>({
+    querySerializer: { parameters: { status: { array: { explode: false } } } },
+    security: [{
+            in: 'cookie',
+            name: 'woodstar_session',
+            type: 'apiKey'
+        }, { scheme: 'bearer', type: 'http' }],
+    url: '/api/osquery/policies/{id}/results',
     ...options
 });
 

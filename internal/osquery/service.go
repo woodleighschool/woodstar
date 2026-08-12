@@ -15,9 +15,9 @@ import (
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/osquery/catalog"
-	"github.com/woodleighschool/woodstar/internal/osquery/checks"
 	"github.com/woodleighschool/woodstar/internal/osquery/ingest"
 	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
+	"github.com/woodleighschool/woodstar/internal/osquery/policies"
 	"github.com/woodleighschool/woodstar/internal/osquery/reports"
 )
 
@@ -32,7 +32,7 @@ type Dependencies struct {
 	MunkiCollector     munkiCollector
 	LabelEvaluator     labelEvaluator
 	ReportStore        reportStore
-	CheckStore         checkStore
+	PolicyStore        policyStore
 	LiveQueries        liveQueries
 	SecretStore        agentauth.SecretVerifier
 	Heartbeats         heartbeatRecorder
@@ -81,9 +81,17 @@ type reportStore interface {
 	) error
 }
 
-type checkStore interface {
-	ApplicableForHost(ctx context.Context, host *hosts.Host) ([]checks.Check, error)
-	UpsertMembership(ctx context.Context, checkID int64, queryHash string, hostID int64, result *bool) error
+type policyStore interface {
+	IssueEvaluationsForHost(ctx context.Context, host *hosts.Host) ([]policies.Evaluation, error)
+	RecordEvaluation(
+		ctx context.Context,
+		policyID int64,
+		queryHash string,
+		revision int64,
+		sequence int64,
+		hostID int64,
+		result policies.EvaluationResult,
+	) error
 }
 
 type liveQueries interface {
@@ -155,7 +163,7 @@ func (s *AgentService) Config(ctx context.Context, nodeKey string, contact heart
 	}, nil
 }
 
-// DistributedRead returns due detail, label, check, and live queries for a host.
+// DistributedRead returns due detail, label, policy, and live queries for a host.
 func (s *AgentService) DistributedRead(
 	ctx context.Context,
 	nodeKey string,
@@ -189,7 +197,7 @@ func (s *AgentService) DistributedRead(
 	if err != nil {
 		return DistributedReadResponse{}, err
 	}
-	checkCount, err := s.queueCheckQueries(ctx, host, detailQueries)
+	policyCount, err := s.queuePolicyQueries(ctx, host, detailQueries)
 	if err != nil {
 		return DistributedReadResponse{}, err
 	}
@@ -205,7 +213,7 @@ func (s *AgentService) DistributedRead(
 		"query_count", len(detailQueries),
 		"discovery_count", len(detailDiscovery),
 		"label_count", labelCount,
-		"check_count", checkCount,
+		"policy_count", policyCount,
 		"live_count", liveCount,
 	)
 	return DistributedReadResponse{
@@ -231,19 +239,19 @@ func (s *AgentService) queueLabelQueries(
 	return count, nil
 }
 
-func (s *AgentService) queueCheckQueries(
+func (s *AgentService) queuePolicyQueries(
 	ctx context.Context,
 	host *hosts.Host,
 	queryMap map[string]string,
 ) (int, error) {
-	checks, err := s.deps.CheckStore.ApplicableForHost(ctx, host)
+	evaluations, err := s.deps.PolicyStore.IssueEvaluationsForHost(ctx, host)
 	if err != nil {
 		return 0, err
 	}
-	for _, check := range checks {
-		queryMap[queryNameForSQL(kindCheck, check.ID, check.Query)] = check.Query
+	for _, evaluation := range evaluations {
+		queryMap[queryNameForEvaluation(kindPolicy, evaluation)] = evaluation.Query
 	}
-	return len(checks), nil
+	return len(evaluations), nil
 }
 
 // queueLiveQueries injects unfinished live queries targeting host.

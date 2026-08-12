@@ -182,7 +182,8 @@ type HostOsqueryAgent struct {
 }
 
 type HostOrbitAgent struct {
-	Version string `json:"version"`
+	Version        string `json:"version"`
+	ScriptsEnabled *bool  `json:"scripts_enabled,omitempty"`
 }
 
 // HostMunkiAgent is Munki metadata attached outside the core host store.

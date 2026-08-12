@@ -8,57 +8,61 @@ import {
 } from "@features/osquery/live/history";
 import { parseRouteID } from "@lib/route-params";
 
-import { CheckForm, checkFromDetail } from "./fields";
-import { useCheck, useUpdateCheck } from "./queries";
+import { PolicyForm, policyFromDetail } from "./fields";
+import { usePolicy, usePolicyRemediationSource, useUpdatePolicy } from "./queries";
 
-const routeApi = getRouteApi("/_authenticated/osquery/checks/$id/edit");
+const routeApi = getRouteApi("/_authenticated/osquery/policies/$id/edit");
 
-export function CheckEditPage() {
+export function PolicyEditPage() {
   const navigate = routeApi.useNavigate();
   const search = routeApi.useSearch();
   const params = useParams({ strict: false });
-  const checkId = params.id ?? "";
-  const id = parseRouteID(checkId);
-  const detail = useCheck(id);
-  const update = useUpdateCheck(id);
+  const policyId = params.id ?? "";
+  const id = parseRouteID(policyId);
+  const detail = usePolicy(id);
+  const remediationSource = usePolicyRemediationSource(id);
+  const update = useUpdatePolicy(id);
   const historyState = useOsqueryHistoryState();
   const openLive = useOpenOsqueryLive();
   const clearHistoryState = useClearOsqueryHistoryState();
 
   if (id === null) {
     return (
-      <QueryGate title="Failed to load check" error={{ message: "Check route is invalid." }} />
+      <QueryGate title="Failed to load policy" error={{ message: "Policy route is invalid." }} />
     );
   }
 
-  if (detail.error || !detail.data) {
+  if (detail.error || remediationSource.error || !detail.data || !remediationSource.data) {
     return (
       <QueryGate
-        title="Failed to load check"
-        error={detail.error}
-        onRetry={() => void detail.refetch()}
+        title="Failed to load policy"
+        error={detail.error ?? remediationSource.error}
+        onRetry={() => {
+          void detail.refetch();
+          void remediationSource.refetch();
+        }}
       />
     );
   }
 
-  const check = detail.data;
+  const policy = detail.data;
   const draft =
-    historyState?.view === "check-form" && historyState.id === check.id
+    historyState?.view === "policy-form" && historyState.id === policy.id
       ? historyState.value
       : undefined;
   return (
-    <CheckForm
-      key={check.id}
-      initial={checkFromDetail(check)}
+    <PolicyForm
+      key={policy.id}
+      initial={policyFromDetail(policy, remediationSource.data.script)}
       draft={draft}
-      title="Edit Check"
+      title="Edit Policy"
       submitLabel="Save"
       activeTab={search.tab ?? "options"}
       onActiveTabChange={(value) =>
         void navigate({
           search: (previous) => ({
             ...previous,
-            tab: value === "targets" ? "targets" : undefined,
+            tab: value === "targets" || value === "remediation" ? value : undefined,
           }),
         })
       }
@@ -66,18 +70,18 @@ export function CheckEditPage() {
       onCancel={async () => {
         await clearHistoryState();
         await navigate({
-          to: "/osquery/checks/$id",
-          params: { id: String(check.id) },
+          to: "/osquery/policies/$id",
+          params: { id: String(policy.id) },
         });
       }}
       onRunLive={(value) =>
         openLive({
-          kind: "check",
-          id: check.id,
+          kind: "policy",
+          id: policy.id,
           sql: value.query.trim(),
           form: {
-            view: "check-form",
-            id: check.id,
+            view: "policy-form",
+            id: policy.id,
             value,
           },
         })
@@ -87,7 +91,7 @@ export function CheckEditPage() {
         if (savedID !== undefined) {
           await clearHistoryState();
           await navigate({
-            to: "/osquery/checks/$id",
+            to: "/osquery/policies/$id",
             params: { id: String(savedID) },
           });
         }

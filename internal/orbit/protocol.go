@@ -26,6 +26,40 @@ type ConfigRequest struct {
 // ConfigResponse is the Orbit config response.
 type ConfigResponse struct {
 	CommandLineStartupFlags json.RawMessage `json:"command_line_startup_flags"`
+	ScriptExecutionTimeout  int             `json:"script_execution_timeout"`
+	Notifications           Notifications   `json:"notifications"`
+}
+
+// Notifications carries host work understood by stock Orbit.
+type Notifications struct {
+	PendingScriptExecutionIDs []string `json:"pending_script_execution_ids,omitempty"`
+}
+
+// ScriptRequest asks for one execution advertised in Orbit config.
+type ScriptRequest struct {
+	OrbitNodeKey string `json:"orbit_node_key"`
+	ExecutionID  string `json:"execution_id"`
+}
+
+// ScriptResponse is the subset of Fleet's host script contract Orbit consumes.
+type ScriptResponse struct {
+	HostID         int64  `json:"host_id"`
+	ExecutionID    string `json:"execution_id"`
+	ScriptContents string `json:"script_contents"`
+	Output         string `json:"output"`
+	Runtime        int    `json:"runtime"`
+	ExitCode       *int   `json:"exit_code"`
+	Timeout        int    `json:"timeout"`
+}
+
+// ScriptResult is the stock Orbit script result payload.
+type ScriptResult struct {
+	OrbitNodeKey string `json:"orbit_node_key"`
+	ExecutionID  string `json:"execution_id"`
+	Output       string `json:"output"`
+	Runtime      int    `json:"runtime"`
+	ExitCode     int    `json:"exit_code"`
+	Timeout      int    `json:"timeout"`
 }
 
 // DeviceMappingRequest carries a profile-provided email.

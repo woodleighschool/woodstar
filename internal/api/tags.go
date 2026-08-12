@@ -17,7 +17,7 @@ const (
 	TagMunkiPackageInstallers  = "Munki package installers"
 	TagMunkiPackages           = "Munki packages"
 	TagMunkiSoftware           = "Munki software"
-	TagOsqueryChecks           = "Osquery checks"
+	TagOsqueryPolicies         = "Osquery policies"
 	TagOsqueryLiveQueries      = "Osquery live queries"
 	TagOsqueryReports          = "Osquery reports"
 	TagSantaConfigurations     = "Santa configurations"
@@ -48,7 +48,7 @@ func configureOpenAPI(doc *huma.OpenAPI) {
 		resourceTag(TagMunkiPackageInstallers, "Package installers"),
 		resourceTag(TagMunkiPackages, "Packages"),
 		resourceTag(TagMunkiSoftware, "Software"),
-		resourceTag(TagOsqueryChecks, "Checks"),
+		resourceTag(TagOsqueryPolicies, "Policies"),
 		resourceTag(TagOsqueryLiveQueries, "Live queries"),
 		resourceTag(TagOsqueryReports, "Reports"),
 		resourceTag(TagSantaConfigurations, "Configurations"),
@@ -73,7 +73,7 @@ func configureOpenAPI(doc *huma.OpenAPI) {
 				TagMunkiSoftware,
 			}},
 			{Name: "Osquery", Tags: []string{
-				TagOsqueryChecks,
+				TagOsqueryPolicies,
 				TagOsqueryLiveQueries,
 				TagOsqueryReports,
 			}},

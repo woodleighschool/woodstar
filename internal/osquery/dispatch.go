@@ -15,6 +15,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/osquery/catalog"
 	"github.com/woodleighschool/woodstar/internal/osquery/ingest"
 	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
+	"github.com/woodleighschool/woodstar/internal/osquery/policies"
 )
 
 // queryKind tags our osquery work.
@@ -23,7 +24,7 @@ type queryKind string
 const (
 	kindDetail queryKind = "detail"
 	kindLabel  queryKind = "label"
-	kindCheck  queryKind = "check"
+	kindPolicy queryKind = "policy"
 	kindLive   queryKind = "live"
 	kindReport queryKind = "report"
 )
@@ -44,6 +45,16 @@ func queryNameForSQL(kind queryKind, id int64, sql string) string {
 	return queryName(kind, strconv.FormatInt(id, 10)+"_"+queryHash(sql))
 }
 
+func queryNameForEvaluation(kind queryKind, evaluation policies.Evaluation) string {
+	return queryName(
+		kind,
+		strconv.FormatInt(evaluation.PolicyID, 10)+"_"+
+			queryHash(evaluation.Query)+"_"+
+			strconv.FormatInt(evaluation.Revision, 10)+"_"+
+			strconv.FormatInt(evaluation.Sequence, 10),
+	)
+}
+
 func queryHash(sql string) string {
 	sum := sha256.Sum256([]byte(sql))
 	return hex.EncodeToString(sum[:])
@@ -61,7 +72,7 @@ func parseQueryName(name string) (queryKind, string, bool) {
 	}
 	kind := queryKind(kindRaw)
 	switch kind {
-	case kindDetail, kindLabel, kindCheck, kindLive:
+	case kindDetail, kindLabel, kindPolicy, kindLive:
 		return kind, suffix, true
 	case kindReport:
 		return "", "", false
@@ -92,6 +103,34 @@ func parseQueryIdentity(suffix string) (int64, string, bool) {
 		return 0, "", false
 	}
 	return id, hash, true
+}
+
+func parsePolicyEvaluationIdentity(suffix string) (int64, string, int64, int64, bool) {
+	separator := strings.LastIndexByte(suffix, '_')
+	if separator <= 0 || separator == len(suffix)-1 {
+		return 0, "", 0, 0, false
+	}
+	revisionIdentity := suffix[:separator]
+	sequenceRaw := suffix[separator+1:]
+	revisionSeparator := strings.LastIndexByte(revisionIdentity, '_')
+	if revisionSeparator <= 0 || revisionSeparator == len(revisionIdentity)-1 {
+		return 0, "", 0, 0, false
+	}
+	identity := revisionIdentity[:revisionSeparator]
+	revisionRaw := revisionIdentity[revisionSeparator+1:]
+	policyID, hash, ok := parseQueryIdentity(identity)
+	if !ok {
+		return 0, "", 0, 0, false
+	}
+	revision, ok := parsePositiveSuffix(revisionRaw)
+	if !ok {
+		return 0, "", 0, 0, false
+	}
+	sequence, ok := parsePositiveSuffix(sequenceRaw)
+	if !ok {
+		return 0, "", 0, 0, false
+	}
+	return policyID, hash, revision, sequence, true
 }
 
 // detailDispatchPass accumulates detail-query state during one DistributedWrite call.
@@ -143,8 +182,8 @@ func (s *AgentService) dispatchWriteResults(
 			err = s.handleDetailResult(ctx, host.ID, suffix, rows, status, hasStatus, message, details)
 		case kindLabel:
 			s.handleLabelResult(ctx, host.ID, suffix, rows, status, hasStatus, message, labels)
-		case kindCheck:
-			err = s.handleCheckResult(ctx, host.ID, suffix, rows, status, hasStatus, message)
+		case kindPolicy:
+			err = s.handlePolicyResult(ctx, host.ID, suffix, rows, status, hasStatus, message)
 		case kindLive:
 			err = s.handleLiveResult(ctx, host, suffix, rows, status, hasStatus, message)
 		}
@@ -347,7 +386,7 @@ func sawEveryRequiredDetailQuery(pass *detailDispatchPass) bool {
 	return true
 }
 
-func (s *AgentService) handleCheckResult(
+func (s *AgentService) handlePolicyResult(
 	ctx context.Context,
 	hostID int64,
 	suffix string,
@@ -356,24 +395,37 @@ func (s *AgentService) handleCheckResult(
 	hasStatus bool,
 	message string,
 ) error {
-	checkID, queryHash, ok := parseQueryIdentity(suffix)
+	policyID, queryHash, revision, sequence, ok := parsePolicyEvaluationIdentity(suffix)
 	if !ok {
 		return nil
 	}
 	matched, ok := rowPresenceResult(status, hasStatus, rows)
-	var passes *bool
+	result := policies.EvaluationResult{Status: policies.PolicyStatusError, Error: message}
 	if ok {
-		passes = &matched
+		if matched {
+			result.Status = policies.PolicyStatusPass
+		} else {
+			result.Status = policies.PolicyStatusFail
+		}
+		result.Error = ""
 	} else {
 		s.deps.Logger.DebugContext(
 			ctx,
-			"osquery check query failed", "operation", "check_evaluation",
+			"osquery policy query failed", "operation", "policy_evaluation",
 			"host_id", hostID,
-			"check_id", checkID,
+			"policy_id", policyID,
 			"message", message,
 		)
 	}
-	return s.deps.CheckStore.UpsertMembership(ctx, checkID, queryHash, hostID, passes)
+	return s.deps.PolicyStore.RecordEvaluation(
+		ctx,
+		policyID,
+		queryHash,
+		revision,
+		sequence,
+		hostID,
+		result,
+	)
 }
 
 func rowPresenceResult(status json.RawMessage, hasStatus bool, rows []map[string]string) (bool, bool) {

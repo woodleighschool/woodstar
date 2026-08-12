@@ -11,19 +11,22 @@ import { useDataTableSearch } from "@components/data-table/use-data-table-search
 import { TextLink } from "@components/link";
 import { PanelEmptyState } from "@components/panel-empty-state";
 import { QueryError } from "@components/query-error";
-import { useHostOsqueryChecks } from "@features/hosts/queries";
-import { CHECK_RESULT_STATUS_OPTIONS } from "@features/osquery/checks/model";
-import { CheckResultStatus } from "@features/osquery/checks/query-results";
-import type { OsqueryCheckHostStatus } from "@lib/api";
+import { useHostOsqueryPolicies } from "@features/hosts/queries";
+import { POLICY_RESULT_STATUS_OPTIONS } from "@features/osquery/policies/model";
+import {
+  PolicyRemediationStatus,
+  PolicyResultStatus,
+} from "@features/osquery/policies/query-results";
+import type { OsqueryPolicyHostStatus } from "@lib/api";
 import { formatRelative } from "@lib/utils";
 
-const checkColumns: DataTableColumnDef<OsqueryCheckHostStatus>[] = [
+const policyColumns: DataTableColumnDef<OsqueryPolicyHostStatus>[] = [
   {
-    accessorKey: "check_name",
-    header: () => "Check",
+    accessorKey: "policy_name",
+    header: () => "Policy",
     cell: ({ row }) => (
-      <TextLink to="/osquery/checks/$id" params={{ id: String(row.original.check_id) }}>
-        {row.original.check_name}
+      <TextLink to="/osquery/policies/$id" params={{ id: String(row.original.policy_id) }}>
+        {row.original.policy_name}
       </TextLink>
     ),
   },
@@ -31,7 +34,17 @@ const checkColumns: DataTableColumnDef<OsqueryCheckHostStatus>[] = [
     accessorKey: "status",
     header: () => "Status",
     enableColumnFilter: true,
-    cell: ({ row }) => <CheckResultStatus status={row.original.status} />,
+    cell: ({ row }) => <PolicyResultStatus status={row.original.status} />,
+  },
+  {
+    id: "remediation",
+    header: () => "Remediation",
+    cell: ({ row }) =>
+      row.original.remediation ? (
+        <PolicyRemediationStatus status={row.original.remediation.status} />
+      ) : (
+        "-"
+      ),
   },
   {
     accessorKey: "updated_at",
@@ -41,19 +54,19 @@ const checkColumns: DataTableColumnDef<OsqueryCheckHostStatus>[] = [
 ];
 
 const STATUS_FILTER_KEYS = [{ id: "status", multiple: true }] as const;
-const routeApi = getRouteApi("/_authenticated/hosts/$id/checks");
+const routeApi = getRouteApi("/_authenticated/hosts/$id/policies");
 
-function HostChecksToolbar({ table }: { table: DataTableInstance<OsqueryCheckHostStatus> }) {
+function HostPoliciesToolbar({ table }: { table: DataTableInstance<OsqueryPolicyHostStatus> }) {
   return (
     <DataTableFacetedFilter
       column={table.getColumn("status")}
       title="Status"
-      options={CHECK_RESULT_STATUS_OPTIONS}
+      options={POLICY_RESULT_STATUS_OPTIONS}
     />
   );
 }
 
-export function HostOsqueryChecksTab({ hostId }: { hostId: number | null }) {
+export function HostOsqueryPoliciesTab({ hostId }: { hostId: number | null }) {
   const search = routeApi.useSearch();
   const navigate = routeApi.useNavigate();
   const tableSearch = useDataTableSearch({
@@ -62,7 +75,7 @@ export function HostOsqueryChecksTab({ hostId }: { hostId: number | null }) {
     filterKeys: STATUS_FILTER_KEYS,
   });
   const status = search.status;
-  const query = useHostOsqueryChecks(hostId, {
+  const query = useHostOsqueryPolicies(hostId, {
     q: tableSearch.q,
     page: tableSearch.page,
     per_page: tableSearch.per_page,
@@ -75,39 +88,39 @@ export function HostOsqueryChecksTab({ hostId }: { hostId: number | null }) {
   const table = useDataTable({
     tableState: tableSearch,
     data: rows,
-    columns: checkColumns,
+    columns: policyColumns,
     pageCount,
     rowCount: totalCount,
-    getRowId: (row) => String(row.check_id),
+    getRowId: (row) => String(row.policy_id),
   });
 
   if (hostId === null) {
     return (
-      <QueryError title="Failed to load checks" error={{ message: "Host route is invalid." }} />
+      <QueryError title="Failed to load policies" error={{ message: "Host route is invalid." }} />
     );
   }
 
   if (query.error) {
     return (
       <QueryError
-        title="Failed to load checks"
+        title="Failed to load policies"
         error={query.error}
         onRetry={() => void query.refetch()}
       />
     );
   }
   if (query.isLoading) {
-    return <DataTableSkeleton columnCount={3} filterCount={1} />;
+    return <DataTableSkeleton columnCount={4} filterCount={1} />;
   }
 
   return (
     <DataTable
       table={table}
       pending={query.isPlaceholderData}
-      heading="Checks"
+      heading="Policies"
       empty={
         <PanelEmptyState>
-          {tableSearch.isFiltered ? "No matching checks" : "No checks yet"}
+          {tableSearch.isFiltered ? "No matching policies" : "No policies yet"}
         </PanelEmptyState>
       }
     >
@@ -115,9 +128,9 @@ export function HostOsqueryChecksTab({ hostId }: { hostId: number | null }) {
         loading={query.isPlaceholderData}
         value={tableSearch.q ?? ""}
         onValueChange={tableSearch.onQueryChange}
-        placeholder="Search checks"
+        placeholder="Search policies"
       />
-      <HostChecksToolbar table={table} />
+      <HostPoliciesToolbar table={table} />
     </DataTable>
   );
 }

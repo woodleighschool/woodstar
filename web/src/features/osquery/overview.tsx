@@ -4,20 +4,20 @@ import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link } from "@components/link";
 import { ResourceOverviewCard } from "@components/resource-overview-card";
 import { AgentSecretsHeaderAction } from "@features/agent-secrets/header-action";
-import { useChecks } from "@features/osquery/checks/queries";
+import { usePolicies } from "@features/osquery/policies/queries";
 import { useReports } from "@features/osquery/reports/queries";
 
 const OVERVIEW_COUNT_PARAMS = { page: 1, per_page: 1 } as const;
 
 export function OsqueryOverviewPage() {
   const reports = useReports(OVERVIEW_COUNT_PARAMS);
-  const checks = useChecks(OVERVIEW_COUNT_PARAMS);
+  const policies = usePolicies(OVERVIEW_COUNT_PARAMS);
 
   return (
     <PageShell>
       <PageHeader
         title="osquery"
-        description="Enroll hosts and manage scheduled reports and checks."
+        description="Enroll hosts and manage scheduled reports and policies."
         actions={<AgentSecretsHeaderAction agent="orbit" />}
       />
 
@@ -31,12 +31,12 @@ export function OsqueryOverviewPage() {
             icon={FileChartColumn}
           />
         </Link>
-        <Link to="/osquery/checks">
+        <Link to="/osquery/policies">
           <ResourceOverviewCard
-            title="Checks"
-            count={checks.data?.count}
-            loading={checks.isLoading}
-            error={checks.error}
+            title="Policies"
+            count={policies.data?.count}
+            loading={policies.isLoading}
+            error={policies.error}
             icon={ClipboardCheck}
           />
         </Link>

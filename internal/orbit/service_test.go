@@ -10,6 +10,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/heartbeats"
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/osquery/policies"
 )
 
 func TestConfigResponseWireShapeMatchesOrbit(t *testing.T) {
@@ -271,5 +272,28 @@ func newTestEnrollmentService(
 		fakeOrbitSecretVerifier{ok: true},
 		fakePrimaryUserStore{},
 		recorder,
+		fakeRemediationStore{},
 	)
+}
+
+type fakeRemediationStore struct{}
+
+func (fakeRemediationStore) PendingRemediationExecutionIDs(context.Context, int64) ([]string, error) {
+	return nil, nil
+}
+
+func (fakeRemediationStore) ClaimRemediation(
+	context.Context,
+	int64,
+	string,
+) (*policies.ClaimedRemediation, error) {
+	return nil, fault.ErrNotFound
+}
+
+func (fakeRemediationStore) RecordRemediationResult(
+	context.Context,
+	int64,
+	policies.RemediationResult,
+) error {
+	return nil
 }
