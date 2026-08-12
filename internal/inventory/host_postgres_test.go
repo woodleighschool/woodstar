@@ -46,7 +46,7 @@ func TestListForHostEmptyHost(t *testing.T) {
 
 func TestListForHostReturnsPathOwnedSignatureObservations(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	hostStore := hosts.NewStore(db)
+	hostStore := hosts.NewStore(db, labels.NewStore(db))
 	store := NewStore(db)
 
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{

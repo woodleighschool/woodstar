@@ -117,7 +117,7 @@ func TestGetTitleLoadsSigningIdentities(t *testing.T) {
 func TestGetTitleSeparatesAuthoritiesAndExcludesInvalidSignatures(t *testing.T) {
 	db, ctx := testdb.Open(t)
 	store := NewStore(db)
-	hostStore := hosts.NewStore(db)
+	hostStore := hosts.NewStore(db, labels.NewStore(db))
 
 	observations := []struct {
 		host      string
