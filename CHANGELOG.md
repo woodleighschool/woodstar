@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.8.11](https://github.com/woodleighschool/woodstar/compare/0.8.10...0.8.11) (2026-08-12)
+
+
+### Features
+
+* **deps:** update module golang.org/x/text (v0.40.0 → v0.41.0) ([#177](https://github.com/woodleighschool/woodstar/issues/177)) ([bc2d5a8](https://github.com/woodleighschool/woodstar/commit/bc2d5a82a05274b675c5127a800fc08e8648aef3))
+
+
+### Bug Fixes
+
+* **deps:** update aws-sdk-go-v2 monorepo ([#174](https://github.com/woodleighschool/woodstar/issues/174)) ([a258ba5](https://github.com/woodleighschool/woodstar/commit/a258ba50f6d34d25b14a29338f073adc4e7b0d48))
+* **deps:** update dependency @tanstack/react-form (1.33.4 → 1.33.5) ([#178](https://github.com/woodleighschool/woodstar/issues/178)) ([fb8aad8](https://github.com/woodleighschool/woodstar/commit/fb8aad80d9ca5ffeead61b048655718111ced150))
+* **deps:** update module google.golang.org/protobuf (v1.36.11 → v1.36.12) ([#173](https://github.com/woodleighschool/woodstar/issues/173)) ([bcdc243](https://github.com/woodleighschool/woodstar/commit/bcdc243b1fefcdb28e8196646694fe061b475047))
+* **santa:** converge device policy changes ([8893078](https://github.com/woodleighschool/woodstar/commit/8893078d8282c4c80664121f05308422a55beab2))
+* **web:** align target selection controls ([ddaf0db](https://github.com/woodleighschool/woodstar/commit/ddaf0dbb41a61fed6a9898691ebc57858ca1a904))
+* **web:** keep page scroll in content pane ([349f63d](https://github.com/woodleighschool/woodstar/commit/349f63dbda5f3f89f4cca61df2f2535a8c5091e5))
+
+
+### Code Refactoring
+
+* **api:** give capabilities HTTP ownership ([4fad4b3](https://github.com/woodleighschool/woodstar/commit/4fad4b3398ef6e81837b3561fb4207966d4a9494))
+* **labels:** scope derived membership refreshes ([ca19fe0](https://github.com/woodleighschool/woodstar/commit/ca19fe0f733c2d45f2014bfbb20b21c13d500848))
+
 ## [0.8.10](https://github.com/woodleighschool/woodstar/compare/0.8.9...0.8.10) (2026-08-10)
 
 
