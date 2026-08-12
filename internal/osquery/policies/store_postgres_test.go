@@ -837,17 +837,16 @@ func TestAutomaticRemediationRequiresUsableOrbitScriptExecution(t *testing.T) {
 	}
 }
 
-func TestEvaluationOrderingResetAndRemediationSnapshot(t *testing.T) { //nolint:funlen // One ordered result and remediation lifecycle.
+func TestEvaluationRejectsSupersededResultBeforeLatestCompletes(t *testing.T) {
 	store, labelStore, hostStore, ctx := newPostgresPolicyStore(t)
-	host := enrollTestHostDetail(t, ctx, hostStore, "policy-remediation-order-host")
+	host := enrollTestHostDetail(t, ctx, hostStore, "policy-superseded-result-host")
 	makeOrbitScriptEligible(t, ctx, store, host.ID)
-	targets := policyTargets([]int64{allHostsLabelID(t, ctx, labelStore)}, nil)
 	policy, err := store.Create(ctx, makePolicy(PolicyMutation{
-		Name:    "Ordered remediation policy",
+		Name:    "Superseded result policy",
 		Query:   "select 1;",
-		Targets: targets,
+		Targets: policyTargets([]int64{allHostsLabelID(t, ctx, labelStore)}, nil),
 		Remediation: &PolicyRemediationMutation{
-			Script:    "#!/bin/zsh\necho original\n",
+			Script:    "#!/bin/zsh\nexit 0\n",
 			Automatic: true,
 		},
 	}))
@@ -873,6 +872,42 @@ func TestEvaluationOrderingResetAndRemediationSnapshot(t *testing.T) { //nolint:
 	if len(results) != 1 || results[0].Status != PolicyStatusPending {
 		t.Fatalf("result after superseded failure = %+v, want pending", results)
 	}
+
+	if err := store.RecordEvaluation(
+		ctx, policy.ID, testQueryHash(policy.Query), newer.Revision, newer.Sequence, host.ID,
+		EvaluationResult{Status: PolicyStatusPass},
+	); err != nil {
+		t.Fatalf("record latest pass: %v", err)
+	}
+	results, _, err = store.PolicyResults(ctx, policy.ID, PolicyResultListParams{})
+	if err != nil {
+		t.Fatalf("list result after latest pass: %v", err)
+	}
+	if len(results) != 1 || results[0].Status != PolicyStatusPass {
+		t.Fatalf("result after latest pass = %+v, want pass", results)
+	}
+}
+
+func TestEvaluationOrderingResetAndRemediationSnapshot(t *testing.T) { //nolint:funlen // One ordered result and remediation lifecycle.
+	store, labelStore, hostStore, ctx := newPostgresPolicyStore(t)
+	host := enrollTestHostDetail(t, ctx, hostStore, "policy-remediation-order-host")
+	makeOrbitScriptEligible(t, ctx, store, host.ID)
+	targets := policyTargets([]int64{allHostsLabelID(t, ctx, labelStore)}, nil)
+	policy, err := store.Create(ctx, makePolicy(PolicyMutation{
+		Name:    "Ordered remediation policy",
+		Query:   "select 1;",
+		Targets: targets,
+		Remediation: &PolicyRemediationMutation{
+			Script:    "#!/bin/zsh\necho original\n",
+			Automatic: true,
+		},
+	}))
+	if err != nil {
+		t.Fatalf("create policy: %v", err)
+	}
+
+	older := issuePolicyEvaluation(t, ctx, store, host, policy.ID)
+	newer := issuePolicyEvaluation(t, ctx, store, host, policy.ID)
 	if err := store.RecordEvaluation(
 		ctx, policy.ID, testQueryHash(policy.Query), newer.Revision, newer.Sequence, host.ID,
 		EvaluationResult{Status: PolicyStatusFail},
@@ -896,7 +931,7 @@ func TestEvaluationOrderingResetAndRemediationSnapshot(t *testing.T) { //nolint:
 	); err != nil {
 		t.Fatalf("record stale pass: %v", err)
 	}
-	results, _, err = store.PolicyResults(ctx, policy.ID, PolicyResultListParams{})
+	results, _, err := store.PolicyResults(ctx, policy.ID, PolicyResultListParams{})
 	if err != nil {
 		t.Fatalf("list result after stale pass: %v", err)
 	}
