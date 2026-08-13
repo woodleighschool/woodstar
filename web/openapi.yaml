@@ -3793,12 +3793,12 @@ components:
           type: string
         identifier:
           type: string
+        signed:
+          type: boolean
         team_identifier:
           type: string
-        valid:
-          type: boolean
       required:
-        - valid
+        - signed
         - identifier
         - authority
         - team_identifier

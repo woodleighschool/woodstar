@@ -120,7 +120,7 @@ func TestParseSoftwareRowsEnrichesInstalledPaths(t *testing.T) {
 		t.Fatalf("len = %d, want 1", len(got))
 	}
 	if got[0].Signature == nil ||
-		!got[0].Signature.Valid ||
+		!got[0].Signature.Signed ||
 		got[0].Signature.Identifier != "com.example.app" ||
 		got[0].Signature.Authority != "Developer ID Application: Example" ||
 		got[0].Signature.TeamIdentifier != "ABCD123456" ||

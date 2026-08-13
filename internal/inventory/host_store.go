@@ -69,7 +69,7 @@ SELECT
     s.bundle_identifier,
     hs.last_opened_at,
     COALESCE(paths.installed_path, '') AS installed_path,
-    paths.signature_valid,
+    paths.signature_signed,
     COALESCE(paths.identifier, '') AS identifier,
     COALESCE(paths.signing_authority, '') AS signing_authority,
     COALESCE(paths.team_identifier, '') AS team_identifier,
@@ -129,9 +129,9 @@ func (acc *hostSoftwareAccumulator) add(row hostSoftwareScanRow) {
 	}
 	version := &title.InstalledVersions[versionIndex]
 	var signature *SoftwareCodeSignature
-	if row.SignatureValid != nil {
+	if row.SignatureSigned != nil {
 		signature = &SoftwareCodeSignature{
-			Valid:          *row.SignatureValid,
+			Signed:         *row.SignatureSigned,
 			Identifier:     row.Identifier,
 			Authority:      row.SigningAuthority,
 			TeamIdentifier: row.TeamIdentifier,
@@ -247,7 +247,7 @@ func hostSoftwareWhere(hostID int64, params HostSoftwareListParams) (string, []a
 					AND (
 						paths.installed_path ILIKE ` + search + `
 						OR (
-							paths.signature_valid IS TRUE
+							paths.signature_signed IS TRUE
 							AND (
 								paths.team_identifier ILIKE ` + search + `
 								OR paths.identifier ILIKE ` + search + `
@@ -274,7 +274,7 @@ type hostSoftwareScanRow struct {
 	BundleIdentifier string     `db:"bundle_identifier"`
 	LastOpenedAt     *time.Time `db:"last_opened_at"`
 	InstalledPath    string     `db:"installed_path"`
-	SignatureValid   *bool      `db:"signature_valid"`
+	SignatureSigned  *bool      `db:"signature_signed"`
 	Identifier       string     `db:"identifier"`
 	SigningAuthority string     `db:"signing_authority"`
 	TeamIdentifier   string     `db:"team_identifier"`

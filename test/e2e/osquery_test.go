@@ -709,7 +709,7 @@ func TestOsquery(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear proto
 		len(installed.Paths) != 1 ||
 		installed.Paths[0].Path != "/Applications/Visual Studio Code.app" ||
 		installed.Paths[0].Signature == nil ||
-		!installed.Paths[0].Signature.Valid ||
+		!installed.Paths[0].Signature.Signed ||
 		installed.Paths[0].Signature.Identifier != bundleID ||
 		installed.Paths[0].Signature.Authority !=
 			"Developer ID Application: Microsoft Corporation (WOODSTAR01)" ||

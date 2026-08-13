@@ -62,24 +62,24 @@ func TestListForHostReturnsPathOwnedSignatureObservations(t *testing.T) {
 		Source:           "apps",
 		BundleIdentifier: "com.example.app",
 	}
-	valid := base
-	valid.InstalledPath = "/Applications/Example.app"
-	valid.ExecutablePath = "/Applications/Example.app/Contents/MacOS/Example"
-	valid.ExecutableSHA256 = "executable-hash"
-	valid.Signature = &SoftwareCodeSignature{
-		Valid:          true,
+	signed := base
+	signed.InstalledPath = "/Applications/Example.app"
+	signed.ExecutablePath = "/Applications/Example.app/Contents/MacOS/Example"
+	signed.ExecutableSHA256 = "executable-hash"
+	signed.Signature = &SoftwareCodeSignature{
+		Signed:         true,
 		Identifier:     "com.example.app",
 		Authority:      "Developer ID Application: Example (TEAMID1234)",
 		TeamIdentifier: "TEAMID1234",
-		CDHash:         "valid-cdhash",
+		CDHash:         "signed-cdhash",
 	}
-	invalid := base
-	invalid.InstalledPath = "/Applications/Invalid.app"
-	invalid.Signature = &SoftwareCodeSignature{CDHash: "invalid-cdhash"}
+	unsigned := base
+	unsigned.InstalledPath = "/Applications/Unsigned.app"
+	unsigned.Signature = &SoftwareCodeSignature{CDHash: "unsigned-cdhash"}
 	unobserved := base
 	unobserved.InstalledPath = "/Applications/Unobserved.app"
 
-	if err := store.ReplaceHostSoftware(ctx, host.ID, []HostSoftwareEntry{valid, invalid, unobserved}); err != nil {
+	if err := store.ReplaceHostSoftware(ctx, host.ID, []HostSoftwareEntry{signed, unsigned, unobserved}); err != nil {
 		t.Fatalf("replace host software: %v", err)
 	}
 	software, total, err := store.ListForHost(ctx, host.ID, HostSoftwareListParams{})
@@ -93,16 +93,26 @@ func TestListForHostReturnsPathOwnedSignatureObservations(t *testing.T) {
 	if len(paths) != 3 {
 		t.Fatalf("paths = %+v, want three installed paths", paths)
 	}
-	if paths[0].Signature == nil || !paths[0].Signature.Valid ||
-		paths[0].Signature.CDHash != "valid-cdhash" ||
-		paths[0].ExecutableSHA256 != "executable-hash" {
-		t.Fatalf("valid path = %+v, want signature and executable observation", paths[0])
+	pathsByName := make(map[string]SoftwareInstalledPath, len(paths))
+	for _, path := range paths {
+		pathsByName[path.Path] = path
 	}
-	if paths[1].Signature == nil || paths[1].Signature.Valid ||
-		paths[1].Signature.CDHash != "invalid-cdhash" {
-		t.Fatalf("invalid path = %+v, want explicit invalid signature", paths[1])
+	signedPath := pathsByName["/Applications/Example.app"]
+	if signedPath.Signature == nil || !signedPath.Signature.Signed ||
+		signedPath.Signature.CDHash != "signed-cdhash" ||
+		signedPath.ExecutableSHA256 != "executable-hash" {
+		t.Fatalf("signed path = %+v, want signature and executable observation", signedPath)
 	}
-	if paths[2].Signature != nil {
-		t.Fatalf("unobserved path = %+v, want nil signature", paths[2])
+	unsignedPath := pathsByName["/Applications/Unsigned.app"]
+	if unsignedPath.Signature == nil || unsignedPath.Signature.Signed ||
+		unsignedPath.Signature.CDHash != "unsigned-cdhash" {
+		t.Fatalf("unsigned path = %+v, want explicit unsigned signature", unsignedPath)
+	}
+	unobservedPath, ok := pathsByName["/Applications/Unobserved.app"]
+	if !ok {
+		t.Fatal("unobserved path is missing")
+	}
+	if unobservedPath.Signature != nil {
+		t.Fatalf("unobserved path = %+v, want nil signature", unobservedPath)
 	}
 }

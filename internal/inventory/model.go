@@ -63,7 +63,7 @@ type SoftwareSigningIdentityList struct {
 
 // SoftwareCodeSignature is one code-signing result observed for an installed path.
 type SoftwareCodeSignature struct {
-	Valid          bool   `json:"valid"`
+	Signed         bool   `json:"signed"`
 	Identifier     string `json:"identifier"`
 	Authority      string `json:"authority"`
 	TeamIdentifier string `json:"team_identifier"`

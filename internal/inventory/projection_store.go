@@ -33,7 +33,7 @@ CREATE TEMP TABLE IF NOT EXISTS inventory_software_snapshot (
     arch text NOT NULL,
     release text NOT NULL,
     installed_path text NOT NULL,
-    signature_valid boolean,
+    signature_signed boolean,
     identifier text NOT NULL,
     signing_authority text NOT NULL,
     team_identifier text NOT NULL,
@@ -72,7 +72,7 @@ CREATE TEMP TABLE IF NOT EXISTS inventory_software_snapshot (
 			"arch",
 			"release",
 			"installed_path",
-			"signature_valid",
+			"signature_signed",
 			"identifier",
 			"signing_authority",
 			"team_identifier",
@@ -83,11 +83,11 @@ CREATE TEMP TABLE IF NOT EXISTS inventory_software_snapshot (
 		},
 		pgx.CopyFromSlice(len(validEntries), func(i int) ([]any, error) {
 			entry := validEntries[i]
-			var signatureValid *bool
+			var signatureSigned *bool
 			var signature SoftwareCodeSignature
 			if entry.Signature != nil {
 				signature = *entry.Signature
-				signatureValid = &signature.Valid
+				signatureSigned = &signature.Signed
 			}
 			return []any{
 				int64(i),
@@ -101,7 +101,7 @@ CREATE TEMP TABLE IF NOT EXISTS inventory_software_snapshot (
 				entry.Arch,
 				entry.Release,
 				entry.InstalledPath,
-				signatureValid,
+				signatureSigned,
 				signature.Identifier,
 				signature.Authority,
 				signature.TeamIdentifier,
@@ -240,14 +240,14 @@ ON CONFLICT (host_id, software_id) DO UPDATE SET
 	_, err := tx.Exec(ctx, `
 INSERT INTO host_software_installed_paths (
     host_id, software_id, installed_path,
-    signature_valid, identifier, signing_authority, team_identifier, cdhash,
+    signature_signed, identifier, signing_authority, team_identifier, cdhash,
     executable_sha256, executable_path
 )
 SELECT DISTINCT ON (software_id, installed_path)
     $1,
     software_id,
     installed_path,
-    signature_valid,
+    signature_signed,
     identifier,
     signing_authority,
     team_identifier,
@@ -258,7 +258,7 @@ FROM inventory_software_snapshot
 WHERE installed_path <> ''
 ORDER BY software_id, installed_path, position DESC
 ON CONFLICT (host_id, software_id, installed_path) DO UPDATE SET
-    signature_valid = EXCLUDED.signature_valid,
+    signature_signed = EXCLUDED.signature_signed,
     identifier = EXCLUDED.identifier,
     signing_authority = EXCLUDED.signing_authority,
     team_identifier = EXCLUDED.team_identifier,

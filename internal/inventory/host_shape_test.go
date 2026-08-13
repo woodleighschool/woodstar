@@ -16,14 +16,14 @@ func TestBuildHostSoftwaresInitializesPathCollections(t *testing.T) {
 }
 
 func TestBuildHostSoftwaresExposesExactSigningIdentity(t *testing.T) {
-	valid := true
+	signed := true
 	software := buildHostSoftwares([]hostSoftwareScanRow{{
 		TitleID:          1,
 		TitleName:        "Example",
 		SoftwareID:       2,
 		Version:          "1.0",
 		InstalledPath:    "/Applications/Example.app",
-		SignatureValid:   &valid,
+		SignatureSigned:  &signed,
 		TeamIdentifier:   "TEAMID1234",
 		Identifier:       "com.example.app",
 		SigningAuthority: "Developer ID Application: Example",
@@ -31,7 +31,7 @@ func TestBuildHostSoftwaresExposesExactSigningIdentity(t *testing.T) {
 	}})
 
 	got := software[0].InstalledVersions[0].Paths[0]
-	if got.Signature == nil || !got.Signature.Valid ||
+	if got.Signature == nil || !got.Signature.Signed ||
 		got.Signature.Identifier != "com.example.app" ||
 		got.Signature.Authority != "Developer ID Application: Example" ||
 		got.Signature.CDHash != "cdhash" {

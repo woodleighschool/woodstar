@@ -33,14 +33,14 @@ func TestReplaceHostSoftwareReconcilesSnapshotAsSet(t *testing.T) {
 		Vendor:           "Example",
 		InstalledPath:    "/Applications/Snapshot App.app",
 		Signature: &SoftwareCodeSignature{
-			Valid:      true,
+			Signed:     true,
 			Identifier: "first-observation",
 		},
 		LastOpenedAt: &firstOpenedAt,
 	}
 	updatedApp := app
 	updatedApp.Signature = &SoftwareCodeSignature{
-		Valid:      true,
+		Signed:     true,
 		Identifier: "last-observation",
 	}
 	updatedApp.LastOpenedAt = &lastOpenedAt

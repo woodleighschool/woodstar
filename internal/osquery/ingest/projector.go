@@ -379,7 +379,7 @@ func softwareEnrichmentByPath(
 		}
 		info := enrichment[path]
 		info.Signature = &inventory.SoftwareCodeSignature{
-			Valid:          parseBool(row["signed"]),
+			Signed:         parseBool(row["signed"]),
 			Identifier:     row["identifier"],
 			Authority:      row["signing_authority"],
 			TeamIdentifier: row["team_identifier"],

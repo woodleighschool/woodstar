@@ -64,7 +64,7 @@ func softwareTitleWhere(params SoftwareTitleListParams) (string, []any) {
 				FROM software s
 				JOIN host_software_installed_paths paths ON paths.software_id = s.id
 				WHERE s.title_id = st.id
-					AND paths.signature_valid IS TRUE
+					AND paths.signature_signed IS TRUE
 					AND (
 						paths.team_identifier ILIKE ` + search + `
 						OR paths.identifier ILIKE ` + search + `
@@ -206,7 +206,7 @@ SELECT
 FROM host_software_installed_paths paths
 JOIN software s ON s.id = paths.software_id
 WHERE s.title_id = ANY($1::bigint[])
-	AND paths.signature_valid IS TRUE
+	AND paths.signature_signed IS TRUE
 	AND paths.team_identifier <> ''
 GROUP BY s.title_id, paths.team_identifier, paths.identifier, paths.signing_authority
 ORDER BY

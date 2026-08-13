@@ -2558,8 +2558,8 @@ type SoftwareCodeSignature struct {
 	Authority      string `json:"authority"`
 	Cdhash         string `json:"cdhash"`
 	Identifier     string `json:"identifier"`
+	Signed         bool   `json:"signed"`
 	TeamIdentifier string `json:"team_identifier"`
-	Valid          bool   `json:"valid"`
 }
 
 // SoftwareInstalledPath defines model for SoftwareInstalledPath.

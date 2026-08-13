@@ -69,7 +69,7 @@ func TestGetTitleLoadsSigningIdentities(t *testing.T) {
 			BundleIdentifier: "com.example.app",
 			InstalledPath:    "/Applications/Example.app",
 			Signature: &SoftwareCodeSignature{
-				Valid:          true,
+				Signed:         true,
 				TeamIdentifier: "TEAMID1234",
 				Identifier:     "com.example.app",
 				Authority:      "Developer ID Application: Example, Inc. (TEAMID1234)",
@@ -114,7 +114,7 @@ func TestGetTitleLoadsSigningIdentities(t *testing.T) {
 	}
 }
 
-func TestGetTitleSeparatesAuthoritiesAndExcludesInvalidSignatures(t *testing.T) {
+func TestGetTitleSeparatesAuthoritiesAndExcludesUnsignedSignatures(t *testing.T) {
 	db, ctx := testdb.Open(t)
 	store := NewStore(db)
 	hostStore := hosts.NewStore(db, labels.NewStore(db))
@@ -126,7 +126,7 @@ func TestGetTitleSeparatesAuthoritiesAndExcludesInvalidSignatures(t *testing.T) 
 		{
 			host: "authority-one",
 			signature: &SoftwareCodeSignature{
-				Valid:          true,
+				Signed:         true,
 				Identifier:     "com.example.rotated",
 				TeamIdentifier: "TEAMID1234",
 				Authority:      "Developer ID Application: Example One (TEAMID1234)",
@@ -135,18 +135,18 @@ func TestGetTitleSeparatesAuthoritiesAndExcludesInvalidSignatures(t *testing.T) 
 		{
 			host: "authority-two",
 			signature: &SoftwareCodeSignature{
-				Valid:          true,
+				Signed:         true,
 				Identifier:     "com.example.rotated",
 				TeamIdentifier: "TEAMID1234",
 				Authority:      "Developer ID Application: Example Two (TEAMID1234)",
 			},
 		},
 		{
-			host: "invalid-signature",
+			host: "unsigned-signature",
 			signature: &SoftwareCodeSignature{
 				Identifier:     "com.example.rotated",
 				TeamIdentifier: "TEAMID1234",
-				Authority:      "Developer ID Application: Invalid (TEAMID1234)",
+				Authority:      "Developer ID Application: Unsigned (TEAMID1234)",
 			},
 		},
 		{host: "unobserved-signature"},
@@ -184,7 +184,7 @@ func TestGetTitleSeparatesAuthoritiesAndExcludesInvalidSignatures(t *testing.T) 
 		t.Fatalf("GetTitle: %v", err)
 	}
 	if title.SigningIdentities.Count != 2 || len(title.SigningIdentities.Items) != 2 {
-		t.Fatalf("signing identities = %+v, want one row per valid authority", title.SigningIdentities)
+		t.Fatalf("signing identities = %+v, want one row per signed authority", title.SigningIdentities)
 	}
 	if title.SigningIdentities.Items[0].DeveloperName != "Example One" ||
 		title.SigningIdentities.Items[1].DeveloperName != "Example Two" {
@@ -192,13 +192,13 @@ func TestGetTitleSeparatesAuthoritiesAndExcludesInvalidSignatures(t *testing.T) 
 	}
 
 	params := SoftwareTitleListParams{}
-	params.ListParams.Q = "Invalid"
+	params.ListParams.Q = "Unsigned"
 	titles, total, err := store.ListTitles(ctx, params)
 	if err != nil {
-		t.Fatalf("ListTitles by invalid authority: %v", err)
+		t.Fatalf("ListTitles by unsigned authority: %v", err)
 	}
 	if total != 0 || len(titles) != 0 {
-		t.Fatalf("invalid authority search = (%d, %+v), want no titles", total, titles)
+		t.Fatalf("unsigned authority search = (%d, %+v), want no titles", total, titles)
 	}
 }
 
@@ -221,7 +221,7 @@ func TestGetTitleLoadsTeamIdentityWithoutIdentifier(t *testing.T) {
 		BundleIdentifier: "com.example.team-only",
 		InstalledPath:    "/Applications/Team Only.app",
 		Signature: &SoftwareCodeSignature{
-			Valid:          true,
+			Signed:         true,
 			TeamIdentifier: "TEAMID1234",
 		},
 	}}); err != nil {

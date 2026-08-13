@@ -1342,8 +1342,8 @@ export type SoftwareCodeSignature = {
     authority: string;
     cdhash: string;
     identifier: string;
+    signed: boolean;
     team_identifier: string;
-    valid: boolean;
 };
 
 export type SoftwareInstalledPath = {
