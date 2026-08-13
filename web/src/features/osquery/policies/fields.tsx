@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { ConfirmDialog } from "@components/confirm-dialog";
 import { SchemaSidebar } from "@components/editor/schema-sidebar";
+import { ShellScriptEditor } from "@components/editor/shell-script-editor";
 import { SQLEditor } from "@components/editor/sql-editor";
 import { useSchemaSidebar } from "@components/editor/use-schema-sidebar";
 import { FormActions } from "@components/form-actions";
@@ -345,20 +346,13 @@ export function PolicyForm({
                   <ValidatedFormField
                     field={field}
                     label="Script"
-                    htmlFor="policy-remediation-script"
                     description="Optional script sent to eligible Orbit hosts. Include a shebang."
                   >
                     {(control) => (
-                      <Textarea
-                        {...control}
-                        name={field.name}
-                        rows={14}
-                        className="font-mono text-xs"
-                        spellCheck={false}
-                        placeholder={"#!/bin/zsh\n\n# Repair the failing condition."}
+                      <ShellScriptEditor
                         value={field.state.value}
-                        onBlur={field.handleBlur}
-                        onChange={(event) => field.handleChange(event.target.value)}
+                        onChange={field.handleChange}
+                        invalid={control["aria-invalid"]}
                       />
                     )}
                   </ValidatedFormField>
