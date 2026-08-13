@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.8.13](https://github.com/woodleighschool/woodstar/compare/0.8.12...0.8.13) (2026-08-13)
+
+
+### Features
+
+* **inventory:** refine software inventory ([#164](https://github.com/woodleighschool/woodstar/issues/164)) ([c22e2fa](https://github.com/woodleighschool/woodstar/commit/c22e2fa3558018f4502a38f46f63bdf8b2db4fe2))
+
+
+### Bug Fixes
+
+* **deps:** update tanstack-router monorepo ([#183](https://github.com/woodleighschool/woodstar/issues/183)) ([16bef5c](https://github.com/woodleighschool/woodstar/commit/16bef5cfaae0e7c95af5977bd385b005b7da4580))
+* **inventory:** collect signing metadata without validation ([f09c1c1](https://github.com/woodleighschool/woodstar/commit/f09c1c1be8574f1bf45d481591cc7b5c15dd454b))
+* **osquery:** normalize reported primary IPs ([72114e2](https://github.com/woodleighschool/woodstar/commit/72114e2bf8152cdf972fa24d9f5c3aad13e17abc))
+* **osquery:** quiet client query failures ([c39a4b2](https://github.com/woodleighschool/woodstar/commit/c39a4b2b932deba73249a3c5fa7574458d55b94f))
+
 ## [0.8.12](https://github.com/woodleighschool/woodstar/compare/0.8.11...0.8.12) (2026-08-13)
 
 
