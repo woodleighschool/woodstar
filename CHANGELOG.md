@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.8.12](https://github.com/woodleighschool/woodstar/compare/0.8.11...0.8.12) (2026-08-13)
+
+
+### Features
+
+* **deps:** update dependency shadcn (4.16.2 → 4.17.0) ([#180](https://github.com/woodleighschool/woodstar/issues/180)) ([7b3936c](https://github.com/woodleighschool/woodstar/commit/7b3936c3b97c30fbbe9c70187638457fde2c6333))
+* **deps:** update docusaurus openapi (5.1.3 → 5.2.0) ([#179](https://github.com/woodleighschool/woodstar/issues/179)) ([af317e5](https://github.com/woodleighschool/woodstar/commit/af317e567d18f3a2b7f62357ffc2c78ae2f871ed))
+
+
+### Bug Fixes
+
+* **inventory:** use validated code signatures ([#171](https://github.com/woodleighschool/woodstar/issues/171)) ([9172c5c](https://github.com/woodleighschool/woodstar/commit/9172c5c74e58abdecbf89d2fe24819c2f2ce140d))
+* **postgres:** order software signature migration ([2385244](https://github.com/woodleighschool/woodstar/commit/23852443caea3d75b27a43a7439bb714ca369554))
+
+
+### Performance Improvements
+
+* persist authoritative snapshots set-wise ([597256c](https://github.com/woodleighschool/woodstar/commit/597256c75b0f716ca50d59fc75524b6eaa927379))
+
 ## [0.8.11](https://github.com/woodleighschool/woodstar/compare/0.8.10...0.8.11) (2026-08-12)
 
 
