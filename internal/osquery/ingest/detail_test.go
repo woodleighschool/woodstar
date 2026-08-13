@@ -110,6 +110,30 @@ func TestParseHostDetailsMissingFields(t *testing.T) {
 	}
 }
 
+func TestParseHostDetailsNormalizesPrimaryIP(t *testing.T) {
+	tests := map[string]struct {
+		input string
+		want  string
+	}{
+		"IPv4":        {input: "192.0.2.10", want: "192.0.2.10"},
+		"IPv6":        {input: "2001:db8::10", want: "2001:db8::10"},
+		"IPv6 zone":   {input: "fe80::c727:7582:f282:49ac%utun0", want: "fe80::c727:7582:f282:49ac"},
+		"invalid":     {input: "not-an-address", want: ""},
+		"surrounding": {input: " 192.0.2.10 ", want: "192.0.2.10"},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			got := ParseHostDetails(map[string]map[string]string{
+				"primary_interface": {"primary_ip": tt.input},
+			})
+			if got.Network.PrimaryIP != tt.want {
+				t.Fatalf("PrimaryIP = %q, want %q", got.Network.PrimaryIP, tt.want)
+			}
+		})
+	}
+}
+
 func assertInventoryUpdate(t *testing.T, got hosts.InventoryUpdate, want hosts.InventoryUpdate) {
 	t.Helper()
 	if got.Hardware.UUID != want.Hardware.UUID ||

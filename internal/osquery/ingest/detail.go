@@ -1,6 +1,7 @@
 package ingest
 
 import (
+	"net/netip"
 	"strconv"
 	"strings"
 	"time"
@@ -57,7 +58,7 @@ func ParseHostDetails(details map[string]map[string]string) hosts.InventoryUpdat
 		}
 	}
 	if row := details["primary_interface"]; row != nil {
-		update.Network.PrimaryIP = normalizeString(row["primary_ip"])
+		update.Network.PrimaryIP = normalizeIP(row["primary_ip"])
 		update.Network.PrimaryMAC = normalizeString(row["primary_mac"])
 	}
 	return update
@@ -65,6 +66,17 @@ func ParseHostDetails(details map[string]map[string]string) hosts.InventoryUpdat
 
 func normalizeString(value string) string {
 	return strings.ReplaceAll(value, "\x00", "")
+}
+
+func normalizeIP(value string) string {
+	addr, err := netip.ParseAddr(strings.TrimSpace(normalizeString(value)))
+	if err != nil {
+		return ""
+	}
+	if addr.Zone() != "" {
+		addr = addr.WithZone("")
+	}
+	return addr.String()
 }
 
 func versionString(row map[string]string) string {
