@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"strings"
 
@@ -174,7 +175,7 @@ func (s *AgentService) handleLabelResult(
 	}
 	matched, ok := rowPresenceResult(status, hasStatus, rows)
 	if !ok {
-		s.deps.Logger.WarnContext(
+		s.deps.Logger.DebugContext(
 			ctx,
 			"osquery label query failed", "operation", "label_evaluation",
 			"host_id", hostID,
@@ -219,8 +220,13 @@ func (s *AgentService) handleDetailResult(
 		if !query.Optional {
 			pass.allSucceeded = false
 		}
-		s.deps.Logger.WarnContext(
+		level := slog.LevelWarn
+		if query.Optional {
+			level = slog.LevelDebug
+		}
+		s.deps.Logger.Log(
 			ctx,
+			level,
 			"osquery detail query failed", "operation", "distributed_write",
 			"host_id", hostID,
 			"query", queryName(kindDetail, suffix),
@@ -359,7 +365,7 @@ func (s *AgentService) handleCheckResult(
 	if ok {
 		passes = &matched
 	} else {
-		s.deps.Logger.WarnContext(
+		s.deps.Logger.DebugContext(
 			ctx,
 			"osquery check query failed", "operation", "check_evaluation",
 			"host_id", hostID,

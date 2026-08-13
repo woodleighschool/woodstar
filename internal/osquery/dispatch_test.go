@@ -1,6 +1,7 @@
 package osquery
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"log/slog"
@@ -14,6 +15,100 @@ import (
 	"github.com/woodleighschool/woodstar/internal/osquery/catalog"
 	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
 )
+
+func TestQueryFailureLogLevels(t *testing.T) {
+	tests := []struct {
+		name      string
+		invoke    func(t *testing.T, service *AgentService)
+		wantLevel string
+	}{
+		{
+			name: "label",
+			invoke: func(t *testing.T, service *AgentService) {
+				t.Helper()
+				service.handleLabelResult(
+					t.Context(), 42, "5", nil, json.RawMessage(`1`), true,
+					"distributed query is denylisted", &labelDispatchPass{},
+				)
+			},
+			wantLevel: "DEBUG",
+		},
+		{
+			name: "check",
+			invoke: func(t *testing.T, service *AgentService) {
+				t.Helper()
+				suffix := "10_" + queryHash("SELECT 1")
+				if err := service.handleCheckResult(
+					t.Context(), 42, suffix, nil, json.RawMessage(`1`), true,
+					"distributed query is denylisted",
+				); err != nil {
+					t.Fatalf("handle check result: %v", err)
+				}
+			},
+			wantLevel: "DEBUG",
+		},
+		{
+			name: "optional detail",
+			invoke: func(t *testing.T, service *AgentService) {
+				t.Helper()
+				pass := &detailDispatchPass{
+					registry: map[string]catalog.DetailQuery{"optional": {Optional: true}},
+					results:  map[string]detailResult{},
+				}
+				if err := service.handleDetailResult(
+					t.Context(), 42, "optional", nil, json.RawMessage(`1`), true,
+					"table unavailable", pass,
+				); err != nil {
+					t.Fatalf("handle detail result: %v", err)
+				}
+			},
+			wantLevel: "DEBUG",
+		},
+		{
+			name: "required detail",
+			invoke: func(t *testing.T, service *AgentService) {
+				t.Helper()
+				pass := &detailDispatchPass{
+					registry: map[string]catalog.DetailQuery{"required": {}},
+					results:  map[string]detailResult{},
+				}
+				if err := service.handleDetailResult(
+					t.Context(), 42, "required", nil, json.RawMessage(`1`), true,
+					"table unavailable", pass,
+				); err != nil {
+					t.Fatalf("handle detail result: %v", err)
+				}
+			},
+			wantLevel: "WARN",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var output bytes.Buffer
+			logger := slog.New(slog.NewJSONHandler(
+				&output,
+				&slog.HandlerOptions{Level: slog.LevelDebug},
+			))
+			service := &AgentService{deps: Dependencies{
+				Logger:     logger,
+				CheckStore: fakeCheckStore{},
+			}}
+
+			tt.invoke(t, service)
+
+			var record struct {
+				Level string `json:"level"`
+			}
+			if err := json.Unmarshal(output.Bytes(), &record); err != nil {
+				t.Fatalf("decode log record: %v; output: %s", err, output.String())
+			}
+			if record.Level != tt.wantLevel {
+				t.Fatalf("log level = %q, want %q; output: %s", record.Level, tt.wantLevel, output.String())
+			}
+		})
+	}
+}
 
 func TestParseQueryNameRejectsUnknownNames(t *testing.T) {
 	for _, name := range []string{
