@@ -697,6 +697,17 @@ components:
         name:
           type: string
         source:
+          enum:
+            - apps
+            - homebrew_packages
+            - chrome_extensions
+            - firefox_addons
+            - safari_extensions
+            - npm_packages
+            - vscode_extensions
+            - jetbrains_plugins
+            - go_binaries
+            - python_packages
           type: string
       required:
         - id
@@ -3861,8 +3872,6 @@ components:
     SoftwareTitle:
       additionalProperties: false
       properties:
-        browser:
-          type: string
         bundle_identifier:
           type: string
         extension_for:
@@ -3878,6 +3887,17 @@ components:
         signing_identities:
           $ref: "#/components/schemas/SoftwareSigningIdentityList"
         source:
+          enum:
+            - apps
+            - homebrew_packages
+            - chrome_extensions
+            - firefox_addons
+            - safari_extensions
+            - npm_packages
+            - vscode_extensions
+            - jetbrains_plugins
+            - go_binaries
+            - python_packages
           type: string
         versions:
           $ref: "#/components/schemas/SoftwareVersionList"
@@ -3886,7 +3906,6 @@ components:
         - name
         - source
         - extension_for
-        - browser
         - hosts_count
         - versions
         - signing_identities
@@ -5481,6 +5500,17 @@ paths:
           name: source
           schema:
             items:
+              enum:
+                - apps
+                - homebrew_packages
+                - chrome_extensions
+                - firefox_addons
+                - safari_extensions
+                - npm_packages
+                - vscode_extensions
+                - jetbrains_plugins
+                - go_binaries
+                - python_packages
               type: string
             type: array
       responses:
@@ -10092,6 +10122,17 @@ paths:
           name: source
           schema:
             items:
+              enum:
+                - apps
+                - homebrew_packages
+                - chrome_extensions
+                - firefox_addons
+                - safari_extensions
+                - npm_packages
+                - vscode_extensions
+                - jetbrains_plugins
+                - go_binaries
+                - python_packages
               type: string
             type: array
       responses:

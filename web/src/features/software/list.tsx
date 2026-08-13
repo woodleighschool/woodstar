@@ -17,6 +17,7 @@ import { useSoftware } from "@features/software/queries";
 import { SoftwareIcon, softwareIconProps } from "@features/software/software-icon";
 import {
   expandSoftwareSourceFilters,
+  hostCountLabel,
   softwareSourceLabel,
   SOURCE_FILTER_OPTIONS,
   versionsSummaryLabel,
@@ -66,10 +67,7 @@ export function SoftwareListPage() {
 
   return (
     <PageShell>
-      <PageHeader
-        title="Software"
-        description="Search installed software and OS inventory observed across hosts."
-      />
+      <PageHeader title="Software" description="Search software observed in host inventory." />
 
       {query.error ? (
         <QueryError
@@ -128,7 +126,7 @@ const softwareColumns: DataTableColumnDef<SoftwareTitle>[] = [
       </div>
     ),
     enableHiding: false,
-    size: 320,
+    size: 220,
     minSize: 180,
     meta: { label: "Name" },
   },
@@ -150,9 +148,10 @@ const softwareColumns: DataTableColumnDef<SoftwareTitle>[] = [
     cell: ({ row }) => softwareSourceLabel(row.original.source, row.original.extension_for),
     meta: { label: "Type", options: SOURCE_FILTER_OPTIONS },
     enableColumnFilter: true,
-    size: 208,
-    minSize: 208,
-    maxSize: 208,
+    filterFn: () => true,
+    size: 168,
+    minSize: 168,
+    maxSize: 168,
     enableResizing: false,
   },
   {
@@ -163,15 +162,15 @@ const softwareColumns: DataTableColumnDef<SoftwareTitle>[] = [
       <TextLink
         to="/hosts"
         search={{ software_title_id: row.original.id }}
-        className="tabular-nums"
+        className="whitespace-nowrap tabular-nums"
       >
-        {row.original.hosts_count}
+        {hostCountLabel(row.original.hosts_count)}
       </TextLink>
     ),
     meta: { label: "Hosts" },
-    size: 96,
-    minSize: 96,
-    maxSize: 96,
+    size: 112,
+    minSize: 112,
+    maxSize: 112,
     enableResizing: false,
   },
 ];

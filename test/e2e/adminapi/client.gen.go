@@ -154,6 +154,48 @@ func (e HostPrimaryUserSourceSource) Valid() bool {
 	}
 }
 
+// Defines values for HostSoftwareSource.
+const (
+	HostSoftwareSourceApps             HostSoftwareSource = "apps"
+	HostSoftwareSourceChromeExtensions HostSoftwareSource = "chrome_extensions"
+	HostSoftwareSourceFirefoxAddons    HostSoftwareSource = "firefox_addons"
+	HostSoftwareSourceGoBinaries       HostSoftwareSource = "go_binaries"
+	HostSoftwareSourceHomebrewPackages HostSoftwareSource = "homebrew_packages"
+	HostSoftwareSourceJetbrainsPlugins HostSoftwareSource = "jetbrains_plugins"
+	HostSoftwareSourceNpmPackages      HostSoftwareSource = "npm_packages"
+	HostSoftwareSourcePythonPackages   HostSoftwareSource = "python_packages"
+	HostSoftwareSourceSafariExtensions HostSoftwareSource = "safari_extensions"
+	HostSoftwareSourceVscodeExtensions HostSoftwareSource = "vscode_extensions"
+)
+
+// Valid indicates whether the value is a known member of the HostSoftwareSource enum.
+func (e HostSoftwareSource) Valid() bool {
+	switch e {
+	case HostSoftwareSourceApps:
+		return true
+	case HostSoftwareSourceChromeExtensions:
+		return true
+	case HostSoftwareSourceFirefoxAddons:
+		return true
+	case HostSoftwareSourceGoBinaries:
+		return true
+	case HostSoftwareSourceHomebrewPackages:
+		return true
+	case HostSoftwareSourceJetbrainsPlugins:
+		return true
+	case HostSoftwareSourceNpmPackages:
+		return true
+	case HostSoftwareSourcePythonPackages:
+		return true
+	case HostSoftwareSourceSafariExtensions:
+		return true
+	case HostSoftwareSourceVscodeExtensions:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for LabelBuiltinKey.
 const (
 	AllHosts LabelBuiltinKey = "all-hosts"
@@ -1099,6 +1141,48 @@ func (e SantaRuleStatusRuleType) Valid() bool {
 	}
 }
 
+// Defines values for SoftwareTitleSource.
+const (
+	SoftwareTitleSourceApps             SoftwareTitleSource = "apps"
+	SoftwareTitleSourceChromeExtensions SoftwareTitleSource = "chrome_extensions"
+	SoftwareTitleSourceFirefoxAddons    SoftwareTitleSource = "firefox_addons"
+	SoftwareTitleSourceGoBinaries       SoftwareTitleSource = "go_binaries"
+	SoftwareTitleSourceHomebrewPackages SoftwareTitleSource = "homebrew_packages"
+	SoftwareTitleSourceJetbrainsPlugins SoftwareTitleSource = "jetbrains_plugins"
+	SoftwareTitleSourceNpmPackages      SoftwareTitleSource = "npm_packages"
+	SoftwareTitleSourcePythonPackages   SoftwareTitleSource = "python_packages"
+	SoftwareTitleSourceSafariExtensions SoftwareTitleSource = "safari_extensions"
+	SoftwareTitleSourceVscodeExtensions SoftwareTitleSource = "vscode_extensions"
+)
+
+// Valid indicates whether the value is a known member of the SoftwareTitleSource enum.
+func (e SoftwareTitleSource) Valid() bool {
+	switch e {
+	case SoftwareTitleSourceApps:
+		return true
+	case SoftwareTitleSourceChromeExtensions:
+		return true
+	case SoftwareTitleSourceFirefoxAddons:
+		return true
+	case SoftwareTitleSourceGoBinaries:
+		return true
+	case SoftwareTitleSourceHomebrewPackages:
+		return true
+	case SoftwareTitleSourceJetbrainsPlugins:
+		return true
+	case SoftwareTitleSourceNpmPackages:
+		return true
+	case SoftwareTitleSourcePythonPackages:
+		return true
+	case SoftwareTitleSourceSafariExtensions:
+		return true
+	case SoftwareTitleSourceVscodeExtensions:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for UserRole.
 const (
 	UserRoleAdmin  UserRole = "admin"
@@ -1165,6 +1249,48 @@ func (e ListHostsParamsStatus) Valid() bool {
 	case ListHostsParamsStatusOffline:
 		return true
 	case ListHostsParamsStatusOnline:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListHostSoftwareParamsSource.
+const (
+	ListHostSoftwareParamsSourceApps             ListHostSoftwareParamsSource = "apps"
+	ListHostSoftwareParamsSourceChromeExtensions ListHostSoftwareParamsSource = "chrome_extensions"
+	ListHostSoftwareParamsSourceFirefoxAddons    ListHostSoftwareParamsSource = "firefox_addons"
+	ListHostSoftwareParamsSourceGoBinaries       ListHostSoftwareParamsSource = "go_binaries"
+	ListHostSoftwareParamsSourceHomebrewPackages ListHostSoftwareParamsSource = "homebrew_packages"
+	ListHostSoftwareParamsSourceJetbrainsPlugins ListHostSoftwareParamsSource = "jetbrains_plugins"
+	ListHostSoftwareParamsSourceNpmPackages      ListHostSoftwareParamsSource = "npm_packages"
+	ListHostSoftwareParamsSourcePythonPackages   ListHostSoftwareParamsSource = "python_packages"
+	ListHostSoftwareParamsSourceSafariExtensions ListHostSoftwareParamsSource = "safari_extensions"
+	ListHostSoftwareParamsSourceVscodeExtensions ListHostSoftwareParamsSource = "vscode_extensions"
+)
+
+// Valid indicates whether the value is a known member of the ListHostSoftwareParamsSource enum.
+func (e ListHostSoftwareParamsSource) Valid() bool {
+	switch e {
+	case ListHostSoftwareParamsSourceApps:
+		return true
+	case ListHostSoftwareParamsSourceChromeExtensions:
+		return true
+	case ListHostSoftwareParamsSourceFirefoxAddons:
+		return true
+	case ListHostSoftwareParamsSourceGoBinaries:
+		return true
+	case ListHostSoftwareParamsSourceHomebrewPackages:
+		return true
+	case ListHostSoftwareParamsSourceJetbrainsPlugins:
+		return true
+	case ListHostSoftwareParamsSourceNpmPackages:
+		return true
+	case ListHostSoftwareParamsSourcePythonPackages:
+		return true
+	case ListHostSoftwareParamsSourceSafariExtensions:
+		return true
+	case ListHostSoftwareParamsSourceVscodeExtensions:
 		return true
 	default:
 		return false
@@ -1294,6 +1420,48 @@ func (e ListSantaEventsParamsDecisions) Valid() bool {
 	case ListSantaEventsParamsDecisionsBundleBinary:
 		return true
 	case ListSantaEventsParamsDecisionsUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListSoftwareParamsSource.
+const (
+	ListSoftwareParamsSourceApps             ListSoftwareParamsSource = "apps"
+	ListSoftwareParamsSourceChromeExtensions ListSoftwareParamsSource = "chrome_extensions"
+	ListSoftwareParamsSourceFirefoxAddons    ListSoftwareParamsSource = "firefox_addons"
+	ListSoftwareParamsSourceGoBinaries       ListSoftwareParamsSource = "go_binaries"
+	ListSoftwareParamsSourceHomebrewPackages ListSoftwareParamsSource = "homebrew_packages"
+	ListSoftwareParamsSourceJetbrainsPlugins ListSoftwareParamsSource = "jetbrains_plugins"
+	ListSoftwareParamsSourceNpmPackages      ListSoftwareParamsSource = "npm_packages"
+	ListSoftwareParamsSourcePythonPackages   ListSoftwareParamsSource = "python_packages"
+	ListSoftwareParamsSourceSafariExtensions ListSoftwareParamsSource = "safari_extensions"
+	ListSoftwareParamsSourceVscodeExtensions ListSoftwareParamsSource = "vscode_extensions"
+)
+
+// Valid indicates whether the value is a known member of the ListSoftwareParamsSource enum.
+func (e ListSoftwareParamsSource) Valid() bool {
+	switch e {
+	case ListSoftwareParamsSourceApps:
+		return true
+	case ListSoftwareParamsSourceChromeExtensions:
+		return true
+	case ListSoftwareParamsSourceFirefoxAddons:
+		return true
+	case ListSoftwareParamsSourceGoBinaries:
+		return true
+	case ListSoftwareParamsSourceHomebrewPackages:
+		return true
+	case ListSoftwareParamsSourceJetbrainsPlugins:
+		return true
+	case ListSoftwareParamsSourceNpmPackages:
+		return true
+	case ListSoftwareParamsSourcePythonPackages:
+		return true
+	case ListSoftwareParamsSourceSafariExtensions:
+		return true
+	case ListSoftwareParamsSourceVscodeExtensions:
 		return true
 	default:
 		return false
@@ -1593,8 +1761,11 @@ type HostSoftware struct {
 	Id                int64                          `json:"id"`
 	InstalledVersions []HostSoftwareInstalledVersion `json:"installed_versions"`
 	Name              string                         `json:"name"`
-	Source            string                         `json:"source"`
+	Source            HostSoftwareSource             `json:"source"`
 }
+
+// HostSoftwareSource defines model for HostSoftware.Source.
+type HostSoftwareSource string
 
 // HostSoftwareInstalledVersion defines model for HostSoftwareInstalledVersion.
 type HostSoftwareInstalledVersion struct {
@@ -2588,16 +2759,18 @@ type SoftwareSigningIdentityList struct {
 
 // SoftwareTitle defines model for SoftwareTitle.
 type SoftwareTitle struct {
-	Browser           string                      `json:"browser"`
 	BundleIdentifier  *string                     `json:"bundle_identifier,omitempty"`
 	ExtensionFor      string                      `json:"extension_for"`
 	HostsCount        int32                       `json:"hosts_count"`
 	Id                int64                       `json:"id"`
 	Name              string                      `json:"name"`
 	SigningIdentities SoftwareSigningIdentityList `json:"signing_identities"`
-	Source            string                      `json:"source"`
+	Source            SoftwareTitleSource         `json:"source"`
 	Versions          SoftwareVersionList         `json:"versions"`
 }
+
+// SoftwareTitleSource defines model for SoftwareTitle.Source.
+type SoftwareTitleSource string
 
 // SoftwareVersion defines model for SoftwareVersion.
 type SoftwareVersion struct {
@@ -2683,12 +2856,15 @@ type ListHostSantaRulesParams struct {
 
 // ListHostSoftwareParams defines parameters for ListHostSoftware.
 type ListHostSoftwareParams struct {
-	Q       *string   `form:"q,omitempty" json:"q,omitempty"`
-	Page    *int32    `form:"page,omitempty" json:"page,omitempty"`
-	PerPage *int32    `form:"per_page,omitempty" json:"per_page,omitempty"`
-	Sort    *string   `form:"sort,omitempty" json:"sort,omitempty"`
-	Source  *[]string `form:"source,omitempty" json:"source,omitempty"`
+	Q       *string                         `form:"q,omitempty" json:"q,omitempty"`
+	Page    *int32                          `form:"page,omitempty" json:"page,omitempty"`
+	PerPage *int32                          `form:"per_page,omitempty" json:"per_page,omitempty"`
+	Sort    *string                         `form:"sort,omitempty" json:"sort,omitempty"`
+	Source  *[]ListHostSoftwareParamsSource `form:"source,omitempty" json:"source,omitempty"`
 }
+
+// ListHostSoftwareParamsSource defines parameters for ListHostSoftware.
+type ListHostSoftwareParamsSource string
 
 // ListLabelsParams defines parameters for ListLabels.
 type ListLabelsParams struct {
@@ -2742,12 +2918,15 @@ type ListSantaEventsParamsDecisions string
 
 // ListSoftwareParams defines parameters for ListSoftware.
 type ListSoftwareParams struct {
-	Q       *string   `form:"q,omitempty" json:"q,omitempty"`
-	Page    *int32    `form:"page,omitempty" json:"page,omitempty"`
-	PerPage *int32    `form:"per_page,omitempty" json:"per_page,omitempty"`
-	Sort    *string   `form:"sort,omitempty" json:"sort,omitempty"`
-	Source  *[]string `form:"source,omitempty" json:"source,omitempty"`
+	Q       *string                     `form:"q,omitempty" json:"q,omitempty"`
+	Page    *int32                      `form:"page,omitempty" json:"page,omitempty"`
+	PerPage *int32                      `form:"per_page,omitempty" json:"per_page,omitempty"`
+	Sort    *string                     `form:"sort,omitempty" json:"sort,omitempty"`
+	Source  *[]ListSoftwareParamsSource `form:"source,omitempty" json:"source,omitempty"`
 }
+
+// ListSoftwareParamsSource defines parameters for ListSoftware.
+type ListSoftwareParamsSource string
 
 // CreateAgentSecretJSONRequestBody defines body for CreateAgentSecret for application/json ContentType.
 type CreateAgentSecretJSONRequestBody = AgentSecretCreate
