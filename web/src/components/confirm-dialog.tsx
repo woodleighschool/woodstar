@@ -21,6 +21,7 @@ export interface ConfirmDialogProps {
   title: string;
   description?: ReactNode;
   confirmLabel: string;
+  cancelLabel?: string;
   variant?: VariantProps<typeof buttonVariants>["variant"];
   pending?: boolean;
   onConfirm: () => void;
@@ -32,6 +33,7 @@ export function ConfirmDialog({
   title,
   description,
   confirmLabel,
+  cancelLabel = "Cancel",
   variant,
   pending = false,
   onConfirm,
@@ -45,7 +47,7 @@ export function ConfirmDialog({
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel variant="ghost" size="sm" disabled={pending}>
-            Cancel
+            {cancelLabel}
           </AlertDialogCancel>
           <Pending
             isPending={pending}

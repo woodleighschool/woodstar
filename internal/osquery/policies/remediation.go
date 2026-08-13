@@ -58,6 +58,12 @@ type PolicyRemediationRunSummary struct {
 	ExitCode    *int                       `json:"-"`
 }
 
+// PolicyRemediationBatchSummary reports an explicit batch request.
+type PolicyRemediationBatchSummary struct {
+	Queued  int `json:"queued"`
+	Skipped int `json:"skipped"`
+}
+
 // PolicyRemediationRun includes administrator-only execution output.
 type PolicyRemediationRun struct {
 	PolicyRemediationRunSummary
@@ -100,68 +106,130 @@ func (s *Store) RemediationSource(ctx context.Context, policyID int64) (*PolicyR
 	return &source, nil
 }
 
-// RunRemediation queues an explicit rerun without changing policy state.
-func (s *Store) RunRemediation(
+// RunRemediations queues the current script for selected failing hosts or every
+// current failure when explicitly requested.
+func (s *Store) RunRemediations(
 	ctx context.Context,
-	policyID, hostID int64,
-) (*PolicyRemediationRunSummary, error) {
-	var summary *PolicyRemediationRunSummary
-	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+	policyID int64,
+	hostIDs []int64,
+	allFailures bool,
+) (*PolicyRemediationBatchSummary, error) {
+	hostIDs, err := normalizeRemediationHostIDs(hostIDs)
+	if err != nil {
+		return nil, err
+	}
+	if allFailures == (len(hostIDs) > 0) {
+		return nil, fmt.Errorf(
+			"%w: choose either all failures or one or more hosts",
+			fault.ErrInvalidInput,
+		)
+	}
+
+	summary := &PolicyRemediationBatchSummary{}
+	err = pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		var script string
 		var revision int64
-		var scriptExecutionAvailable bool
-		var status PolicyStatus
 		err := tx.QueryRow(ctx, `
-			SELECT
-				policy.remediation_script,
-				policy.evaluation_revision,
-				COALESCE(host.orbit_scripts_enabled, false)
-					AND host.orbit_node_key <> '',
-				membership.status::text
-			FROM osquery_policies policy
-			JOIN osquery_policy_assignments assignment
-				ON assignment.policy_id = policy.id
-			   AND assignment.host_id = $2
-			JOIN osquery_policy_membership membership
-				ON membership.policy_id = policy.id
-			   AND membership.host_id = assignment.host_id
-			JOIN hosts host ON host.id = assignment.host_id
-			WHERE policy.id = $1
-			FOR UPDATE OF policy, membership`, policyID, hostID).Scan(
-			&script,
-			&revision,
-			&scriptExecutionAvailable,
-			&status,
-		)
+			SELECT remediation_script, evaluation_revision
+			FROM osquery_policies
+			WHERE id = $1
+			FOR UPDATE`, policyID).Scan(&script, &revision)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return fault.ErrNotFound
 		}
 		if err != nil {
 			return err
 		}
-		if status != PolicyStatusFail {
-			return fmt.Errorf("%w: policy is not failing for this host", fault.ErrConflict)
-		}
 		if script == "" {
 			return fmt.Errorf("%w: policy has no remediation script", fault.ErrConflict)
 		}
-		if !scriptExecutionAvailable {
-			return fmt.Errorf("%w: host cannot execute Orbit scripts", fault.ErrConflict)
-		}
-		queued, err := enqueueRemediationTx(ctx, tx, policyID, hostID, revision, script, false)
+
+		rows, err := tx.Query(ctx, `
+			SELECT
+				assignment.host_id,
+				COALESCE(host.orbit_scripts_enabled, false)
+					AND host.orbit_node_key <> '' AS eligible
+			FROM osquery_policy_assignments assignment
+			JOIN osquery_policy_membership membership
+				ON membership.policy_id = assignment.policy_id
+			   AND membership.host_id = assignment.host_id
+			JOIN hosts host ON host.id = assignment.host_id
+			WHERE assignment.policy_id = $1
+			  AND membership.status = 'fail'
+			  AND ($3 OR assignment.host_id = ANY($2::bigint[]))
+			ORDER BY assignment.host_id
+			FOR UPDATE OF membership`, policyID, hostIDs, allFailures)
 		if err != nil {
 			return err
 		}
-		if queued == nil {
-			return fmt.Errorf("%w: remediation is already queued or in progress", fault.ErrConflict)
+		candidates, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (remediationCandidate, error) {
+			var candidate remediationCandidate
+			err := row.Scan(&candidate.HostID, &candidate.Eligible)
+			return candidate, err
+		})
+		if err != nil {
+			return err
 		}
-		summary = queued
+
+		queueHostIDs := make([]int64, 0, len(candidates))
+		executionIDs := make([]string, 0, len(candidates))
+		for _, candidate := range candidates {
+			if !candidate.Eligible {
+				continue
+			}
+			executionID, err := randtoken.Generate(remediationExecutionIDBytes)
+			if err != nil {
+				return fmt.Errorf("generate remediation execution ID: %w", err)
+			}
+			queueHostIDs = append(queueHostIDs, candidate.HostID)
+			executionIDs = append(executionIDs, executionID)
+		}
+		queued, err := enqueueRemediationsTx(
+			ctx,
+			tx,
+			policyID,
+			queueHostIDs,
+			executionIDs,
+			revision,
+			script,
+			false,
+		)
+		if err != nil {
+			return err
+		}
+		summary.Queued = len(queued)
+		if allFailures {
+			summary.Skipped = len(candidates) - summary.Queued
+		} else {
+			summary.Skipped = len(hostIDs) - summary.Queued
+		}
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
 	return summary, nil
+}
+
+func normalizeRemediationHostIDs(hostIDs []int64) ([]int64, error) {
+	normalized := make([]int64, 0, len(hostIDs))
+	seen := make(map[int64]struct{}, len(hostIDs))
+	for _, hostID := range hostIDs {
+		if hostID <= 0 {
+			return nil, fmt.Errorf("%w: host IDs must be positive", fault.ErrInvalidInput)
+		}
+		if _, exists := seen[hostID]; exists {
+			continue
+		}
+		seen[hostID] = struct{}{}
+		normalized = append(normalized, hostID)
+	}
+	return normalized, nil
+}
+
+type remediationCandidate struct {
+	HostID   int64
+	Eligible bool
 }
 
 func enqueueRemediationTx(
@@ -176,8 +244,39 @@ func enqueueRemediationTx(
 	if err != nil {
 		return nil, fmt.Errorf("generate remediation execution ID: %w", err)
 	}
-	var row remediationRunRow
-	err = tx.QueryRow(ctx, `
+	rows, err := enqueueRemediationsTx(
+		ctx,
+		tx,
+		policyID,
+		[]int64{hostID},
+		[]string{executionID},
+		revision,
+		script,
+		automatic,
+	)
+	if err != nil {
+		return nil, err
+	}
+	if len(rows) == 0 {
+		return nil, nil
+	}
+	return remediationRunSummary(rows[0], time.Now()), nil
+}
+
+func enqueueRemediationsTx(
+	ctx context.Context,
+	tx pgx.Tx,
+	policyID int64,
+	hostIDs []int64,
+	executionIDs []string,
+	revision int64,
+	script string,
+	automatic bool,
+) ([]remediationRunRow, error) {
+	if len(hostIDs) == 0 {
+		return nil, nil
+	}
+	rows, err := tx.Query(ctx, `
 		INSERT INTO osquery_policy_remediation_runs (
 			policy_id,
 			host_id,
@@ -187,7 +286,15 @@ func enqueueRemediationTx(
 			automatic,
 			timeout_seconds
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		SELECT
+			$1,
+			batch.host_id,
+			batch.execution_id,
+			$4,
+			$5,
+			$6,
+			$7
+		FROM unnest($2::bigint[], $3::text[]) AS batch(host_id, execution_id)
 		ON CONFLICT (policy_id, host_id) DO UPDATE SET
 			execution_id = EXCLUDED.execution_id,
 			script_contents = EXCLUDED.script_contents,
@@ -225,34 +332,35 @@ func enqueueRemediationTx(
 			exit_code,
 			timeout_seconds`,
 		policyID,
-		hostID,
-		executionID,
+		hostIDs,
+		executionIDs,
 		script,
 		revision,
 		automatic,
 		DefaultRemediationTimeoutSeconds,
 		int(remediationResponseGrace.Seconds()),
-	).Scan(
-		&row.PolicyID,
-		&row.HostID,
-		&row.ExecutionID,
-		&row.Automatic,
-		&row.QueuedAt,
-		&row.ClaimedAt,
-		&row.ReportedAt,
-		&row.CancelledAt,
-		&row.Output,
-		&row.RuntimeSeconds,
-		&row.ExitCode,
-		&row.TimeoutSeconds,
 	)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, nil
-	}
 	if err != nil {
 		return nil, err
 	}
-	return remediationRunSummary(row, time.Now()), nil
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (remediationRunRow, error) {
+		var run remediationRunRow
+		err := row.Scan(
+			&run.PolicyID,
+			&run.HostID,
+			&run.ExecutionID,
+			&run.Automatic,
+			&run.QueuedAt,
+			&run.ClaimedAt,
+			&run.ReportedAt,
+			&run.CancelledAt,
+			&run.Output,
+			&run.RuntimeSeconds,
+			&run.ExitCode,
+			&run.TimeoutSeconds,
+		)
+		return run, err
+	})
 }
 
 func cancelQueuedRemediationTx(ctx context.Context, tx pgx.Tx, policyID, hostID int64) error {

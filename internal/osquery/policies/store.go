@@ -72,10 +72,15 @@ func (s *Store) Update(ctx context.Context, id int64, in PolicyMutation) (*Polic
 	write.ID = id
 
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
-		var queryChanged, automaticDisabled bool
+		var queryChanged, scriptChanged, automaticDisabled bool
 		if err := tx.QueryRow(ctx, `
 			WITH current AS (
-				SELECT id, query, automatic_remediation_enabled, evaluation_revision
+				SELECT
+					id,
+					query,
+					remediation_script,
+					automatic_remediation_enabled,
+					evaluation_revision
 				FROM osquery_policies
 				WHERE id = @id
 				FOR UPDATE
@@ -98,15 +103,16 @@ func (s *Store) Update(ctx context.Context, id int64, in PolicyMutation) (*Polic
 			WHERE c.id = current.id
 			RETURNING
 				current.query IS DISTINCT FROM @query,
+				current.remediation_script IS DISTINCT FROM @remediation_script,
 				current.automatic_remediation_enabled AND NOT @automatic_remediation_enabled`,
 			pgx.StructArgs(write),
-		).Scan(&queryChanged, &automaticDisabled); err != nil {
+		).Scan(&queryChanged, &scriptChanged, &automaticDisabled); err != nil {
 			return postgres.MutationError(err)
 		}
 		if err := replacePolicyTargets(ctx, tx, id, in.Targets); err != nil {
 			return err
 		}
-		// A query revision or removed target makes queued work obsolete. Turning
+		// Query, script, and target changes make unclaimed work obsolete. Turning
 		// automation off also cancels an automatic run that Orbit has not claimed.
 		if _, err := tx.Exec(ctx, `
 			UPDATE osquery_policy_remediation_runs run
@@ -117,7 +123,8 @@ func (s *Store) Update(ctx context.Context, id int64, in PolicyMutation) (*Polic
 			  AND run.cancelled_at IS NULL
 			  AND (
 				  $2
-				  OR ($3 AND run.automatic)
+				  OR $3
+				  OR ($4 AND run.automatic)
 				  OR NOT EXISTS (
 					  SELECT 1
 					  FROM osquery_policy_assignments assignment
@@ -127,6 +134,7 @@ func (s *Store) Update(ctx context.Context, id int64, in PolicyMutation) (*Polic
 			  )`,
 			id,
 			queryChanged,
+			scriptChanged,
 			automaticDisabled,
 		); err != nil {
 			return err
@@ -402,36 +410,6 @@ func (s *Store) RecordEvaluation(
 	})
 }
 
-// ResetResult returns a host policy result to pending and invalidates every
-// evaluation already issued for it.
-func (s *Store) ResetResult(ctx context.Context, policyID, hostID int64) error {
-	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
-		tag, err := tx.Exec(ctx, `
-			UPDATE osquery_policy_membership membership
-			SET
-				status = 'pending',
-				last_conclusive_passes = NULL,
-				error = '',
-				last_completed_sequence = last_issued_sequence,
-				updated_at = now()
-			FROM osquery_policy_assignments assignment
-			WHERE membership.policy_id = $1
-			  AND membership.host_id = $2
-			  AND assignment.policy_id = membership.policy_id
-			  AND assignment.host_id = membership.host_id`,
-			policyID,
-			hostID,
-		)
-		if err != nil {
-			return err
-		}
-		if tag.RowsAffected() == 0 {
-			return fault.ErrNotFound
-		}
-		return cancelQueuedRemediationTx(ctx, tx, policyID, hostID)
-	})
-}
-
 func truncateRunes(value string, limit int) string {
 	runes := []rune(value)
 	if len(runes) <= limit {
@@ -695,6 +673,7 @@ type policyRow struct {
 	Query                       string    `db:"query"`
 	RemediationConfigured       bool      `db:"remediation_configured"`
 	AutomaticRemediationEnabled bool      `db:"automatic_remediation_enabled"`
+	RemediationHasRun           bool      `db:"remediation_has_run"`
 	CreatedByUserID             *int64    `db:"created_by_user_id"`
 	CreatedAt                   time.Time `db:"created_at"`
 	UpdatedAt                   time.Time `db:"updated_at"`
@@ -735,6 +714,7 @@ func policyFromRow(row policyRow) *Policy {
 		Remediation: PolicyRemediationSummary{
 			Configured: row.RemediationConfigured,
 			Automatic:  row.AutomaticRemediationEnabled,
+			HasRun:     row.RemediationHasRun,
 		},
 		CreatedByUserID: row.CreatedByUserID,
 		CreatedAt:       row.CreatedAt,
@@ -785,6 +765,11 @@ SELECT
 	c.query,
 	NULLIF(btrim(c.remediation_script), '') IS NOT NULL AS remediation_configured,
 	c.automatic_remediation_enabled,
+	EXISTS (
+		SELECT 1
+		FROM osquery_policy_remediation_runs run
+		WHERE run.policy_id = c.id
+	) AS remediation_has_run,
 	c.created_by_user_id,
 	c.created_at,
 	c.updated_at

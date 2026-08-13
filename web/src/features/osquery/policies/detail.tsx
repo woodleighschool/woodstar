@@ -2,15 +2,16 @@ import { getRouteApi, useParams } from "@tanstack/react-router";
 import { Pencil, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 
-import { ConfirmDialog } from "@components/confirm-dialog";
 import { DataTable } from "@components/data-table/data-table";
 import type { DataTableExportOptions } from "@components/data-table/data-table-export";
 import { DataTableFacetedFilter } from "@components/data-table/data-table-faceted-filter";
 import { DataTableSearchInput } from "@components/data-table/data-table-search-input";
 import { DataTableSkeleton } from "@components/data-table/data-table-skeleton";
+import { selectColumn } from "@components/data-table/select-column";
 import type { DataTableInstance } from "@components/data-table/types";
 import { useDataTable } from "@components/data-table/use-data-table";
 import { useDataTableSearch } from "@components/data-table/use-data-table-search";
+import { ShellScriptEditor } from "@components/editor/shell-script-editor";
 import { SQLEditor } from "@components/editor/sql-editor";
 import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
@@ -34,9 +35,9 @@ import { PolicyDeleteDialog } from "./delete-dialog";
 import {
   listAllPolicyResults,
   usePolicy,
+  usePolicyRemediationSource,
   usePolicyResults,
-  useResetPolicyResult,
-  useRunPolicyRemediation,
+  useRunPolicyRemediations,
 } from "./queries";
 import {
   policyResultFromStatus,
@@ -45,14 +46,18 @@ import {
 } from "./query-results";
 import { PolicyRemediationDialog } from "./remediation-dialog";
 import { PolicyResultCountLink } from "./result-count-link";
+import { PolicyResultsActionBar } from "./results-action-bar";
 
 const resultExportColumns: DataTableExportOptions<PolicyResultRow>["columns"] = [
   { header: "Host", value: (row) => row.host_name },
   { header: "Status", value: (row) => row.status },
   { header: "Error", value: (row) => row.error },
-  { header: "Remediation", value: (row) => row.remediation?.status },
   { header: "Last Evaluated", value: (row) => row.updated_at },
 ];
+const remediationExportColumn: DataTableExportOptions<PolicyResultRow>["columns"][number] = {
+  header: "Remediation",
+  value: (row) => row.remediation?.status,
+};
 
 const STATUS_FILTER_KEYS = [{ id: "status", multiple: true }] as const;
 const routeApi = getRouteApi("/_authenticated/osquery/policies/$id/");
@@ -73,7 +78,12 @@ export function PolicyDetailPage() {
   });
   const search = routeApi.useSearch();
   const navigate = routeApi.useNavigate();
-  const activeTab = search.tab === "results" ? "results" : "overview";
+  const activeTab =
+    search.tab === "results"
+      ? "results"
+      : search.tab === "remediation"
+        ? "remediation"
+        : "overview";
   const tableSearch = useDataTableSearch({
     search,
     onSearchChange: (updater) => void navigate({ search: updater, replace: true }),
@@ -82,12 +92,17 @@ export function PolicyDetailPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [resetResult, setResetResult] = useState<PolicyResultRow | null>(null);
   const [viewRemediation, setViewRemediation] = useState<PolicyResultRow | null>(null);
   const id = parseRouteID(policyId);
   const policy = usePolicy(id);
-  const reset = useResetPolicyResult();
-  const runRemediation = useRunPolicyRemediation();
+  const showRemediation = Boolean(
+    policy.data?.remediation.configured || policy.data?.remediation.has_run,
+  );
+  const canRunRemediation = Boolean(isAdmin && policy.data?.remediation.configured);
+  const remediationSource = usePolicyRemediationSource(
+    activeTab === "remediation" && isAdmin ? id : null,
+  );
+  const runRemediations = useRunPolicyRemediations();
   const status = search.status;
   const results = usePolicyResults(activeTab === "results" ? id : null, {
     q: tableSearch.q,
@@ -102,12 +117,11 @@ export function PolicyDetailPage() {
         result,
         isAdmin
           ? {
-              onReset: () => setResetResult(policyResultFromStatus(result)),
               onRunRemediation: policy.data?.remediation.configured
                 ? () =>
-                    runRemediation.mutate({
+                    runRemediations.mutate({
                       policyID: result.policy_id,
-                      hostID: result.host_id,
+                      hostIDs: [result.host_id],
                     })
                 : undefined,
               onViewRemediation: result.remediation
@@ -119,16 +133,15 @@ export function PolicyDetailPage() {
     ) ?? [];
   const totalCount = results.data?.count ?? 0;
   const pageCount = results.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
-  const resultColumns = useMemo(
-    () =>
-      createPolicyResultColumns({
-        timestampHeader: "Last Evaluated",
-        includeError: true,
-        includeRemediation: true,
-        includeActions: isAdmin,
-      }),
-    [isAdmin],
-  );
+  const resultColumns = useMemo(() => {
+    const columns = createPolicyResultColumns({
+      timestampHeader: "Last Evaluated",
+      includeError: true,
+      includeRemediation: showRemediation,
+      includeActions: isAdmin && showRemediation,
+    });
+    return canRunRemediation ? [selectColumn<PolicyResultRow>(), ...columns] : columns;
+  }, [canRunRemediation, isAdmin, showRemediation]);
   const table = useDataTable({
     tableState: tableSearch,
     data: rows,
@@ -136,6 +149,7 @@ export function PolicyDetailPage() {
     pageCount,
     rowCount: totalCount,
     getRowId: (row) => String(row.host_id),
+    enableRowSelection: canRunRemediation ? (row) => row.original.status === "fail" : false,
   });
 
   if (id === null) {
@@ -165,7 +179,9 @@ export function PolicyDetailPage() {
 
   const exportOptions: DataTableExportOptions<PolicyResultRow> = {
     filename: `osquery-policy-${id}-results`,
-    columns: resultExportColumns,
+    columns: showRemediation
+      ? [...resultExportColumns.slice(0, -1), remediationExportColumn, resultExportColumns.at(-1)!]
+      : resultExportColumns,
     loadRows: () =>
       listAllPolicyResults(id, {
         q: tableSearch.q,
@@ -236,6 +252,19 @@ export function PolicyDetailPage() {
           >
             Results
           </TabsTrigger>
+          <TabsTrigger
+            value="remediation"
+            render={
+              <Link
+                to="/osquery/policies/$id"
+                params={{ id: policyId }}
+                search={{ ...search, tab: "remediation" }}
+              />
+            }
+            nativeButton={false}
+          >
+            Remediation
+          </TabsTrigger>
         </ScrollableTabsList>
 
         <TabsContent value="overview" className="flex flex-col gap-5">
@@ -243,16 +272,6 @@ export function PolicyDetailPage() {
             <KeyValueRow label="Name" value={policy.data.name} />
             <KeyValueRow label="Description" value={policy.data.description} />
             <KeyValueRow label="Resolution" value={policy.data.resolution} />
-            <KeyValueRow
-              label="Remediation"
-              value={
-                !policy.data.remediation.configured
-                  ? "Not configured"
-                  : policy.data.remediation.automatic
-                    ? "Configured · Automatic"
-                    : "Configured · Manual only"
-              }
-            />
             <KeyValueRow
               label="Passing"
               value={
@@ -284,6 +303,47 @@ export function PolicyDetailPage() {
           <LabelTargetDetails targets={policy.data.targets} />
         </TabsContent>
 
+        <TabsContent value="remediation" className="flex flex-col gap-5">
+          <KeyValueSection title="Configuration">
+            <KeyValueRow
+              label="Status"
+              value={policy.data.remediation.configured ? "Configured" : "Not Configured"}
+            />
+            <KeyValueRow
+              label="Automatic Remediation"
+              value={
+                !policy.data.remediation.configured
+                  ? "-"
+                  : policy.data.remediation.automatic
+                    ? "Enabled"
+                    : "Disabled"
+              }
+            />
+          </KeyValueSection>
+
+          {isAdmin && policy.data.remediation.configured ? (
+            <section className="flex min-w-0 flex-col gap-3">
+              <h2 className="text-base/snug font-medium text-foreground">Script</h2>
+              <Separator />
+              {remediationSource.error ? (
+                <QueryError
+                  title="Failed to load remediation script"
+                  error={remediationSource.error}
+                  onRetry={() => void remediationSource.refetch()}
+                />
+              ) : !remediationSource.data ? (
+                <Skeleton className="h-56 w-full" />
+              ) : (
+                <ShellScriptEditor
+                  value={remediationSource.data.script}
+                  onChange={() => undefined}
+                  readOnly
+                />
+              )}
+            </section>
+          ) : null}
+        </TabsContent>
+
         <TabsContent value="results">
           {results.error ? (
             <QueryError
@@ -292,12 +352,17 @@ export function PolicyDetailPage() {
               onRetry={() => void results.refetch()}
             />
           ) : results.isLoading ? (
-            <DataTableSkeleton columnCount={isAdmin ? 6 : 5} filterCount={1} withExport />
+            <DataTableSkeleton columnCount={resultColumns.length} filterCount={1} withExport />
           ) : (
             <DataTable
               table={table}
               pending={results.isPlaceholderData}
               exportOptions={exportOptions}
+              actionBar={
+                canRunRemediation ? (
+                  <PolicyResultsActionBar table={table} policyID={id} />
+                ) : undefined
+              }
               empty={
                 <PanelEmptyState>
                   {tableSearch.isFiltered ? "No matching policy results" : "No policy results yet"}
@@ -323,23 +388,6 @@ export function PolicyDetailPage() {
             onOpenChange={setDeleteOpen}
             policy={policy.data}
             onDeleted={() => void navigate({ to: "/osquery/policies" })}
-          />
-          <ConfirmDialog
-            open={resetResult !== null}
-            onOpenChange={(open) => {
-              if (!open && !reset.isPending) setResetResult(null);
-            }}
-            title="Reset policy result?"
-            description="The result returns to pending. Its next evaluation is treated as new and may trigger automatic remediation again."
-            confirmLabel="Reset result"
-            pending={reset.isPending}
-            onConfirm={() => {
-              if (!resetResult) return;
-              reset.mutate(
-                { policyID: id, hostID: resetResult.host_id },
-                { onSuccess: () => setResetResult(null) },
-              );
-            }}
           />
           <PolicyRemediationDialog
             policyID={id}

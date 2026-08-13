@@ -917,6 +917,11 @@ export type OsqueryPolicyMutation = {
     targets: OsqueryPolicyTargets;
 };
 
+export type OsqueryPolicyRemediationBatchSummary = {
+    queued: number;
+    skipped: number;
+};
+
 export type OsqueryPolicyRemediationMutation = {
     automatic: boolean;
     script: string;
@@ -942,6 +947,7 @@ export type OsqueryPolicyRemediationSource = {
 export type OsqueryPolicyRemediationSummary = {
     automatic: boolean;
     configured: boolean;
+    has_run: boolean;
 };
 
 export type OsqueryPolicyTargets = {
@@ -4849,98 +4855,6 @@ export type GetOsqueryPolicyRemediationRunResponses = {
 
 export type GetOsqueryPolicyRemediationRunResponse = GetOsqueryPolicyRemediationRunResponses[keyof GetOsqueryPolicyRemediationRunResponses];
 
-export type RunOsqueryPolicyRemediationData = {
-    body?: never;
-    path: {
-        id: number;
-        host_id: number;
-    };
-    query?: never;
-    url: '/api/osquery/policies/{id}/hosts/{host_id}/remediation';
-};
-
-export type RunOsqueryPolicyRemediationErrors = {
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Forbidden
-     */
-    403: ErrorModel;
-    /**
-     * Not Found
-     */
-    404: ErrorModel;
-    /**
-     * Conflict
-     */
-    409: ErrorModel;
-    /**
-     * Unprocessable Entity
-     */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type RunOsqueryPolicyRemediationError = RunOsqueryPolicyRemediationErrors[keyof RunOsqueryPolicyRemediationErrors];
-
-export type RunOsqueryPolicyRemediationResponses = {
-    /**
-     * Accepted
-     */
-    202: OsqueryPolicyRemediationRunSummary;
-};
-
-export type RunOsqueryPolicyRemediationResponse = RunOsqueryPolicyRemediationResponses[keyof RunOsqueryPolicyRemediationResponses];
-
-export type ResetOsqueryPolicyResultData = {
-    body?: never;
-    path: {
-        id: number;
-        host_id: number;
-    };
-    query?: never;
-    url: '/api/osquery/policies/{id}/hosts/{host_id}/reset';
-};
-
-export type ResetOsqueryPolicyResultErrors = {
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Forbidden
-     */
-    403: ErrorModel;
-    /**
-     * Not Found
-     */
-    404: ErrorModel;
-    /**
-     * Unprocessable Entity
-     */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type ResetOsqueryPolicyResultError = ResetOsqueryPolicyResultErrors[keyof ResetOsqueryPolicyResultErrors];
-
-export type ResetOsqueryPolicyResultResponses = {
-    /**
-     * No Content
-     */
-    204: void;
-};
-
-export type ResetOsqueryPolicyResultResponse = ResetOsqueryPolicyResultResponses[keyof ResetOsqueryPolicyResultResponses];
-
 export type GetOsqueryPolicyRemediationSourceData = {
     body?: never;
     path: {
@@ -4983,6 +4897,60 @@ export type GetOsqueryPolicyRemediationSourceResponses = {
 };
 
 export type GetOsqueryPolicyRemediationSourceResponse = GetOsqueryPolicyRemediationSourceResponses[keyof GetOsqueryPolicyRemediationSourceResponses];
+
+export type RunOsqueryPolicyRemediationsData = {
+    body?: never;
+    path: {
+        id: number;
+    };
+    query?: {
+        host_ids?: Array<number>;
+        all_failures?: boolean;
+    };
+    url: '/api/osquery/policies/{id}/remediation';
+};
+
+export type RunOsqueryPolicyRemediationsErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorModel;
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Conflict
+     */
+    409: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type RunOsqueryPolicyRemediationsError = RunOsqueryPolicyRemediationsErrors[keyof RunOsqueryPolicyRemediationsErrors];
+
+export type RunOsqueryPolicyRemediationsResponses = {
+    /**
+     * Accepted
+     */
+    202: OsqueryPolicyRemediationBatchSummary;
+};
+
+export type RunOsqueryPolicyRemediationsResponse = RunOsqueryPolicyRemediationsResponses[keyof RunOsqueryPolicyRemediationsResponses];
 
 export type ListOsqueryPolicyResultsData = {
     body?: never;

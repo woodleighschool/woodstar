@@ -8,13 +8,15 @@ const shellExtensions = [StreamLanguage.define(shell)];
 export function ShellScriptEditor({
   value,
   onChange,
-  placeholder,
+  placeholder = "#!/bin/zsh",
   invalid,
+  readOnly,
 }: {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
   invalid?: boolean;
+  readOnly?: boolean;
 }) {
   return (
     <CodeEditor
@@ -25,6 +27,7 @@ export function ShellScriptEditor({
       maxHeight="30rem"
       placeholder={placeholder}
       invalid={invalid}
+      readOnly={readOnly}
     />
   );
 }

@@ -32,7 +32,7 @@ export function PolicyRemediationDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[calc(100vh-2rem)] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Latest remediation</DialogTitle>
+          <DialogTitle>Latest Remediation</DialogTitle>
           <DialogDescription>{hostName}</DialogDescription>
         </DialogHeader>
 
@@ -51,13 +51,13 @@ export function PolicyRemediationDialog({
           <div className="flex min-w-0 flex-col gap-5">
             <KeyValueSection title="Execution">
               <KeyValueRow label="Status" value={<PolicyRemediationStatus status={run.status} />} />
-              <KeyValueRow label="Started by" value={run.automatic ? "Automatic" : "Manual"} />
+              <KeyValueRow label="Started By" value={run.automatic ? "Automatic" : "Manual"} />
               <KeyValueRow
                 label="Runtime"
                 value={run.runtime_seconds === undefined ? "-" : `${run.runtime_seconds}s`}
               />
               <KeyValueRow
-                label="Exit code"
+                label="Exit Code"
                 value={run.exit_code === undefined ? "-" : String(run.exit_code)}
               />
             </KeyValueSection>
@@ -65,7 +65,7 @@ export function PolicyRemediationDialog({
             <section className="flex min-w-0 flex-col gap-3">
               <h3 className="text-sm font-medium text-foreground">Output</h3>
               <pre className="max-h-80 overflow-auto rounded-lg bg-muted p-3 font-mono text-xs whitespace-pre-wrap">
-                {run.output || "No output"}
+                {run.output || "No Output"}
               </pre>
             </section>
           </div>

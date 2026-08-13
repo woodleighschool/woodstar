@@ -364,11 +364,10 @@ export function PolicyForm({
                   <Field orientation="horizontal">
                     <FieldContent>
                       <FieldLabel htmlFor="policy-remediation-automatic">
-                        Automatic remediation
+                        Automatic Remediation
                       </FieldLabel>
                       <FieldDescription>
-                        Run once when an eligible host newly becomes failing. Enabling this does not
-                        run against existing failures.
+                        Run once when an eligible host newly becomes failing.
                       </FieldDescription>
                     </FieldContent>
                     <Switch

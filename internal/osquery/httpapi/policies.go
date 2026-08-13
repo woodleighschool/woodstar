@@ -63,6 +63,12 @@ type policyHostInput struct {
 	HostID int64 `path:"host_id"`
 }
 
+type policyRemediationsInput struct {
+	ID          int64   `path:"id"`
+	HostIDs     []int64 `query:"host_ids,omitempty"`
+	AllFailures bool    `query:"all_failures,omitempty"`
+}
+
 type policyListOutput struct {
 	Body api.Page[policies.Policy]
 }
@@ -83,8 +89,8 @@ type policyRemediationRunOutput struct {
 	Body policies.PolicyRemediationRun
 }
 
-type policyRemediationRunSummaryOutput struct {
-	Body policies.PolicyRemediationRunSummary
+type policyRemediationBatchSummaryOutput struct {
+	Body policies.PolicyRemediationBatchSummary
 }
 
 func registerOsqueryPolicies(
@@ -100,8 +106,7 @@ func registerOsqueryPolicies(
 	registerDeletePolicy(humaAPI, policyStore, logger)
 	registerBulkDeletePolicies(humaAPI, policyStore, logger)
 	registerPolicyResults(humaAPI, policyStore, logger)
-	registerResetPolicyResult(humaAPI, policyStore, logger)
-	registerRunPolicyRemediation(humaAPI, policyStore, logger)
+	registerRunPolicyRemediations(humaAPI, policyStore, logger)
 	registerPolicyRemediationSource(sensitiveAPI, policyStore, logger)
 	registerPolicyRemediationRun(sensitiveAPI, policyStore, logger)
 }
@@ -122,47 +127,33 @@ func registerListPolicies(humaAPI huma.API, policyStore *policies.Store, logger 
 	})
 }
 
-func registerResetPolicyResult(humaAPI huma.API, policyStore *policies.Store, logger *slog.Logger) {
-	huma.Register(humaAPI, huma.Operation{
-		OperationID: "reset-osquery-policy-result",
-		Method:      http.MethodPost,
-		Path:        "/api/osquery/policies/{id}/hosts/{host_id}/reset",
-		Tags:        []string{api.TagOsqueryPolicies},
-		Summary:     "Reset a policy result",
-		Errors:      []int{http.StatusNotFound},
-	}, func(ctx context.Context, input *policyHostInput) (*struct{}, error) {
-		if err := policyStore.ResetResult(ctx, input.ID, input.HostID); err != nil {
-			return nil, api.ResourceError(
-				ctx, logger, "reset-osquery-policy-result", policyResource, err,
-				"id", input.ID, "host_id", input.HostID,
-			)
-		}
-		return &struct{}{}, nil
-	})
-}
-
-func registerRunPolicyRemediation(
+func registerRunPolicyRemediations(
 	humaAPI huma.API,
 	policyStore *policies.Store,
 	logger *slog.Logger,
 ) {
 	huma.Register(humaAPI, huma.Operation{
-		OperationID:   "run-osquery-policy-remediation",
+		OperationID:   "run-osquery-policy-remediations",
 		Method:        http.MethodPost,
-		Path:          "/api/osquery/policies/{id}/hosts/{host_id}/remediation",
+		Path:          "/api/osquery/policies/{id}/remediation",
 		Tags:          []string{api.TagOsqueryPolicies},
-		Summary:       "Run policy remediation",
+		Summary:       "Run policy remediations",
 		DefaultStatus: http.StatusAccepted,
-		Errors:        []int{http.StatusNotFound, http.StatusConflict},
-	}, func(ctx context.Context, input *policyHostInput) (*policyRemediationRunSummaryOutput, error) {
-		run, err := policyStore.RunRemediation(ctx, input.ID, input.HostID)
+		Errors:        []int{http.StatusBadRequest, http.StatusNotFound, http.StatusConflict},
+	}, func(ctx context.Context, input *policyRemediationsInput) (*policyRemediationBatchSummaryOutput, error) {
+		summary, err := policyStore.RunRemediations(
+			ctx,
+			input.ID,
+			input.HostIDs,
+			input.AllFailures,
+		)
 		if err != nil {
 			return nil, api.ResourceError(
-				ctx, logger, "run-osquery-policy-remediation", policyResource, err,
-				"id", input.ID, "host_id", input.HostID,
+				ctx, logger, "run-osquery-policy-remediations", policyResource, err,
+				"id", input.ID, "host_ids", input.HostIDs, "all_failures", input.AllFailures,
 			)
 		}
-		return &policyRemediationRunSummaryOutput{Body: *run}, nil
+		return &policyRemediationBatchSummaryOutput{Body: *summary}, nil
 	})
 }
 

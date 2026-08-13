@@ -14,7 +14,7 @@ const searchSchema = createTableSearchSchema(["host_name", "status", "updated_at
   defaultSort: SEARCH_DEFAULTS.sort,
 }).extend({
   status: z.array(z.enum(POLICY_RESULT_STATUS_VALUES)).optional().catch(undefined),
-  tab: z.literal("results").optional().catch(undefined),
+  tab: z.enum(["results", "remediation"]).optional().catch(undefined),
 });
 
 export const Route = createFileRoute("/_authenticated/osquery/policies/$id/")({

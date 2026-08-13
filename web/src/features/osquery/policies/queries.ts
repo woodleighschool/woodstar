@@ -12,8 +12,8 @@ import type {
   OsqueryPolicy,
   OsqueryPolicyHostStatus,
   OsqueryPolicyMutation,
+  OsqueryPolicyRemediationBatchSummary,
   OsqueryPolicyRemediationRun,
-  OsqueryPolicyRemediationRunSummary,
   OsqueryPolicyRemediationSource,
   PagePolicy,
   PagePolicyHostStatus,
@@ -28,8 +28,7 @@ import {
   listOsqueryPolicyResults,
   listOsqueryPolicies,
   nullOn404,
-  resetOsqueryPolicyResult,
-  runOsqueryPolicyRemediation,
+  runOsqueryPolicyRemediations,
   unwrap,
   updateOsqueryPolicy,
 } from "@lib/api";
@@ -202,38 +201,35 @@ export function useBulkDeletePolicies() {
   });
 }
 
-type PolicyHostMutation = { policyID: number; hostID: number };
+type PolicyHostsMutation =
+  | { policyID: number; hostIDs: number[]; allFailures?: never }
+  | { policyID: number; hostIDs?: never; allFailures: true };
 
-export function useResetPolicyResult() {
+export function useRunPolicyRemediations() {
   const queryClient = useQueryClient();
-  return useMutation<void, ApiError, PolicyHostMutation>({
-    mutationFn: ({ policyID, hostID }) =>
-      unwrap(resetOsqueryPolicyResult({ path: { id: policyID, host_id: hostID } })),
-    onSuccess: async (_, { policyID }) => {
-      toast.add({ title: "Policy result reset", type: "success" });
-      await queryClient.invalidateQueries({ queryKey: policyKeys.resultsRoot(policyID) });
-    },
-    onError: (error) => {
+  return useMutation<OsqueryPolicyRemediationBatchSummary, ApiError, PolicyHostsMutation>({
+    mutationFn: ({ policyID, hostIDs, allFailures }) =>
+      unwrap(
+        runOsqueryPolicyRemediations({
+          path: { id: policyID },
+          query: hostIDs ? { host_ids: hostIDs } : { all_failures: allFailures },
+        }),
+      ),
+    onSuccess: async (summary, { policyID }) => {
       toast.add({
-        title: "Policy result could not be reset",
-        description: error.message,
-        type: "error",
+        title:
+          summary.queued === 0
+            ? "No Remediation Queued"
+            : summary.queued === 1
+              ? "Remediation Queued for 1 Host"
+              : `Remediation Queued for ${summary.queued} Hosts`,
+        description:
+          summary.skipped > 0
+            ? `${summary.skipped} ${summary.skipped === 1 ? "host was" : "hosts were"} skipped because it was no longer failing, remediation was unavailable, or remediation was already active.`
+            : undefined,
+        type: summary.queued === 0 ? "info" : "success",
       });
-    },
-  });
-}
-
-export function useRunPolicyRemediation() {
-  const queryClient = useQueryClient();
-  return useMutation<OsqueryPolicyRemediationRunSummary, ApiError, PolicyHostMutation>({
-    mutationFn: ({ policyID, hostID }) =>
-      unwrap(runOsqueryPolicyRemediation({ path: { id: policyID, host_id: hostID } })),
-    onSuccess: async (_, { policyID, hostID }) => {
-      toast.add({ title: "Remediation queued", type: "success" });
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: policyKeys.resultsRoot(policyID) }),
-        queryClient.invalidateQueries({ queryKey: policyKeys.remediationRun(policyID, hostID) }),
-      ]);
+      await queryClient.invalidateQueries({ queryKey: policyKeys.resultsRoot(policyID) });
     },
     onError: (error) => {
       toast.add({

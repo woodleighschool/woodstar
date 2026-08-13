@@ -1,4 +1,4 @@
-import { Eye, MoreHorizontal, Play, RotateCcw } from "lucide-react";
+import { Eye, MoreHorizontal, Play } from "lucide-react";
 
 import type { DataTableColumnDef } from "@components/data-table/types";
 import { EnumStatusIndicator } from "@components/enum-status-indicator";
@@ -28,14 +28,13 @@ export type PolicyResultRow = {
   updated_at?: string;
   error?: string;
   remediation?: OsqueryPolicyRemediationRunSummary;
-  onReset?: () => void;
   onRunRemediation?: () => void;
   onViewRemediation?: () => void;
 };
 
 export function policyResultFromStatus(
   result: OsqueryPolicyHostStatus,
-  actions: Pick<PolicyResultRow, "onReset" | "onRunRemediation" | "onViewRemediation"> = {},
+  actions: Pick<PolicyResultRow, "onRunRemediation" | "onViewRemediation"> = {},
 ): PolicyResultRow {
   return {
     host_id: result.host_id,
@@ -135,22 +134,14 @@ function PolicyResultActionsCell({ row }: { row: { original: PolicyResultRow } }
             onClick={result.onViewRemediation}
           >
             <Eye />
-            View remediation
+            View Remediation
           </DropdownMenuItem>
-          <DropdownMenuItem
-            disabled={result.status !== "fail" || !result.onRunRemediation}
-            onClick={result.onRunRemediation}
-          >
-            <Play />
-            Run remediation again
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            disabled={result.status === "pending" || !result.onReset}
-            onClick={result.onReset}
-          >
-            <RotateCcw />
-            Reset result
-          </DropdownMenuItem>
+          {result.onRunRemediation ? (
+            <DropdownMenuItem disabled={result.status !== "fail"} onClick={result.onRunRemediation}>
+              <Play />
+              Run Remediation
+            </DropdownMenuItem>
+          ) : null}
         </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>

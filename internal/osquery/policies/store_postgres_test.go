@@ -821,8 +821,12 @@ func TestAutomaticRemediationRequiresUsableOrbitScriptExecution(t *testing.T) {
 	if _, err := store.RemediationRun(ctx, policy.ID, host.ID); !errors.Is(err, fault.ErrNotFound) {
 		t.Fatalf("automatic remediation without Orbit enrollment error = %v, want ErrNotFound", err)
 	}
-	if _, err := store.RunRemediation(ctx, policy.ID, host.ID); !errors.Is(err, fault.ErrConflict) {
-		t.Fatalf("manual remediation without Orbit enrollment error = %v, want ErrConflict", err)
+	summary, err := store.RunRemediations(ctx, policy.ID, []int64{host.ID}, false)
+	if err != nil {
+		t.Fatalf("run remediation without Orbit enrollment: %v", err)
+	}
+	if summary.Queued != 0 || summary.Skipped != 1 {
+		t.Fatalf("ineligible run summary = %+v, want skipped", summary)
 	}
 
 	makeOrbitScriptEligible(t, ctx, store, host.ID)
@@ -888,7 +892,7 @@ func TestEvaluationRejectsSupersededResultBeforeLatestCompletes(t *testing.T) {
 	}
 }
 
-func TestEvaluationOrderingResetAndRemediationSnapshot(t *testing.T) { //nolint:funlen // One ordered result and remediation lifecycle.
+func TestEvaluationOrderingAndRemediationSnapshot(t *testing.T) { //nolint:funlen // One ordered result and remediation lifecycle.
 	store, labelStore, hostStore, ctx := newPostgresPolicyStore(t)
 	host := enrollTestHostDetail(t, ctx, hostStore, "policy-remediation-order-host")
 	makeOrbitScriptEligible(t, ctx, store, host.ID)
@@ -939,6 +943,13 @@ func TestEvaluationOrderingResetAndRemediationSnapshot(t *testing.T) { //nolint:
 		t.Fatalf("result after stale pass = %+v, want fail", results)
 	}
 
+	claimed, err := store.ClaimRemediation(ctx, host.ID, first.ExecutionID)
+	if err != nil {
+		t.Fatalf("claim original remediation: %v", err)
+	}
+	if claimed.ScriptContents != "#!/bin/zsh\necho original\n" {
+		t.Fatalf("claimed script = %q, want queued snapshot", claimed.ScriptContents)
+	}
 	policy, err = store.Update(ctx, policy.ID, PolicyMutation{
 		Name:    policy.Name,
 		Query:   policy.Query,
@@ -950,13 +961,6 @@ func TestEvaluationOrderingResetAndRemediationSnapshot(t *testing.T) { //nolint:
 	})
 	if err != nil {
 		t.Fatalf("edit remediation script: %v", err)
-	}
-	claimed, err := store.ClaimRemediation(ctx, host.ID, first.ExecutionID)
-	if err != nil {
-		t.Fatalf("claim original remediation: %v", err)
-	}
-	if claimed.ScriptContents != "#!/bin/zsh\necho original\n" {
-		t.Fatalf("claimed script = %q, want queued snapshot", claimed.ScriptContents)
 	}
 	if _, err := store.ClaimRemediation(ctx, host.ID, first.ExecutionID); !errors.Is(err, fault.ErrNotFound) {
 		t.Fatalf("second claim error = %v, want ErrNotFound", err)
@@ -980,10 +984,14 @@ func TestEvaluationOrderingResetAndRemediationSnapshot(t *testing.T) { //nolint:
 		t.Fatalf("policy status after successful script = %q, want fail", results[0].Status)
 	}
 
-	manual, err := store.RunRemediation(ctx, policy.ID, host.ID)
+	summary, err := store.RunRemediations(ctx, policy.ID, []int64{host.ID}, false)
 	if err != nil {
 		t.Fatalf("run remediation again: %v", err)
 	}
+	if summary.Queued != 1 || summary.Skipped != 0 {
+		t.Fatalf("manual run summary = %+v, want queued", summary)
+	}
+	manual := remediationRunForTest(t, ctx, store, policy.ID, host.ID)
 	if manual.Automatic || manual.ExecutionID == first.ExecutionID {
 		t.Fatalf("manual remediation = %+v, want replacement manual run", manual)
 	}
@@ -1000,21 +1008,109 @@ func TestEvaluationOrderingResetAndRemediationSnapshot(t *testing.T) { //nolint:
 	}); err != nil {
 		t.Fatalf("finish manual remediation: %v", err)
 	}
+}
 
-	if err := store.ResetResult(ctx, policy.ID, host.ID); err != nil {
-		t.Fatalf("reset result: %v", err)
-	}
-	results, _, err = store.PolicyResults(ctx, policy.ID, PolicyResultListParams{})
+func TestRunRemediationsQueuesEligibleFailuresAndCancelsObsoleteWork(t *testing.T) {
+	store, labelStore, hostStore, ctx := newPostgresPolicyStore(t)
+	hostA := enrollTestHostDetail(t, ctx, hostStore, "policy-bulk-run-a")
+	hostB := enrollTestHostDetail(t, ctx, hostStore, "policy-bulk-run-b")
+	makeOrbitScriptEligible(t, ctx, store, hostA.ID)
+	policy, err := store.Create(ctx, makePolicy(PolicyMutation{
+		Name:    "Bulk remediation policy",
+		Query:   "select 1;",
+		Targets: policyTargets([]int64{allHostsLabelID(t, ctx, labelStore)}, nil),
+		Remediation: &PolicyRemediationMutation{
+			Script: "#!/bin/zsh\necho original\n",
+		},
+	}))
 	if err != nil {
-		t.Fatalf("list reset result: %v", err)
+		t.Fatalf("create policy: %v", err)
 	}
-	if results[0].Status != PolicyStatusPending || results[0].UpdatedAt != nil {
-		t.Fatalf("reset result = %+v, want pending", results[0])
+	recordIssuedStatus(t, ctx, store, hostA, policy, PolicyStatusFail, "")
+	recordIssuedStatus(t, ctx, store, hostB, policy, PolicyStatusFail, "")
+
+	summary, err := store.RunRemediations(ctx, policy.ID, nil, true)
+	if err != nil {
+		t.Fatalf("run remediations: %v", err)
 	}
-	recordIssuedStatus(t, ctx, store, host, policy, PolicyStatusFail, "")
-	afterReset := remediationRunForTest(t, ctx, store, policy.ID, host.ID)
-	if afterReset.ExecutionID == manual.ExecutionID || !afterReset.Automatic {
-		t.Fatalf("remediation after reset = %+v, want new automatic run", afterReset)
+	if summary.Queued != 1 || summary.Skipped != 1 {
+		t.Fatalf("run summary = %+v, want one queued and one skipped", summary)
+	}
+	queued := remediationRunForTest(t, ctx, store, policy.ID, hostA.ID)
+	if queued.Automatic || queued.Status != PolicyRemediationRunStatusQueued {
+		t.Fatalf("queued remediation = %+v, want manual queued run", queued)
+	}
+
+	summary, err = store.RunRemediations(ctx, policy.ID, nil, true)
+	if err != nil {
+		t.Fatalf("rerun active remediations: %v", err)
+	}
+	if summary.Queued != 0 || summary.Skipped != 2 {
+		t.Fatalf("active run summary = %+v, want both skipped", summary)
+	}
+	summary, err = store.RunRemediations(
+		ctx,
+		policy.ID,
+		[]int64{hostA.ID, hostB.ID, hostB.ID, 9_999_999},
+		false,
+	)
+	if err != nil {
+		t.Fatalf("run selected remediations: %v", err)
+	}
+	if summary.Queued != 0 || summary.Skipped != 3 {
+		t.Fatalf("selected run summary = %+v, want active, ineligible, and stale hosts skipped", summary)
+	}
+
+	policy, err = store.Update(ctx, policy.ID, PolicyMutation{
+		Name:    policy.Name,
+		Query:   policy.Query,
+		Targets: policy.Targets,
+		Remediation: &PolicyRemediationMutation{
+			Script: "#!/bin/zsh\necho edited\n",
+		},
+	})
+	if err != nil {
+		t.Fatalf("edit remediation script: %v", err)
+	}
+	if run := remediationRunForTest(t, ctx, store, policy.ID, hostA.ID); run.Status != PolicyRemediationRunStatusCancelled {
+		t.Fatalf("obsolete remediation = %+v, want cancelled", run)
+	}
+
+	summary, err = store.RunRemediations(ctx, policy.ID, []int64{hostA.ID}, false)
+	if err != nil {
+		t.Fatalf("run edited remediation: %v", err)
+	}
+	if summary.Queued != 1 || summary.Skipped != 0 {
+		t.Fatalf("edited run summary = %+v, want selected host queued", summary)
+	}
+	edited := remediationRunForTest(t, ctx, store, policy.ID, hostA.ID)
+	claimed, err := store.ClaimRemediation(ctx, hostA.ID, edited.ExecutionID)
+	if err != nil {
+		t.Fatalf("claim edited remediation: %v", err)
+	}
+	if claimed.ScriptContents != "#!/bin/zsh\necho edited\n" {
+		t.Fatalf("claimed script = %q, want edited script", claimed.ScriptContents)
+	}
+
+	policy, err = store.Update(ctx, policy.ID, PolicyMutation{
+		Name: policy.Name, Query: policy.Query, Targets: policy.Targets,
+	})
+	if err != nil {
+		t.Fatalf("remove remediation script: %v", err)
+	}
+	if policy.Remediation.Configured || !policy.Remediation.HasRun {
+		t.Fatalf("remediation summary = %+v, want no script with retained run", policy.Remediation)
+	}
+}
+
+func TestRunRemediationsRequiresExplicitScope(t *testing.T) {
+	store := &Store{}
+	ctx := context.Background()
+	if _, err := store.RunRemediations(ctx, 1, nil, false); !errors.Is(err, fault.ErrInvalidInput) {
+		t.Fatalf("empty scope error = %v, want ErrInvalidInput", err)
+	}
+	if _, err := store.RunRemediations(ctx, 1, []int64{1}, true); !errors.Is(err, fault.ErrInvalidInput) {
+		t.Fatalf("ambiguous scope error = %v, want ErrInvalidInput", err)
 	}
 }
 
@@ -1129,8 +1225,8 @@ func makeOrbitScriptEligible(t *testing.T, ctx context.Context, store *Store, ho
 	t.Helper()
 	if _, err := store.pool.Exec(ctx, `
 		UPDATE hosts
-		SET orbit_node_key = $2, orbit_scripts_enabled = true
-		WHERE id = $1`, hostID, "orbit-node-key"); err != nil {
+		SET orbit_node_key = 'orbit-node-key-' || $1::text, orbit_scripts_enabled = true
+		WHERE id = $1`, hostID); err != nil {
 		t.Fatalf("make host Orbit script eligible: %v", err)
 	}
 }
