@@ -1,13 +1,13 @@
 # syntax=docker/dockerfile:1
 
-# Defaults keep local and Compose builds self-contained. Renovate updates these
-# alongside the matching Mise, module, and package pins.
-ARG NODE_VERSION=26.7.0
-ARG GO_VERSION=1.26.5
+# Keep the container toolchains aligned with Mise. Renovate updates each pair.
 ARG DBIP_RELEASE=2026-08
 
+# ---- Go base --------------------------------------------------------------
+FROM --platform=$BUILDPLATFORM golang:1.26.6-alpine AS go-base
+
 # ---- GeoIP databases -----------------------------------------------------
-FROM --platform=$BUILDPLATFORM golang:${GO_VERSION}-alpine AS geoip
+FROM go-base AS geoip
 ARG DBIP_RELEASE
 COPY tools/geoipdb/main.go /geoipdb.go
 RUN go run /geoipdb.go -release "${DBIP_RELEASE}" -output /geoip
@@ -15,7 +15,7 @@ RUN go run /geoipdb.go -release "${DBIP_RELEASE}" -output /geoip
 # ---- Web build ------------------------------------------------------------
 # Build the frontend bundle so the Go stage can embed it. The runtime image
 # does not include Node.
-FROM --platform=$BUILDPLATFORM node:${NODE_VERSION}-alpine AS web
+FROM --platform=$BUILDPLATFORM node:26.7.0-alpine AS web
 WORKDIR /workspace/web
 
 # Install dependencies against the lockfile first for layer caching.
@@ -28,7 +28,7 @@ COPY schema/ ../schema/
 RUN pnpm build
 
 # ---- Go build -------------------------------------------------------------
-FROM --platform=$BUILDPLATFORM golang:${GO_VERSION}-alpine AS builder
+FROM go-base AS builder
 ARG TARGETOS
 ARG TARGETARCH
 ARG VERSION=dev
