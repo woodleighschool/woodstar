@@ -36,6 +36,8 @@ type enrollmentService interface {
 	SetPrimaryUser(context.Context, string, string, heartbeats.Contact) error
 	SetDeviceAuthToken(context.Context, string, string, heartbeats.Contact) error
 	ValidateDeviceAuthToken(context.Context, string, heartbeats.Contact) error
+	ClaimScript(context.Context, orbit.ScriptRequest, heartbeats.Contact) (*orbit.ScriptResponse, error)
+	RecordScriptResult(context.Context, orbit.ScriptResult, heartbeats.Contact) error
 }
 
 // NewServer returns an Orbit protocol server.
@@ -49,11 +51,63 @@ func (s *Server) RegisterRoutes(r chi.Router) {
 		r.Use(orbitCapabilities)
 		r.Post("/api/fleet/orbit/enroll", orbitEnrollHandler(s.service, s.logger))
 		r.Post("/api/fleet/orbit/config", orbitConfigHandler(s.service, s.logger))
+		r.Post("/api/fleet/orbit/scripts/request", orbitScriptRequestHandler(s.service, s.logger))
+		r.Post("/api/fleet/orbit/scripts/result", orbitScriptResultHandler(s.service, s.logger))
 		r.Put("/api/fleet/orbit/device_mapping", orbitDeviceMappingHandler(s.service, s.logger))
 		r.Post("/api/fleet/orbit/device_token", orbitDeviceTokenHandler(s.service, s.logger))
 		r.Head("/api/fleet/orbit/ping", orbitPingHandler)
 		r.Head("/api/latest/fleet/device/{token}/ping", orbitDevicePingHandler(s.service, s.logger))
 	})
+}
+
+func orbitScriptRequestHandler(svc enrollmentService, logger *slog.Logger) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		req, err := httpx.Decode[orbit.ScriptRequest](w, r, orbitRequestMaxBytes)
+		if err != nil {
+			httpx.WriteDecodeError(w, err)
+			return
+		}
+		resp, err := svc.ClaimScript(r.Context(), req, requestContact(r))
+		switch {
+		case errors.Is(err, fault.ErrNotFound):
+			httpx.WriteError(w, http.StatusNotFound, "script execution not found")
+		case err != nil:
+			logger.ErrorContext(
+				r.Context(), "Orbit script request failed",
+				"operation", "script_request", "err", err,
+			)
+			httpx.WriteError(w, http.StatusInternalServerError, "script request failed")
+		default:
+			httpx.Write(w, http.StatusOK, resp)
+		}
+	}
+}
+
+func orbitScriptResultHandler(svc enrollmentService, logger *slog.Logger) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		req, err := httpx.Decode[orbit.ScriptResult](w, r, orbitRequestMaxBytes)
+		if err != nil {
+			httpx.WriteDecodeError(w, err)
+			return
+		}
+		err = svc.RecordScriptResult(r.Context(), req, requestContact(r))
+		switch {
+		case errors.Is(err, fault.ErrInvalidInput):
+			httpx.WriteError(w, http.StatusBadRequest, "invalid script result")
+		case errors.Is(err, fault.ErrNotFound):
+			httpx.WriteError(w, http.StatusNotFound, "script execution not found")
+		case errors.Is(err, fault.ErrConflict):
+			httpx.WriteError(w, http.StatusConflict, "script execution was not claimable")
+		case err != nil:
+			logger.ErrorContext(
+				r.Context(), "Orbit script result failed",
+				"operation", "script_result", "err", err,
+			)
+			httpx.WriteError(w, http.StatusInternalServerError, "script result failed")
+		default:
+			httpx.Write(w, http.StatusOK, struct{}{})
+		}
+	}
 }
 
 func orbitEnrollHandler(svc enrollmentService, logger *slog.Logger) http.HandlerFunc {

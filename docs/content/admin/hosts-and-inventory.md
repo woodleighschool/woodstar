@@ -6,7 +6,7 @@ description: Hosts, labels, software inventory, and directory data.
 
 # Hosts and Inventory
 
-The host list shows every enrolled Mac. Search and filters can narrow the list by status, label, software, or osquery check result.
+The host list shows every enrolled Mac. Search and filters can narrow the list by status, label, software, or osquery policy result.
 
 ## Host details
 
@@ -16,7 +16,7 @@ Use **User affinity** to correct or clear the person associated with a Mac.
 
 ## Labels
 
-Labels group hosts for reports, checks, Santa policy, and Munki software.
+Labels group hosts for reports, policies, Santa policy, and Munki software.
 
 - **Manual** labels contain selected hosts.
 - **Dynamic** labels use an osquery query.

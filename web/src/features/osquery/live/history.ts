@@ -1,7 +1,7 @@
 import { type HistoryState, useRouter, useRouterState } from "@tanstack/react-router";
 import { useCallback } from "react";
 
-import type { OsqueryCheckMutation, OsqueryReportMutation } from "@lib/api";
+import type { OsqueryPolicyMutation, OsqueryReportMutation } from "@lib/api";
 
 type ReportFormHistoryState = {
   view: "report-form";
@@ -9,17 +9,17 @@ type ReportFormHistoryState = {
   value: OsqueryReportMutation;
 };
 
-type CheckFormHistoryState = {
-  view: "check-form";
+type PolicyFormHistoryState = {
+  view: "policy-form";
   id?: number;
-  value: OsqueryCheckMutation;
+  value: OsqueryPolicyMutation;
 };
 
-type OsqueryFormHistoryState = ReportFormHistoryState | CheckFormHistoryState;
+type OsqueryFormHistoryState = ReportFormHistoryState | PolicyFormHistoryState;
 
 type OsqueryLiveHistoryState = {
   view: "live";
-  kind: "report" | "check";
+  kind: "report" | "policy";
   sql: string;
 };
 
@@ -31,10 +31,10 @@ type OpenOsqueryLiveOptions =
       form?: ReportFormHistoryState;
     }
   | {
-      kind: "check";
+      kind: "policy";
       sql: string;
       id?: number;
-      form?: CheckFormHistoryState;
+      form?: PolicyFormHistoryState;
     };
 
 type OsqueryHistoryState = OsqueryFormHistoryState | OsqueryLiveHistoryState;
@@ -79,11 +79,11 @@ export function useOpenOsqueryLive() {
         return;
       }
       if (id === undefined) {
-        await router.navigate({ to: "/osquery/checks/new/live", state });
+        await router.navigate({ to: "/osquery/policies/new/live", state });
         return;
       }
       await router.navigate({
-        to: "/osquery/checks/$id/live",
+        to: "/osquery/policies/$id/live",
         params: { id: String(id) },
         state,
       });

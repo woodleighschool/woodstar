@@ -26,7 +26,7 @@ import {
 import { HostHeader } from "@features/hosts/components/host-header";
 import { HostHeartbeatTable } from "@features/hosts/components/host-heartbeats";
 import { HostMunkiTab } from "@features/hosts/components/host-munki-tab";
-import { HostOsqueryChecksTab } from "@features/hosts/components/host-osquery-checks-tab";
+import { HostOsqueryPoliciesTab } from "@features/hosts/components/host-osquery-policies-tab";
 import { HostOsqueryReportsTab } from "@features/hosts/components/host-osquery-reports-tab";
 import { HostSantaTab } from "@features/hosts/components/host-santa-tab";
 import { HostSoftwareTab } from "@features/hosts/components/host-software-tab";
@@ -43,7 +43,7 @@ const hostSections = [
   { value: "details", label: "Details", path: "/hosts/$id" },
   { value: "software", label: "Software", path: "/hosts/$id/software" },
   { value: "reports", label: "Reports", path: "/hosts/$id/reports" },
-  { value: "checks", label: "Checks", path: "/hosts/$id/checks" },
+  { value: "policies", label: "Policies", path: "/hosts/$id/policies" },
   {
     value: "munki",
     label: "Munki",
@@ -164,8 +164,8 @@ export function HostReportsPage() {
   return <HostOsqueryReportsTab hostId={useHostID()} />;
 }
 
-export function HostChecksPage() {
-  return <HostOsqueryChecksTab hostId={useHostID()} />;
+export function HostPoliciesPage() {
+  return <HostOsqueryPoliciesTab hostId={useHostID()} />;
 }
 
 export function HostMunkiPage() {

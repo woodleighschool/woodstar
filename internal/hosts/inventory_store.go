@@ -23,6 +23,7 @@ func (s *Store) ApplyInventory(ctx context.Context, hostID int64, update Invento
 		OSPlatform:                        update.OS.Platform,
 		OsqueryVersion:                    update.Agents.Osquery.Version,
 		OrbitVersion:                      update.Agents.Orbit.Version,
+		OrbitScriptsEnabled:               update.Agents.Orbit.ScriptsEnabled,
 		CPUType:                           update.Hardware.CPU.Architecture,
 		CPUSubtype:                        update.Hardware.CPU.Subtype,
 		CPUBrand:                          update.Hardware.CPU.Brand,
@@ -53,6 +54,7 @@ SET
 	os_platform = COALESCE(NULLIF(@os_platform::text, ''), os_platform),
 	osquery_version = COALESCE(NULLIF(@osquery_version::text, ''), osquery_version),
 	orbit_version = COALESCE(NULLIF(@orbit_version::text, ''), orbit_version),
+	orbit_scripts_enabled = COALESCE(@orbit_scripts_enabled::boolean, orbit_scripts_enabled),
 	cpu_type = COALESCE(NULLIF(@cpu_type::text, ''), cpu_type),
 	cpu_subtype = COALESCE(NULLIF(@cpu_subtype::text, ''), cpu_subtype),
 	cpu_brand = COALESCE(NULLIF(@cpu_brand::text, ''), cpu_brand),
@@ -359,6 +361,7 @@ type applyInventoryWrite struct {
 	OSPlatform                        string     `db:"os_platform"`
 	OsqueryVersion                    string     `db:"osquery_version"`
 	OrbitVersion                      string     `db:"orbit_version"`
+	OrbitScriptsEnabled               *bool      `db:"orbit_scripts_enabled"`
 	CPUType                           string     `db:"cpu_type"`
 	CPUSubtype                        string     `db:"cpu_subtype"`
 	CPUBrand                          string     `db:"cpu_brand"`

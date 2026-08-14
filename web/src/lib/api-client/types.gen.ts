@@ -243,6 +243,7 @@ export type HostOs = {
 };
 
 export type HostOrbitAgent = {
+    scripts_enabled?: boolean;
     version: string;
 };
 
@@ -834,40 +835,6 @@ export type MunkiUploadRequest = {
     filename: string;
 };
 
-export type OsqueryCheck = {
-    created_at: string;
-    created_by_user_id?: number;
-    description: string;
-    failing_host_count: number;
-    id: number;
-    name: string;
-    passing_host_count: number;
-    query: string;
-    targets: OsqueryCheckTargets;
-    updated_at: string;
-};
-
-export type OsqueryCheckHostStatus = {
-    check_id: number;
-    check_name: string;
-    host_id: number;
-    host_name: string;
-    status: 'pass' | 'fail' | 'pending';
-    updated_at?: string;
-};
-
-export type OsqueryCheckMutation = {
-    description?: string;
-    name: string;
-    query: string;
-    targets: OsqueryCheckTargets;
-};
-
-export type OsqueryCheckTargets = {
-    exclude: Array<LabelRef>;
-    include: Array<LabelRef>;
-};
-
 export type OsqueryHandle = {
     id: number;
     resolved_host_count: number;
@@ -915,6 +882,79 @@ export type OsqueryLiveQueryTargetCountOutputBody = {
     targets_online: number;
 };
 
+export type OsqueryPolicy = {
+    created_at: string;
+    created_by_user_id?: number;
+    description: string;
+    failing_host_count: number;
+    id: number;
+    name: string;
+    passing_host_count: number;
+    query: string;
+    remediation: OsqueryPolicyRemediationSummary;
+    resolution: string;
+    targets: OsqueryPolicyTargets;
+    updated_at: string;
+};
+
+export type OsqueryPolicyHostStatus = {
+    error?: string;
+    host_id: number;
+    host_name: string;
+    policy_id: number;
+    policy_name: string;
+    remediation?: OsqueryPolicyRemediationRunSummary;
+    status: 'pending' | 'pass' | 'fail' | 'error';
+    updated_at?: string;
+};
+
+export type OsqueryPolicyMutation = {
+    description?: string;
+    name: string;
+    query: string;
+    remediation?: OsqueryPolicyRemediationMutation;
+    resolution?: string;
+    targets: OsqueryPolicyTargets;
+};
+
+export type OsqueryPolicyRemediationBatchSummary = {
+    queued: number;
+    skipped: number;
+};
+
+export type OsqueryPolicyRemediationMutation = {
+    automatic: boolean;
+    script: string;
+};
+
+export type OsqueryPolicyRemediationRun = {
+    automatic: boolean;
+    exit_code?: number;
+    output: string;
+    runtime_seconds?: number;
+    status: 'queued' | 'in_progress' | 'succeeded' | 'failed' | 'no_response' | 'cancelled';
+};
+
+export type OsqueryPolicyRemediationRunSummary = {
+    automatic: boolean;
+    status: 'queued' | 'in_progress' | 'succeeded' | 'failed' | 'no_response' | 'cancelled';
+};
+
+export type OsqueryPolicyRemediationSource = {
+    script: string;
+};
+
+export type OsqueryPolicyRemediationSummary = {
+    automatic: boolean;
+    configured: boolean;
+    has_run: boolean;
+};
+
+export type OsqueryPolicyTargets = {
+    exclude: Array<LabelRef>;
+    include: Array<LabelRef>;
+};
+
 export type OsqueryReport = {
     created_at: string;
     created_by_user_id?: number;
@@ -955,16 +995,6 @@ export type OsqueryReportSnapshot = {
 export type OsqueryReportTargets = {
     exclude: Array<LabelRef>;
     include: Array<LabelRef>;
-};
-
-export type PageCheck = {
-    count: number;
-    items: Array<OsqueryCheck>;
-};
-
-export type PageCheckHostStatus = {
-    count: number;
-    items: Array<OsqueryCheckHostStatus>;
 };
 
 export type PageConfiguration = {
@@ -1030,6 +1060,16 @@ export type PageMunkiObjectView = {
 export type PagePackage = {
     count: number;
     items: Array<MunkiPackage>;
+};
+
+export type PagePolicy = {
+    count: number;
+    items: Array<OsqueryPolicy>;
+};
+
+export type PagePolicyHostStatus = {
+    count: number;
+    items: Array<OsqueryPolicyHostStatus>;
 };
 
 export type PageReport = {
@@ -2233,7 +2273,7 @@ export type ListHostMunkiSoftwareResponses = {
 
 export type ListHostMunkiSoftwareResponse = ListHostMunkiSoftwareResponses[keyof ListHostMunkiSoftwareResponses];
 
-export type ListHostOsqueryChecksData = {
+export type ListHostOsqueryPoliciesData = {
     body?: never;
     path: {
         id: number;
@@ -2243,12 +2283,12 @@ export type ListHostOsqueryChecksData = {
         page?: number;
         per_page?: number;
         sort?: string;
-        status?: Array<'pass' | 'fail' | 'pending'>;
+        status?: Array<'pending' | 'pass' | 'fail' | 'error'>;
     };
-    url: '/api/hosts/{id}/osquery/checks';
+    url: '/api/hosts/{id}/osquery/policies';
 };
 
-export type ListHostOsqueryChecksErrors = {
+export type ListHostOsqueryPoliciesErrors = {
     /**
      * Unauthorized
      */
@@ -2267,16 +2307,16 @@ export type ListHostOsqueryChecksErrors = {
     500: ErrorModel;
 };
 
-export type ListHostOsqueryChecksError = ListHostOsqueryChecksErrors[keyof ListHostOsqueryChecksErrors];
+export type ListHostOsqueryPoliciesError = ListHostOsqueryPoliciesErrors[keyof ListHostOsqueryPoliciesErrors];
 
-export type ListHostOsqueryChecksResponses = {
+export type ListHostOsqueryPoliciesResponses = {
     /**
      * OK
      */
-    200: PageCheckHostStatus;
+    200: PagePolicyHostStatus;
 };
 
-export type ListHostOsqueryChecksResponse = ListHostOsqueryChecksResponses[keyof ListHostOsqueryChecksResponses];
+export type ListHostOsqueryPoliciesResponse = ListHostOsqueryPoliciesResponses[keyof ListHostOsqueryPoliciesResponses];
 
 export type ListHostOsqueryReportsData = {
     body?: never;
@@ -4342,310 +4382,6 @@ export type SetMunkiSoftwareIconResponses = {
 
 export type SetMunkiSoftwareIconResponse = SetMunkiSoftwareIconResponses[keyof SetMunkiSoftwareIconResponses];
 
-export type BulkDeleteOsqueryChecksData = {
-    body?: never;
-    path?: never;
-    query: {
-        ids: Array<number>;
-    };
-    url: '/api/osquery/checks';
-};
-
-export type BulkDeleteOsqueryChecksErrors = {
-    /**
-     * Bad Request
-     */
-    400: ErrorModel;
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Forbidden
-     */
-    403: ErrorModel;
-    /**
-     * Unprocessable Entity
-     */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type BulkDeleteOsqueryChecksError = BulkDeleteOsqueryChecksErrors[keyof BulkDeleteOsqueryChecksErrors];
-
-export type BulkDeleteOsqueryChecksResponses = {
-    /**
-     * No Content
-     */
-    204: void;
-};
-
-export type BulkDeleteOsqueryChecksResponse = BulkDeleteOsqueryChecksResponses[keyof BulkDeleteOsqueryChecksResponses];
-
-export type ListOsqueryChecksData = {
-    body?: never;
-    path?: never;
-    query?: {
-        q?: string;
-        page?: number;
-        per_page?: number;
-        sort?: string;
-    };
-    url: '/api/osquery/checks';
-};
-
-export type ListOsqueryChecksErrors = {
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Error
-     */
-    default: ErrorModel;
-};
-
-export type ListOsqueryChecksError = ListOsqueryChecksErrors[keyof ListOsqueryChecksErrors];
-
-export type ListOsqueryChecksResponses = {
-    /**
-     * OK
-     */
-    200: PageCheck;
-};
-
-export type ListOsqueryChecksResponse = ListOsqueryChecksResponses[keyof ListOsqueryChecksResponses];
-
-export type CreateOsqueryCheckData = {
-    body: OsqueryCheckMutation;
-    path?: never;
-    query?: never;
-    url: '/api/osquery/checks';
-};
-
-export type CreateOsqueryCheckErrors = {
-    /**
-     * Bad Request
-     */
-    400: ErrorModel;
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Forbidden
-     */
-    403: ErrorModel;
-    /**
-     * Not Found
-     */
-    404: ErrorModel;
-    /**
-     * Conflict
-     */
-    409: ErrorModel;
-    /**
-     * Unprocessable Entity
-     */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type CreateOsqueryCheckError = CreateOsqueryCheckErrors[keyof CreateOsqueryCheckErrors];
-
-export type CreateOsqueryCheckResponses = {
-    /**
-     * Created
-     */
-    201: OsqueryCheck;
-};
-
-export type CreateOsqueryCheckResponse = CreateOsqueryCheckResponses[keyof CreateOsqueryCheckResponses];
-
-export type DeleteOsqueryCheckData = {
-    body?: never;
-    path: {
-        id: number;
-    };
-    query?: never;
-    url: '/api/osquery/checks/{id}';
-};
-
-export type DeleteOsqueryCheckErrors = {
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Forbidden
-     */
-    403: ErrorModel;
-    /**
-     * Not Found
-     */
-    404: ErrorModel;
-    /**
-     * Unprocessable Entity
-     */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type DeleteOsqueryCheckError = DeleteOsqueryCheckErrors[keyof DeleteOsqueryCheckErrors];
-
-export type DeleteOsqueryCheckResponses = {
-    /**
-     * No Content
-     */
-    204: void;
-};
-
-export type DeleteOsqueryCheckResponse = DeleteOsqueryCheckResponses[keyof DeleteOsqueryCheckResponses];
-
-export type GetOsqueryCheckData = {
-    body?: never;
-    path: {
-        id: number;
-    };
-    query?: never;
-    url: '/api/osquery/checks/{id}';
-};
-
-export type GetOsqueryCheckErrors = {
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Not Found
-     */
-    404: ErrorModel;
-    /**
-     * Unprocessable Entity
-     */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type GetOsqueryCheckError = GetOsqueryCheckErrors[keyof GetOsqueryCheckErrors];
-
-export type GetOsqueryCheckResponses = {
-    /**
-     * OK
-     */
-    200: OsqueryCheck;
-};
-
-export type GetOsqueryCheckResponse = GetOsqueryCheckResponses[keyof GetOsqueryCheckResponses];
-
-export type UpdateOsqueryCheckData = {
-    body: OsqueryCheckMutation;
-    path: {
-        id: number;
-    };
-    query?: never;
-    url: '/api/osquery/checks/{id}';
-};
-
-export type UpdateOsqueryCheckErrors = {
-    /**
-     * Bad Request
-     */
-    400: ErrorModel;
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Forbidden
-     */
-    403: ErrorModel;
-    /**
-     * Not Found
-     */
-    404: ErrorModel;
-    /**
-     * Conflict
-     */
-    409: ErrorModel;
-    /**
-     * Unprocessable Entity
-     */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type UpdateOsqueryCheckError = UpdateOsqueryCheckErrors[keyof UpdateOsqueryCheckErrors];
-
-export type UpdateOsqueryCheckResponses = {
-    /**
-     * OK
-     */
-    200: OsqueryCheck;
-};
-
-export type UpdateOsqueryCheckResponse = UpdateOsqueryCheckResponses[keyof UpdateOsqueryCheckResponses];
-
-export type ListOsqueryCheckResultsData = {
-    body?: never;
-    path: {
-        id: number;
-    };
-    query?: {
-        q?: string;
-        page?: number;
-        per_page?: number;
-        sort?: string;
-        status?: Array<'pass' | 'fail' | 'pending'>;
-    };
-    url: '/api/osquery/checks/{id}/results';
-};
-
-export type ListOsqueryCheckResultsErrors = {
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Not Found
-     */
-    404: ErrorModel;
-    /**
-     * Unprocessable Entity
-     */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type ListOsqueryCheckResultsError = ListOsqueryCheckResultsErrors[keyof ListOsqueryCheckResultsErrors];
-
-export type ListOsqueryCheckResultsResponses = {
-    /**
-     * OK
-     */
-    200: PageCheckHostStatus;
-};
-
-export type ListOsqueryCheckResultsResponse = ListOsqueryCheckResultsResponses[keyof ListOsqueryCheckResultsResponses];
-
 export type CreateLiveQueryData = {
     body: OsqueryLiveQueryCreateBody;
     path?: never;
@@ -4815,6 +4551,451 @@ export type StreamLiveQueryResponses = {
 };
 
 export type StreamLiveQueryResponse = StreamLiveQueryResponses[keyof StreamLiveQueryResponses];
+
+export type BulkDeleteOsqueryPoliciesData = {
+    body?: never;
+    path?: never;
+    query: {
+        ids: Array<number>;
+    };
+    url: '/api/osquery/policies';
+};
+
+export type BulkDeleteOsqueryPoliciesErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorModel;
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type BulkDeleteOsqueryPoliciesError = BulkDeleteOsqueryPoliciesErrors[keyof BulkDeleteOsqueryPoliciesErrors];
+
+export type BulkDeleteOsqueryPoliciesResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type BulkDeleteOsqueryPoliciesResponse = BulkDeleteOsqueryPoliciesResponses[keyof BulkDeleteOsqueryPoliciesResponses];
+
+export type ListOsqueryPoliciesData = {
+    body?: never;
+    path?: never;
+    query?: {
+        q?: string;
+        page?: number;
+        per_page?: number;
+        sort?: string;
+    };
+    url: '/api/osquery/policies';
+};
+
+export type ListOsqueryPoliciesErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type ListOsqueryPoliciesError = ListOsqueryPoliciesErrors[keyof ListOsqueryPoliciesErrors];
+
+export type ListOsqueryPoliciesResponses = {
+    /**
+     * OK
+     */
+    200: PagePolicy;
+};
+
+export type ListOsqueryPoliciesResponse = ListOsqueryPoliciesResponses[keyof ListOsqueryPoliciesResponses];
+
+export type CreateOsqueryPolicyData = {
+    body: OsqueryPolicyMutation;
+    path?: never;
+    query?: never;
+    url: '/api/osquery/policies';
+};
+
+export type CreateOsqueryPolicyErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorModel;
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Conflict
+     */
+    409: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type CreateOsqueryPolicyError = CreateOsqueryPolicyErrors[keyof CreateOsqueryPolicyErrors];
+
+export type CreateOsqueryPolicyResponses = {
+    /**
+     * Created
+     */
+    201: OsqueryPolicy;
+};
+
+export type CreateOsqueryPolicyResponse = CreateOsqueryPolicyResponses[keyof CreateOsqueryPolicyResponses];
+
+export type DeleteOsqueryPolicyData = {
+    body?: never;
+    path: {
+        id: number;
+    };
+    query?: never;
+    url: '/api/osquery/policies/{id}';
+};
+
+export type DeleteOsqueryPolicyErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type DeleteOsqueryPolicyError = DeleteOsqueryPolicyErrors[keyof DeleteOsqueryPolicyErrors];
+
+export type DeleteOsqueryPolicyResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type DeleteOsqueryPolicyResponse = DeleteOsqueryPolicyResponses[keyof DeleteOsqueryPolicyResponses];
+
+export type GetOsqueryPolicyData = {
+    body?: never;
+    path: {
+        id: number;
+    };
+    query?: never;
+    url: '/api/osquery/policies/{id}';
+};
+
+export type GetOsqueryPolicyErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type GetOsqueryPolicyError = GetOsqueryPolicyErrors[keyof GetOsqueryPolicyErrors];
+
+export type GetOsqueryPolicyResponses = {
+    /**
+     * OK
+     */
+    200: OsqueryPolicy;
+};
+
+export type GetOsqueryPolicyResponse = GetOsqueryPolicyResponses[keyof GetOsqueryPolicyResponses];
+
+export type UpdateOsqueryPolicyData = {
+    body: OsqueryPolicyMutation;
+    path: {
+        id: number;
+    };
+    query?: never;
+    url: '/api/osquery/policies/{id}';
+};
+
+export type UpdateOsqueryPolicyErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorModel;
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Conflict
+     */
+    409: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type UpdateOsqueryPolicyError = UpdateOsqueryPolicyErrors[keyof UpdateOsqueryPolicyErrors];
+
+export type UpdateOsqueryPolicyResponses = {
+    /**
+     * OK
+     */
+    200: OsqueryPolicy;
+};
+
+export type UpdateOsqueryPolicyResponse = UpdateOsqueryPolicyResponses[keyof UpdateOsqueryPolicyResponses];
+
+export type GetOsqueryPolicyRemediationRunData = {
+    body?: never;
+    path: {
+        id: number;
+        host_id: number;
+    };
+    query?: never;
+    url: '/api/osquery/policies/{id}/hosts/{host_id}/remediation';
+};
+
+export type GetOsqueryPolicyRemediationRunErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type GetOsqueryPolicyRemediationRunError = GetOsqueryPolicyRemediationRunErrors[keyof GetOsqueryPolicyRemediationRunErrors];
+
+export type GetOsqueryPolicyRemediationRunResponses = {
+    /**
+     * OK
+     */
+    200: OsqueryPolicyRemediationRun;
+};
+
+export type GetOsqueryPolicyRemediationRunResponse = GetOsqueryPolicyRemediationRunResponses[keyof GetOsqueryPolicyRemediationRunResponses];
+
+export type GetOsqueryPolicyRemediationSourceData = {
+    body?: never;
+    path: {
+        id: number;
+    };
+    query?: never;
+    url: '/api/osquery/policies/{id}/remediation';
+};
+
+export type GetOsqueryPolicyRemediationSourceErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type GetOsqueryPolicyRemediationSourceError = GetOsqueryPolicyRemediationSourceErrors[keyof GetOsqueryPolicyRemediationSourceErrors];
+
+export type GetOsqueryPolicyRemediationSourceResponses = {
+    /**
+     * OK
+     */
+    200: OsqueryPolicyRemediationSource;
+};
+
+export type GetOsqueryPolicyRemediationSourceResponse = GetOsqueryPolicyRemediationSourceResponses[keyof GetOsqueryPolicyRemediationSourceResponses];
+
+export type RunOsqueryPolicyRemediationsData = {
+    body?: never;
+    path: {
+        id: number;
+    };
+    query?: {
+        host_ids?: Array<number>;
+        all_failures?: boolean;
+    };
+    url: '/api/osquery/policies/{id}/remediation';
+};
+
+export type RunOsqueryPolicyRemediationsErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorModel;
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Conflict
+     */
+    409: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type RunOsqueryPolicyRemediationsError = RunOsqueryPolicyRemediationsErrors[keyof RunOsqueryPolicyRemediationsErrors];
+
+export type RunOsqueryPolicyRemediationsResponses = {
+    /**
+     * Accepted
+     */
+    202: OsqueryPolicyRemediationBatchSummary;
+};
+
+export type RunOsqueryPolicyRemediationsResponse = RunOsqueryPolicyRemediationsResponses[keyof RunOsqueryPolicyRemediationsResponses];
+
+export type ListOsqueryPolicyResultsData = {
+    body?: never;
+    path: {
+        id: number;
+    };
+    query?: {
+        q?: string;
+        page?: number;
+        per_page?: number;
+        sort?: string;
+        status?: Array<'pending' | 'pass' | 'fail' | 'error'>;
+    };
+    url: '/api/osquery/policies/{id}/results';
+};
+
+export type ListOsqueryPolicyResultsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type ListOsqueryPolicyResultsError = ListOsqueryPolicyResultsErrors[keyof ListOsqueryPolicyResultsErrors];
+
+export type ListOsqueryPolicyResultsResponses = {
+    /**
+     * OK
+     */
+    200: PagePolicyHostStatus;
+};
+
+export type ListOsqueryPolicyResultsResponse = ListOsqueryPolicyResultsResponses[keyof ListOsqueryPolicyResultsResponses];
 
 export type BulkDeleteOsqueryReportsData = {
     body?: never;

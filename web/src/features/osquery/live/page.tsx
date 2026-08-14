@@ -14,11 +14,11 @@ import {
 import { useOsqueryHistoryState } from "./history";
 import { LiveRunner } from "./live-runner";
 
-function OsqueryLivePage({ kind }: { kind: "report" | "check" }) {
+function OsqueryLivePage({ kind }: { kind: "report" | "policy" }) {
   const router = useRouter();
   const historyState = useOsqueryHistoryState();
-  const listPath = kind === "report" ? "/osquery/reports" : "/osquery/checks";
-  const listLabel = kind === "report" ? "Reports" : "Checks";
+  const listPath = kind === "report" ? "/osquery/reports" : "/osquery/policies";
+  const listLabel = kind === "report" ? "Reports" : "Policies";
 
   if (historyState?.view !== "live" || historyState.kind !== kind) {
     return (
@@ -65,6 +65,6 @@ export function ReportLivePage() {
   return <OsqueryLivePage kind="report" />;
 }
 
-export function CheckLivePage() {
-  return <OsqueryLivePage kind="check" />;
+export function PolicyLivePage() {
+  return <OsqueryLivePage kind="policy" />;
 }

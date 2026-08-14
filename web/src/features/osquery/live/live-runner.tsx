@@ -26,9 +26,9 @@ import { useAuth } from "@features/auth/queries";
 import { useHosts } from "@features/hosts/queries";
 import { LabelPicker } from "@features/labels/components/label-picker";
 import {
-  createCheckResultColumns,
-  type CheckResultRow,
-} from "@features/osquery/checks/query-results";
+  createPolicyResultColumns,
+  type PolicyResultRow,
+} from "@features/osquery/policies/query-results";
 import {
   createReportResultColumns,
   type ReportResultRow,
@@ -48,15 +48,14 @@ import {
   useStopLiveQuery,
 } from "./queries";
 import { ShowQueryButton } from "./query-actions";
-type LiveRunKind = "report" | "check";
+type LiveRunKind = "report" | "policy";
 type LiveRunStep = "targets" | "run";
 const liveReportResultColumns = createReportResultColumns({
   timestamp: "reported",
   includeError: true,
 });
-const liveCheckResultColumns = createCheckResultColumns({
+const livePolicyResultColumns = createPolicyResultColumns({
   timestampHeader: "Last Evaluated",
-  includeError: true,
 });
 
 export function LiveRunner({
@@ -133,8 +132,8 @@ export function LiveRunner({
     create.reset();
     stop.reset();
   }
-  const itemLabel = kind === "report" ? "report" : "check";
-  const title = kind === "report" ? "Run Report" : "Run Check";
+  const itemLabel = kind === "report" ? "report" : "policy";
+  const title = kind === "report" ? "Run Report" : "Run Policy";
   if (!isAdmin) {
     return (
       <PageShell>
@@ -296,7 +295,7 @@ function RunResults({
       {kind === "report" ? (
         <ReportRunResults snapshots={snapshots} />
       ) : (
-        <CheckRunResults snapshots={snapshots} />
+        <PolicyRunResults snapshots={snapshots} />
       )}
     </div>
   );
@@ -324,11 +323,11 @@ function ReportRunResults({ snapshots }: { snapshots: LiveQuerySnapshot[] }) {
     />
   );
 }
-function CheckRunResults({ snapshots }: { snapshots: LiveQuerySnapshot[] }) {
-  const rows = useMemo(() => snapshots.map(checkResultFromSnapshot), [snapshots]);
+function PolicyRunResults({ snapshots }: { snapshots: LiveQuerySnapshot[] }) {
+  const rows = useMemo(() => snapshots.map(policyResultFromSnapshot), [snapshots]);
   return (
     <DataTableStatic
-      columns={liveCheckResultColumns}
+      columns={livePolicyResultColumns}
       data={rows}
       getRowId={(row) => String(row.host_id)}
       empty={<RunEmptyState text="No targeted hosts" />}
@@ -460,7 +459,7 @@ function reportResultFromSnapshot(snapshot: LiveQuerySnapshot): ReportResultRow 
   };
 }
 
-function checkResultFromSnapshot(snapshot: LiveQuerySnapshot): CheckResultRow {
+function policyResultFromSnapshot(snapshot: LiveQuerySnapshot): PolicyResultRow {
   return {
     host_id: snapshot.host_id,
     host_name: snapshot.host_name,

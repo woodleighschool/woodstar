@@ -1,1 +1,1 @@
-SELECT version FROM orbit_info;
+SELECT version, scripts_enabled FROM orbit_info;

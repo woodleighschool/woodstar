@@ -49,7 +49,8 @@ func TestParseHostDetails(t *testing.T) {
 			"extra": "Darwin Kernel Version 25.5.0",
 		},
 		"orbit_info": {
-			"version": "1.47.0",
+			"version":         "1.47.0",
+			"scripts_enabled": "1",
 		},
 	}
 
@@ -88,7 +89,10 @@ func TestParseHostDetails(t *testing.T) {
 		},
 		Agents: hosts.HostAgents{
 			Osquery: hosts.HostOsqueryAgent{Version: "5.22.1"},
-			Orbit:   hosts.HostOrbitAgent{Version: "1.47.0"},
+			Orbit: hosts.HostOrbitAgent{
+				Version:        "1.47.0",
+				ScriptsEnabled: new(true),
+			},
 		},
 	}
 	assertInventoryUpdate(t, got, want)
@@ -136,6 +140,10 @@ func TestParseHostDetailsNormalizesPrimaryIP(t *testing.T) {
 
 func assertInventoryUpdate(t *testing.T, got hosts.InventoryUpdate, want hosts.InventoryUpdate) {
 	t.Helper()
+	gotScriptsEnabled := got.Agents.Orbit.ScriptsEnabled
+	wantScriptsEnabled := want.Agents.Orbit.ScriptsEnabled
+	got.Agents.Orbit.ScriptsEnabled = nil
+	want.Agents.Orbit.ScriptsEnabled = nil
 	if got.Hardware.UUID != want.Hardware.UUID ||
 		got.Hostname != want.Hostname ||
 		got.ComputerName != want.ComputerName ||
@@ -149,6 +157,10 @@ func assertInventoryUpdate(t *testing.T, got hosts.InventoryUpdate, want hosts.I
 		got.Network.PrimaryIP != want.Network.PrimaryIP ||
 		got.Network.PrimaryMAC != want.Network.PrimaryMAC {
 		t.Fatalf("ParseHostDetails() = %#v, want %#v", got, want)
+	}
+	if gotScriptsEnabled == nil || wantScriptsEnabled == nil ||
+		*gotScriptsEnabled != *wantScriptsEnabled {
+		t.Fatalf("orbit scripts enabled = %v, want %v", gotScriptsEnabled, wantScriptsEnabled)
 	}
 	if got.LastRestartedAt == nil {
 		t.Fatalf("LastRestartedAt is nil, want timestamp")

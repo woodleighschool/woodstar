@@ -32,4 +32,4 @@ Labels group hosts for targeting.
 | Dynamic | Hosts that match an osquery query                        |
 | Derived | Hosts that match directory data, such as a group or user |
 
-Labels can scope osquery reports and checks, Santa configurations and rules, and Munki software.
+Labels can scope osquery reports and policies, Santa configurations and rules, and Munki software.

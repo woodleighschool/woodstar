@@ -1,7 +1,5 @@
-import { StreamLanguage } from "@codemirror/language";
-import { shell } from "@codemirror/legacy-modes/mode/shell";
-
 import { CodeEditor } from "@components/editor/code-editor";
+import { ShellScriptEditor } from "@components/editor/shell-script-editor";
 import { Checkbox } from "@components/ui/checkbox";
 import {
   Field,
@@ -38,8 +36,6 @@ import {
 } from "../software/metadata";
 import type { PackageEditorForm } from "./fields";
 import type { PackageFormInput } from "./form-schema";
-
-const shellExtensions = [StreamLanguage.define(shell)];
 
 type PackageFieldNameByValue<T> = {
   [K in keyof PackageFormInput]: PackageFormInput[K] extends T ? K : never;
@@ -419,14 +415,7 @@ export function ScriptField({
   return (
     <Field>
       {label ? <FieldLabel>{label}</FieldLabel> : null}
-      <CodeEditor
-        value={value}
-        onChange={onChange}
-        extensions={shellExtensions}
-        minHeight="14rem"
-        maxHeight="30rem"
-        placeholder="#!/bin/zsh"
-      />
+      <ShellScriptEditor value={value} onChange={onChange} />
     </Field>
   );
 }

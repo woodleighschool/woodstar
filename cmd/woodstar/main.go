@@ -50,10 +50,10 @@ import (
 	"github.com/woodleighschool/woodstar/internal/orbit"
 	orbitprotocol "github.com/woodleighschool/woodstar/internal/orbit/protocol"
 	"github.com/woodleighschool/woodstar/internal/osquery"
-	"github.com/woodleighschool/woodstar/internal/osquery/checks"
 	osqueryapi "github.com/woodleighschool/woodstar/internal/osquery/httpapi"
 	"github.com/woodleighschool/woodstar/internal/osquery/ingest"
 	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
+	"github.com/woodleighschool/woodstar/internal/osquery/policies"
 	osqueryprotocol "github.com/woodleighschool/woodstar/internal/osquery/protocol"
 	"github.com/woodleighschool/woodstar/internal/osquery/reports"
 	"github.com/woodleighschool/woodstar/internal/postgres"
@@ -256,7 +256,7 @@ func buildApplication(
 
 	// Osquery stores.
 	reportStore := reports.NewStore(pool)
-	checkStore := checks.NewStore(pool)
+	policyStore := policies.NewStore(pool)
 	liveQueries := livequery.NewStore(pool)
 
 	// Munki stores.
@@ -289,7 +289,13 @@ func buildApplication(
 	if err != nil {
 		return nil, err
 	}
-	orbitAgent := orbit.NewEnrollmentService(hostStore, secretStore, primaryUsers, heartbeatStore)
+	orbitAgent := orbit.NewEnrollmentService(
+		hostStore,
+		secretStore,
+		primaryUsers,
+		heartbeatStore,
+		policyStore,
+	)
 
 	inventoryProjector := ingest.NewProjector(
 		hostStore,
@@ -304,7 +310,7 @@ func buildApplication(
 		MunkiCollector:     munkiIngestor,
 		LabelEvaluator:     labelEvaluator,
 		ReportStore:        reportStore,
-		CheckStore:         checkStore,
+		PolicyStore:        policyStore,
 		LiveQueries:        liveQueries,
 		SecretStore:        secretStore,
 		Heartbeats:         heartbeatStore,
@@ -401,7 +407,7 @@ func buildApplication(
 			osqueryapi.RegisterAPI(
 				routes.App,
 				reportStore,
-				checkStore,
+				policyStore,
 				liveQueries,
 				hostStore,
 				apiLogger,

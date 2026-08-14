@@ -12,6 +12,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/enrollment"
 	"github.com/woodleighschool/woodstar/internal/heartbeats"
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/osquery/policies"
 )
 
 const orbitCommandLineStartupFlags = `{
@@ -29,6 +30,7 @@ type EnrollmentService struct {
 	secretStore  agentauth.SecretVerifier
 	primaryUsers primaryUserStore
 	heartbeats   heartbeatRecorder
+	remediations remediationStore
 }
 
 type hostStore interface {
@@ -46,14 +48,22 @@ type heartbeatRecorder interface {
 	Record(context.Context, int64, heartbeats.Source, heartbeats.Contact) error
 }
 
+type remediationStore interface {
+	PendingRemediationExecutionIDs(context.Context, int64) ([]string, error)
+	ClaimRemediation(context.Context, int64, string) (*policies.ClaimedRemediation, error)
+	RecordRemediationResult(context.Context, int64, policies.RemediationResult) error
+}
+
 func NewEnrollmentService(
 	hostStore hostStore,
 	secretStore agentauth.SecretVerifier,
 	primaryUsers primaryUserStore,
 	heartbeats heartbeatRecorder,
+	remediations remediationStore,
 ) *EnrollmentService {
 	return &EnrollmentService{
-		hostStore: hostStore, secretStore: secretStore, primaryUsers: primaryUsers, heartbeats: heartbeats,
+		hostStore: hostStore, secretStore: secretStore, primaryUsers: primaryUsers,
+		heartbeats: heartbeats, remediations: remediations,
 	}
 }
 
@@ -98,7 +108,63 @@ func (s *EnrollmentService) Config(ctx context.Context, nodeKey string, contact 
 	if err := s.heartbeats.Record(ctx, host.ID, heartbeats.SourceOrbit, contact); err != nil {
 		return ConfigResponse{}, fmt.Errorf("record heartbeat: %w", err)
 	}
-	return ConfigResponse{CommandLineStartupFlags: json.RawMessage(orbitCommandLineStartupFlags)}, nil
+	pending, err := s.remediations.PendingRemediationExecutionIDs(ctx, host.ID)
+	if err != nil {
+		return ConfigResponse{}, fmt.Errorf("list pending remediations: %w", err)
+	}
+	return ConfigResponse{
+		CommandLineStartupFlags: json.RawMessage(orbitCommandLineStartupFlags),
+		ScriptExecutionTimeout:  policies.DefaultRemediationTimeoutSeconds,
+		Notifications: Notifications{
+			PendingScriptExecutionIDs: pending,
+		},
+	}, nil
+}
+
+// ClaimScript authenticates Orbit and atomically claims one pending script.
+func (s *EnrollmentService) ClaimScript(
+	ctx context.Context,
+	req ScriptRequest,
+	contact heartbeats.Contact,
+) (*ScriptResponse, error) {
+	host, err := s.hostStore.GetByOrbitNodeKey(ctx, req.OrbitNodeKey)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.heartbeats.Record(ctx, host.ID, heartbeats.SourceOrbit, contact); err != nil {
+		return nil, fmt.Errorf("record heartbeat: %w", err)
+	}
+	claimed, err := s.remediations.ClaimRemediation(ctx, host.ID, req.ExecutionID)
+	if err != nil {
+		return nil, err
+	}
+	return &ScriptResponse{
+		HostID:         claimed.HostID,
+		ExecutionID:    claimed.ExecutionID,
+		ScriptContents: claimed.ScriptContents,
+		Timeout:        claimed.TimeoutSeconds,
+	}, nil
+}
+
+// RecordScriptResult authenticates Orbit and records its first terminal report.
+func (s *EnrollmentService) RecordScriptResult(
+	ctx context.Context,
+	req ScriptResult,
+	contact heartbeats.Contact,
+) error {
+	host, err := s.hostStore.GetByOrbitNodeKey(ctx, req.OrbitNodeKey)
+	if err != nil {
+		return err
+	}
+	if err := s.heartbeats.Record(ctx, host.ID, heartbeats.SourceOrbit, contact); err != nil {
+		return fmt.Errorf("record heartbeat: %w", err)
+	}
+	return s.remediations.RecordRemediationResult(ctx, host.ID, policies.RemediationResult{
+		ExecutionID:    req.ExecutionID,
+		Output:         req.Output,
+		RuntimeSeconds: req.Runtime,
+		ExitCode:       req.ExitCode,
+	})
 }
 
 // SetPrimaryUser records a profile-provided email for the host.

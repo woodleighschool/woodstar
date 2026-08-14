@@ -6,48 +6,48 @@ import {
   useOsqueryHistoryState,
 } from "@features/osquery/live/history";
 
-import { CheckForm, emptyCheck } from "./fields";
-import { useCreateCheck } from "./queries";
+import { PolicyForm, emptyPolicy } from "./fields";
+import { useCreatePolicy } from "./queries";
 
-const routeApi = getRouteApi("/_authenticated/osquery/checks/new/");
+const routeApi = getRouteApi("/_authenticated/osquery/policies/new/");
 
-export function CheckCreatePage() {
+export function PolicyCreatePage() {
   const navigate = routeApi.useNavigate();
   const search = routeApi.useSearch();
-  const create = useCreateCheck();
+  const create = useCreatePolicy();
   const historyState = useOsqueryHistoryState();
   const openLive = useOpenOsqueryLive();
   const clearHistoryState = useClearOsqueryHistoryState();
   const draft =
-    historyState?.view === "check-form" && historyState.id === undefined
+    historyState?.view === "policy-form" && historyState.id === undefined
       ? historyState.value
       : undefined;
 
   return (
-    <CheckForm
-      initial={emptyCheck}
+    <PolicyForm
+      initial={emptyPolicy}
       draft={draft}
-      title="Create Check"
+      title="Create Policy"
       submitLabel="Create"
       activeTab={search.tab ?? "options"}
       onActiveTabChange={(value) =>
         void navigate({
           search: (previous) => ({
             ...previous,
-            tab: value === "targets" ? "targets" : undefined,
+            tab: value === "targets" || value === "remediation" ? value : undefined,
           }),
         })
       }
       onCancel={async () => {
         await clearHistoryState();
-        await navigate({ to: "/osquery/checks" });
+        await navigate({ to: "/osquery/policies" });
       }}
       onRunLive={(value) =>
         openLive({
-          kind: "check",
+          kind: "policy",
           sql: value.query.trim(),
           form: {
-            view: "check-form",
+            view: "policy-form",
             value,
           },
         })
@@ -57,7 +57,7 @@ export function CheckCreatePage() {
         if (id !== undefined) {
           await clearHistoryState();
           await navigate({
-            to: "/osquery/checks/$id",
+            to: "/osquery/policies/$id",
             params: { id: String(id) },
           });
         }

@@ -24,6 +24,7 @@ type hostRow struct {
 	OSPlatform                        string                                   `db:"os_platform"`
 	OsqueryVersion                    string                                   `db:"osquery_version"`
 	OrbitVersion                      string                                   `db:"orbit_version"`
+	OrbitScriptsEnabled               *bool                                    `db:"orbit_scripts_enabled"`
 	OrbitNodeKey                      string                                   `db:"orbit_node_key"`
 	OsqueryNodeKey                    string                                   `db:"osquery_node_key"`
 	EnrollmentAgent                   string                                   `db:"enrollment_agent"`
@@ -69,6 +70,7 @@ func hostSelectSQL() string {
 	os_platform,
 	osquery_version,
 	orbit_version,
+	orbit_scripts_enabled,
 	orbit_node_key,
 	osquery_node_key,
 	enrollment_agent,
@@ -156,7 +158,10 @@ func hostFromRow(row hostRow, now time.Time) Host {
 				DistributedIntervalSeconds: row.OsqueryDistributedIntervalSeconds,
 				ConfigRefreshSeconds:       row.OsqueryConfigRefreshSeconds,
 			},
-			Orbit: HostOrbitAgent{Version: row.OrbitVersion},
+			Orbit: HostOrbitAgent{
+				Version:        row.OrbitVersion,
+				ScriptsEnabled: row.OrbitScriptsEnabled,
+			},
 		},
 		PublicIP:                  row.PublicIP,
 		LastContact:               row.LastContact,

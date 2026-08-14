@@ -78,6 +78,7 @@ func (s *Store) UpsertOnOsqueryEnroll(ctx context.Context, update InventoryUpdat
 		OsqueryVersion:          update.Agents.Osquery.Version,
 		OsqueryNodeKey:          update.OsqueryNodeKey,
 		OrbitVersion:            update.Agents.Orbit.Version,
+		OrbitScriptsEnabled:     update.Agents.Orbit.ScriptsEnabled,
 		CPUType:                 update.Hardware.CPU.Architecture,
 		CPUSubtype:              update.Hardware.CPU.Subtype,
 		CPUBrand:                update.Hardware.CPU.Brand,
@@ -103,6 +104,7 @@ INSERT INTO hosts (
 	os_platform,
 	osquery_version,
 	orbit_version,
+	orbit_scripts_enabled,
 	osquery_node_key,
 	enrollment_agent,
 	cpu_type,
@@ -128,6 +130,7 @@ VALUES (
 	@os_platform,
 	@osquery_version,
 	@orbit_version,
+	@orbit_scripts_enabled,
 	@osquery_node_key,
 	'osquery',
 	@cpu_type,
@@ -152,6 +155,7 @@ ON CONFLICT (hardware_uuid) DO UPDATE SET
 	os_platform = COALESCE(NULLIF(EXCLUDED.os_platform, ''), hosts.os_platform),
 	osquery_version = EXCLUDED.osquery_version,
 	orbit_version = COALESCE(NULLIF(EXCLUDED.orbit_version, ''), hosts.orbit_version),
+	orbit_scripts_enabled = COALESCE(EXCLUDED.orbit_scripts_enabled, hosts.orbit_scripts_enabled),
 	osquery_node_key = EXCLUDED.osquery_node_key,
 	enrollment_agent = EXCLUDED.enrollment_agent,
 	cpu_type = EXCLUDED.cpu_type,
@@ -245,6 +249,7 @@ type osqueryEnrollWrite struct {
 	OsqueryVersion          string `db:"osquery_version"`
 	OsqueryNodeKey          string `db:"osquery_node_key"`
 	OrbitVersion            string `db:"orbit_version"`
+	OrbitScriptsEnabled     *bool  `db:"orbit_scripts_enabled"`
 	CPUType                 string `db:"cpu_type"`
 	CPUSubtype              string `db:"cpu_subtype"`
 	CPUBrand                string `db:"cpu_brand"`

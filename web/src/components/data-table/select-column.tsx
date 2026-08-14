@@ -20,6 +20,7 @@ export function selectColumn<TData extends DataTableRowData>(): DataTableColumnD
       <div className="flex w-full justify-center">
         <Checkbox
           checked={row.getIsSelected()}
+          disabled={!row.getCanSelect()}
           onCheckedChange={(value) => row.toggleSelected(value)}
         />
       </div>

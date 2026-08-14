@@ -32,7 +32,8 @@
     ],
     "$QUERY_ORBIT_INFO": [
       {
-        "version": "1.57.0"
+        "version": "1.57.0",
+        "scripts_enabled": "1"
       }
     ]
   },

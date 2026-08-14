@@ -31,6 +31,9 @@ func ParseHostDetails(details map[string]map[string]string) hosts.InventoryUpdat
 	}
 	if row := details["orbit_info"]; row != nil {
 		update.Agents.Orbit.Version = normalizeString(row["version"])
+		if value, ok := row["scripts_enabled"]; ok {
+			update.Agents.Orbit.ScriptsEnabled = parseBoolPtr(normalizeString(value))
+		}
 	}
 	if row := details["os_version"]; row != nil {
 		update.OS.Name = normalizeString(row["name"])
@@ -113,4 +116,12 @@ func parsePositiveInt64Ptr(value string) *int64 {
 		return nil
 	}
 	return new(parsed)
+}
+
+func parseBoolPtr(value string) *bool {
+	parsed, err := strconv.ParseBool(value)
+	if err != nil {
+		return nil
+	}
+	return &parsed
 }

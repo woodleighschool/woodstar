@@ -23,21 +23,21 @@ import {
   DropdownMenuTrigger,
 } from "@components/ui/dropdown-menu";
 import { useAuth } from "@features/auth/queries";
-import type { OsqueryCheck } from "@lib/api";
+import type { OsqueryPolicy } from "@lib/api";
 import { DEFAULT_PAGE_SIZE } from "@lib/pagination";
 import { formatRelative } from "@lib/utils";
 
-import { CheckDeleteDialog } from "./delete-dialog";
-import { useBulkDeleteChecks, useChecks } from "./queries";
-import { CheckResultCountLink } from "./result-count-link";
+import { PolicyDeleteDialog } from "./delete-dialog";
+import { useBulkDeletePolicies, usePolicies } from "./queries";
+import { PolicyResultCountLink } from "./result-count-link";
 
-const routeApi = getRouteApi("/_authenticated/osquery/checks/");
+const routeApi = getRouteApi("/_authenticated/osquery/policies/");
 
-type CheckTableRow = OsqueryCheck & {
-  onDelete: (check: OsqueryCheck) => void;
+type PolicyTableRow = OsqueryPolicy & {
+  onDelete: (policy: OsqueryPolicy) => void;
 };
 
-export function CheckListPage() {
+export function PolicyListPage() {
   const search = routeApi.useSearch();
   const navigate = routeApi.useNavigate();
   const tableSearch = useDataTableSearch({
@@ -46,15 +46,15 @@ export function CheckListPage() {
   });
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
-  const [deleting, setDeleting] = useState<OsqueryCheck | null>(null);
-  const query = useChecks({
+  const [deleting, setDeleting] = useState<OsqueryPolicy | null>(null);
+  const query = usePolicies({
     q: tableSearch.q,
     page: tableSearch.page,
     per_page: tableSearch.per_page,
     sort: tableSearch.sort,
   });
-  const tableRows = useMemo<CheckTableRow[]>(
-    () => query.data?.items.map((check) => ({ ...check, onDelete: setDeleting })) ?? [],
+  const tableRows = useMemo<PolicyTableRow[]>(
+    () => query.data?.items.map((policy) => ({ ...policy, onDelete: setDeleting })) ?? [],
     [query.data?.items],
   );
   const totalCount = query.data?.count ?? 0;
@@ -62,7 +62,7 @@ export function CheckListPage() {
   const table = useDataTable({
     tableState: tableSearch,
     data: tableRows,
-    columns: isAdmin ? checkAdminColumns : checkColumns,
+    columns: isAdmin ? policyAdminColumns : policyColumns,
     pageCount,
     rowCount: totalCount,
     initialState: { pagination: { pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE } },
@@ -72,10 +72,10 @@ export function CheckListPage() {
   return (
     <PageShell>
       <PageHeader
-        title="Checks"
+        title="Policies"
         actions={
           isAdmin ? (
-            <Button size="sm" render={<Link to="/osquery/checks/new" />} nativeButton={false}>
+            <Button size="sm" render={<Link to="/osquery/policies/new" />} nativeButton={false}>
               <Plus data-icon="inline-start" />
               Create
             </Button>
@@ -84,7 +84,7 @@ export function CheckListPage() {
       />
       {query.error ? (
         <QueryError
-          title="Failed to load checks"
+          title="Failed to load policies"
           error={query.error}
           onRetry={() => void query.refetch()}
         />
@@ -96,16 +96,20 @@ export function CheckListPage() {
           pending={query.isPlaceholderData}
           actionBar={
             isAdmin ? (
-              <BulkDeleteActionBar table={table} useBulkDelete={useBulkDeleteChecks} noun="check" />
+              <BulkDeleteActionBar
+                table={table}
+                useBulkDelete={useBulkDeletePolicies}
+                noun="policy"
+              />
             ) : undefined
           }
           empty={
             <DataTableEmpty
               icon={<ShieldCheck />}
               filtered={tableSearch.isFiltered}
-              title="No health checks"
-              description="Create a check from SQL."
-              filteredDescription="No checks matched the current search."
+              title="No health policies"
+              description="Create a policy from SQL."
+              filteredDescription="No policies matched the current search."
             />
           }
         >
@@ -118,26 +122,26 @@ export function CheckListPage() {
       )}
 
       {isAdmin ? (
-        <CheckDeleteDialog
+        <PolicyDeleteDialog
           open={deleting !== null}
           onOpenChange={(open) => {
             if (!open) setDeleting(null);
           }}
-          check={deleting}
+          policy={deleting}
         />
       ) : null}
     </PageShell>
   );
 }
 
-const checkColumns: DataTableColumnDef<CheckTableRow>[] = [
+const policyColumns: DataTableColumnDef<PolicyTableRow>[] = [
   {
     id: "name",
     accessorKey: "name",
     header: "Name",
     cell: ({ row }) => (
       <TextLink
-        to="/osquery/checks/$id"
+        to="/osquery/policies/$id"
         params={{ id: String(row.original.id) }}
         className="font-medium"
       >
@@ -160,8 +164,8 @@ const checkColumns: DataTableColumnDef<CheckTableRow>[] = [
       </span>
     ),
     cell: ({ row }) => (
-      <CheckResultCountLink
-        checkId={row.original.id}
+      <PolicyResultCountLink
+        policyId={row.original.id}
         count={row.original.passing_host_count}
         status="pass"
       />
@@ -183,8 +187,8 @@ const checkColumns: DataTableColumnDef<CheckTableRow>[] = [
       </span>
     ),
     cell: ({ row }) => (
-      <CheckResultCountLink
-        checkId={row.original.id}
+      <PolicyResultCountLink
+        policyId={row.original.id}
         count={row.original.failing_host_count}
         status="fail"
       />
@@ -208,22 +212,22 @@ const checkColumns: DataTableColumnDef<CheckTableRow>[] = [
   },
 ];
 
-function CheckActionsCell({ row }: DataTableCellContext<CheckTableRow>) {
-  const check = row.original;
+function PolicyActionsCell({ row }: DataTableCellContext<PolicyTableRow>) {
+  const policy = row.original;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger render={<Button type="button" size="icon" variant="ghost" />}>
         <MoreHorizontal />
-        <span className="sr-only">Open check actions</span>
+        <span className="sr-only">Open policy actions</span>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuGroup>
           <DropdownMenuItem
-            render={<Link to="/osquery/checks/$id/edit" params={{ id: String(check.id) }} />}
+            render={<Link to="/osquery/policies/$id/edit" params={{ id: String(policy.id) }} />}
           >
             Edit
           </DropdownMenuItem>
-          <DropdownMenuItem variant="destructive" onClick={() => check.onDelete(check)}>
+          <DropdownMenuItem variant="destructive" onClick={() => policy.onDelete(policy)}>
             Delete
           </DropdownMenuItem>
         </DropdownMenuGroup>
@@ -232,9 +236,9 @@ function CheckActionsCell({ row }: DataTableCellContext<CheckTableRow>) {
   );
 }
 
-const checkAdminColumns: DataTableColumnDef<CheckTableRow>[] = [
-  selectColumn<CheckTableRow>(),
-  ...checkColumns,
+const policyAdminColumns: DataTableColumnDef<PolicyTableRow>[] = [
+  selectColumn<PolicyTableRow>(),
+  ...policyColumns,
   {
     id: "actions",
     header: () => null,
@@ -244,6 +248,6 @@ const checkAdminColumns: DataTableColumnDef<CheckTableRow>[] = [
     minSize: 44,
     maxSize: 44,
     enableResizing: false,
-    cell: CheckActionsCell,
+    cell: PolicyActionsCell,
   },
 ];

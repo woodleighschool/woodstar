@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -30,6 +31,36 @@ type orbitFixtureEnrollResponse struct {
 
 type orbitFixtureConfigResponse struct {
 	CommandLineStartupFlags json.RawMessage `json:"command_line_startup_flags"`
+	ScriptExecutionTimeout  int             `json:"script_execution_timeout"`
+	Notifications           struct {
+		PendingScriptExecutionIDs []string `json:"pending_script_execution_ids"`
+	} `json:"notifications"`
+}
+
+type orbitFixturePolicy struct {
+	ID    int64  `json:"id"`
+	Query string `json:"query"`
+}
+
+type orbitFixtureScriptResponse struct {
+	HostID         int64  `json:"host_id"`
+	ExecutionID    string `json:"execution_id"`
+	ScriptContents string `json:"script_contents"`
+	Timeout        int    `json:"timeout"`
+}
+
+type orbitFixturePolicyResults struct {
+	Items []struct {
+		Status      string `json:"status"`
+		Remediation *struct {
+			Status string `json:"status"`
+		} `json:"remediation"`
+	} `json:"items"`
+}
+
+type orbitFixtureRemediationRun struct {
+	Status string `json:"status"`
+	Output string `json:"output"`
 }
 
 type orbitProtocolFixtureClient struct {
@@ -176,9 +207,18 @@ func TestOrbit(t *testing.T) { //nolint:cyclop,funlen // Linear protocol lifecyc
 		host.PrimaryUser.Email != orbitFixtureEmail ||
 		host.PrimaryUser.Source != adminapi.HostPrimaryUserSourceOrbitProfile ||
 		host.Agents.Orbit.Version != "1.57.0" ||
+		host.Agents.Orbit.ScriptsEnabled == nil || !*host.Agents.Orbit.ScriptsEnabled ||
 		host.Agents.Osquery.Version != "5.23.1" {
 		t.Fatalf("Orbit fixture host = %+v, want combined Orbit and osquery observation", host)
 	}
+	proveOrbitPolicyRemediationLifecycle(
+		t,
+		server,
+		client,
+		enrolled.OrbitNodeKey,
+		osqueryEnroll.NodeKey,
+		host,
+	)
 	var reenrolled orbitFixtureEnrollResponse
 	client.postFixture("enroll.json", "/api/fleet/orbit/enroll", fixtureValues, http.StatusOK, &reenrolled)
 	if reenrolled.OrbitNodeKey == "" || reenrolled.OrbitNodeKey == enrolled.OrbitNodeKey {
@@ -226,6 +266,20 @@ func (client orbitProtocolFixtureClient) postFixture(
 ) {
 	client.t.Helper()
 	payload := loadOrbitProtocolFixture(client.t, name, values)
+	client.request(http.MethodPost, path, payload, wantStatus, target)
+}
+
+func (client orbitProtocolFixtureClient) postJSON(
+	path string,
+	body any,
+	wantStatus int,
+	target any,
+) {
+	client.t.Helper()
+	payload, err := json.Marshal(body)
+	if err != nil {
+		client.t.Fatalf("encode POST %s request: %v", path, err)
+	}
 	client.request(http.MethodPost, path, payload, wantStatus, target)
 }
 
@@ -285,6 +339,53 @@ func (client orbitProtocolFixtureClient) request(
 	return response.Header
 }
 
+func requestFixtureJSON(
+	t *testing.T,
+	client *http.Client,
+	method string,
+	requestURL string,
+	body any,
+	wantStatus int,
+	target any,
+) {
+	t.Helper()
+	var payload []byte
+	var err error
+	if body != nil {
+		payload, err = json.Marshal(body)
+		if err != nil {
+			t.Fatalf("encode %s %s request: %v", method, requestURL, err)
+		}
+	}
+	request, err := http.NewRequestWithContext(t.Context(), method, requestURL, bytes.NewReader(payload))
+	if err != nil {
+		t.Fatalf("create %s %s request: %v", method, requestURL, err)
+	}
+	if body != nil {
+		request.Header.Set("Content-Type", "application/json")
+	}
+	response, err := client.Do(request)
+	if err != nil {
+		t.Fatalf("send %s %s request: %v", method, requestURL, err)
+	}
+	responseBody := readAndClose(t, response)
+	if response.StatusCode != wantStatus {
+		t.Fatalf(
+			"%s %s status = %d, want %d: %s",
+			method,
+			requestURL,
+			response.StatusCode,
+			wantStatus,
+			strings.TrimSpace(string(responseBody)),
+		)
+	}
+	if target != nil {
+		if err := json.Unmarshal(responseBody, target); err != nil {
+			t.Fatalf("decode %s %s response: %v", method, requestURL, err)
+		}
+	}
+}
+
 func loadOrbitProtocolFixture(t *testing.T, name string, replacements map[string]any) []byte {
 	t.Helper()
 	return loadProtocolFixture(t, orbitProtocolFixtures, "orbit", name, replacements)
@@ -329,6 +430,175 @@ func assertOrbitFixtureConfig(
 		flags["carver_disable_function"] != true ||
 		flags["logger_min_status"] != float64(4) {
 		t.Fatalf("Orbit startup flags = %+v, want Woodstar defaults", flags)
+	}
+	if response.ScriptExecutionTimeout != 300 {
+		t.Fatalf("Orbit script timeout = %d, want 300", response.ScriptExecutionTimeout)
+	}
+}
+
+func proveOrbitPolicyRemediationLifecycle( //nolint:funlen // Linear cross-protocol policy and Orbit lifecycle.
+	t *testing.T,
+	server *testServer,
+	client orbitProtocolFixtureClient,
+	orbitNodeKey string,
+	osqueryNodeKey string,
+	host adminapi.Host,
+) {
+	t.Helper()
+
+	labelsResponse, err := server.Admin.ListLabelsWithResponse(
+		t.Context(),
+		&adminapi.ListLabelsParams{LabelType: new(adminapi.ListLabelsParamsLabelType("builtin"))},
+	)
+	labelsResponse = requireAPIResponse(t, "list policy target labels", http.StatusOK, labelsResponse, err)
+	if labelsResponse.JSON200 == nil {
+		t.Fatal("list policy target labels returned no JSON body")
+	}
+	var allHostsLabelID int64
+	for _, label := range labelsResponse.JSON200.Items {
+		if label.BuiltinKey != nil && *label.BuiltinKey == "all-hosts" {
+			allHostsLabelID = label.Id
+			break
+		}
+	}
+	if allHostsLabelID == 0 {
+		t.Fatal("all-hosts label not found")
+	}
+
+	const (
+		policyQuery       = "SELECT 1 WHERE 0;"
+		remediationScript = "#!/bin/zsh\necho remediated\n"
+	)
+	var policy orbitFixturePolicy
+	requestFixtureJSON(
+		t,
+		server.AdminHTTP,
+		http.MethodPost,
+		server.BaseURL+"/api/osquery/policies",
+		map[string]any{
+			"name":        "Orbit remediation fixture",
+			"description": "Exercises policy-owned automatic remediation.",
+			"resolution":  "The fixture script should run.",
+			"query":       policyQuery,
+			"targets": map[string]any{
+				"include": []map[string]any{{"label_id": allHostsLabelID}},
+				"exclude": []map[string]any{},
+			},
+			"remediation": map[string]any{
+				"script":    remediationScript,
+				"automatic": true,
+			},
+		},
+		http.StatusCreated,
+		&policy,
+	)
+	if policy.ID <= 0 || policy.Query != policyQuery {
+		t.Fatalf("created policy = %+v, want remediation fixture", policy)
+	}
+
+	var distributed osqueryTestDistributedReadResponse
+	postJSON(
+		t,
+		client.client,
+		client.baseURL+"/api/v1/osquery/distributed/read",
+		osqueryTestNodeRequest{NodeKey: osqueryNodeKey},
+		&distributed,
+	)
+	var policyQueryName string
+	for name, query := range distributed.Queries {
+		if strings.HasPrefix(name, "woodstar_policy_query_") && query == policyQuery {
+			policyQueryName = name
+			break
+		}
+	}
+	if policyQueryName == "" {
+		t.Fatalf("distributed policy queries = %+v, want remediation fixture", distributed.Queries)
+	}
+
+	var acknowledgement osqueryTestAcknowledgement
+	postJSON(
+		t,
+		client.client,
+		client.baseURL+"/api/v1/osquery/distributed/write",
+		osqueryTestDistributedWriteRequest{
+			NodeKey:  osqueryNodeKey,
+			Queries:  map[string][]map[string]string{policyQueryName: {}},
+			Statuses: map[string]json.RawMessage{policyQueryName: json.RawMessage(`0`)},
+			Messages: map[string]string{},
+		},
+		&acknowledgement,
+	)
+	if acknowledgement.NodeInvalid {
+		t.Fatal("policy result returned node_invalid")
+	}
+
+	var config orbitFixtureConfigResponse
+	client.postFixture(
+		"config.json",
+		"/api/fleet/orbit/config",
+		map[string]any{"$ORBIT_NODE_KEY": orbitNodeKey},
+		http.StatusOK,
+		&config,
+	)
+	if len(config.Notifications.PendingScriptExecutionIDs) != 1 {
+		t.Fatalf("pending Orbit scripts = %+v, want one", config.Notifications.PendingScriptExecutionIDs)
+	}
+	executionID := config.Notifications.PendingScriptExecutionIDs[0]
+	server.redact(executionID)
+
+	requestBody := map[string]any{
+		"orbit_node_key": orbitNodeKey,
+		"execution_id":   executionID,
+	}
+	var script orbitFixtureScriptResponse
+	client.postJSON("/api/fleet/orbit/scripts/request", requestBody, http.StatusOK, &script)
+	if script.HostID != host.Id || script.ExecutionID != executionID ||
+		script.ScriptContents != remediationScript || script.Timeout != 300 {
+		t.Fatalf("claimed Orbit script = %+v, want immutable policy remediation", script)
+	}
+	client.postJSON("/api/fleet/orbit/scripts/request", requestBody, http.StatusNotFound, nil)
+	client.postJSON(
+		"/api/fleet/orbit/scripts/result",
+		map[string]any{
+			"orbit_node_key": orbitNodeKey,
+			"execution_id":   executionID,
+			"output":         "remediated\n",
+			"runtime":        1,
+			"exit_code":      0,
+			"timeout":        300,
+		},
+		http.StatusOK,
+		nil,
+	)
+
+	var results orbitFixturePolicyResults
+	requestFixtureJSON(
+		t,
+		server.AdminHTTP,
+		http.MethodGet,
+		server.BaseURL+"/api/osquery/policies/"+strconv.FormatInt(policy.ID, 10)+"/results",
+		nil,
+		http.StatusOK,
+		&results,
+	)
+	if len(results.Items) != 1 || results.Items[0].Status != "fail" ||
+		results.Items[0].Remediation == nil || results.Items[0].Remediation.Status != "succeeded" {
+		t.Fatalf("policy result after script success = %+v, want fail with succeeded remediation", results.Items)
+	}
+
+	var run orbitFixtureRemediationRun
+	requestFixtureJSON(
+		t,
+		server.AdminHTTP,
+		http.MethodGet,
+		server.BaseURL+"/api/osquery/policies/"+strconv.FormatInt(policy.ID, 10)+
+			"/hosts/"+strconv.FormatInt(host.Id, 10)+"/remediation",
+		nil,
+		http.StatusOK,
+		&run,
+	)
+	if run.Status != "succeeded" || run.Output != "remediated\n" {
+		t.Fatalf("latest remediation run = %+v, want succeeded output", run)
 	}
 }
 

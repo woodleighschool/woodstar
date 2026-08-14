@@ -11,7 +11,7 @@ const labelRefSchema = z.object({
   label_id: z.number().int("Label selection is invalid.").positive("Select a label."),
 });
 
-// Validates the include/exclude label sets shared by checks, reports, and santa
+// Validates the include/exclude label sets shared by policies, reports, and santa
 // configurations. Their target editors only emit real label ids, so this mainly
 // lets the form-level schema cover the full mutation shape.
 export const labelTargetSetSchema = z.object({

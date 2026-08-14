@@ -1,8 +1,8 @@
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
 
-import { CheckDetailPage } from "@features/osquery/checks/detail";
-import { CHECK_RESULT_STATUS_VALUES } from "@features/osquery/checks/model";
+import { PolicyDetailPage } from "@features/osquery/policies/detail";
+import { POLICY_RESULT_STATUS_VALUES } from "@features/osquery/policies/model";
 import { createTableSearchSchema, TABLE_SEARCH_DEFAULTS } from "@lib/table-search";
 
 const SEARCH_DEFAULTS = {
@@ -13,12 +13,12 @@ const SEARCH_DEFAULTS = {
 const searchSchema = createTableSearchSchema(["host_name", "status", "updated_at"], {
   defaultSort: SEARCH_DEFAULTS.sort,
 }).extend({
-  status: z.array(z.enum(CHECK_RESULT_STATUS_VALUES)).optional().catch(undefined),
-  tab: z.literal("results").optional().catch(undefined),
+  status: z.array(z.enum(POLICY_RESULT_STATUS_VALUES)).optional().catch(undefined),
+  tab: z.enum(["results", "remediation"]).optional().catch(undefined),
 });
 
-export const Route = createFileRoute("/_authenticated/osquery/checks/$id/")({
+export const Route = createFileRoute("/_authenticated/osquery/policies/$id/")({
   validateSearch: searchSchema,
   search: { middlewares: [stripSearchParams(SEARCH_DEFAULTS)] },
-  component: CheckDetailPage,
+  component: PolicyDetailPage,
 });

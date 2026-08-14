@@ -1718,7 +1718,8 @@ type HostOS struct {
 
 // HostOrbitAgent defines model for HostOrbitAgent.
 type HostOrbitAgent struct {
-	Version string `json:"version"`
+	ScriptsEnabled *bool  `json:"scripts_enabled,omitempty"`
+	Version        string `json:"version"`
 }
 
 // HostOsqueryAgent defines model for HostOsqueryAgent.

@@ -113,7 +113,7 @@ export function HostListPage() {
     <PageShell>
       <PageHeader
         title="Hosts"
-        description="Track enrolled hosts, inventory, checks, reports, and Santa state."
+        description="Track enrolled hosts, inventory, policies, reports, and Santa state."
         context={
           <>
             {search.label_id !== undefined ? (

@@ -15,7 +15,7 @@ Create a host enrollment secret from **Hosts > Enroll Hosts** or the **osquery**
 Build the macOS package without embedding the Woodstar URL or enrollment secret:
 
 ```shell
-fleetctl package --type=pkg --use-system-configuration
+fleetctl package --type=pkg --use-system-configuration --enable-scripts
 ```
 
 Deploy the package with the fleetd configuration profile below. Replace the example URL and secret before deployment.
@@ -32,6 +32,8 @@ Deploy the package with the fleetd configuration profile below. Replace the exam
       <string>REPLACE_WITH_SECRET</string>
       <key>FleetURL</key>
       <string>https://woodstar.example.com</string>
+      <key>EnableScripts</key>
+      <true/>
       <key>PayloadDisplayName</key>
       <string>fleetd</string>
       <key>PayloadIdentifier</key>
@@ -63,6 +65,8 @@ Deploy the package with the fleetd configuration profile below. Replace the exam
 </dict>
 </plist>
 ```
+
+`--enable-scripts` makes script execution part of the package. `EnableScripts` also enables it through the macOS fleetd profile for stock Orbit versions that support dynamic script configuration. Woodstar treats a host as eligible for policy remediation only after `orbit_info` reports scripts enabled and the host has an active Orbit enrollment.
 
 ### Optional end-user mapping
 
@@ -114,14 +118,16 @@ See [Mutual TLS](./mutual-tls) to include a client certificate and key in the fl
 
 ## Orbit routes
 
-| Method | Path                                    | Purpose                        |
-| ------ | --------------------------------------- | ------------------------------ |
-| `POST` | `/api/fleet/orbit/enroll`               | Enroll and return a node key   |
-| `POST` | `/api/fleet/orbit/config`               | Return the Orbit configuration |
-| `PUT`  | `/api/fleet/orbit/device_mapping`       | Record the assigned user email |
-| `POST` | `/api/fleet/orbit/device_token`         | Rotate the device token        |
-| `HEAD` | `/api/fleet/orbit/ping`                 | Check the server               |
-| `HEAD` | `/api/latest/fleet/device/{token}/ping` | Validate a device token        |
+| Method | Path                                    | Purpose                              |
+| ------ | --------------------------------------- | ------------------------------------ |
+| `POST` | `/api/fleet/orbit/enroll`               | Enroll and return a node key         |
+| `POST` | `/api/fleet/orbit/config`               | Return configuration and queued work |
+| `POST` | `/api/fleet/orbit/scripts/request`      | Claim one script execution           |
+| `POST` | `/api/fleet/orbit/scripts/result`       | Report a script result               |
+| `PUT`  | `/api/fleet/orbit/device_mapping`       | Record the assigned user email       |
+| `POST` | `/api/fleet/orbit/device_token`         | Rotate the device token              |
+| `HEAD` | `/api/fleet/orbit/ping`                 | Check the server                     |
+| `HEAD` | `/api/latest/fleet/device/{token}/ping` | Validate a device token              |
 
 ## osquery routes
 
@@ -135,4 +141,4 @@ See [Mutual TLS](./mutual-tls) to include a client certificate and key in the fl
 
 An invalid node key tells osquery to enroll again. Woodstar does not enable file carving or status-log forwarding.
 
-Distributed results update host details, software inventory, dynamic labels, checks, reports, and active live queries.
+Distributed results update host details, software inventory, dynamic labels, policies, reports, and active live queries.

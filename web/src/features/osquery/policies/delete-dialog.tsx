@@ -1,29 +1,29 @@
 import { ConfirmDialog } from "@components/confirm-dialog";
 import { toast } from "@components/ui/toast";
-import type { OsqueryCheck } from "@lib/api";
+import type { OsqueryPolicy } from "@lib/api";
 
-import { useDeleteCheck } from "./queries";
+import { useDeletePolicy } from "./queries";
 
-export interface CheckDeleteDialogProps {
+export interface PolicyDeleteDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  check: OsqueryCheck | null;
+  policy: OsqueryPolicy | null;
   onDeleted?: () => void;
 }
 
-export function CheckDeleteDialog({
+export function PolicyDeleteDialog({
   open,
   onOpenChange,
-  check,
+  policy,
   onDeleted,
-}: CheckDeleteDialogProps) {
-  const remove = useDeleteCheck();
+}: PolicyDeleteDialogProps) {
+  const remove = useDeletePolicy();
 
   async function handleConfirm() {
-    if (!check) return;
-    await remove.mutateAsync(check.id);
+    if (!policy) return;
+    await remove.mutateAsync(policy.id);
     onOpenChange(false);
-    toast.add({ title: "Check deleted", type: "success" });
+    toast.add({ title: "Policy deleted", type: "success" });
     onDeleted?.();
   }
 
@@ -34,11 +34,11 @@ export function CheckDeleteDialog({
         if (!next) remove.reset();
         onOpenChange(next);
       }}
-      title="Delete Check"
+      title="Delete Policy"
       description={
-        check
-          ? `${check.name} will be permanently deleted.`
-          : "This check will be permanently deleted."
+        policy
+          ? `${policy.name} will be permanently deleted.`
+          : "This policy will be permanently deleted."
       }
       confirmLabel="Delete"
       variant="destructive"
