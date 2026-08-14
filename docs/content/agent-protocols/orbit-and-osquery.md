@@ -139,6 +139,6 @@ See [Mutual TLS](./mutual-tls) to include a client certificate and key in the fl
 | `POST` | `/api/v1/osquery/distributed/write` | Receive distributed-query results  |
 | `POST` | `/api/v1/osquery/log`               | Receive scheduled report results   |
 
-An invalid node key tells osquery to enroll again. Woodstar does not enable file carving or status-log forwarding.
+An invalid node key tells osquery to enroll again. Woodstar disables file carving and uses TLS-only osquery logging at error severity so scheduled report failures can replace stale results.
 
 Distributed results update host details, software inventory, dynamic labels, policies, reports, and active live queries.

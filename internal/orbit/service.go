@@ -18,7 +18,8 @@ import (
 const orbitCommandLineStartupFlags = `{
 	"disable_carver": true,
 	"carver_disable_function": true,
-	"logger_min_status": 4
+	"logger_plugin": "tls",
+	"logger_min_status": 2
 }`
 
 // ErrInvalidDeviceAuthToken reports a token outside Orbit's canonical UUID form.

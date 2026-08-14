@@ -6,10 +6,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -24,6 +26,7 @@ const (
 	osquerydProviderTimeout       = 5 * time.Second
 	osquerydContainerStartTimeout = 2 * time.Minute
 	osquerydEnrollmentTimeout     = 30 * time.Second
+	osquerydReportTimeout         = 45 * time.Second
 	osquerydCleanupTimeout        = 20 * time.Second
 	osquerydStopTimeout           = 10 * time.Second
 )
@@ -98,6 +101,105 @@ func TestOsqueryd(t *testing.T) {
 	})
 
 	waitForOsquerydHost(t, server, container)
+	report := createOsquerydErrorReport(t, server)
+	waitForOsquerydReportError(t, server, report)
+}
+
+func createOsquerydErrorReport(t *testing.T, server *testServer) adminapi.OsqueryReport {
+	t.Helper()
+
+	labelsResponse, err := server.Admin.ListLabelsWithResponse(
+		t.Context(),
+		&adminapi.ListLabelsParams{LabelType: new(adminapi.ListLabelsParamsLabelType("builtin"))},
+	)
+	labelsResponse = requireAPIResponse(t, "list report target labels", http.StatusOK, labelsResponse, err)
+	if labelsResponse.JSON200 == nil {
+		t.Fatal("list report target labels returned no JSON body")
+	}
+	var allHostsLabelID int64
+	for _, label := range labelsResponse.JSON200.Items {
+		if label.BuiltinKey != nil && *label.BuiltinKey == "all-hosts" {
+			allHostsLabelID = label.Id
+			break
+		}
+	}
+	if allHostsLabelID == 0 {
+		t.Fatal("all-hosts label not found")
+	}
+
+	response, err := server.Admin.CreateOsqueryReportWithResponse(
+		t.Context(),
+		adminapi.OsqueryReportMutation{
+			Name:             "Broken scheduled report",
+			Query:            "SELECT * FROM woodstar_intentional_missing_table;",
+			ScheduleInterval: new(int32(1)),
+			Targets: adminapi.OsqueryReportTargets{
+				Include: []adminapi.LabelRef{{LabelId: allHostsLabelID}},
+				Exclude: []adminapi.LabelRef{},
+			},
+		},
+	)
+	response = requireAPIResponse(t, "create broken osquery report", http.StatusCreated, response, err)
+	if response.JSON201 == nil {
+		t.Fatal("create broken osquery report returned no JSON body")
+	}
+	return *response.JSON201
+}
+
+func waitForOsquerydReportError(
+	t *testing.T,
+	server *testServer,
+	report adminapi.OsqueryReport,
+) {
+	t.Helper()
+
+	ctx, cancel := context.WithTimeout(t.Context(), osquerydReportTimeout)
+	defer cancel()
+	lastResponse := "(no public response yet)"
+
+	for {
+		response, err := server.Admin.ListOsqueryReportSnapshotsWithResponse(ctx, report.Id, nil)
+		if err != nil {
+			lastResponse = err.Error()
+		} else if response != nil {
+			lastResponse = fmt.Sprintf("status=%s body=%s", response.Status(), response.Body)
+			snapshot, ready := osquerydReportErrorSnapshot(response)
+			if ready {
+				if snapshot.Error == nil ||
+					!strings.Contains(*snapshot.Error, "woodstar_intentional_missing_table") ||
+					snapshot.ReportedAt == nil ||
+					len(snapshot.Rows) != 0 || snapshot.ResultRowCount != 0 {
+					t.Fatalf("errored real-osquery report snapshot = %+v", snapshot)
+				}
+				return
+			}
+		}
+
+		if ctx.Err() != nil {
+			t.Fatalf(
+				"wait for real-osquery report error: %v\nlast public response: %s\nWoodstar server logs (tail):\n%s",
+				ctx.Err(),
+				lastResponse,
+				server.logs(),
+			)
+		}
+		timer := time.NewTimer(500 * time.Millisecond)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+		case <-timer.C:
+		}
+	}
+}
+
+func osquerydReportErrorSnapshot(
+	response *adminapi.ListOsqueryReportSnapshotsResponse,
+) (adminapi.OsqueryReportSnapshot, bool) {
+	if response.JSON200 == nil || len(response.JSON200.Items) != 1 {
+		return adminapi.OsqueryReportSnapshot{}, false
+	}
+	snapshot := response.JSON200.Items[0]
+	return snapshot, snapshot.Status == adminapi.OsqueryReportSnapshotStatusError
 }
 
 func osquerydFlags() string {
@@ -120,7 +222,7 @@ func osquerydFlags() string {
 --logger_tls_period=5
 --disable_carver=true
 --carver_disable_function=true
---logger_min_status=4
+--logger_min_status=2
 `
 }
 

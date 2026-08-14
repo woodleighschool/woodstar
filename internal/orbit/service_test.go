@@ -30,7 +30,8 @@ func TestConfigResponseWireShapeMatchesOrbit(t *testing.T) {
 	flags := got.CommandLineStartupFlags
 	if flags["disable_carver"] != true ||
 		flags["carver_disable_function"] != true ||
-		flags["logger_min_status"] != float64(4) {
+		flags["logger_plugin"] != "tls" ||
+		flags["logger_min_status"] != float64(2) {
 		t.Fatalf("command-line flags = %#v", flags)
 	}
 }
