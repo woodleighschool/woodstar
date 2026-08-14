@@ -1,4 +1,4 @@
-import { Eye, MoreHorizontal, Play } from "lucide-react";
+import { CircleX, Eye, MoreHorizontal, Play } from "lucide-react";
 
 import type { DataTableColumnDef } from "@components/data-table/types";
 import { EnumStatusIndicator } from "@components/enum-status-indicator";
@@ -11,6 +11,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@components/ui/dropdown-menu";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@components/ui/hover-card";
 import type { OsqueryPolicyHostStatus, OsqueryPolicyRemediationRunSummary } from "@lib/api";
 import { formatRelative } from "@lib/utils";
 
@@ -49,12 +50,10 @@ export function policyResultFromStatus(
 
 export function createPolicyResultColumns({
   timestampHeader,
-  includeError = false,
   includeRemediation = false,
   includeActions = false,
 }: {
   timestampHeader: "Last Evaluated";
-  includeError?: boolean;
   includeRemediation?: boolean;
   includeActions?: boolean;
 }): DataTableColumnDef<PolicyResultRow>[] {
@@ -63,13 +62,18 @@ export function createPolicyResultColumns({
       accessorKey: "host_name",
       header: () => "Host",
       cell: ({ row }) => (
-        <TextLink
-          to="/hosts/$id"
-          params={{ id: String(row.original.host_id) }}
-          className="font-medium"
-        >
-          {row.original.host_name}
-        </TextLink>
+        <span className="inline-flex items-center gap-1">
+          <TextLink
+            to="/hosts/$id"
+            params={{ id: String(row.original.host_id) }}
+            className="font-medium"
+          >
+            {row.original.host_name}
+          </TextLink>
+          {row.original.error ? (
+            <PolicyResultError hostName={row.original.host_name} error={row.original.error} />
+          ) : null}
+        </span>
       ),
     },
     {
@@ -84,13 +88,6 @@ export function createPolicyResultColumns({
       cell: ({ row }) => (row.original.updated_at ? formatRelative(row.original.updated_at) : "-"),
     },
   ];
-  if (includeError) {
-    columns.push({
-      accessorKey: "error",
-      header: () => "Error",
-      cell: ({ row }) => row.original.error || "-",
-    });
-  }
   if (includeRemediation) {
     columns.push({
       id: "remediation",
@@ -117,6 +114,32 @@ export function createPolicyResultColumns({
     });
   }
   return columns;
+}
+
+function PolicyResultError({ hostName, error }: { hostName: string; error: string }) {
+  return (
+    <HoverCard>
+      <HoverCardTrigger
+        render={
+          <Button
+            type="button"
+            size="icon-xs"
+            variant="ghost"
+            className="text-destructive hover:text-destructive"
+            aria-label={`Policy error for ${hostName}`}
+          >
+            <CircleX />
+          </Button>
+        }
+      />
+      <HoverCardContent
+        align="start"
+        className="w-96 max-w-[calc(100vw-2rem)] break-all whitespace-normal"
+      >
+        {error}
+      </HoverCardContent>
+    </HoverCard>
+  );
 }
 
 function PolicyResultActionsCell({ row }: { row: { original: PolicyResultRow } }) {

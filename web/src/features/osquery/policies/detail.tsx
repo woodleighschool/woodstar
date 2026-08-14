@@ -136,7 +136,6 @@ export function PolicyDetailPage() {
   const resultColumns = useMemo(() => {
     const columns = createPolicyResultColumns({
       timestampHeader: "Last Evaluated",
-      includeError: true,
       includeRemediation: showRemediation,
       includeActions: isAdmin && showRemediation,
     });

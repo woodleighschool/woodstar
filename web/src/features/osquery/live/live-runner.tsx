@@ -56,7 +56,6 @@ const liveReportResultColumns = createReportResultColumns({
 });
 const livePolicyResultColumns = createPolicyResultColumns({
   timestampHeader: "Last Evaluated",
-  includeError: true,
 });
 
 export function LiveRunner({
