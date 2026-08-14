@@ -76,9 +76,7 @@ export function DataTableCellContent({ children }: { children: ReactNode }) {
 }
 
 function hasOverflow(root: HTMLElement) {
-  return [root, ...root.querySelectorAll("*")].some(
-    (element) => element.scrollWidth > element.clientWidth,
-  );
+  return root.scrollWidth > root.clientWidth;
 }
 
 export function DataTableResizeHandle<TData extends DataTableRowData, TValue>({
