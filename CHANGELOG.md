@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.8.15](https://github.com/woodleighschool/woodstar/compare/0.8.14...0.8.15) (2026-08-14)
+
+
+### Features
+
+* **web:** link and standardize count labels ([089d298](https://github.com/woodleighschool/woodstar/commit/089d29893117c27c02d21f2c6daa9d8b1f580306))
+
+
+### Bug Fixes
+
+* **web:** distinguish osquery result errors ([eb0affc](https://github.com/woodleighschool/woodstar/commit/eb0affcf48d1431a5545a3d86702dc650df8d4c4))
+* **web:** measure table cell overflow directly ([de42fac](https://github.com/woodleighschool/woodstar/commit/de42fac9bb410ba071cb512e379a0c36d70d256e))
+
+
+### Code Refactoring
+
+* **web:** remove unused exports ([01cf7c1](https://github.com/woodleighschool/woodstar/commit/01cf7c1c21d1b1872d62eef25761729a09378a0a))
+* **web:** reuse host status indicators ([36d5724](https://github.com/woodleighschool/woodstar/commit/36d572495b213fcfa73a822771e127191828859c))
+
 ## [0.8.14](https://github.com/woodleighschool/woodstar/compare/0.8.13...0.8.14) (2026-08-14)
 
 
