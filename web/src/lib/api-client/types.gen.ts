@@ -978,18 +978,19 @@ export type OsqueryReportMutation = {
 };
 
 export type OsqueryReportSnapshot = {
-    collected_at?: string;
+    error?: string;
     host_id: number;
     host_name: string;
     report_description?: string;
     report_id: number;
     report_name: string;
+    reported_at?: string;
     result_row_count: number;
     returned_row_count: number;
     rows: Array<{
         [key: string]: string;
     }>;
-    status: 'collected' | 'pending';
+    status: 'collected' | 'error' | 'pending';
 };
 
 export type OsqueryReportTargets = {
@@ -2328,7 +2329,7 @@ export type ListHostOsqueryReportsData = {
         page?: number;
         per_page?: number;
         sort?: string;
-        status?: 'collected' | 'pending';
+        status?: 'collected' | 'error' | 'pending';
     };
     url: '/api/hosts/{id}/osquery/reports';
 };
@@ -5266,7 +5267,7 @@ export type ListOsqueryReportSnapshotsData = {
         page?: number;
         per_page?: number;
         sort?: string;
-        status?: 'collected' | 'pending';
+        status?: 'collected' | 'error' | 'pending';
     };
     url: '/api/osquery/reports/{id}/snapshots';
 };

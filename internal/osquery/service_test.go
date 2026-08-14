@@ -67,26 +67,49 @@ func TestEnrollUsesHostIdentifierAsHardwareUUID(t *testing.T) {
 
 func TestLogPropagatesReportPersistenceFailure(t *testing.T) {
 	wantErr := errors.New("database unavailable")
-	service := NewAgentService(Dependencies{
-		HostStore:  &fakeHostStore{host: &hosts.Host{ID: 42}},
-		Heartbeats: &fakeOsqueryHeartbeatRecorder{},
-		ReportStore: fakeReportStore{
-			overwriteErr: wantErr,
+	reportName := queryNameForSQL(kindReport, 7, "select 1;")
+	for _, tc := range []struct {
+		name    string
+		logType string
+		data    json.RawMessage
+	}{
+		{
+			name:    "result",
+			logType: "result",
+			data: json.RawMessage(fmt.Sprintf(`{
+				"name":%q,
+				"unixTime":1778848496,
+				"action":"snapshot",
+				"snapshot":[]
+			}`, reportName)),
 		},
-		Logger: slog.New(slog.DiscardHandler),
-	})
+		{
+			name:    "status",
+			logType: "status",
+			data: json.RawMessage(fmt.Sprintf(
+				`{"unixTime":1778848496,"message":%q}`,
+				scheduledQueryErrorPrefix+reportName+": failed",
+			)),
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			service := NewAgentService(Dependencies{
+				HostStore:  &fakeHostStore{host: &hosts.Host{ID: 42}},
+				Heartbeats: &fakeOsqueryHeartbeatRecorder{},
+				ReportStore: fakeReportStore{
+					overwriteErr: wantErr,
+				},
+				Logger: slog.New(slog.DiscardHandler),
+			})
 
-	_, err := service.Log(context.Background(), "node-key", heartbeats.Contact{}, LogRequest{
-		LogType: "result",
-		Data: json.RawMessage(fmt.Sprintf(`{
-			"name":%q,
-			"unixTime":1778848496,
-			"action":"snapshot",
-			"snapshot":[]
-		}`, queryNameForSQL(kindReport, 7, "select 1;"))),
-	})
-	if !errors.Is(err, wantErr) {
-		t.Fatalf("Log error = %v, want %v", err, wantErr)
+			_, err := service.Log(context.Background(), "node-key", heartbeats.Contact{}, LogRequest{
+				LogType: tc.logType,
+				Data:    tc.data,
+			})
+			if !errors.Is(err, wantErr) {
+				t.Fatalf("Log error = %v, want %v", err, wantErr)
+			}
+		})
 	}
 }
 
@@ -201,6 +224,22 @@ func TestAgentServicePropagatesHeartbeatError(t *testing.T) {
 	_, err := service.Config(t.Context(), "node-key", heartbeats.Contact{})
 	if !errors.Is(err, wantErr) {
 		t.Fatalf("Config error = %v, want %v", err, wantErr)
+	}
+}
+
+func TestConfigEnablesErrorStatusLogs(t *testing.T) {
+	t.Parallel()
+
+	service := newTestAgentService(
+		&fakeOsqueryHeartbeatRecorder{},
+		&fakeHostStore{host: &hosts.Host{ID: 42}},
+	)
+	response, err := service.Config(t.Context(), "node-key", heartbeats.Contact{})
+	if err != nil {
+		t.Fatalf("Config: %v", err)
+	}
+	if got := response.Options["logger_min_status"]; got != "2" {
+		t.Fatalf("logger_min_status = %q, want error severity 2", got)
 	}
 }
 
@@ -344,6 +383,17 @@ func (s fakeReportStore) OverwriteSnapshot(
 	string,
 	int64,
 	[]map[string]string,
+	time.Time,
+) error {
+	return s.overwriteErr
+}
+
+func (s fakeReportStore) OverwriteError(
+	context.Context,
+	int64,
+	string,
+	int64,
+	string,
 	time.Time,
 ) error {
 	return s.overwriteErr

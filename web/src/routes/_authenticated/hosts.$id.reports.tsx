@@ -11,7 +11,7 @@ const SEARCH_DEFAULTS = {
 } as const;
 
 const searchSchema = createTableSearchSchema(
-  ["report_name", "status", "collected_at", "result_row_count"],
+  ["report_name", "status", "reported_at", "result_row_count"],
   {
     defaultSort: SEARCH_DEFAULTS.sort,
   },

@@ -278,8 +278,8 @@ func TestHostSnapshotsIncludeCompleteLatestState(t *testing.T) {
 		withRows.Rows[1]["name"] != "Bravo" {
 		t.Fatalf("Rows = %#v, want complete Alpha and Bravo snapshot", withRows.Rows)
 	}
-	if withRows.CollectedAt == nil || !withRows.CollectedAt.Equal(fetchedAt) {
-		t.Fatalf("CollectedAt = %v, want %s", withRows.CollectedAt, fetchedAt)
+	if withRows.ReportedAt == nil || !withRows.ReportedAt.Equal(fetchedAt) {
+		t.Fatalf("ReportedAt = %v, want %s", withRows.ReportedAt, fetchedAt)
 	}
 
 	empty := byID[reportEmpty.ID]
@@ -287,12 +287,12 @@ func TestHostSnapshotsIncludeCompleteLatestState(t *testing.T) {
 		t.Fatalf("empty Rows = %#v, want empty snapshot", empty.Rows)
 	}
 	wantEmptyFetched := fetchedAt.Add(time.Minute)
-	if empty.CollectedAt == nil || !empty.CollectedAt.Equal(wantEmptyFetched) {
-		t.Fatalf("empty CollectedAt = %v, want %s", empty.CollectedAt, wantEmptyFetched)
+	if empty.ReportedAt == nil || !empty.ReportedAt.Equal(wantEmptyFetched) {
+		t.Fatalf("empty ReportedAt = %v, want %s", empty.ReportedAt, wantEmptyFetched)
 	}
 
 	off := byID[reportOff.ID]
-	if off.CollectedAt != nil || off.Rows == nil || len(off.Rows) != 0 {
+	if off.ReportedAt != nil || off.Rows == nil || len(off.Rows) != 0 {
 		t.Fatalf("disabled report snapshot = %+v, want pending assigned report", off)
 	}
 	if withRows.Status != ReportSnapshotStatusCollected ||
@@ -356,13 +356,13 @@ func TestSnapshotsIncludePendingTargets(t *testing.T) {
 	}
 	collected := byHostID[collectedHost.ID]
 	if collected.Status != ReportSnapshotStatusCollected ||
-		collected.CollectedAt == nil || !collected.CollectedAt.Equal(collectedAt) ||
+		collected.ReportedAt == nil || !collected.ReportedAt.Equal(collectedAt) ||
 		len(collected.Rows) != 1 || collected.Rows[0]["name"] != "Alpha" {
 		t.Fatalf("collected snapshot = %+v, want Alpha observation", collected)
 	}
 	pending := byHostID[pendingHost.ID]
 	if pending.Status != ReportSnapshotStatusPending ||
-		pending.CollectedAt != nil || len(pending.Rows) != 0 {
+		pending.ReportedAt != nil || len(pending.Rows) != 0 {
 		t.Fatalf("pending snapshot = %+v, want unfetched target", pending)
 	}
 
@@ -383,6 +383,56 @@ func TestSnapshotsIncludePendingTargets(t *testing.T) {
 	}
 	if len(pendingOnly) != 1 || pendingOnly[0].HostID != pendingHost.ID {
 		t.Fatalf("pending snapshots = %+v, want pending host", pendingOnly)
+	}
+}
+
+func TestSnapshotsFilterAndSearchErrors(t *testing.T) {
+	store, labelStore, hostStore, ctx := newPostgresReportStore(t)
+	errorHost := enrollTestHost(t, ctx, hostStore, "report-error-host")
+	_ = enrollTestHost(t, ctx, hostStore, "report-pending-host")
+	allHostsID := allHostsLabelID(t, ctx, labelStore)
+	report, err := store.Create(ctx, ReportCreateMutation{ReportMutation: ReportMutation{
+		Name:             "Error report",
+		Query:            "select * from app_sso_platform_info;",
+		ScheduleInterval: 60,
+		Targets:          reportTargets([]int64{allHostsID}, nil),
+	}})
+	if err != nil {
+		t.Fatalf("create report: %v", err)
+	}
+	reportedAt := time.Date(2026, 8, 14, 3, 30, 0, 0, time.UTC)
+	if err := store.OverwriteError(
+		ctx,
+		report.ID,
+		testQueryHash(report.Query),
+		errorHost.ID,
+		`error generating table: missing "upn" key`,
+		reportedAt,
+	); err != nil {
+		t.Fatalf("store report error: %v", err)
+	}
+
+	errorOnly, count, err := store.Snapshots(ctx, report.ID, ReportSnapshotListParams{
+		Status: ReportSnapshotStatusError,
+	})
+	if err != nil {
+		t.Fatalf("list error snapshots: %v", err)
+	}
+	if count != 1 || len(errorOnly) != 1 || errorOnly[0].HostID != errorHost.ID ||
+		errorOnly[0].Status != ReportSnapshotStatusError ||
+		errorOnly[0].Error != `error generating table: missing "upn" key` ||
+		errorOnly[0].ReportedAt == nil || !errorOnly[0].ReportedAt.Equal(reportedAt) {
+		t.Fatalf("error snapshots = %+v count=%d, want stored host error", errorOnly, count)
+	}
+
+	searchResults, count, err := store.Snapshots(ctx, report.ID, ReportSnapshotListParams{
+		ListParams: listing.Params{Q: "missing"},
+	})
+	if err != nil {
+		t.Fatalf("search report errors: %v", err)
+	}
+	if count != 1 || len(searchResults) != 1 || searchResults[0].HostID != errorHost.ID {
+		t.Fatalf("error search = %+v count=%d, want error host", searchResults, count)
 	}
 }
 
@@ -538,8 +588,97 @@ func TestOverwriteSnapshotReplacesHostStateAndRejectsOlderObservations(t *testin
 		t.Fatalf("report snapshots after empty observation: %v", err)
 	}
 	if len(got) != 1 || len(got[0].Rows) != 0 ||
-		got[0].CollectedAt == nil || !got[0].CollectedAt.Equal(emptyFetchedAt) {
+		got[0].ReportedAt == nil || !got[0].ReportedAt.Equal(emptyFetchedAt) {
 		t.Fatalf("Snapshots after empty observation = %+v, want collected empty snapshot", got)
+	}
+}
+
+func TestReportObservationOrderingAcrossResultsAndErrors(t *testing.T) {
+	store, labelStore, hostStore, ctx := newPostgresReportStore(t)
+	host := enrollTestHost(t, ctx, hostStore, "report-error-order-host")
+	allHostsID := allHostsLabelID(t, ctx, labelStore)
+	report, err := store.Create(ctx, ReportCreateMutation{ReportMutation: ReportMutation{
+		Name:             "Error ordering report",
+		Query:            "select name from apps;",
+		ScheduleInterval: 60,
+		Targets:          reportTargets([]int64{allHostsID}, nil),
+	}})
+	if err != nil {
+		t.Fatalf("create report: %v", err)
+	}
+
+	resultReportedAt := time.Date(2026, 5, 14, 9, 0, 0, 0, time.UTC)
+	if err := store.OverwriteSnapshot(
+		ctx,
+		report.ID,
+		testQueryHash(report.Query),
+		host.ID,
+		[]map[string]string{{"name": "Initial"}},
+		resultReportedAt,
+	); err != nil {
+		t.Fatalf("overwrite initial snapshot: %v", err)
+	}
+
+	errorReportedAt := resultReportedAt.Add(time.Hour)
+	if err := store.OverwriteError(
+		ctx,
+		report.ID,
+		testQueryHash(report.Query),
+		host.ID,
+		"error generating table: unavailable",
+		errorReportedAt,
+	); err != nil {
+		t.Fatalf("overwrite report error: %v", err)
+	}
+	if err := store.OverwriteSnapshot(
+		ctx,
+		report.ID,
+		testQueryHash(report.Query),
+		host.ID,
+		[]map[string]string{{"name": "Stale after error"}},
+		resultReportedAt.Add(30*time.Minute),
+	); err != nil {
+		t.Fatalf("overwrite stale snapshot after error: %v", err)
+	}
+	got, _, err := store.Snapshots(ctx, report.ID, ReportSnapshotListParams{})
+	if err != nil {
+		t.Fatalf("report snapshots after error: %v", err)
+	}
+	if len(got) != 1 || got[0].Status != ReportSnapshotStatusError ||
+		got[0].Error != "error generating table: unavailable" || len(got[0].Rows) != 0 ||
+		got[0].ReportedAt == nil || !got[0].ReportedAt.Equal(errorReportedAt) {
+		t.Fatalf("Snapshots after error = %+v, want latest error observation", got)
+	}
+
+	recoveredAt := errorReportedAt.Add(time.Hour)
+	if err := store.OverwriteSnapshot(
+		ctx,
+		report.ID,
+		testQueryHash(report.Query),
+		host.ID,
+		[]map[string]string{{"name": "Recovered"}},
+		recoveredAt,
+	); err != nil {
+		t.Fatalf("overwrite recovery snapshot: %v", err)
+	}
+	if err := store.OverwriteError(
+		ctx,
+		report.ID,
+		testQueryHash(report.Query),
+		host.ID,
+		"stale error",
+		errorReportedAt.Add(30*time.Minute),
+	); err != nil {
+		t.Fatalf("overwrite stale error: %v", err)
+	}
+	got, _, err = store.Snapshots(ctx, report.ID, ReportSnapshotListParams{})
+	if err != nil {
+		t.Fatalf("report snapshots after recovery: %v", err)
+	}
+	if len(got) != 1 || got[0].Status != ReportSnapshotStatusCollected || got[0].Error != "" ||
+		len(got[0].Rows) != 1 || got[0].Rows[0]["name"] != "Recovered" ||
+		got[0].ReportedAt == nil || !got[0].ReportedAt.Equal(recoveredAt) {
+		t.Fatalf("Snapshots after recovery = %+v, want collected recovery observation", got)
 	}
 }
 
@@ -602,7 +741,7 @@ func TestUpdateInvalidatesResultsWhenQueryChanges(t *testing.T) {
 	if err != nil {
 		t.Fatalf("results after query edit: %v", err)
 	}
-	if len(got) != 1 || got[0].CollectedAt != nil || len(got[0].Rows) != 0 {
+	if len(got) != 1 || got[0].ReportedAt != nil || len(got[0].Rows) != 0 {
 		t.Fatalf("snapshots after query edit = %+v, want pending target", got)
 	}
 	if err := store.OverwriteSnapshot(
@@ -619,7 +758,7 @@ func TestUpdateInvalidatesResultsWhenQueryChanges(t *testing.T) {
 	if err != nil {
 		t.Fatalf("results after obsolete snapshot: %v", err)
 	}
-	if len(got) != 1 || got[0].CollectedAt != nil || len(got[0].Rows) != 0 {
+	if len(got) != 1 || got[0].ReportedAt != nil || len(got[0].Rows) != 0 {
 		t.Fatalf("snapshots after obsolete observation = %+v, want pending target", got)
 	}
 	if err := store.OverwriteSnapshot(
@@ -687,7 +826,7 @@ func TestUpdateInvalidatesResultsWhenMinimumVersionChanges(t *testing.T) {
 	if err != nil {
 		t.Fatalf("results after minimum version edit: %v", err)
 	}
-	if len(got) != 1 || got[0].CollectedAt != nil || len(got[0].Rows) != 0 {
+	if len(got) != 1 || got[0].ReportedAt != nil || len(got[0].Rows) != 0 {
 		t.Fatalf("snapshots after minimum version edit = %+v, want pending target", got)
 	}
 }

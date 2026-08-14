@@ -42,7 +42,7 @@ import {
 } from "./query-results";
 
 const EMPTY_REPORT_SNAPSHOTS: ReportResultRow[] = [];
-const reportSnapshotColumns = createReportResultColumns({ timestamp: "collected" });
+const reportSnapshotColumns = createReportResultColumns({ timestamp: "snapshot" });
 
 const STATUS_FILTER_KEYS = [{ id: "status" }] as const;
 const routeApi = getRouteApi("/_authenticated/osquery/reports/$id/");
@@ -128,7 +128,8 @@ export function ReportDetailPage() {
   const exportMetadata: DataTableExportOptions<ReportResultRow>["columns"] = [
     { header: "Host", value: (row) => row.host_name },
     { header: "Status", value: snapshotStatusLabel },
-    { header: "Last Collected", value: (row) => row.collected_at },
+    { header: "Last Reported", value: (row) => row.reported_at },
+    { header: "Error", value: (row) => row.error },
   ];
   const exportOptions: DataTableExportOptions<ReportResultRow> = {
     filename: `osquery-report-${id}-results`,

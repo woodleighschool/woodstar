@@ -643,6 +643,7 @@ func (e MunkiPackageStateStatus) Valid() bool {
 // Defines values for OsqueryReportSnapshotStatus.
 const (
 	OsqueryReportSnapshotStatusCollected OsqueryReportSnapshotStatus = "collected"
+	OsqueryReportSnapshotStatusError     OsqueryReportSnapshotStatus = "error"
 	OsqueryReportSnapshotStatusPending   OsqueryReportSnapshotStatus = "pending"
 )
 
@@ -650,6 +651,8 @@ const (
 func (e OsqueryReportSnapshotStatus) Valid() bool {
 	switch e {
 	case OsqueryReportSnapshotStatusCollected:
+		return true
+	case OsqueryReportSnapshotStatusError:
 		return true
 	case OsqueryReportSnapshotStatusPending:
 		return true
@@ -1339,6 +1342,7 @@ func (e ListLabelsParamsLabelMembershipType) Valid() bool {
 // Defines values for ListOsqueryReportSnapshotsParamsStatus.
 const (
 	ListOsqueryReportSnapshotsParamsStatusCollected ListOsqueryReportSnapshotsParamsStatus = "collected"
+	ListOsqueryReportSnapshotsParamsStatusError     ListOsqueryReportSnapshotsParamsStatus = "error"
 	ListOsqueryReportSnapshotsParamsStatusPending   ListOsqueryReportSnapshotsParamsStatus = "pending"
 )
 
@@ -1346,6 +1350,8 @@ const (
 func (e ListOsqueryReportSnapshotsParamsStatus) Valid() bool {
 	switch e {
 	case ListOsqueryReportSnapshotsParamsStatusCollected:
+		return true
+	case ListOsqueryReportSnapshotsParamsStatusError:
 		return true
 	case ListOsqueryReportSnapshotsParamsStatusPending:
 		return true
@@ -2342,12 +2348,13 @@ type OsqueryReportMutation struct {
 
 // OsqueryReportSnapshot defines model for OsqueryReportSnapshot.
 type OsqueryReportSnapshot struct {
-	CollectedAt       *time.Time                  `json:"collected_at,omitempty"`
+	Error             *string                     `json:"error,omitempty"`
 	HostId            int64                       `json:"host_id"`
 	HostName          string                      `json:"host_name"`
 	ReportDescription *string                     `json:"report_description,omitempty"`
 	ReportId          int64                       `json:"report_id"`
 	ReportName        string                      `json:"report_name"`
+	ReportedAt        *time.Time                  `json:"reported_at,omitempty"`
 	ResultRowCount    int32                       `json:"result_row_count"`
 	ReturnedRowCount  int32                       `json:"returned_row_count"`
 	Rows              []map[string]string         `json:"rows"`

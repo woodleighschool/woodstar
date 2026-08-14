@@ -23,6 +23,7 @@ import {
   SnapshotResultRows,
   snapshotStatusLabel,
 } from "@features/osquery/reports/query-results";
+import { OsqueryResultError } from "@features/osquery/result-error";
 import type { OsqueryReportSnapshot } from "@lib/api";
 import { formatRelative } from "@lib/utils";
 
@@ -45,13 +46,17 @@ const hostReportColumns: DataTableColumnDef<OsqueryReportSnapshot>[] = [
     header: () => "Report",
     cell: ({ row }) => (
       <div className="flex flex-col gap-0.5">
-        <TextLink
-          to="/osquery/reports/$id"
-          params={{ id: String(row.original.report_id) }}
-          className="w-fit"
-        >
-          {row.original.report_name}
-        </TextLink>
+        <span className="inline-flex w-fit items-center gap-1">
+          <TextLink to="/osquery/reports/$id" params={{ id: String(row.original.report_id) }}>
+            {row.original.report_name}
+          </TextLink>
+          {row.original.error ? (
+            <OsqueryResultError
+              label={`Report error for ${row.original.report_name}`}
+              error={row.original.error}
+            />
+          ) : null}
+        </span>
         {row.original.report_description ? (
           <span className="text-xs whitespace-normal text-muted-foreground">
             {row.original.report_description}
@@ -68,11 +73,10 @@ const hostReportColumns: DataTableColumnDef<OsqueryReportSnapshot>[] = [
     cell: ({ row }) => <ReportResultStatus row={row.original} />,
   },
   {
-    id: "collected_at",
-    accessorKey: "collected_at",
-    header: () => "Last Collected",
-    cell: ({ row }) =>
-      row.original.collected_at ? formatRelative(row.original.collected_at) : "-",
+    id: "reported_at",
+    accessorKey: "reported_at",
+    header: () => "Last Reported",
+    cell: ({ row }) => (row.original.reported_at ? formatRelative(row.original.reported_at) : "-"),
   },
   {
     id: "result_row_count",
@@ -149,7 +153,8 @@ export function HostOsqueryReportsTab({ hostId }: { hostId: number | null }) {
   const exportMetadata: DataTableExportOptions<OsqueryReportSnapshot>["columns"] = [
     { header: "Report", value: (row) => row.report_name },
     { header: "Status", value: snapshotStatusLabel },
-    { header: "Last Collected", value: (row) => row.collected_at },
+    { header: "Last Reported", value: (row) => row.reported_at },
+    { header: "Error", value: (row) => row.error },
   ];
   const exportOptions: DataTableExportOptions<OsqueryReportSnapshot> = {
     filename: `host-${hostId}-osquery-reports`,

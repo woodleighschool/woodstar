@@ -51,8 +51,7 @@ import { ShowQueryButton } from "./query-actions";
 type LiveRunKind = "report" | "policy";
 type LiveRunStep = "targets" | "run";
 const liveReportResultColumns = createReportResultColumns({
-  timestamp: "reported",
-  includeError: true,
+  timestamp: "live",
 });
 const livePolicyResultColumns = createPolicyResultColumns({
   timestampHeader: "Last Evaluated",
