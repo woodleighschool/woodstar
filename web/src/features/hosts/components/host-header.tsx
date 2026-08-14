@@ -11,7 +11,7 @@ export function HostHeader({ host, actions }: { host: Host; actions?: ReactNode 
     <PageHeader
       title={host.display_name}
       icon={<Laptop />}
-      context={<HostOnlineDot status={host.status} />}
+      context={<HostOnlineDot status={host.status} animated />}
       actions={actions}
       meta={
         host.inventory_updated_at ? (
