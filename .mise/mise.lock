@@ -122,7 +122,7 @@ version = "3.27.3"
 backend = "go:github.com/pressly/goose/v3/cmd/goose"
 
 [[tools."go:golang.org/x/vuln/cmd/govulncheck"]]
-version = "1.6.0"
+version = "1.7.0"
 backend = "go:golang.org/x/vuln/cmd/govulncheck"
 
 [[tools.golangci-lint]]
