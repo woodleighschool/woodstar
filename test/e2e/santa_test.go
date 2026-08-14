@@ -605,7 +605,7 @@ WHERE host_id = $1`, hostID).Scan(
 	var convergedNoConfigurationPreflight syncv1.PreflightResponse
 	client.postFixture(
 		"preflight",
-		"preflight_normal.json",
+		"preflight_empty.json",
 		nil,
 		&syncv1.PreflightRequest{},
 		&convergedNoConfigurationPreflight,
