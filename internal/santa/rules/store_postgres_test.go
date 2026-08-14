@@ -276,8 +276,8 @@ func TestListRuleStatusesForHostEmptyHost(t *testing.T) {
 
 func TestRuleStatusesCanonicalizeBundleCollisions(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	hostStore := hosts.NewStore(db)
 	labelStore := labels.NewStore(db)
+	hostStore := hosts.NewStore(db, labelStore)
 	ruleStore := rules.NewStore(db)
 	configurationID := createSantaRuleConfiguration(t, db, "Santa Rule Status Collisions")
 
@@ -339,6 +339,7 @@ func TestRuleStatusesCanonicalizeBundleCollisions(t *testing.T) {
 	syncType, err := syncStore.PreparePending(
 		ctx,
 		host.ID,
+		strings.Repeat("a", 64),
 		targets,
 		syncstate.RuleCounts{},
 		false,
@@ -568,7 +569,7 @@ func TestRuleStoreListsMultipleRuleTypes(t *testing.T) {
 func TestRuleIdentityIsUniqueWithinConfiguration(t *testing.T) {
 	db, ctx := testdb.Open(t)
 	store := rules.NewStore(db)
-	host, err := hosts.NewStore(db).UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
+	host, err := hosts.NewStore(db, labels.NewStore(db)).UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
 		Hardware:     hosts.HostHardware{UUID: "santa-rule-configuration-boundary"},
 		OrbitNodeKey: "santa-rule-configuration-boundary-orbit",
 	})
@@ -737,11 +738,13 @@ func createSantaRuleConfiguration(t *testing.T, db *pgxpool.Pool, name string) i
 	t.Helper()
 
 	configuration, err := configurations.NewStore(db).Create(t.Context(), configurations.ConfigurationMutation{
-		Name:                     name,
-		ClientMode:               configurations.ClientModeMonitor,
-		OverrideFileAccessAction: configurations.FileAccessActionNone,
-		FullSyncIntervalSeconds:  600,
-		BatchSize:                50,
+		Name: name,
+		SyncSettings: configurations.SyncSettings{
+			ClientMode:               configurations.ClientModeMonitor,
+			OverrideFileAccessAction: configurations.FileAccessActionNone,
+			FullSyncIntervalSeconds:  600,
+			BatchSize:                50,
+		},
 	})
 	if err != nil {
 		t.Fatalf("create configuration %q: %v", name, err)

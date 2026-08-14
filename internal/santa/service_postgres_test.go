@@ -53,11 +53,13 @@ func TestSyncServiceRuleDownloadUsesPreflightSnapshot(t *testing.T) {
 		t.Fatalf("set label membership: %v", err)
 	}
 	configuration, err := configurationStore.Create(ctx, configurations.ConfigurationMutation{
-		Name:                     "Santa Sync",
-		ClientMode:               configurations.ClientModeMonitor,
-		OverrideFileAccessAction: configurations.FileAccessActionNone,
-		FullSyncIntervalSeconds:  600,
-		BatchSize:                50,
+		Name: "Santa Sync",
+		SyncSettings: configurations.SyncSettings{
+			ClientMode:               configurations.ClientModeMonitor,
+			OverrideFileAccessAction: configurations.FileAccessActionNone,
+			FullSyncIntervalSeconds:  600,
+			BatchSize:                50,
+		},
 		Targets: configurations.ConfigurationTargets{
 			Include: []targeting.LabelRef{{LabelID: labelID}},
 		},
