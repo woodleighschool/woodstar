@@ -62,28 +62,28 @@ export function createPolicyResultColumns({
       accessorKey: "host_name",
       header: () => "Host",
       cell: ({ row }) => (
-        <span className="inline-flex items-center gap-1">
-          <TextLink
-            to="/hosts/$id"
-            params={{ id: String(row.original.host_id) }}
-            className="font-medium"
-          >
-            {row.original.host_name}
-          </TextLink>
-          {row.original.error ? (
-            <OsqueryResultError
-              label={`Policy error for ${row.original.host_name}`}
-              error={row.original.error}
-            />
-          ) : null}
-        </span>
+        <TextLink
+          to="/hosts/$id"
+          params={{ id: String(row.original.host_id) }}
+          className="font-medium"
+        >
+          {row.original.host_name}
+        </TextLink>
       ),
     },
     {
       accessorKey: "status",
       header: () => "Status",
       enableColumnFilter: true,
-      cell: ({ row }) => <PolicyResultStatus status={row.original.status} />,
+      cell: ({ row }) =>
+        row.original.status === "error" && row.original.error ? (
+          <OsqueryResultError
+            label={`Policy error for ${row.original.host_name}`}
+            error={row.original.error}
+          />
+        ) : (
+          <PolicyResultStatus status={row.original.status} />
+        ),
     },
     {
       accessorKey: "updated_at",

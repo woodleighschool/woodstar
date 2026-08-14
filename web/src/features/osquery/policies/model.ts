@@ -22,7 +22,7 @@ export const POLICY_RESULT_STATUSES = {
   },
   error: {
     name: "Error",
-    variant: "error",
+    variant: "warning",
   },
   stopped: {
     name: "Stopped",

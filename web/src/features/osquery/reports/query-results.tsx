@@ -46,7 +46,7 @@ export const REPORT_SNAPSHOT_STATUS_OPTIONS = [
 const REPORT_RESULT_STATUSES = {
   collected: { name: "Collected", variant: "success" },
   pending: { name: "Pending", variant: "default" },
-  error: { name: "Error", variant: "error" },
+  error: { name: "Error", variant: "warning" },
   stopped: { name: "Stopped", variant: "default" },
 } satisfies StatusMetadataMap<ReportResultStatus>;
 
@@ -101,17 +101,9 @@ export function createReportResultColumns({
       accessorKey: "host_name",
       header: () => "Host",
       cell: ({ row }) => (
-        <span className="inline-flex items-center gap-1">
-          <TextLink to="/hosts/$id" params={{ id: String(row.original.host_id) }}>
-            {row.original.host_name}
-          </TextLink>
-          {row.original.error ? (
-            <OsqueryResultError
-              label={`Report error for ${row.original.host_name}`}
-              error={row.original.error}
-            />
-          ) : null}
-        </span>
+        <TextLink to="/hosts/$id" params={{ id: String(row.original.host_id) }}>
+          {row.original.host_name}
+        </TextLink>
       ),
     },
     {
@@ -119,7 +111,15 @@ export function createReportResultColumns({
       accessorKey: "status",
       header: () => "Status",
       enableColumnFilter: true,
-      cell: ({ row }) => <ReportResultStatus row={row.original} />,
+      cell: ({ row }) =>
+        row.original.status === "error" && row.original.error ? (
+          <OsqueryResultError
+            label={`Report error for ${row.original.host_name}`}
+            error={row.original.error}
+          />
+        ) : (
+          <ReportResultStatus row={row.original} />
+        ),
     },
     timestampColumn,
     {

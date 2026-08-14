@@ -1,6 +1,6 @@
-import { CircleX } from "lucide-react";
+import { Info } from "lucide-react";
 
-import { Button } from "@components/ui/button";
+import { Badge } from "@components/ui/badge";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@components/ui/hover-card";
 
 export function OsqueryResultError({ label, error }: { label: string; error: string }) {
@@ -8,15 +8,14 @@ export function OsqueryResultError({ label, error }: { label: string; error: str
     <HoverCard>
       <HoverCardTrigger
         render={
-          <Button
-            type="button"
-            size="icon-xs"
-            variant="ghost"
-            className="text-destructive hover:text-destructive"
-            aria-label={label}
+          <Badge
+            variant="warning"
+            className="h-auto py-1 leading-none"
+            render={<button type="button" aria-label={label} />}
           >
-            <CircleX />
-          </Button>
+            Error
+            <Info data-icon="inline-end" />
+          </Badge>
         }
       />
       <HoverCardContent
