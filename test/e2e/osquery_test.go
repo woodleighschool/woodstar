@@ -88,6 +88,18 @@ type osqueryTestLogRequest struct {
 	Data    json.RawMessage `json:"data"`
 }
 
+type osqueryTestResultLog struct {
+	Name     string              `json:"name"`
+	UnixTime int64               `json:"unixTime"`
+	Action   string              `json:"action"`
+	Snapshot []map[string]string `json:"snapshot"`
+}
+
+type osqueryTestStatusLog struct {
+	UnixTime int64  `json:"unixTime"`
+	Message  string `json:"message"`
+}
+
 func TestOsquery(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear protocol lifecycle; splitting would hide the order being proved.
 	const (
 		enrollSecret   = "osquery-integration-secret-0123456789abcdef"
@@ -308,7 +320,7 @@ func TestOsquery(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear proto
 	for name, want := range map[string]string{
 		"disable_distributed": "false",
 		"disable_carver":      "true",
-		"logger_min_status":   "4",
+		"logger_min_status":   "2",
 	} {
 		if config.Options[name] != want {
 			t.Fatalf("config option %q = %q, want %q", name, config.Options[name], want)
@@ -575,12 +587,7 @@ func TestOsquery(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear proto
 		t.Fatal("status log returned node_invalid")
 	}
 
-	snapshotData, err := json.Marshal([]struct {
-		Name     string              `json:"name"`
-		UnixTime int64               `json:"unixTime"`
-		Action   string              `json:"action"`
-		Snapshot []map[string]string `json:"snapshot"`
-	}{
+	snapshotData, err := json.Marshal([]osqueryTestResultLog{
 		{
 			Name: scheduleName, UnixTime: reportUnixTime, Action: "snapshot",
 			Snapshot: []map[string]string{
@@ -825,7 +832,7 @@ func TestOsquery(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear proto
 	snapshot := snapshots.Items[0]
 	if snapshot.ReportName != reportMutation.Name || snapshot.HostName != "Osquery Integration Mac" ||
 		snapshot.Status != adminapi.OsqueryReportSnapshotStatusCollected ||
-		snapshot.CollectedAt == nil || !snapshot.CollectedAt.Equal(time.Unix(reportUnixTime, 0).UTC()) ||
+		snapshot.ReportedAt == nil || !snapshot.ReportedAt.Equal(time.Unix(reportUnixTime, 0).UTC()) ||
 		snapshot.ResultRowCount != 2 || snapshot.ReturnedRowCount != 2 {
 		t.Fatalf("report snapshot metadata = %+v, want report, host, and submitted time", snapshot)
 	}
@@ -838,6 +845,100 @@ func TestOsquery(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear proto
 	}
 	if resultVersions["Alpha"] != "1.0" || resultVersions["Bravo"] != "2.0" {
 		t.Fatalf("report snapshot rows = %+v, want Alpha 1.0 and Bravo 2.0", resultVersions)
+	}
+
+	reportError := `error generating table: missing "upn" key`
+	reportErrorData, err := json.Marshal([]osqueryTestStatusLog{{
+		UnixTime: reportUnixTime + 1,
+		Message:  "Error executing scheduled query " + scheduleName + ": " + reportError,
+	}})
+	if err != nil {
+		t.Fatalf("encode report error: %v", err)
+	}
+	postJSON(
+		t,
+		agentClient,
+		server.BaseURL+"/api/v1/osquery/log",
+		osqueryTestLogRequest{NodeKey: enroll.NodeKey, LogType: "status", Data: reportErrorData},
+		&statusAck,
+	)
+	if statusAck.NodeInvalid {
+		t.Fatal("report error log returned node_invalid")
+	}
+
+	errorStatus := adminapi.ListOsqueryReportSnapshotsParamsStatusError
+	errorSnapshotsResponse, err := server.Admin.ListOsqueryReportSnapshotsWithResponse(
+		t.Context(),
+		report.Id,
+		&adminapi.ListOsqueryReportSnapshotsParams{Status: &errorStatus},
+	)
+	errorSnapshotsResponse = requireAPIResponse(
+		t,
+		"filter errored osquery report snapshots",
+		http.StatusOK,
+		errorSnapshotsResponse,
+		err,
+	)
+	if errorSnapshotsResponse.JSON200 == nil ||
+		errorSnapshotsResponse.JSON200.Count != 1 ||
+		len(errorSnapshotsResponse.JSON200.Items) != 1 {
+		t.Fatalf(
+			"errored report snapshots = %+v, want one error snapshot",
+			errorSnapshotsResponse.JSON200,
+		)
+	}
+	errorSnapshot := errorSnapshotsResponse.JSON200.Items[0]
+	if errorSnapshot.Status != adminapi.OsqueryReportSnapshotStatusError ||
+		errorSnapshot.Error == nil || *errorSnapshot.Error != reportError ||
+		errorSnapshot.ReportedAt == nil ||
+		!errorSnapshot.ReportedAt.Equal(time.Unix(reportUnixTime+1, 0).UTC()) ||
+		len(errorSnapshot.Rows) != 0 || errorSnapshot.ResultRowCount != 0 {
+		t.Fatalf("errored report snapshot = %+v, want latest error without stale rows", errorSnapshot)
+	}
+
+	recoveryData, err := json.Marshal([]osqueryTestResultLog{{
+		Name:     scheduleName,
+		UnixTime: reportUnixTime + 2,
+		Action:   "snapshot",
+		Snapshot: []map[string]string{{"name": "Recovered", "version": "2.0"}},
+	}})
+	if err != nil {
+		t.Fatalf("encode report recovery: %v", err)
+	}
+	postJSON(
+		t,
+		agentClient,
+		server.BaseURL+"/api/v1/osquery/log",
+		osqueryTestLogRequest{NodeKey: enroll.NodeKey, LogType: "result", Data: recoveryData},
+		&resultAck,
+	)
+	if resultAck.NodeInvalid {
+		t.Fatal("report recovery log returned node_invalid")
+	}
+
+	recoveredSnapshotsResponse, err := server.Admin.ListOsqueryReportSnapshotsWithResponse(
+		t.Context(),
+		report.Id,
+		nil,
+	)
+	recoveredSnapshotsResponse = requireAPIResponse(
+		t,
+		"list recovered osquery report snapshots",
+		http.StatusOK,
+		recoveredSnapshotsResponse,
+		err,
+	)
+	if recoveredSnapshotsResponse.JSON200 == nil ||
+		len(recoveredSnapshotsResponse.JSON200.Items) != 1 {
+		t.Fatalf("recovered report snapshots = %+v, want one snapshot", recoveredSnapshotsResponse.JSON200)
+	}
+	recoveredSnapshot := recoveredSnapshotsResponse.JSON200.Items[0]
+	if recoveredSnapshot.Status != adminapi.OsqueryReportSnapshotStatusCollected ||
+		recoveredSnapshot.Error != nil || len(recoveredSnapshot.Rows) != 1 ||
+		recoveredSnapshot.Rows[0]["name"] != "Recovered" ||
+		recoveredSnapshot.ReportedAt == nil ||
+		!recoveredSnapshot.ReportedAt.Equal(time.Unix(reportUnixTime+2, 0).UTC()) {
+		t.Fatalf("recovered report snapshot = %+v, want newer collected result", recoveredSnapshot)
 	}
 
 	collectedStatus := adminapi.ListOsqueryReportSnapshotsParamsStatusCollected

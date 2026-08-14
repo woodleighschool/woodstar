@@ -2680,8 +2680,7 @@ components:
     OsqueryReportSnapshot:
       additionalProperties: false
       properties:
-        collected_at:
-          format: date-time
+        error:
           type: string
         host_id:
           format: int64
@@ -2694,6 +2693,9 @@ components:
           format: int64
           type: integer
         report_name:
+          type: string
+        reported_at:
+          format: date-time
           type: string
         result_row_count:
           format: int32
@@ -2710,6 +2712,7 @@ components:
         status:
           enum:
             - collected
+            - error
             - pending
           type: string
       required:
@@ -5289,6 +5292,7 @@ paths:
           schema:
             enum:
               - collected
+              - error
               - pending
             type: string
       responses:
@@ -9204,6 +9208,7 @@ paths:
           schema:
             enum:
               - collected
+              - error
               - pending
             type: string
       responses:

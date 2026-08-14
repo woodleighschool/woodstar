@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -14,6 +15,8 @@ import (
 	"github.com/woodleighschool/woodstar/internal/postgres"
 )
 
+const maxReportErrorRunes = 4096
+
 // OverwriteSnapshot replaces a host's latest snapshot when the report query
 // and assignment are still current. Older observations never replace newer
 // state.
@@ -23,14 +26,62 @@ func (s *Store) OverwriteSnapshot(
 	queryHash string,
 	hostID int64,
 	rows []map[string]string,
-	collectedAt time.Time,
+	reportedAt time.Time,
 ) error {
-	if collectedAt.IsZero() {
-		collectedAt = time.Now().UTC()
-	}
 	snapshotRows, err := json.Marshal(normalizeSnapshotRows(rows))
 	if err != nil {
 		return err
+	}
+	return s.overwriteObservation(
+		ctx,
+		reportID,
+		queryHash,
+		hostID,
+		ReportSnapshotStatusCollected,
+		snapshotRows,
+		"",
+		reportedAt,
+	)
+}
+
+// OverwriteError replaces a host's latest snapshot with a scheduled-query
+// error when the report query and assignment are still current.
+func (s *Store) OverwriteError(
+	ctx context.Context,
+	reportID int64,
+	queryHash string,
+	hostID int64,
+	reportError string,
+	reportedAt time.Time,
+) error {
+	reportError = strings.TrimSpace(reportError)
+	if reportError == "" {
+		return fault.ErrInvalidInput
+	}
+	return s.overwriteObservation(
+		ctx,
+		reportID,
+		queryHash,
+		hostID,
+		ReportSnapshotStatusError,
+		[]byte("[]"),
+		truncateRunes(reportError, maxReportErrorRunes),
+		reportedAt,
+	)
+}
+
+func (s *Store) overwriteObservation(
+	ctx context.Context,
+	reportID int64,
+	queryHash string,
+	hostID int64,
+	status ReportSnapshotStatus,
+	rows []byte,
+	reportError string,
+	reportedAt time.Time,
+) error {
+	if reportedAt.IsZero() {
+		reportedAt = time.Now().UTC()
 	}
 
 	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
@@ -60,17 +111,23 @@ func (s *Store) OverwriteSnapshot(
 				report_id,
 				host_id,
 				rows,
-				collected_at
-			) VALUES ($1, $2, $3, $4)
+				status,
+				error,
+				reported_at
+			) VALUES ($1, $2, $3, $4::osquery_report_snapshot_status, $5, $6)
 			ON CONFLICT (report_id, host_id) DO UPDATE
 			SET
 				rows = EXCLUDED.rows,
-				collected_at = EXCLUDED.collected_at
-			WHERE EXCLUDED.collected_at >= osquery_report_snapshots.collected_at`,
+				status = EXCLUDED.status,
+				error = EXCLUDED.error,
+				reported_at = EXCLUDED.reported_at
+			WHERE EXCLUDED.reported_at >= osquery_report_snapshots.reported_at`,
 			reportID,
 			hostID,
-			snapshotRows,
-			collectedAt,
+			rows,
+			status,
+			reportError,
+			reportedAt,
 		)
 		return err
 	})
@@ -150,9 +207,11 @@ func (s *Store) listSnapshots(
 	where.Add(scopeSQL + " = " + where.Arg(scopeID))
 	switch params.Status {
 	case ReportSnapshotStatusCollected:
-		where.Add("snapshot.collected_at IS NOT NULL")
+		where.Add("snapshot.status = 'collected'")
+	case ReportSnapshotStatusError:
+		where.Add("snapshot.status = 'error'")
 	case ReportSnapshotStatusPending:
-		where.Add("snapshot.collected_at IS NULL")
+		where.Add("snapshot.report_id IS NULL")
 	}
 
 	searchPattern := ""
@@ -160,6 +219,7 @@ func (s *Store) listSnapshots(
 		searchPattern = where.Arg("%" + params.ListParams.Q + "%")
 		where.Add(
 			"(" + parentSearchSQL + " ILIKE " + searchPattern +
+				" OR snapshot.error ILIKE " + searchPattern +
 				" OR matched_rows.returned_row_count > 0)",
 		)
 	}
@@ -171,7 +231,7 @@ func (s *Store) listSnapshots(
 		OrderKeys: map[string]postgres.OrderExpr{
 			nameSortKey:        {SQL: nameOrderSQL},
 			"status":           {SQL: snapshotStatusOrderSQL()},
-			"collected_at":     {SQL: "snapshot.collected_at", NullOrder: postgres.NullsLast},
+			"reported_at":      {SQL: "snapshot.reported_at", NullOrder: postgres.NullsLast},
 			"result_row_count": {SQL: snapshotResultRowCountSQL()},
 		},
 		DefaultOrder: []postgres.OrderExpr{{SQL: nameOrderSQL}, {SQL: stableOrderSQL}},
@@ -200,11 +260,13 @@ func snapshotSelectSQL(parentSearchSQL, searchPattern string) string {
 	if searchPattern != "" {
 		rowsSQL = `CASE
 			WHEN ` + parentSearchSQL + ` ILIKE ` + searchPattern + `
+				OR snapshot.error ILIKE ` + searchPattern + `
 				THEN COALESCE(snapshot.rows, '[]'::jsonb)
 			ELSE matched_rows.rows
 		END`
 		returnedRowCountSQL = `CASE
 			WHEN ` + parentSearchSQL + ` ILIKE ` + searchPattern + `
+				OR snapshot.error ILIKE ` + searchPattern + `
 				THEN ` + snapshotResultRowCountSQL() + `
 			ELSE matched_rows.returned_row_count
 		END`
@@ -233,7 +295,9 @@ func snapshotSelectSQL(parentSearchSQL, searchPattern string) string {
 			` + rowsSQL + ` AS rows,
 			` + snapshotResultRowCountSQL() + ` AS result_row_count,
 			` + returnedRowCountSQL + ` AS returned_row_count,
-			snapshot.collected_at
+			COALESCE(snapshot.status::text, 'pending') AS status,
+			COALESCE(snapshot.error, '') AS error,
+			snapshot.reported_at
 		FROM osquery_reports report_row
 		JOIN osquery_report_assignments assignment
 			ON assignment.report_id = report_row.id
@@ -249,19 +313,25 @@ func snapshotResultRowCountSQL() string {
 }
 
 func snapshotStatusOrderSQL() string {
-	return `CASE WHEN snapshot.collected_at IS NOT NULL THEN 0 ELSE 1 END`
+	return `CASE
+		WHEN snapshot.status = 'error' THEN 0
+		WHEN snapshot.report_id IS NULL THEN 1
+		ELSE 2
+	END`
 }
 
 type snapshotRow struct {
-	ReportID          int64      `db:"report_id"`
-	ReportName        string     `db:"report_name"`
-	ReportDescription string     `db:"report_description"`
-	HostID            int64      `db:"host_id"`
-	HostName          string     `db:"host_name"`
-	Rows              []byte     `db:"rows"`
-	ResultRowCount    int32      `db:"result_row_count"`
-	ReturnedRowCount  int32      `db:"returned_row_count"`
-	CollectedAt       *time.Time `db:"collected_at"`
+	ReportID          int64                `db:"report_id"`
+	ReportName        string               `db:"report_name"`
+	ReportDescription string               `db:"report_description"`
+	HostID            int64                `db:"host_id"`
+	HostName          string               `db:"host_name"`
+	Rows              []byte               `db:"rows"`
+	ResultRowCount    int32                `db:"result_row_count"`
+	ReturnedRowCount  int32                `db:"returned_row_count"`
+	Status            ReportSnapshotStatus `db:"status"`
+	Error             string               `db:"error"`
+	ReportedAt        *time.Time           `db:"reported_at"`
 }
 
 func snapshotFromRow(row snapshotRow) (ReportSnapshot, error) {
@@ -275,28 +345,30 @@ func snapshotFromRow(row snapshotRow) (ReportSnapshot, error) {
 		ReportDescription: row.ReportDescription,
 		HostID:            row.HostID,
 		HostName:          row.HostName,
-		Status:            reportSnapshotStatus(row.CollectedAt),
+		Status:            row.Status,
 		ResultRowCount:    row.ResultRowCount,
 		ReturnedRowCount:  row.ReturnedRowCount,
 		Rows:              rows,
-		CollectedAt:       row.CollectedAt,
+		Error:             row.Error,
+		ReportedAt:        row.ReportedAt,
 	}, nil
-}
-
-func reportSnapshotStatus(collectedAt *time.Time) ReportSnapshotStatus {
-	if collectedAt == nil {
-		return ReportSnapshotStatusPending
-	}
-	return ReportSnapshotStatusCollected
 }
 
 func validateReportSnapshotStatusFilter(status ReportSnapshotStatus) error {
 	switch status {
-	case "", ReportSnapshotStatusCollected, ReportSnapshotStatusPending:
+	case "", ReportSnapshotStatusCollected, ReportSnapshotStatusError, ReportSnapshotStatusPending:
 		return nil
 	default:
 		return fault.ErrInvalidInput
 	}
+}
+
+func truncateRunes(value string, limit int) string {
+	runes := []rune(value)
+	if len(runes) <= limit {
+		return value
+	}
+	return string(runes[len(runes)-limit:])
 }
 
 func normalizeSnapshotRows(rows []map[string]string) []map[string]string {

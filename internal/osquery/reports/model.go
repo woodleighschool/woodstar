@@ -91,22 +91,24 @@ type ReportSnapshotListParams struct {
 	Status ReportSnapshotStatus
 }
 
-// ReportSnapshotStatus describes whether a targeted host has submitted a snapshot.
+// ReportSnapshotStatus describes a targeted host's latest report observation.
 type ReportSnapshotStatus string
 
 const (
 	ReportSnapshotStatusCollected ReportSnapshotStatus = "collected"
+	ReportSnapshotStatusError     ReportSnapshotStatus = "error"
 	ReportSnapshotStatusPending   ReportSnapshotStatus = "pending"
 )
 
 var ReportSnapshotStatusValues = []ReportSnapshotStatus{
 	ReportSnapshotStatusCollected,
+	ReportSnapshotStatusError,
 	ReportSnapshotStatusPending,
 }
 
 // ReportSnapshot is the latest observation for one report and host.
 // Rows contains every result unless a list query returns a matching subset.
-// CollectedAt is nil until the host submits its first snapshot.
+// ReportedAt is nil until the host submits its first result or error.
 type ReportSnapshot struct {
 	ReportID          int64                `json:"report_id"`
 	ReportName        string               `json:"report_name"`
@@ -117,7 +119,8 @@ type ReportSnapshot struct {
 	ResultRowCount    int32                `json:"result_row_count"`
 	ReturnedRowCount  int32                `json:"returned_row_count"`
 	Rows              []map[string]string  `json:"rows"`
-	CollectedAt       *time.Time           `json:"collected_at,omitempty"`
+	Error             string               `json:"error,omitempty"`
+	ReportedAt        *time.Time           `json:"reported_at,omitempty"`
 }
 
 func (ReportSnapshotStatus) Schema(_ huma.Registry) *huma.Schema {

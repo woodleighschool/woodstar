@@ -15,6 +15,13 @@ type resultLogRow struct {
 	Action   string              `json:"action"`
 }
 
+type statusLogRow struct {
+	UnixTime int64  `json:"unixTime"`
+	Message  string `json:"message"`
+}
+
+const scheduledQueryErrorPrefix = "Error executing scheduled query "
+
 // ingestReportLogs writes the latest per-host snapshots emitted by osquery's
 // scheduled query log.
 func (s *AgentService) ingestReportLogs(ctx context.Context, hostID int64, data json.RawMessage) error {
@@ -51,6 +58,59 @@ func (s *AgentService) ingestReportLogs(ctx context.Context, hostID int64, data 
 		}
 	}
 	return nil
+}
+
+// ingestReportStatusLogs writes scheduled-query errors for Woodstar reports.
+func (s *AgentService) ingestReportStatusLogs(
+	ctx context.Context,
+	hostID int64,
+	data json.RawMessage,
+) error {
+	var logs []statusLogRow
+	if err := json.Unmarshal(data, &logs); err != nil {
+		var single statusLogRow
+		if err := json.Unmarshal(data, &single); err != nil {
+			return err
+		}
+		logs = []statusLogRow{single}
+	}
+
+	for _, item := range logs {
+		reportID, queryHash, reportError, ok := parseReportErrorMessage(item.Message)
+		if !ok {
+			continue
+		}
+		if item.UnixTime <= 0 {
+			return fmt.Errorf("report %d: unixTime must be positive", reportID)
+		}
+		if err := s.deps.ReportStore.OverwriteError(
+			ctx,
+			reportID,
+			queryHash,
+			hostID,
+			reportError,
+			time.Unix(item.UnixTime, 0).UTC(),
+		); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func parseReportErrorMessage(message string) (int64, string, string, bool) {
+	remainder, ok := strings.CutPrefix(message, scheduledQueryErrorPrefix)
+	if !ok {
+		return 0, "", "", false
+	}
+	name, reportError, ok := strings.Cut(remainder, ": ")
+	if !ok || strings.TrimSpace(reportError) == "" {
+		return 0, "", "", false
+	}
+	reportID, queryHash, ok := parseReportQueryName(name)
+	if !ok {
+		return 0, "", "", false
+	}
+	return reportID, queryHash, reportError, true
 }
 
 func parseReportQueryName(name string) (int64, string, bool) {

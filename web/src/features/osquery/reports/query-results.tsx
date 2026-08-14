@@ -18,8 +18,10 @@ import type { OsqueryReportSnapshot } from "@lib/api";
 import type { StatusMetadataMap } from "@lib/enum-metadata";
 import { formatRelative } from "@lib/utils";
 
+import { OsqueryResultError } from "../result-error";
+
 type SnapshotStatus = OsqueryReportSnapshot["status"];
-export type ReportResultStatus = SnapshotStatus | "error" | "stopped";
+export type ReportResultStatus = SnapshotStatus | "stopped";
 
 export type ReportResultRow = {
   host_id: number;
@@ -28,16 +30,17 @@ export type ReportResultRow = {
   rows: Record<string, string>[];
   result_row_count: number;
   returned_row_count: number;
-  collected_at?: string;
+  reported_at?: string;
   updated_at?: string;
   error?: string;
 };
 
-export const REPORT_SNAPSHOT_STATUS_VALUES = ["collected", "pending"] as const;
+export const REPORT_SNAPSHOT_STATUS_VALUES = ["collected", "pending", "error"] as const;
 
 export const REPORT_SNAPSHOT_STATUS_OPTIONS = [
   { label: "Collected", value: "collected" },
   { label: "Pending", value: "pending" },
+  { label: "Error", value: "error" },
 ] satisfies { label: string; value: SnapshotStatus }[];
 
 const REPORT_RESULT_STATUSES = {
@@ -55,25 +58,24 @@ export function reportResultFromSnapshot(snapshot: OsqueryReportSnapshot): Repor
     rows: snapshot.rows,
     result_row_count: snapshot.result_row_count,
     returned_row_count: snapshot.returned_row_count,
-    collected_at: snapshot.collected_at,
+    reported_at: snapshot.reported_at,
+    error: snapshot.error,
   };
 }
 
 export function createReportResultColumns({
   timestamp,
-  includeError = false,
 }: {
-  timestamp: "collected" | "reported";
-  includeError?: boolean;
+  timestamp: "snapshot" | "live";
 }): DataTableColumnDef<ReportResultRow>[] {
   const timestampColumn: DataTableColumnDef<ReportResultRow> =
-    timestamp === "collected"
+    timestamp === "snapshot"
       ? {
-          id: "collected_at",
-          accessorKey: "collected_at",
-          header: () => "Last Collected",
+          id: "reported_at",
+          accessorKey: "reported_at",
+          header: () => "Last Reported",
           cell: ({ row }) =>
-            row.original.collected_at ? formatRelative(row.original.collected_at) : "-",
+            row.original.reported_at ? formatRelative(row.original.reported_at) : "-",
         }
       : {
           id: "updated_at",
@@ -99,9 +101,17 @@ export function createReportResultColumns({
       accessorKey: "host_name",
       header: () => "Host",
       cell: ({ row }) => (
-        <TextLink to="/hosts/$id" params={{ id: String(row.original.host_id) }}>
-          {row.original.host_name}
-        </TextLink>
+        <span className="inline-flex items-center gap-1">
+          <TextLink to="/hosts/$id" params={{ id: String(row.original.host_id) }}>
+            {row.original.host_name}
+          </TextLink>
+          {row.original.error ? (
+            <OsqueryResultError
+              label={`Report error for ${row.original.host_name}`}
+              error={row.original.error}
+            />
+          ) : null}
+        </span>
       ),
     },
     {
@@ -119,14 +129,6 @@ export function createReportResultColumns({
       cell: ({ row }) => resultRowCountLabel(row.original),
     },
   ];
-  if (includeError) {
-    columns.push({
-      id: "error",
-      accessorKey: "error",
-      header: () => "Error",
-      cell: ({ row }) => row.original.error || "-",
-    });
-  }
   return columns;
 }
 

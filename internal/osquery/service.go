@@ -77,7 +77,15 @@ type reportStore interface {
 		queryHash string,
 		hostID int64,
 		rows []map[string]string,
-		collectedAt time.Time,
+		reportedAt time.Time,
+	) error
+	OverwriteError(
+		ctx context.Context,
+		reportID int64,
+		queryHash string,
+		hostID int64,
+		reportError string,
+		reportedAt time.Time,
 	) error
 }
 
@@ -157,7 +165,7 @@ func (s *AgentService) Config(ctx context.Context, nodeKey string, contact heart
 			"disable_distributed":     "false",
 			"disable_carver":          "true",
 			"carver_disable_function": "true",
-			"logger_min_status":       "4",
+			"logger_min_status":       "2",
 		},
 		Decorators: map[string][]string{},
 	}, nil
@@ -289,7 +297,7 @@ func (s *AgentService) DistributedWrite(
 	return DistributedWriteResponse{NodeInvalid: false}, nil
 }
 
-// Log accepts osquery scheduled-query logs and persists snapshot results.
+// Log accepts osquery scheduled-query logs and persists report observations.
 func (s *AgentService) Log(ctx context.Context, nodeKey string, contact heartbeats.Contact, req LogRequest) (LogResponse, error) {
 	host, ok, err := s.hostByNodeKey(ctx, nodeKey, contact)
 	if err != nil {
@@ -298,9 +306,14 @@ func (s *AgentService) Log(ctx context.Context, nodeKey string, contact heartbea
 	if !ok {
 		return LogResponse{NodeInvalid: true}, nil
 	}
-	if req.LogType == "result" {
+	switch req.LogType {
+	case "result":
 		if err := s.ingestReportLogs(ctx, host.ID, req.Data); err != nil {
 			return LogResponse{}, fmt.Errorf("ingest report logs: %w", err)
+		}
+	case "status":
+		if err := s.ingestReportStatusLogs(ctx, host.ID, req.Data); err != nil {
+			return LogResponse{}, fmt.Errorf("ingest report status logs: %w", err)
 		}
 	}
 	return LogResponse{NodeInvalid: false}, nil
