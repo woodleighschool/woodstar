@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.8.14](https://github.com/woodleighschool/woodstar/compare/0.8.13...0.8.14) (2026-08-14)
+
+
+### Features
+
+* add osquery policy remediation ([#182](https://github.com/woodleighschool/woodstar/issues/182)) ([70bde7c](https://github.com/woodleighschool/woodstar/commit/70bde7c1e244b899be574468096d8db905dda96f))
+* **deps:** update dependency papaparse (5.5.4 → 5.6.0) ([#186](https://github.com/woodleighschool/woodstar/issues/186)) ([f48ecd9](https://github.com/woodleighschool/woodstar/commit/f48ecd9b0add7c68bbd8842dfd46ab56a6b904d2))
+* **deps:** update dependency shadcn (4.17.0 → 4.18.0) ([#190](https://github.com/woodleighschool/woodstar/issues/190)) ([ea4cefe](https://github.com/woodleighschool/woodstar/commit/ea4cefe602c83e6c00a6ba9cd7285b510d19e5bd))
+* **osquery:** surface report query errors ([#188](https://github.com/woodleighschool/woodstar/issues/188)) ([e08aa0a](https://github.com/woodleighschool/woodstar/commit/e08aa0a5530291a2b2edb6dd605c56cbaeecf89d))
+
+
+### Bug Fixes
+
+* **deps:** update govulncheck version to 1.7.0 ([bb80910](https://github.com/woodleighschool/woodstar/commit/bb809109eb7450236dda3a5a139771995e084e42))
+* **mise:** Update Go toolchain (1.26.5 → 1.26.6) ([#189](https://github.com/woodleighschool/woodstar/issues/189)) ([7360e87](https://github.com/woodleighschool/woodstar/commit/7360e8729d370385ab2eb0def5298362b067b2e4))
+* **mise:** Update Go toolchain (1.26.5 → 1.26.6) ([#191](https://github.com/woodleighschool/woodstar/issues/191)) ([3c90d69](https://github.com/woodleighschool/woodstar/commit/3c90d696084271f27f5285fa9aee12c3f77cd7eb))
+* **osquery:** forward scheduled report errors ([f46b530](https://github.com/woodleighschool/woodstar/commit/f46b53058f47c0136c5df7df01ea4be27f19d6e1))
+* **tooling:** group toolchain updates ([2d2fa8e](https://github.com/woodleighschool/woodstar/commit/2d2fa8e246ca56771ea38ae9ef850b9bb19ffc28))
+
 ## [0.8.13](https://github.com/woodleighschool/woodstar/compare/0.8.12...0.8.13) (2026-08-13)
 
 
