@@ -148,10 +148,6 @@ function PolicyResultActionsCell({ row }: { row: { original: PolicyResultRow } }
   );
 }
 
-export function policyResultStatusLabel(status: PolicyResultDisplayStatus) {
-  return POLICY_RESULT_STATUSES[status].name;
-}
-
 export function PolicyResultStatus({ status }: { status: PolicyResultDisplayStatus }) {
   return <EnumStatusIndicator value={status} metadata={POLICY_RESULT_STATUSES} />;
 }

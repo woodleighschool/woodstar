@@ -39,7 +39,7 @@ export const dataTableFeatures = tableFeatures({
   columnMeta: metaHelper<DataTableColumnMeta>(),
 });
 
-export type DataTableFeatures = typeof dataTableFeatures;
+type DataTableFeatures = typeof dataTableFeatures;
 export type DataTableRowData = RowData;
 export type DataTableColumnDef<TData extends RowData, TValue = unknown> = ColumnDef<
   DataTableFeatures,

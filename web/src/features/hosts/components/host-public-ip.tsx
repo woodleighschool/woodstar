@@ -69,7 +69,7 @@ export function HostPublicIP({
   );
 }
 
-export function hasGeoIPDetails(
+function hasGeoIPDetails(
   details: PublicIpDetails | undefined,
 ): details is Required<Omit<PublicIpDetails, "distribution_point">> & PublicIpDetails {
   return Boolean(
@@ -84,12 +84,12 @@ export function hasGeoIPDetails(
   );
 }
 
-export function formatCoordinates(details: Pick<PublicIpDetails, "latitude" | "longitude">) {
+function formatCoordinates(details: Pick<PublicIpDetails, "latitude" | "longitude">) {
   if (details.latitude === undefined || details.longitude === undefined) return "";
   return `${details.latitude.toFixed(4)}, ${details.longitude.toFixed(4)}`;
 }
 
-export function DBIPAttribution({ className }: { className?: string }) {
+function DBIPAttribution({ className }: { className?: string }) {
   return (
     <a
       href="https://db-ip.com"
