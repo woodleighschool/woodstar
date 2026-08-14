@@ -11,6 +11,7 @@ import {
   ActionBarSeparator,
 } from "@components/ui/action-bar";
 import { toast } from "@components/ui/toast";
+import { countLabel } from "@lib/utils";
 
 interface BulkDeleteMutation {
   mutate: (ids: number[], options?: { onSuccess?: () => void }) => void;
@@ -35,14 +36,12 @@ export function BulkDeleteActionBar<TRow extends { id: number }>({
   const ids = useMemo(() => rows.map((row) => row.original.id), [rows]);
   const [open, setOpen] = useState(false);
   const bulkDelete = useBulkDelete();
-  const plural = pluralNoun ?? `${noun}s`;
-
   const onConfirm = () => {
     const count = ids.length;
     bulkDelete.mutate(ids, {
       onSuccess: () => {
         toast.add({
-          title: `Deleted ${count} ${count === 1 ? noun : plural}`,
+          title: `Deleted ${countLabel(count, noun, pluralNoun)}`,
           type: "success",
         });
         table.toggleAllRowsSelected(false);

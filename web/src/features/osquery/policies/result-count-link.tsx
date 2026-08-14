@@ -1,4 +1,5 @@
 import { TextLink } from "@components/link";
+import { countLabel } from "@lib/utils";
 
 import type { PolicyResultStatus } from "./model";
 
@@ -18,7 +19,7 @@ export function PolicyResultCountLink({
       search={{ tab: "results", status: [status] }}
       className="w-fit"
     >
-      {count} {count === 1 ? "host" : "hosts"}
+      {countLabel(count, "host")}
     </TextLink>
   );
 }

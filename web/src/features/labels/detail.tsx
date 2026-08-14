@@ -18,7 +18,7 @@ import { labelDerivedAttributeSelectorLabel, labelMembershipLabel } from "@featu
 import type { Label } from "@lib/api";
 import { MAX_PAGE_SIZE } from "@lib/pagination";
 import { parseRouteID } from "@lib/route-params";
-import { formatRelative } from "@lib/utils";
+import { countLabel, formatRelative } from "@lib/utils";
 
 import { LabelDeleteDialog } from "./delete-dialog";
 import { useLabel } from "./queries";
@@ -92,7 +92,7 @@ export function LabelDetailPage() {
           label="Hosts"
           value={
             <TextLink to="/hosts" search={{ label_id: label.id }} className="font-medium">
-              {formatHostCount(label.hosts_count)}
+              {countLabel(label.hosts_count, "host")}
             </TextLink>
           }
         />
@@ -201,8 +201,4 @@ function UserValues({ values }: { values: readonly string[] }) {
 
 function PlainValues({ values }: { values: readonly string[] }) {
   return <TokenList values={values} />;
-}
-
-function formatHostCount(count: number) {
-  return `${count} ${count === 1 ? "host" : "hosts"}`;
 }

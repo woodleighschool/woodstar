@@ -17,7 +17,7 @@ import { useGroups } from "@features/directory/groups/queries";
 import { DIRECTORY_SOURCES } from "@features/directory/source";
 import type { Group } from "@lib/api";
 import { DEFAULT_PAGE_SIZE } from "@lib/pagination";
-import { nonEmpty } from "@lib/utils";
+import { countLabel, nonEmpty } from "@lib/utils";
 
 const routeApi = getRouteApi("/_authenticated/directory/groups/");
 
@@ -49,7 +49,7 @@ const groupColumns: DataTableColumnDef<Group>[] = [
     id: "member_count",
     accessorKey: "member_count",
     header: "Members",
-    cell: ({ row }) => row.original.member_count,
+    cell: ({ row }) => countLabel(row.original.member_count, "member"),
     meta: { label: "Members" },
   },
   {

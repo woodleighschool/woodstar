@@ -43,7 +43,7 @@ import { toast } from "@components/ui/toast";
 import { useAuth } from "@features/auth/queries";
 import type { SantaConfiguration } from "@lib/api";
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "@lib/pagination";
-import { formatRelative } from "@lib/utils";
+import { countLabel, formatRelative } from "@lib/utils";
 
 import { ConfigurationDeleteDialog } from "./delete-dialog";
 import { CLIENT_MODES } from "./metadata";
@@ -389,8 +389,8 @@ function ConfigurationReorder({
 
       {truncated ? (
         <div className="rounded-md border px-3 py-2 text-sm text-muted-foreground">
-          Showing the first {MAX_PAGE_SIZE} of {totalCount} configurations. Narrow the list before
-          editing order.
+          Showing the first {MAX_PAGE_SIZE} of {countLabel(totalCount, "configuration")}. Narrow the
+          list before editing order.
         </div>
       ) : null}
     </div>

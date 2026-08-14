@@ -9,6 +9,7 @@ import {
   useOsqueryHistoryState,
 } from "@features/osquery/live/history";
 import { parseRouteID } from "@lib/route-params";
+import { countLabel } from "@lib/utils";
 
 import { PolicyForm, policyFromDetail } from "./fields";
 import {
@@ -141,7 +142,7 @@ export function PolicyEditPage() {
         title="Run Remediation for Existing Failures?"
         description={
           remediationOffer
-            ? `The policy currently has ${remediationOffer.failingHostCount} failing ${remediationOffer.failingHostCount === 1 ? "host" : "hosts"}. Run its current script on each eligible host that does not already have remediation queued or in progress?`
+            ? `The policy currently has ${countLabel(remediationOffer.failingHostCount, "failing host")}. Run its current script on each eligible host that does not already have remediation queued or in progress?`
             : ""
         }
         confirmLabel="Run Remediation"

@@ -1,4 +1,5 @@
 import type { SoftwareTitle } from "@lib/api";
+import { countLabel } from "@lib/utils";
 
 type SoftwareSource = SoftwareTitle["source"];
 
@@ -122,14 +123,10 @@ export function softwareSourceLabel(source: SoftwareSource, extensionFor?: strin
   }
 }
 
-export function hostCountLabel(count: number): string {
-  return `${count} ${count === 1 ? "host" : "hosts"}`;
-}
-
 export function versionsSummaryLabel(versions: ReadonlyArray<{ version: string }>): string {
   if (versions.length === 0) return "-";
   if (versions.length === 1) return versions[0].version || "-";
-  return `${versions.length} versions`;
+  return countLabel(versions.length, "version");
 }
 
 function unreachableSoftwareSource(source: never): never {

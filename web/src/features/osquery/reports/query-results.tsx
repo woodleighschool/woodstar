@@ -16,7 +16,7 @@ import {
 } from "@components/ui/table";
 import type { OsqueryReportSnapshot } from "@lib/api";
 import type { StatusMetadataMap } from "@lib/enum-metadata";
-import { formatRelative } from "@lib/utils";
+import { countLabel, formatRelative } from "@lib/utils";
 
 import { OsqueryResultError } from "../result-error";
 
@@ -190,7 +190,7 @@ export function SnapshotResultRows({
   if (columnNames.length === 0) {
     return (
       <div className="px-12 py-3 text-sm text-muted-foreground">
-        {rows.length} result {rows.length === 1 ? "row has" : "rows have"} no columns.
+        {countLabel(rows.length, "result row has", "result rows have")} no columns.
       </div>
     );
   }

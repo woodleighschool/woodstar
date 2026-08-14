@@ -26,7 +26,7 @@ import { LABEL_MEMBERSHIP_OPTIONS, labelMembershipLabel } from "@features/labels
 import { useLabels } from "@features/labels/queries";
 import type { Label } from "@lib/api";
 import { DEFAULT_PAGE_SIZE } from "@lib/pagination";
-import { formatRelative } from "@lib/utils";
+import { countLabel, formatRelative } from "@lib/utils";
 
 import { LabelDeleteDialog } from "./delete-dialog";
 
@@ -54,6 +54,19 @@ function LabelActionsCell({ row }: DataTableCellContext<LabelTableRow>) {
   return <LabelRowActions label={row.original.label} onDelete={row.original.onDelete} />;
 }
 
+function LabelHostCountCell({ row }: DataTableCellContext<LabelTableRow>) {
+  const label = row.original.label;
+  return (
+    <TextLink
+      to="/hosts"
+      search={{ label_id: label.id }}
+      className="whitespace-nowrap tabular-nums"
+    >
+      {countLabel(label.hosts_count, "host")}
+    </TextLink>
+  );
+}
+
 const labelColumns: DataTableColumnDef<LabelTableRow>[] = [
   {
     id: "name",
@@ -75,7 +88,7 @@ const labelColumns: DataTableColumnDef<LabelTableRow>[] = [
     id: "hosts_count",
     accessorFn: (row) => row.label.hosts_count,
     header: "Hosts",
-    cell: ({ row }) => row.original.label.hosts_count,
+    cell: LabelHostCountCell,
     meta: { label: "Hosts" },
   },
   {

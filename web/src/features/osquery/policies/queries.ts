@@ -38,6 +38,7 @@ import type {
 } from "@lib/api-client/types.gen";
 import { baseListParams, collectAllPages } from "@lib/pagination";
 import { detailPath } from "@lib/route-params";
+import { countLabel } from "@lib/utils";
 
 type QueryParams = Record<string, unknown>;
 
@@ -220,12 +221,10 @@ export function useRunPolicyRemediations() {
         title:
           summary.queued === 0
             ? "No Remediation Queued"
-            : summary.queued === 1
-              ? "Remediation Queued for 1 Host"
-              : `Remediation Queued for ${summary.queued} Hosts`,
+            : `Remediation Queued for ${countLabel(summary.queued, "Host")}`,
         description:
           summary.skipped > 0
-            ? `${summary.skipped} ${summary.skipped === 1 ? "host was" : "hosts were"} skipped because it was no longer failing, remediation was unavailable, or remediation was already active.`
+            ? `${countLabel(summary.skipped, "host was", "hosts were")} skipped because it was no longer failing, remediation was unavailable, or remediation was already active.`
             : undefined,
         type: summary.queued === 0 ? "info" : "success",
       });

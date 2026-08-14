@@ -10,6 +10,7 @@ import {
   AlertDialogTitle,
 } from "@components/ui/alert-dialog";
 import { Spinner } from "@components/ui/spinner";
+import { countLabel } from "@lib/utils";
 
 export interface BulkDeleteDialogProps {
   open: boolean;
@@ -32,14 +33,14 @@ export function BulkDeleteDialog({
   pending = false,
   onConfirm,
 }: BulkDeleteDialogProps) {
-  const label = count === 1 ? noun : (pluralNoun ?? `${noun}s`);
+  const selectedPluralNoun = pluralNoun ? `Selected ${pluralNoun}` : undefined;
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>
-            Delete {count} Selected {label}?
+            Delete {countLabel(count, `Selected ${noun}`, selectedPluralNoun)}?
           </AlertDialogTitle>
           {description ? <AlertDialogDescription>{description}</AlertDialogDescription> : null}
         </AlertDialogHeader>

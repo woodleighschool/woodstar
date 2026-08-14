@@ -37,7 +37,7 @@ import {
   versionsSummaryLabel,
 } from "@features/software/software-source-labels";
 import type { HostSoftware, HostSoftwareInstalledVersion } from "@lib/api";
-import { formatRelative } from "@lib/utils";
+import { countLabel, formatRelative } from "@lib/utils";
 
 const SOURCE_FILTER_KEYS = [{ id: "source", multiple: true }] as const;
 const routeApi = getRouteApi("/_authenticated/hosts/$id/software");
@@ -211,13 +211,13 @@ function InstalledPathCell({
   return (
     <Dialog>
       <DialogTrigger render={<Button variant="link" size="sm" />}>
-        {paths.length} paths
+        {countLabel(paths.length, "path")}
       </DialogTrigger>
       <DialogContent className="max-h-[85vh] gap-0 overflow-hidden p-0 sm:max-w-4xl">
         <DialogHeader className="border-b px-4 py-3 pr-12">
           <DialogTitle>{software.name}</DialogTitle>
           <DialogDescription>
-            {versionLabel}, {typeLabel}, {paths.length} installed paths
+            {versionLabel}, {typeLabel}, {countLabel(paths.length, "installed path")}
           </DialogDescription>
         </DialogHeader>
         <div className="min-h-0 overflow-y-auto p-4">

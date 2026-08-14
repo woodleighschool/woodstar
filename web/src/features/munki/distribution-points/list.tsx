@@ -43,6 +43,7 @@ import { toast } from "@components/ui/toast";
 import { useAuth } from "@features/auth/queries";
 import type { MunkiDistributionPoint } from "@lib/api";
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "@lib/pagination";
+import { countLabel } from "@lib/utils";
 
 import { DistributionPointDeleteDialog } from "./delete-dialog";
 import { DISTRIBUTION_POINT_WORKER_STATUSES, distributionPointWorkerStatus } from "./model";
@@ -407,8 +408,8 @@ function DistributionPointReorder({
 
       {truncated ? (
         <div className="rounded-md border px-3 py-2 text-sm text-muted-foreground">
-          Showing the first {MAX_PAGE_SIZE} of {totalCount} distribution points. Narrow the list
-          before editing order.
+          Showing the first {MAX_PAGE_SIZE} of {countLabel(totalCount, "distribution point")}.
+          Narrow the list before editing order.
         </div>
       ) : null}
     </div>

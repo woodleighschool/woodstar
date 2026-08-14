@@ -17,7 +17,7 @@ import { useLabelNameMap } from "@features/labels/components/label-ref-list";
 import { SoftwareArtwork } from "@features/software/software-icon";
 import type { MunkiInclude, MunkiPackage, MunkiSoftwareDetail } from "@lib/api";
 import { parseRouteID } from "@lib/route-params";
-import { formatRelative } from "@lib/utils";
+import { countLabel, formatRelative } from "@lib/utils";
 
 import { MUNKI_SOFTWARE_ACTIONS } from "./actions";
 import { MunkiSoftwareDeleteDialog } from "./delete-dialog";
@@ -127,7 +127,10 @@ export function MunkiSoftwareDetailPage() {
         <KeyValueRow label="Description" value={software.description} />
         <KeyValueRow label="Category" value={software.category} />
         <KeyValueRow label="Developer" value={software.developer} />
-        <KeyValueRow label="Packages" value={software.packages.length} />
+        <KeyValueRow
+          label="Packages"
+          value={countLabel(software.packages.length, "package", "packages")}
+        />
       </KeyValueSection>
 
       <MunkiSoftwareTargets software={software} />

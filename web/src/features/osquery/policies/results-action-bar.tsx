@@ -10,6 +10,7 @@ import {
   ActionBarSelection,
   ActionBarSeparator,
 } from "@components/ui/action-bar";
+import { countLabel } from "@lib/utils";
 
 import { useRunPolicyRemediations } from "./queries";
 import type { PolicyResultRow } from "./query-results";
@@ -57,7 +58,7 @@ export function PolicyResultsActionBar({
             setOpen(false);
           }
         }}
-        title={`Run Remediation for ${hostIDs.length} Selected ${hostIDs.length === 1 ? "Host" : "Hosts"}?`}
+        title={`Run Remediation for ${countLabel(hostIDs.length, "Selected Host")}?`}
         description="Each eligible host receives the policy's current script. Hosts with remediation already queued or in progress are skipped."
         confirmLabel="Run Remediation"
         pending={runRemediations.isPending}

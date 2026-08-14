@@ -19,6 +19,7 @@ import { Spinner } from "@components/ui/spinner";
 import { useLabels } from "@features/labels/queries";
 import type { Label } from "@lib/api";
 import { MAX_PAGE_SIZE } from "@lib/pagination";
+import { countLabel } from "@lib/utils";
 
 interface LabelPickerProps {
   id?: string;
@@ -192,7 +193,9 @@ function labelItem(label: Label) {
   return (
     <ComboboxItem key={label.id} value={label} className="gap-2">
       <span className="min-w-0 flex-1 truncate">{label.name}</span>
-      <span className="text-muted-foreground tabular-nums">{label.hosts_count}</span>
+      <span className="text-muted-foreground tabular-nums">
+        {countLabel(label.hosts_count, "host")}
+      </span>
     </ComboboxItem>
   );
 }

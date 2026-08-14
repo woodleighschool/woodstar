@@ -36,6 +36,7 @@ import {
   SnapshotResultRows,
 } from "@features/osquery/reports/query-results";
 import type { Host } from "@lib/api";
+import { countLabel } from "@lib/utils";
 
 import {
   type LiveQuerySnapshot,
@@ -205,8 +206,8 @@ function TargetSummary({
   return (
     <div className="flex max-w-3xl flex-col gap-1">
       <p className="text-sm text-muted-foreground">
-        <strong className="font-semibold text-foreground">{targetCount}</strong>{" "}
-        {targetCount === 1 ? "host" : "hosts"} targeted ({onlinePercent}% online)
+        <strong className="font-semibold text-foreground">{countLabel(targetCount, "host")}</strong>{" "}
+        targeted ({onlinePercent}% online)
       </p>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
     </div>
@@ -253,8 +254,7 @@ function RunResults({
             {isRunning ? <Spinner className="size-3.5 text-muted-foreground" /> : null}
           </div>
           <p className="text-sm text-muted-foreground">
-            {respondedCount} of {targetCount} online host
-            {targetCount === 1 ? "" : "s"} responded.
+            {respondedCount} of {countLabel(targetCount, "online host")} responded.
           </p>
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
         </div>

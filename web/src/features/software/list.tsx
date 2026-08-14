@@ -17,13 +17,13 @@ import { useSoftware } from "@features/software/queries";
 import { SoftwareIcon, softwareIconProps } from "@features/software/software-icon";
 import {
   expandSoftwareSourceFilters,
-  hostCountLabel,
   softwareSourceLabel,
   SOURCE_FILTER_OPTIONS,
   versionsSummaryLabel,
 } from "@features/software/software-source-labels";
 import type { SoftwareTitle } from "@lib/api";
 import { DEFAULT_PAGE_SIZE } from "@lib/pagination";
+import { countLabel } from "@lib/utils";
 
 const routeApi = getRouteApi("/_authenticated/software/");
 const SOURCE_FILTER_KEYS = [{ id: "source", multiple: true }] as const;
@@ -164,7 +164,7 @@ const softwareColumns: DataTableColumnDef<SoftwareTitle>[] = [
         search={{ software_title_id: row.original.id }}
         className="whitespace-nowrap tabular-nums"
       >
-        {hostCountLabel(row.original.hosts_count)}
+        {countLabel(row.original.hosts_count, "host")}
       </TextLink>
     ),
     meta: { label: "Hosts" },

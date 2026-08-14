@@ -16,8 +16,9 @@ import {
 } from "@components/ui/table";
 import { useSoftwareTitle } from "@features/software/queries";
 import { SoftwareIcon, softwareIconProps } from "@features/software/software-icon";
-import { hostCountLabel, softwareSourceLabel } from "@features/software/software-source-labels";
+import { softwareSourceLabel } from "@features/software/software-source-labels";
 import type { SoftwareTitle } from "@lib/api";
+import { countLabel } from "@lib/utils";
 
 export function SoftwareDetailPage() {
   const { id: softwareId } = useParams({
@@ -65,7 +66,7 @@ function SoftwareSummary({ title }: { title: SoftwareTitle }) {
         label="Hosts"
         value={
           <TextLink to="/hosts" search={{ software_title_id: title.id }}>
-            {hostCountLabel(title.hosts_count)}
+            {countLabel(title.hosts_count, "host")}
           </TextLink>
         }
       />
@@ -99,7 +100,7 @@ function SoftwareSigningIdentities({ title }: { title: SoftwareTitle }) {
                 {identity.authority || "-"}
               </TableCell>
               <TableCell className="text-right tabular-nums">
-                {hostCountLabel(identity.hosts_count)}
+                {countLabel(identity.hosts_count, "host")}
               </TableCell>
             </TableRow>
           ))}
@@ -135,7 +136,7 @@ function SoftwareVersions({ title }: { title: SoftwareTitle }) {
                   to="/hosts"
                   search={{ software_title_id: title.id, software_id: version.id }}
                 >
-                  {hostCountLabel(version.hosts_count)}
+                  {countLabel(version.hosts_count, "host")}
                 </TextLink>
               </TableCell>
             </TableRow>
