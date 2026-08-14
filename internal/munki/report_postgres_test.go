@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/woodleighschool/woodstar/internal/heartbeats"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/listing"
@@ -16,8 +17,8 @@ import (
 
 func TestSoftwareReportUsesManagedInstallsAndMunkiEvaluation(t *testing.T) { //nolint:funlen // One report lifecycle.
 	db, ctx := testdb.Open(t)
-	hostStore := hosts.NewStore(db)
 	labelStore := labels.NewStore(db)
+	hostStore := hosts.NewStore(db, labelStore)
 	stores := newMunkiStores(db)
 
 	hostNames := []string{"Alpha", "Bravo", "Charlie"}
@@ -30,7 +31,7 @@ func TestSoftwareReportUsesManagedInstallsAndMunkiEvaluation(t *testing.T) { //n
 				Serial: "REPORT-" + name,
 			},
 			OrbitNodeKey: "software-report-" + name + "-orbit",
-		})
+		}, heartbeats.Contact{})
 		if err != nil {
 			t.Fatalf("enroll %s: %v", name, err)
 		}
