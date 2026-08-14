@@ -16,8 +16,8 @@ import (
 
 func TestSoftwareReportUsesManagedInstallsAndMunkiEvaluation(t *testing.T) { //nolint:funlen // One report lifecycle.
 	db, ctx := testdb.Open(t)
-	hostStore := hosts.NewStore(db)
 	labelStore := labels.NewStore(db)
+	hostStore := hosts.NewStore(db, labelStore)
 	stores := newMunkiStores(db)
 
 	hostNames := []string{"Alpha", "Bravo", "Charlie"}
