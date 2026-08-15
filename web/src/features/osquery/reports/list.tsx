@@ -1,5 +1,5 @@
 import { getRouteApi } from "@tanstack/react-router";
-import { FileBarChart2, MoreHorizontal, Plus } from "lucide-react";
+import { CircleCheck, CircleDashed, FileBarChart2, Info, MoreHorizontal, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { BulkDeleteActionBar } from "@components/bulk-delete-action-bar";
@@ -29,6 +29,7 @@ import { formatInterval, formatRelative } from "@lib/utils";
 
 import { ReportDeleteDialog } from "./delete-dialog";
 import { useBulkDeleteReports, useReports } from "./queries";
+import { ReportResultCountLink } from "./result-count-link";
 
 const routeApi = getRouteApi("/_authenticated/osquery/reports/");
 
@@ -88,7 +89,7 @@ export function ReportListPage() {
           onRetry={() => void query.refetch()}
         />
       ) : query.isLoading ? (
-        <DataTableSkeleton columnCount={isAdmin ? 5 : 3} />
+        <DataTableSkeleton columnCount={isAdmin ? 8 : 6} />
       ) : (
         <DataTable
           table={table}
@@ -148,7 +149,75 @@ const reportColumns: DataTableColumnDef<ReportTableRow>[] = [
       </TextLink>
     ),
     enableHiding: false,
+    size: 360,
+    minSize: 240,
     meta: { label: "Name" },
+  },
+  {
+    id: "collected_host_count",
+    accessorKey: "collected_host_count",
+    header: () => (
+      <span className="flex items-center gap-1.5">
+        <CircleCheck className="size-4 text-status-online" />
+        Collected
+      </span>
+    ),
+    cell: ({ row }) => (
+      <ReportResultCountLink
+        reportId={row.original.id}
+        count={row.original.collected_host_count}
+        status="collected"
+      />
+    ),
+    size: 112,
+    minSize: 112,
+    maxSize: 112,
+    enableResizing: false,
+    meta: { label: "Collected" },
+  },
+  {
+    id: "error_host_count",
+    accessorKey: "error_host_count",
+    header: () => (
+      <span className="flex items-center gap-1.5">
+        <Info className="size-4 text-warning" />
+        Error
+      </span>
+    ),
+    cell: ({ row }) => (
+      <ReportResultCountLink
+        reportId={row.original.id}
+        count={row.original.error_host_count}
+        status="error"
+      />
+    ),
+    size: 112,
+    minSize: 112,
+    maxSize: 112,
+    enableResizing: false,
+    meta: { label: "Error" },
+  },
+  {
+    id: "pending_host_count",
+    accessorKey: "pending_host_count",
+    header: () => (
+      <span className="flex items-center gap-1.5">
+        <CircleDashed className="size-4 text-muted-foreground" />
+        Pending
+      </span>
+    ),
+    cell: ({ row }) => (
+      <ReportResultCountLink
+        reportId={row.original.id}
+        count={row.original.pending_host_count}
+        status="pending"
+      />
+    ),
+    size: 112,
+    minSize: 112,
+    maxSize: 112,
+    enableResizing: false,
+    meta: { label: "Pending" },
   },
   {
     id: "schedule_interval",

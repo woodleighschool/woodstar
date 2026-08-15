@@ -40,6 +40,7 @@ import {
   SnapshotResultRows,
   snapshotStatusLabel,
 } from "./query-results";
+import { ReportResultCountLink } from "./result-count-link";
 
 const EMPTY_REPORT_SNAPSHOTS: ReportResultRow[] = [];
 const reportSnapshotColumns = createReportResultColumns({ timestamp: "snapshot" });
@@ -220,6 +221,36 @@ export function ReportDetailPage() {
               }
             />
             <KeyValueRow label="Minimum Osquery" value={report.data.min_osquery_version || "Any"} />
+            <KeyValueRow
+              label="Collected"
+              value={
+                <ReportResultCountLink
+                  reportId={report.data.id}
+                  count={report.data.collected_host_count}
+                  status="collected"
+                />
+              }
+            />
+            <KeyValueRow
+              label="Error"
+              value={
+                <ReportResultCountLink
+                  reportId={report.data.id}
+                  count={report.data.error_host_count}
+                  status="error"
+                />
+              }
+            />
+            <KeyValueRow
+              label="Pending"
+              value={
+                <ReportResultCountLink
+                  reportId={report.data.id}
+                  count={report.data.pending_host_count}
+                  status="pending"
+                />
+              }
+            />
           </KeyValueSection>
 
           <section className="flex min-w-0 flex-col gap-3">

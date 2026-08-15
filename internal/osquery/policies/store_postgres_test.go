@@ -62,6 +62,77 @@ func TestListIncludesTargets(t *testing.T) {
 	assertTargets(t, got[0].Targets, policyTargets([]int64{labelA.ID}, []int64{labelB.ID}))
 }
 
+func TestListCountsAndSortsCurrentHostStates(t *testing.T) {
+	store, labelStore, hostStore, ctx := newPostgresPolicyStore(t)
+	allHostsID := allHostsLabelID(t, ctx, labelStore)
+	hosts := []*hosts.Host{
+		enrollTestHostDetail(t, ctx, hostStore, "policy-count-host-a"),
+		enrollTestHostDetail(t, ctx, hostStore, "policy-count-host-b"),
+		enrollTestHostDetail(t, ctx, hostStore, "policy-count-host-c"),
+	}
+	targets := policyTargets([]int64{allHostsID}, nil)
+	passing, err := store.Create(ctx, makePolicy(PolicyMutation{
+		Name: "Passing count", Query: "select 1;", Targets: targets,
+	}))
+	if err != nil {
+		t.Fatalf("create passing policy: %v", err)
+	}
+	failing, err := store.Create(ctx, makePolicy(PolicyMutation{
+		Name: "Failing count", Query: "select 0;", Targets: targets,
+	}))
+	if err != nil {
+		t.Fatalf("create failing policy: %v", err)
+	}
+	pending, err := store.Create(ctx, makePolicy(PolicyMutation{
+		Name: "Pending count", Query: "select 2;", Targets: targets,
+	}))
+	if err != nil {
+		t.Fatalf("create pending policy: %v", err)
+	}
+	for _, host := range hosts {
+		recordIssuedStatus(t, ctx, store, host, passing, PolicyStatusPass, "")
+	}
+	recordIssuedStatus(t, ctx, store, hosts[0], failing, PolicyStatusFail, "")
+	recordIssuedStatus(t, ctx, store, hosts[1], failing, PolicyStatusFail, "")
+	recordIssuedStatus(t, ctx, store, hosts[2], failing, PolicyStatusError, "database locked")
+
+	listed, _, err := store.List(ctx, PolicyListParams{})
+	if err != nil {
+		t.Fatalf("list policies: %v", err)
+	}
+	byID := make(map[int64]Policy, len(listed))
+	for _, policy := range listed {
+		byID[policy.ID] = policy
+	}
+	if got := byID[passing.ID]; got.PassingHostCount != 3 || got.FailingHostCount != 0 ||
+		got.ErrorHostCount != 0 || got.PendingHostCount != 0 {
+		t.Fatalf("passing policy counts = %+v, want 3/0/0/0", got)
+	}
+	if got := byID[failing.ID]; got.PassingHostCount != 0 || got.FailingHostCount != 2 ||
+		got.ErrorHostCount != 1 || got.PendingHostCount != 0 {
+		t.Fatalf("failing policy counts = %+v, want 0/2/1/0", got)
+	}
+	if got := byID[pending.ID]; got.PassingHostCount != 0 || got.FailingHostCount != 0 ||
+		got.ErrorHostCount != 0 || got.PendingHostCount != 3 {
+		t.Fatalf("pending policy counts = %+v, want 0/0/0/3", got)
+	}
+
+	for sort, wantID := range map[string]int64{
+		"passing_host_count.desc": passing.ID,
+		"failing_host_count.desc": failing.ID,
+		"error_host_count.desc":   failing.ID,
+		"pending_host_count.desc": pending.ID,
+	} {
+		got, _, err := store.List(ctx, PolicyListParams{ListParams: listing.Params{Sort: sort}})
+		if err != nil {
+			t.Fatalf("list policies sorted by %s: %v", sort, err)
+		}
+		if len(got) != 3 || got[0].ID != wantID {
+			t.Fatalf("policies sorted by %s = %+v, want policy %d first", sort, got, wantID)
+		}
+	}
+}
+
 func TestCountsAndResultsUseCurrentTargets(t *testing.T) {
 	store, labelStore, hostStore, ctx := newPostgresPolicyStore(t)
 	allHostsID := allHostsLabelID(t, ctx, labelStore)
@@ -210,11 +281,12 @@ func TestUpdateInvalidatesMembershipOnlyWhenQueryChanges(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get query-updated policy: %v", err)
 	}
-	if got.PassingHostCount != 0 || got.FailingHostCount != 0 {
+	if got.PassingHostCount != 0 || got.FailingHostCount != 0 || got.PendingHostCount != 1 {
 		t.Fatalf(
-			"host counts after query edit = pass %d fail %d, want 0/0",
+			"host counts after query edit = pass %d fail %d pending %d, want 0/0/1",
 			got.PassingHostCount,
 			got.FailingHostCount,
+			got.PendingHostCount,
 		)
 	}
 	if err := store.recordEvaluation(
@@ -230,8 +302,12 @@ func TestUpdateInvalidatesMembershipOnlyWhenQueryChanges(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get policy after obsolete result: %v", err)
 	}
-	if got.PassingHostCount != 0 {
-		t.Fatalf("passing count after obsolete result = %d, want 0", got.PassingHostCount)
+	if got.PassingHostCount != 0 || got.PendingHostCount != 1 {
+		t.Fatalf(
+			"counts after obsolete result = pass %d pending %d, want 0/1",
+			got.PassingHostCount,
+			got.PendingHostCount,
+		)
 	}
 	if err := store.recordEvaluation(
 		ctx,
@@ -246,8 +322,12 @@ func TestUpdateInvalidatesMembershipOnlyWhenQueryChanges(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get policy after current result: %v", err)
 	}
-	if got.PassingHostCount != 1 {
-		t.Fatalf("passing count after current result = %d, want 1", got.PassingHostCount)
+	if got.PassingHostCount != 1 || got.PendingHostCount != 0 {
+		t.Fatalf(
+			"counts after current result = pass %d pending %d, want 1/0",
+			got.PassingHostCount,
+			got.PendingHostCount,
+		)
 	}
 }
 

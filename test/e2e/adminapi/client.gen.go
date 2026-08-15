@@ -2324,16 +2324,19 @@ type MunkiUploadRequest struct {
 
 // OsqueryReport defines model for OsqueryReport.
 type OsqueryReport struct {
-	CreatedAt         time.Time            `json:"created_at"`
-	CreatedByUserId   *int64               `json:"created_by_user_id,omitempty"`
-	Description       string               `json:"description"`
-	Id                int64                `json:"id"`
-	MinOsqueryVersion *string              `json:"min_osquery_version,omitempty"`
-	Name              string               `json:"name"`
-	Query             string               `json:"query"`
-	ScheduleInterval  int32                `json:"schedule_interval"`
-	Targets           OsqueryReportTargets `json:"targets"`
-	UpdatedAt         time.Time            `json:"updated_at"`
+	CollectedHostCount int32                `json:"collected_host_count"`
+	CreatedAt          time.Time            `json:"created_at"`
+	CreatedByUserId    *int64               `json:"created_by_user_id,omitempty"`
+	Description        string               `json:"description"`
+	ErrorHostCount     int32                `json:"error_host_count"`
+	Id                 int64                `json:"id"`
+	MinOsqueryVersion  *string              `json:"min_osquery_version,omitempty"`
+	Name               string               `json:"name"`
+	PendingHostCount   int32                `json:"pending_host_count"`
+	Query              string               `json:"query"`
+	ScheduleInterval   int32                `json:"schedule_interval"`
+	Targets            OsqueryReportTargets `json:"targets"`
+	UpdatedAt          time.Time            `json:"updated_at"`
 }
 
 // OsqueryReportMutation defines model for OsqueryReportMutation.

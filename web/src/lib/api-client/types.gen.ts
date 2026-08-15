@@ -886,10 +886,12 @@ export type OsqueryPolicy = {
     created_at: string;
     created_by_user_id?: number;
     description: string;
+    error_host_count: number;
     failing_host_count: number;
     id: number;
     name: string;
     passing_host_count: number;
+    pending_host_count: number;
     query: string;
     remediation: OsqueryPolicyRemediationSummary;
     resolution: string;
@@ -956,12 +958,15 @@ export type OsqueryPolicyTargets = {
 };
 
 export type OsqueryReport = {
+    collected_host_count: number;
     created_at: string;
     created_by_user_id?: number;
     description: string;
+    error_host_count: number;
     id: number;
     min_osquery_version?: string;
     name: string;
+    pending_host_count: number;
     query: string;
     schedule_interval: number;
     targets: OsqueryReportTargets;
