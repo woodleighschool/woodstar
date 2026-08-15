@@ -423,10 +423,10 @@ func TestEnrollAddsHostToAllHosts(t *testing.T) {
 	}
 }
 
-func TestReenrollRotatesHostID(t *testing.T) {
+func TestReenrollPreservesHostIdentity(t *testing.T) {
 	store, ctx := newPostgresHostStore(t)
 
-	const hardwareUUID = "test-reenroll-rotates-host-id"
+	const hardwareUUID = "test-reenroll-preserves-host-identity"
 	host, err := store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
 		Hardware:     HostHardware{UUID: hardwareUUID},
 		OrbitNodeKey: "orbit-key-initial",
@@ -445,44 +445,45 @@ func TestReenrollRotatesHostID(t *testing.T) {
 		t.Fatalf("first osquery enrollment host ID = %d, want Orbit host ID %d", attached.ID, host.ID)
 	}
 
-	assertRotatedID := func(previousID int64, reenrolled *Host) {
-		t.Helper()
-		if reenrolled.ID == previousID {
-			t.Fatalf("re-enrolled host ID = %d, want a new ID", reenrolled.ID)
-		}
-		if _, err := store.GetByID(ctx, previousID); !errors.Is(err, fault.ErrNotFound) {
-			t.Fatalf("get previous host %d error = %v, want ErrNotFound", previousID, err)
-		}
-	}
-
-	orbitReplacement, err := store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
+	orbitReenrolled, err := store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
 		Hardware:     HostHardware{UUID: hardwareUUID},
 		OrbitNodeKey: "orbit-key-reenrolled",
 	})
 	if err != nil {
 		t.Fatalf("re-enroll host with Orbit: %v", err)
 	}
-	assertRotatedID(host.ID, orbitReplacement)
-
-	osqueryAttached, err := store.UpsertOnOsqueryEnroll(ctx, InventoryUpdate{
-		Hardware:       HostHardware{UUID: hardwareUUID},
-		OsqueryNodeKey: "osquery-key-attached",
-	})
-	if err != nil {
-		t.Fatalf("attach osquery to replacement host: %v", err)
+	if orbitReenrolled.ID != host.ID {
+		t.Fatalf("Orbit re-enrollment host ID = %d, want existing ID %d", orbitReenrolled.ID, host.ID)
 	}
-	if osqueryAttached.ID != orbitReplacement.ID {
-		t.Fatalf("first osquery enrollment host ID = %d, want replacement ID %d", osqueryAttached.ID, orbitReplacement.ID)
+	if _, err := store.GetByOrbitNodeKey(ctx, "orbit-key-initial"); !errors.Is(err, fault.ErrNotFound) {
+		t.Fatalf("get initial Orbit node key error = %v, want ErrNotFound", err)
+	}
+	if got, err := store.GetByOrbitNodeKey(ctx, "orbit-key-reenrolled"); err != nil || got.ID != host.ID {
+		t.Fatalf("get re-enrolled Orbit node key = host %+v, error %v, want host %d", got, err, host.ID)
+	}
+	if got, err := store.GetByOsqueryNodeKey(ctx, "osquery-key-initial"); err != nil || got.ID != host.ID {
+		t.Fatalf("get preserved osquery node key = host %+v, error %v, want host %d", got, err, host.ID)
 	}
 
-	osqueryReplacement, err := store.UpsertOnOsqueryEnroll(ctx, InventoryUpdate{
+	osqueryReenrolled, err := store.UpsertOnOsqueryEnroll(ctx, InventoryUpdate{
 		Hardware:       HostHardware{UUID: hardwareUUID},
 		OsqueryNodeKey: "osquery-key-reenrolled",
 	})
 	if err != nil {
 		t.Fatalf("re-enroll host with osquery: %v", err)
 	}
-	assertRotatedID(orbitReplacement.ID, osqueryReplacement)
+	if osqueryReenrolled.ID != host.ID {
+		t.Fatalf("osquery re-enrollment host ID = %d, want existing ID %d", osqueryReenrolled.ID, host.ID)
+	}
+	if _, err := store.GetByOsqueryNodeKey(ctx, "osquery-key-initial"); !errors.Is(err, fault.ErrNotFound) {
+		t.Fatalf("get initial osquery node key error = %v, want ErrNotFound", err)
+	}
+	if got, err := store.GetByOsqueryNodeKey(ctx, "osquery-key-reenrolled"); err != nil || got.ID != host.ID {
+		t.Fatalf("get re-enrolled osquery node key = host %+v, error %v, want host %d", got, err, host.ID)
+	}
+	if got, err := store.GetByOrbitNodeKey(ctx, "orbit-key-reenrolled"); err != nil || got.ID != host.ID {
+		t.Fatalf("get preserved Orbit node key = host %+v, error %v, want host %d", got, err, host.ID)
+	}
 }
 
 func TestGetByHardwareSerialRequiresUniqueRealSerial(t *testing.T) {

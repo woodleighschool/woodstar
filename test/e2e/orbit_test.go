@@ -236,23 +236,18 @@ func TestOrbit(t *testing.T) { //nolint:cyclop,funlen // Linear protocol lifecyc
 		osqueryTestNodeRequest{NodeKey: osqueryEnroll.NodeKey},
 		&oldOsqueryConfig,
 	)
-	if !oldOsqueryConfig.NodeInvalid {
-		t.Fatal("osquery node key from replaced host remained valid")
+	if oldOsqueryConfig.NodeInvalid {
+		t.Fatal("Orbit re-enrollment invalidated the host's osquery node key")
 	}
-	freshHost := requireOnlyOrbitFixtureHost(t, server)
-	freshOrbitHeartbeat := requireHeartbeat(t, freshHost.Heartbeats, "orbit")
-	if freshHost.Id == host.Id ||
-		len(freshHost.Heartbeats) != 1 ||
-		freshHost.PrimaryUser != nil ||
-		freshHost.Agents.Osquery.Version != "" ||
-		freshHost.LastContact == nil ||
-		!freshHost.LastContact.Equal(freshOrbitHeartbeat.LastSeenAt) ||
-		freshHost.Status != "offline" ||
-		freshHost.PublicIp != nil {
+	reenrolledHost := requireOnlyOrbitFixtureHost(t, server)
+	if reenrolledHost.Id != host.Id ||
+		len(reenrolledHost.Heartbeats) != 2 ||
+		reenrolledHost.PrimaryUser == nil ||
+		reenrolledHost.PrimaryUser.Email != orbitFixtureEmail ||
+		reenrolledHost.Agents.Osquery.Version != "5.23.1" {
 		t.Fatalf(
-			"host after Orbit re-enrollment = %+v, heartbeat = %+v, want a fresh Orbit-only host",
-			freshHost,
-			freshOrbitHeartbeat,
+			"host after Orbit re-enrollment = %+v, want existing host with osquery and primary-user state",
+			reenrolledHost,
 		)
 	}
 }

@@ -111,8 +111,8 @@ func NewAgentService(deps Dependencies) *AgentService {
 	return &AgentService{deps: deps}
 }
 
-// Enroll validates the enroll secret, enrolls the host, and returns a node key.
-// Re-enrollment of existing osquery hardware replaces the host and its prior state.
+// Enroll validates the enroll secret, upserts the host, and returns a node key.
+// Re-enrollment reuses the existing host identity and replaces its osquery node key.
 func (s *AgentService) Enroll(ctx context.Context, req EnrollRequest, contact heartbeats.Contact) (string, error) {
 	nodeKey, err := enrollment.IssueNodeKey(ctx, s.deps.SecretStore, req.EnrollSecret)
 	if err != nil {

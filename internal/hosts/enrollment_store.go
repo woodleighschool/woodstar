@@ -12,7 +12,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/postgres"
 )
 
-// UpsertOnOrbitEnroll attaches Orbit to a host or replaces one that already has Orbit enrollment state.
+// UpsertOnOrbitEnroll creates a host or refreshes its Orbit enrollment without replacing its identity.
 func (s *Store) UpsertOnOrbitEnroll(ctx context.Context, update InventoryUpdate) (*Host, error) {
 	write := orbitEnrollWrite{
 		HardwareUUID:            update.Hardware.UUID,
@@ -23,9 +23,7 @@ func (s *Store) UpsertOnOrbitEnroll(ctx context.Context, update InventoryUpdate)
 		HardwareModelIdentifier: update.Hardware.ModelIdentifier,
 		OrbitNodeKey:            update.OrbitNodeKey,
 	}
-	return enrollHost(ctx, s.pool, `
-DELETE FROM hosts
-WHERE hardware_uuid = @hardware_uuid AND orbit_node_key <> ''`, `
+	return upsertOnEnroll(ctx, s.pool, `
 INSERT INTO hosts (
 	hardware_uuid,
 	display_name,
@@ -62,7 +60,7 @@ ON CONFLICT (hardware_uuid) DO UPDATE SET
 RETURNING id`, write)
 }
 
-// UpsertOnOsqueryEnroll attaches osquery to a host or replaces one that already has osquery enrollment state.
+// UpsertOnOsqueryEnroll creates a host or refreshes its osquery enrollment without replacing its identity.
 func (s *Store) UpsertOnOsqueryEnroll(ctx context.Context, update InventoryUpdate) (*Host, error) {
 	write := osqueryEnrollWrite{
 		HardwareUUID:            update.Hardware.UUID,
@@ -88,9 +86,7 @@ func (s *Store) UpsertOnOsqueryEnroll(ctx context.Context, update InventoryUpdat
 		HardwareVendor:          update.Hardware.Vendor,
 		OSKernelVersion:         update.OS.KernelVersion,
 	}
-	return enrollHost(ctx, s.pool, `
-DELETE FROM hosts
-WHERE hardware_uuid = @hardware_uuid AND osquery_node_key <> ''`, `
+	return upsertOnEnroll(ctx, s.pool, `
 INSERT INTO hosts (
 	hardware_uuid,
 	display_name,
@@ -172,21 +168,17 @@ ON CONFLICT (hardware_uuid) DO UPDATE SET
 RETURNING id`, write)
 }
 
-func enrollHost[W any](
+func upsertOnEnroll[W any](
 	ctx context.Context,
 	pool *pgxpool.Pool,
-	deleteReenrolledHostSQL string,
-	upsertSQL string,
+	sql string,
 	write W,
 ) (*Host, error) {
 	now := time.Now()
 	var host Host
 	err := pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
-		if _, err := tx.Exec(ctx, deleteReenrolledHostSQL, pgx.StructArgs(write)); err != nil {
-			return fmt.Errorf("replace host on re-enrollment: %w", err)
-		}
 		var hostID int64
-		if err := tx.QueryRow(ctx, upsertSQL, pgx.StructArgs(write)).Scan(&hostID); err != nil {
+		if err := tx.QueryRow(ctx, sql, pgx.StructArgs(write)).Scan(&hostID); err != nil {
 			return err
 		}
 		row, err := postgres.GetOne[hostRow](ctx, tx, hostSelectSQL()+"\nWHERE hosts.id = $1", hostID)
