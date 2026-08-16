@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.8.17](https://github.com/woodleighschool/woodstar/compare/0.8.16...0.8.17) (2026-08-16)
+
+
+### Features
+
+* **deps:** update pnpm (11.21.0 → 11.22.0) ([#201](https://github.com/woodleighschool/woodstar/issues/201)) ([0d351e3](https://github.com/woodleighschool/woodstar/commit/0d351e36d05db8c2a8b5dd94b67a7fbc2e1a4901))
+
+
+### Bug Fixes
+
+* **osquery:** restore sorting and show remediation ([e733ad3](https://github.com/woodleighschool/woodstar/commit/e733ad3b915f4c64bfc050316cc636ff072a58b7))
+
 ## [0.8.16](https://github.com/woodleighschool/woodstar/compare/0.8.15...0.8.16) (2026-08-16)
 
 
