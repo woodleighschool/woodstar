@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.8.16](https://github.com/woodleighschool/woodstar/compare/0.8.15...0.8.16) (2026-08-16)
+
+
+### Features
+
+* add osquery result counts ([#198](https://github.com/woodleighschool/woodstar/issues/198)) ([27e962a](https://github.com/woodleighschool/woodstar/commit/27e962a952cdb7c7b8838c809f57cc52fbd743ce))
+
+
+### Bug Fixes
+
+* **deps:** update aws-sdk-go-v2 monorepo ([#196](https://github.com/woodleighschool/woodstar/issues/196)) ([436827d](https://github.com/woodleighschool/woodstar/commit/436827dbc165613730c633067eb035ee20a93fac))
+* **deps:** update tanstack-router monorepo ([#197](https://github.com/woodleighschool/woodstar/issues/197)) ([a4eab3b](https://github.com/woodleighschool/woodstar/commit/a4eab3bc92dd306cccf5cd54e18a8fb30fcaff56))
+* **deps:** update tanstack-router monorepo ([#200](https://github.com/woodleighschool/woodstar/issues/200)) ([ae9ddb9](https://github.com/woodleighschool/woodstar/commit/ae9ddb9b43fd5583189ee81d5183c279ec913b0e))
+* **hosts:** preserve identity on re-enrollment ([5bb938c](https://github.com/woodleighschool/woodstar/commit/5bb938cbda41f4a5428c9b2f9e20d822da6d705f))
+
 ## [0.8.15](https://github.com/woodleighschool/woodstar/compare/0.8.14...0.8.15) (2026-08-14)
 
 
