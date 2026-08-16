@@ -123,11 +123,11 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Report, error) {
 	if id <= 0 {
 		return nil, fault.ErrNotFound
 	}
-	row, err := postgres.GetOne[reportRow](ctx, s.pool, reportSelectSQL()+"\nWHERE r.id = $1", id)
+	row, err := postgres.GetOne[reportSummaryRow](ctx, s.pool, reportSummarySelectSQL()+"\nWHERE r.id = $1", id)
 	if err != nil {
 		return nil, err
 	}
-	report := reportFromRow(row)
+	report := reportFromSummaryRow(row)
 	reports := []Report{report}
 	if err := s.attachReportTargets(ctx, reports, []int64{report.ID}); err != nil {
 		return nil, err
@@ -170,21 +170,21 @@ func (s *Store) List(ctx context.Context, params ReportListParams) ([]Report, in
 	params.ListParams = listing.Normalize(params.ListParams)
 	where, args := reportListWhere(params)
 	listQuery := postgres.ListQuery{
-		SelectSQL:    reportSelectSQL(),
+		SelectSQL:    reportSummarySelectSQL(),
 		WhereSQL:     where,
 		Args:         args,
 		OrderKeys:    reportOrderKeys(),
 		DefaultOrder: []postgres.OrderExpr{{SQL: "r.updated_at"}, {SQL: "r.id"}},
 		Params:       params.ListParams,
 	}
-	rows, count, err := postgres.ListWithCount[reportRow](ctx, s.pool, listQuery)
+	rows, count, err := postgres.ListWithCount[reportSummaryRow](ctx, s.pool, listQuery)
 	if err != nil {
 		return nil, 0, err
 	}
 	rpts := make([]Report, len(rows))
 	rptIDs := make([]int64, len(rows))
 	for i, row := range rows {
-		rpts[i] = reportFromRow(row)
+		rpts[i] = reportFromSummaryRow(row)
 		rptIDs[i] = row.ID
 	}
 	if err := s.attachReportTargets(ctx, rpts, rptIDs); err != nil {
@@ -226,10 +226,13 @@ func reportListWhere(params ReportListParams) (string, []any) {
 
 func reportOrderKeys() map[string]postgres.OrderExpr {
 	return map[string]postgres.OrderExpr{
-		"name":              {SQL: "lower(r.name)"},
-		"created_at":        {SQL: "r.created_at"},
-		"updated_at":        {SQL: "r.updated_at"},
-		"schedule_interval": {SQL: "r.schedule_interval"},
+		"name":                 {SQL: "lower(r.name)"},
+		"collected_host_count": {SQL: "result_counts.collected_host_count"},
+		"error_host_count":     {SQL: "result_counts.error_host_count"},
+		"pending_host_count":   {SQL: "result_counts.pending_host_count"},
+		"created_at":           {SQL: "r.created_at"},
+		"updated_at":           {SQL: "r.updated_at"},
+		"schedule_interval":    {SQL: "r.schedule_interval"},
 	}
 }
 
@@ -245,6 +248,14 @@ type reportRow struct {
 	UpdatedAt         time.Time `db:"updated_at"`
 }
 
+type reportSummaryRow struct {
+	reportRow
+
+	CollectedHostCount int32 `db:"collected_host_count"`
+	ErrorHostCount     int32 `db:"error_host_count"`
+	PendingHostCount   int32 `db:"pending_host_count"`
+}
+
 func reportFromRow(row reportRow) Report {
 	return Report{
 		ID:                row.ID,
@@ -258,6 +269,14 @@ func reportFromRow(row reportRow) Report {
 		CreatedAt:         row.CreatedAt,
 		UpdatedAt:         row.UpdatedAt,
 	}
+}
+
+func reportFromSummaryRow(row reportSummaryRow) Report {
+	report := reportFromRow(row.reportRow)
+	report.CollectedHostCount = row.CollectedHostCount
+	report.ErrorHostCount = row.ErrorHostCount
+	report.PendingHostCount = row.PendingHostCount
+	return report
 }
 
 type reportWrite struct {
@@ -293,4 +312,33 @@ SELECT
 	r.created_at,
 	r.updated_at
 FROM osquery_reports r`
+}
+
+func reportSummarySelectSQL() string {
+	return `
+SELECT
+	r.id,
+	r.name,
+	r.description,
+	r.query,
+	r.min_osquery_version,
+	r.schedule_interval,
+	r.created_by_user_id,
+	r.created_at,
+	r.updated_at,
+	result_counts.collected_host_count,
+	result_counts.error_host_count,
+	result_counts.pending_host_count
+FROM osquery_reports r
+LEFT JOIN LATERAL (
+	SELECT
+		COUNT(*) FILTER (WHERE snapshot.status = 'collected')::integer AS collected_host_count,
+		COUNT(*) FILTER (WHERE snapshot.status = 'error')::integer AS error_host_count,
+		COUNT(*) FILTER (WHERE snapshot.report_id IS NULL)::integer AS pending_host_count
+	FROM osquery_report_assignments assignment
+	LEFT JOIN osquery_report_snapshots snapshot
+		ON snapshot.report_id = assignment.report_id
+	   AND snapshot.host_id = assignment.host_id
+	WHERE assignment.report_id = r.id
+) result_counts ON true`
 }

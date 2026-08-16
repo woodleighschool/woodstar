@@ -45,6 +45,80 @@ func TestListIncludesTargets(t *testing.T) {
 	assertTargets(t, got[0].Targets, reportTargets([]int64{labelB.ID, labelA.ID}, []int64{labelC.ID}))
 }
 
+func TestListCountsAndSortsCurrentHostStates(t *testing.T) {
+	store, labelStore, hostStore, ctx := newPostgresReportStore(t)
+	allHostsID := allHostsLabelID(t, ctx, labelStore)
+	hosts := []*hosts.Host{
+		enrollTestHostDetail(t, ctx, hostStore, "report-count-host-a"),
+		enrollTestHostDetail(t, ctx, hostStore, "report-count-host-b"),
+		enrollTestHostDetail(t, ctx, hostStore, "report-count-host-c"),
+	}
+	targets := reportTargets([]int64{allHostsID}, nil)
+	create := func(name, query string) *Report {
+		report, err := store.Create(ctx, ReportCreateMutation{ReportMutation: ReportMutation{
+			Name: name, Query: query, ScheduleInterval: 60, Targets: targets,
+		}})
+		if err != nil {
+			t.Fatalf("create %s report: %v", name, err)
+		}
+		return report
+	}
+	collected := create("Collected count", "select 1;")
+	failed := create("Error count", "select 0;")
+	pending := create("Pending count", "select 2;")
+	reportedAt := time.Date(2026, 8, 14, 5, 0, 0, 0, time.UTC)
+	for _, host := range hosts {
+		if err := store.OverwriteSnapshot(
+			ctx, collected.ID, testQueryHash(collected.Query), host.ID,
+			[]map[string]string{{"value": "1"}}, reportedAt,
+		); err != nil {
+			t.Fatalf("store collected snapshot: %v", err)
+		}
+	}
+	for _, host := range hosts[:2] {
+		if err := store.OverwriteError(
+			ctx, failed.ID, testQueryHash(failed.Query), host.ID, "database locked", reportedAt,
+		); err != nil {
+			t.Fatalf("store report error: %v", err)
+		}
+	}
+
+	listed, _, err := store.List(ctx, ReportListParams{})
+	if err != nil {
+		t.Fatalf("list reports: %v", err)
+	}
+	byID := make(map[int64]Report, len(listed))
+	for _, report := range listed {
+		byID[report.ID] = report
+	}
+	if got := byID[collected.ID]; got.CollectedHostCount != 3 ||
+		got.ErrorHostCount != 0 || got.PendingHostCount != 0 {
+		t.Fatalf("collected report counts = %+v, want 3/0/0", got)
+	}
+	if got := byID[failed.ID]; got.CollectedHostCount != 0 ||
+		got.ErrorHostCount != 2 || got.PendingHostCount != 1 {
+		t.Fatalf("error report counts = %+v, want 0/2/1", got)
+	}
+	if got := byID[pending.ID]; got.CollectedHostCount != 0 ||
+		got.ErrorHostCount != 0 || got.PendingHostCount != 3 {
+		t.Fatalf("pending report counts = %+v, want 0/0/3", got)
+	}
+
+	for sort, wantID := range map[string]int64{
+		"collected_host_count.desc": collected.ID,
+		"error_host_count.desc":     failed.ID,
+		"pending_host_count.desc":   pending.ID,
+	} {
+		got, _, err := store.List(ctx, ReportListParams{ListParams: listing.Params{Sort: sort}})
+		if err != nil {
+			t.Fatalf("list reports sorted by %s: %v", sort, err)
+		}
+		if len(got) != 3 || got[0].ID != wantID {
+			t.Fatalf("reports sorted by %s = %+v, want report %d first", sort, got, wantID)
+		}
+	}
+}
+
 func TestUpdateReplacesTargets(t *testing.T) {
 	store, labelStore, _, ctx := newPostgresReportStore(t)
 	first := createManualLabel(t, ctx, labelStore, "Report first")
@@ -384,6 +458,13 @@ func TestSnapshotsIncludePendingTargets(t *testing.T) {
 	if len(pendingOnly) != 1 || pendingOnly[0].HostID != pendingHost.ID {
 		t.Fatalf("pending snapshots = %+v, want pending host", pendingOnly)
 	}
+	summary, err := store.GetByID(ctx, report.ID)
+	if err != nil {
+		t.Fatalf("get report summary: %v", err)
+	}
+	if summary.CollectedHostCount != 1 || summary.ErrorHostCount != 0 || summary.PendingHostCount != 1 {
+		t.Fatalf("report counts = %+v, want 1/0/1", summary)
+	}
 }
 
 func TestSnapshotsFilterAndSearchErrors(t *testing.T) {
@@ -433,6 +514,13 @@ func TestSnapshotsFilterAndSearchErrors(t *testing.T) {
 	}
 	if count != 1 || len(searchResults) != 1 || searchResults[0].HostID != errorHost.ID {
 		t.Fatalf("error search = %+v count=%d, want error host", searchResults, count)
+	}
+	summary, err := store.GetByID(ctx, report.ID)
+	if err != nil {
+		t.Fatalf("get report summary: %v", err)
+	}
+	if summary.CollectedHostCount != 0 || summary.ErrorHostCount != 1 || summary.PendingHostCount != 1 {
+		t.Fatalf("report counts = %+v, want 0/1/1", summary)
 	}
 }
 

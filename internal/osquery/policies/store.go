@@ -178,12 +178,6 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Policy, error) {
 		return nil, err
 	}
 	policy.Targets = targets
-	counts, err := s.loadPolicyCounts(ctx, []int64{policy.ID})
-	if err != nil {
-		return nil, err
-	}
-	policy.PassingHostCount = counts[policy.ID].Passing
-	policy.FailingHostCount = counts[policy.ID].Failing
 	return policy, nil
 }
 
@@ -241,14 +235,8 @@ func (s *Store) List(ctx context.Context, params PolicyListParams) ([]Policy, in
 	if err != nil {
 		return nil, 0, err
 	}
-	counts, err := s.loadPolicyCounts(ctx, policyIDs)
-	if err != nil {
-		return nil, 0, err
-	}
 	for i := range policies {
 		policies[i].Targets = targets[policies[i].ID]
-		policies[i].PassingHostCount = counts[policies[i].ID].Passing
-		policies[i].FailingHostCount = counts[policies[i].ID].Failing
 	}
 	return policies, count, nil
 }
@@ -605,48 +593,6 @@ func validatePolicyStatusFilters(statuses []PolicyStatus) error {
 	return nil
 }
 
-type policyCounts struct {
-	Passing int32
-	Failing int32
-}
-
-func (s *Store) loadPolicyCounts(ctx context.Context, policyIDs []int64) (map[int64]policyCounts, error) {
-	if len(policyIDs) == 0 {
-		return map[int64]policyCounts{}, nil
-	}
-	rows, err := s.pool.Query(ctx, `
-		SELECT
-			membership.policy_id,
-			COUNT(*) FILTER (WHERE membership.status = 'pass')::integer AS passing_host_count,
-			COUNT(*) FILTER (WHERE membership.status = 'fail')::integer AS failing_host_count
-		FROM osquery_policy_membership membership
-		JOIN osquery_policy_assignments assignment
-			ON assignment.policy_id = membership.policy_id
-		   AND assignment.host_id = membership.host_id
-		WHERE membership.policy_id = ANY($1::bigint[])
-		GROUP BY membership.policy_id`, policyIDs)
-	if err != nil {
-		return nil, err
-	}
-	type countRow struct {
-		PolicyID         int64 `db:"policy_id"`
-		PassingHostCount int32 `db:"passing_host_count"`
-		FailingHostCount int32 `db:"failing_host_count"`
-	}
-	records, err := pgx.CollectRows(rows, pgx.RowToStructByName[countRow])
-	if err != nil {
-		return nil, err
-	}
-	counts := make(map[int64]policyCounts, len(policyIDs))
-	for _, r := range records {
-		counts[r.PolicyID] = policyCounts{
-			Passing: r.PassingHostCount,
-			Failing: r.FailingHostCount,
-		}
-	}
-	return counts, nil
-}
-
 func policyListWhere(params PolicyListParams) (string, []any) {
 	var where postgres.WhereBuilder
 	if params.ListParams.Q != "" {
@@ -659,9 +605,13 @@ func policyListWhere(params PolicyListParams) (string, []any) {
 
 func policyOrderKeys() map[string]postgres.OrderExpr {
 	return map[string]postgres.OrderExpr{
-		"name":       {SQL: "c.name"},
-		"created_at": {SQL: "c.created_at"},
-		"updated_at": {SQL: "c.updated_at"},
+		"name":               {SQL: "c.name"},
+		"passing_host_count": {SQL: "result_counts.passing_host_count"},
+		"failing_host_count": {SQL: "result_counts.failing_host_count"},
+		"error_host_count":   {SQL: "result_counts.error_host_count"},
+		"pending_host_count": {SQL: "result_counts.pending_host_count"},
+		"created_at":         {SQL: "c.created_at"},
+		"updated_at":         {SQL: "c.updated_at"},
 	}
 }
 
@@ -674,6 +624,10 @@ type policyRow struct {
 	RemediationConfigured       bool      `db:"remediation_configured"`
 	AutomaticRemediationEnabled bool      `db:"automatic_remediation_enabled"`
 	RemediationHasRun           bool      `db:"remediation_has_run"`
+	PassingHostCount            int32     `db:"passing_host_count"`
+	FailingHostCount            int32     `db:"failing_host_count"`
+	ErrorHostCount              int32     `db:"error_host_count"`
+	PendingHostCount            int32     `db:"pending_host_count"`
 	CreatedByUserID             *int64    `db:"created_by_user_id"`
 	CreatedAt                   time.Time `db:"created_at"`
 	UpdatedAt                   time.Time `db:"updated_at"`
@@ -716,9 +670,13 @@ func policyFromRow(row policyRow) *Policy {
 			Automatic:  row.AutomaticRemediationEnabled,
 			HasRun:     row.RemediationHasRun,
 		},
-		CreatedByUserID: row.CreatedByUserID,
-		CreatedAt:       row.CreatedAt,
-		UpdatedAt:       row.UpdatedAt,
+		PassingHostCount: row.PassingHostCount,
+		FailingHostCount: row.FailingHostCount,
+		ErrorHostCount:   row.ErrorHostCount,
+		PendingHostCount: row.PendingHostCount,
+		CreatedByUserID:  row.CreatedByUserID,
+		CreatedAt:        row.CreatedAt,
+		UpdatedAt:        row.UpdatedAt,
 	}
 }
 
@@ -770,8 +728,26 @@ SELECT
 		FROM osquery_policy_remediation_runs run
 		WHERE run.policy_id = c.id
 	) AS remediation_has_run,
+	result_counts.passing_host_count,
+	result_counts.failing_host_count,
+	result_counts.error_host_count,
+	result_counts.pending_host_count,
 	c.created_by_user_id,
 	c.created_at,
 	c.updated_at
-FROM osquery_policies c`
+FROM osquery_policies c
+LEFT JOIN LATERAL (
+	SELECT
+		COUNT(*) FILTER (WHERE membership.status = 'pass')::integer AS passing_host_count,
+		COUNT(*) FILTER (WHERE membership.status = 'fail')::integer AS failing_host_count,
+		COUNT(*) FILTER (WHERE membership.status = 'error')::integer AS error_host_count,
+		COUNT(*) FILTER (
+			WHERE membership.status IS NULL OR membership.status = 'pending'
+		)::integer AS pending_host_count
+	FROM osquery_policy_assignments assignment
+	LEFT JOIN osquery_policy_membership membership
+		ON membership.policy_id = assignment.policy_id
+	   AND membership.host_id = assignment.host_id
+	WHERE assignment.policy_id = c.id
+) result_counts ON true`
 }

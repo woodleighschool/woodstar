@@ -24,6 +24,8 @@ type Policy struct {
 	Remediation      PolicyRemediationSummary `json:"remediation"`
 	PassingHostCount int32                    `json:"passing_host_count"`
 	FailingHostCount int32                    `json:"failing_host_count"`
+	ErrorHostCount   int32                    `json:"error_host_count"`
+	PendingHostCount int32                    `json:"pending_host_count"`
 	CreatedByUserID  *int64                   `json:"created_by_user_id,omitempty"`
 	CreatedAt        time.Time                `json:"created_at"`
 	UpdatedAt        time.Time                `json:"updated_at"`

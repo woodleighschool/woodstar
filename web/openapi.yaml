@@ -2417,6 +2417,9 @@ components:
           type: integer
         description:
           type: string
+        error_host_count:
+          format: int32
+          type: integer
         failing_host_count:
           format: int32
           type: integer
@@ -2426,6 +2429,9 @@ components:
         name:
           type: string
         passing_host_count:
+          format: int32
+          type: integer
+        pending_host_count:
           format: int32
           type: integer
         query:
@@ -2449,6 +2455,8 @@ components:
         - remediation
         - passing_host_count
         - failing_host_count
+        - error_host_count
+        - pending_host_count
         - created_at
         - updated_at
       type: object
@@ -2618,6 +2626,9 @@ components:
     OsqueryReport:
       additionalProperties: false
       properties:
+        collected_host_count:
+          format: int32
+          type: integer
         created_at:
           format: date-time
           type: string
@@ -2626,6 +2637,9 @@ components:
           type: integer
         description:
           type: string
+        error_host_count:
+          format: int32
+          type: integer
         id:
           format: int64
           type: integer
@@ -2633,6 +2647,9 @@ components:
           type: string
         name:
           type: string
+        pending_host_count:
+          format: int32
+          type: integer
         query:
           type: string
         schedule_interval:
@@ -2650,6 +2667,9 @@ components:
         - query
         - schedule_interval
         - targets
+        - collected_host_count
+        - error_host_count
+        - pending_host_count
         - created_at
         - updated_at
       type: object

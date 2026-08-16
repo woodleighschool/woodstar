@@ -1,5 +1,13 @@
 import { getRouteApi } from "@tanstack/react-router";
-import { CircleAlert, CircleCheck, MoreHorizontal, Plus, ShieldCheck } from "lucide-react";
+import {
+  CircleAlert,
+  CircleCheck,
+  CircleDashed,
+  Info,
+  MoreHorizontal,
+  Plus,
+  ShieldCheck,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { BulkDeleteActionBar } from "@components/bulk-delete-action-bar";
@@ -89,7 +97,7 @@ export function PolicyListPage() {
           onRetry={() => void query.refetch()}
         />
       ) : query.isLoading ? (
-        <DataTableSkeleton columnCount={isAdmin ? 6 : 4} />
+        <DataTableSkeleton columnCount={isAdmin ? 8 : 6} />
       ) : (
         <DataTable
           table={table}
@@ -156,7 +164,6 @@ const policyColumns: DataTableColumnDef<PolicyTableRow>[] = [
   {
     id: "passing_host_count",
     accessorKey: "passing_host_count",
-    enableSorting: false,
     header: () => (
       <span className="flex items-center gap-1.5">
         <CircleCheck className="size-4 text-status-online" />
@@ -170,19 +177,18 @@ const policyColumns: DataTableColumnDef<PolicyTableRow>[] = [
         status="pass"
       />
     ),
-    size: 112,
-    minSize: 112,
-    maxSize: 112,
+    size: 130,
+    minSize: 130,
+    maxSize: 130,
     enableResizing: false,
     meta: { label: "Pass" },
   },
   {
     id: "failing_host_count",
     accessorKey: "failing_host_count",
-    enableSorting: false,
     header: () => (
       <span className="flex items-center gap-1.5">
-        <CircleAlert className="size-4 text-muted-foreground" />
+        <CircleAlert className="size-4 text-destructive" />
         Fail
       </span>
     ),
@@ -193,20 +199,61 @@ const policyColumns: DataTableColumnDef<PolicyTableRow>[] = [
         status="fail"
       />
     ),
-    size: 112,
-    minSize: 112,
-    maxSize: 112,
+    size: 130,
+    minSize: 130,
+    maxSize: 130,
     enableResizing: false,
     meta: { label: "Fail" },
+  },
+  {
+    id: "error_host_count",
+    accessorKey: "error_host_count",
+    header: () => (
+      <span className="flex items-center gap-1.5">
+        <Info className="size-4 text-warning" />
+        Error
+      </span>
+    ),
+    cell: ({ row }) => (
+      <PolicyResultCountLink
+        policyId={row.original.id}
+        count={row.original.error_host_count}
+        status="error"
+      />
+    ),
+    size: 130,
+    minSize: 130,
+    maxSize: 130,
+    enableResizing: false,
+    meta: { label: "Error" },
+  },
+  {
+    id: "pending_host_count",
+    accessorKey: "pending_host_count",
+    header: () => (
+      <span className="flex items-center gap-1.5">
+        <CircleDashed className="size-4 text-muted-foreground" />
+        Pending
+      </span>
+    ),
+    cell: ({ row }) => (
+      <PolicyResultCountLink
+        policyId={row.original.id}
+        count={row.original.pending_host_count}
+        status="pending"
+      />
+    ),
+    size: 130,
+    minSize: 130,
+    maxSize: 130,
+    enableResizing: false,
+    meta: { label: "Pending" },
   },
   {
     id: "updated_at",
     accessorKey: "updated_at",
     header: "Updated",
     cell: ({ row }) => formatRelative(row.original.updated_at),
-    size: 136,
-    minSize: 136,
-    maxSize: 136,
     enableResizing: false,
     meta: { label: "Updated" },
   },

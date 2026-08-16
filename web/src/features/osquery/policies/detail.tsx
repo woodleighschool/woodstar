@@ -291,6 +291,26 @@ export function PolicyDetailPage() {
                 />
               }
             />
+            <KeyValueRow
+              label="Error"
+              value={
+                <PolicyResultCountLink
+                  policyId={policy.data.id}
+                  count={policy.data.error_host_count}
+                  status="error"
+                />
+              }
+            />
+            <KeyValueRow
+              label="Pending"
+              value={
+                <PolicyResultCountLink
+                  policyId={policy.data.id}
+                  count={policy.data.pending_host_count}
+                  status="pending"
+                />
+              }
+            />
           </KeyValueSection>
 
           <section className="flex min-w-0 flex-col gap-3">

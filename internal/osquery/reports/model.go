@@ -18,16 +18,19 @@ var osqueryVersionRE = regexp.MustCompile(`^(0|[1-9][0-9]*)[.](0|[1-9][0-9]*)[.]
 
 // Report is a saved osquery snapshot query.
 type Report struct {
-	ID                int64         `json:"id"`
-	Name              string        `json:"name"`
-	Description       string        `json:"description"`
-	Query             string        `json:"query"`
-	MinOsqueryVersion *string       `json:"min_osquery_version,omitempty"`
-	ScheduleInterval  int32         `json:"schedule_interval"`
-	Targets           ReportTargets `json:"targets"`
-	CreatedByUserID   *int64        `json:"created_by_user_id,omitempty"`
-	CreatedAt         time.Time     `json:"created_at"`
-	UpdatedAt         time.Time     `json:"updated_at"`
+	ID                 int64         `json:"id"`
+	Name               string        `json:"name"`
+	Description        string        `json:"description"`
+	Query              string        `json:"query"`
+	MinOsqueryVersion  *string       `json:"min_osquery_version,omitempty"`
+	ScheduleInterval   int32         `json:"schedule_interval"`
+	Targets            ReportTargets `json:"targets"`
+	CollectedHostCount int32         `json:"collected_host_count"`
+	ErrorHostCount     int32         `json:"error_host_count"`
+	PendingHostCount   int32         `json:"pending_host_count"`
+	CreatedByUserID    *int64        `json:"created_by_user_id,omitempty"`
+	CreatedAt          time.Time     `json:"created_at"`
+	UpdatedAt          time.Time     `json:"updated_at"`
 }
 
 // ReportMutation is the editable report state used by create and update.
