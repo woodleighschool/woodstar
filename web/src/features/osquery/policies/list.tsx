@@ -177,9 +177,9 @@ const policyColumns: DataTableColumnDef<PolicyTableRow>[] = [
         status="pass"
       />
     ),
-    size: 112,
-    minSize: 112,
-    maxSize: 112,
+    size: 130,
+    minSize: 130,
+    maxSize: 130,
     enableResizing: false,
     meta: { label: "Pass" },
   },
@@ -199,9 +199,9 @@ const policyColumns: DataTableColumnDef<PolicyTableRow>[] = [
         status="fail"
       />
     ),
-    size: 112,
-    minSize: 112,
-    maxSize: 112,
+    size: 130,
+    minSize: 130,
+    maxSize: 130,
     enableResizing: false,
     meta: { label: "Fail" },
   },
@@ -221,9 +221,9 @@ const policyColumns: DataTableColumnDef<PolicyTableRow>[] = [
         status="error"
       />
     ),
-    size: 112,
-    minSize: 112,
-    maxSize: 112,
+    size: 130,
+    minSize: 130,
+    maxSize: 130,
     enableResizing: false,
     meta: { label: "Error" },
   },
@@ -243,9 +243,9 @@ const policyColumns: DataTableColumnDef<PolicyTableRow>[] = [
         status="pending"
       />
     ),
-    size: 112,
-    minSize: 112,
-    maxSize: 112,
+    size: 130,
+    minSize: 130,
+    maxSize: 130,
     enableResizing: false,
     meta: { label: "Pending" },
   },
@@ -254,9 +254,6 @@ const policyColumns: DataTableColumnDef<PolicyTableRow>[] = [
     accessorKey: "updated_at",
     header: "Updated",
     cell: ({ row }) => formatRelative(row.original.updated_at),
-    size: 136,
-    minSize: 136,
-    maxSize: 136,
     enableResizing: false,
     meta: { label: "Updated" },
   },

@@ -169,9 +169,9 @@ const reportColumns: DataTableColumnDef<ReportTableRow>[] = [
         status="collected"
       />
     ),
-    size: 112,
-    minSize: 112,
-    maxSize: 112,
+    size: 130,
+    minSize: 130,
+    maxSize: 130,
     enableResizing: false,
     meta: { label: "Collected" },
   },
@@ -191,9 +191,9 @@ const reportColumns: DataTableColumnDef<ReportTableRow>[] = [
         status="error"
       />
     ),
-    size: 112,
-    minSize: 112,
-    maxSize: 112,
+    size: 130,
+    minSize: 130,
+    maxSize: 130,
     enableResizing: false,
     meta: { label: "Error" },
   },
@@ -213,9 +213,9 @@ const reportColumns: DataTableColumnDef<ReportTableRow>[] = [
         status="pending"
       />
     ),
-    size: 112,
-    minSize: 112,
-    maxSize: 112,
+    size: 130,
+    minSize: 130,
+    maxSize: 130,
     enableResizing: false,
     meta: { label: "Pending" },
   },
@@ -234,6 +234,7 @@ const reportColumns: DataTableColumnDef<ReportTableRow>[] = [
     accessorKey: "updated_at",
     header: "Updated",
     cell: ({ row }) => formatRelative(row.original.updated_at),
+    enableResizing: false,
     meta: { label: "Updated" },
   },
 ];
