@@ -19,6 +19,7 @@ import { selectColumn } from "@components/data-table/select-column";
 import type { DataTableCellContext, DataTableColumnDef } from "@components/data-table/types";
 import { useDataTable } from "@components/data-table/use-data-table";
 import { useDataTableSearch } from "@components/data-table/use-data-table-search";
+import { EnumBadge } from "@components/enum-badge";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link, TextLink } from "@components/link";
 import { QueryError } from "@components/query-error";
@@ -36,6 +37,7 @@ import { DEFAULT_PAGE_SIZE } from "@lib/pagination";
 import { formatRelative } from "@lib/utils";
 
 import { PolicyDeleteDialog } from "./delete-dialog";
+import { POLICY_REMEDIATION_MODES, policyRemediationMode } from "./model";
 import { useBulkDeletePolicies, usePolicies } from "./queries";
 import { PolicyResultCountLink } from "./result-count-link";
 
@@ -97,7 +99,7 @@ export function PolicyListPage() {
           onRetry={() => void query.refetch()}
         />
       ) : query.isLoading ? (
-        <DataTableSkeleton columnCount={isAdmin ? 8 : 6} />
+        <DataTableSkeleton columnCount={isAdmin ? 9 : 7} />
       ) : (
         <DataTable
           table={table}
@@ -248,6 +250,22 @@ const policyColumns: DataTableColumnDef<PolicyTableRow>[] = [
     maxSize: 130,
     enableResizing: false,
     meta: { label: "Pending" },
+  },
+  {
+    id: "remediation",
+    accessorFn: (row) => policyRemediationMode(row.remediation),
+    header: "Remediation",
+    cell: ({ row }) => (
+      <EnumBadge
+        value={policyRemediationMode(row.original.remediation)}
+        metadata={POLICY_REMEDIATION_MODES}
+      />
+    ),
+    size: 144,
+    minSize: 144,
+    maxSize: 144,
+    enableResizing: false,
+    meta: { label: "Remediation" },
   },
   {
     id: "updated_at",

@@ -79,12 +79,17 @@ func TestListCountsAndSortsCurrentHostStates(t *testing.T) {
 	}
 	failing, err := store.Create(ctx, makePolicy(PolicyMutation{
 		Name: "Failing count", Query: "select 0;", Targets: targets,
+		Remediation: &PolicyRemediationMutation{Script: "#!/bin/zsh\nexit 0"},
 	}))
 	if err != nil {
 		t.Fatalf("create failing policy: %v", err)
 	}
 	pending, err := store.Create(ctx, makePolicy(PolicyMutation{
 		Name: "Pending count", Query: "select 2;", Targets: targets,
+		Remediation: &PolicyRemediationMutation{
+			Script:    "#!/bin/zsh\nexit 0",
+			Automatic: true,
+		},
 	}))
 	if err != nil {
 		t.Fatalf("create pending policy: %v", err)
@@ -122,6 +127,8 @@ func TestListCountsAndSortsCurrentHostStates(t *testing.T) {
 		"failing_host_count.desc": failing.ID,
 		"error_host_count.desc":   failing.ID,
 		"pending_host_count.desc": pending.ID,
+		"remediation.asc":         passing.ID,
+		"remediation.desc":        pending.ID,
 	} {
 		got, _, err := store.List(ctx, PolicyListParams{ListParams: listing.Params{Sort: sort}})
 		if err != nil {

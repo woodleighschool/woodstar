@@ -1,9 +1,10 @@
-import type { OsqueryPolicyHostStatus } from "@lib/api";
-import type { StatusMetadataMap } from "@lib/enum-metadata";
+import type { OsqueryPolicyHostStatus, OsqueryPolicyRemediationSummary } from "@lib/api";
+import type { EnumMetadataMap, StatusMetadataMap } from "@lib/enum-metadata";
 
 export type PolicyResultStatus = OsqueryPolicyHostStatus["status"];
 export type PolicyResultDisplayStatus = PolicyResultStatus | "stopped";
 export type RemediationRunStatus = NonNullable<OsqueryPolicyHostStatus["remediation"]>["status"];
+export type PolicyRemediationMode = "none" | "manual" | "automatic";
 
 export const POLICY_RESULT_STATUS_VALUES = ["pending", "pass", "fail", "error"] as const;
 
@@ -36,6 +37,28 @@ export const POLICY_RESULT_STATUS_OPTIONS = [
   { label: "Failing", value: "fail" },
   { label: "Error", value: "error" },
 ] satisfies { label: string; value: PolicyResultStatus }[];
+
+export const POLICY_REMEDIATION_MODES = {
+  none: {
+    name: "None",
+    description: "No remediation script is configured.",
+  },
+  manual: {
+    name: "Manual",
+    description: "A remediation script is configured for manual runs.",
+  },
+  automatic: {
+    name: "Automatic",
+    description: "A remediation script runs when an eligible host newly becomes failing.",
+  },
+} satisfies EnumMetadataMap<PolicyRemediationMode>;
+
+export function policyRemediationMode(
+  remediation: OsqueryPolicyRemediationSummary,
+): PolicyRemediationMode {
+  if (!remediation.configured) return "none";
+  return remediation.automatic ? "automatic" : "manual";
+}
 
 export const REMEDIATION_RUN_STATUSES = {
   queued: {

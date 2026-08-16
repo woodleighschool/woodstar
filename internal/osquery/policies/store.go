@@ -610,8 +610,15 @@ func policyOrderKeys() map[string]postgres.OrderExpr {
 		"failing_host_count": {SQL: "result_counts.failing_host_count"},
 		"error_host_count":   {SQL: "result_counts.error_host_count"},
 		"pending_host_count": {SQL: "result_counts.pending_host_count"},
-		"created_at":         {SQL: "c.created_at"},
-		"updated_at":         {SQL: "c.updated_at"},
+		"remediation": {
+			SQL: `CASE
+				WHEN NULLIF(btrim(c.remediation_script), '') IS NULL THEN 0
+				WHEN c.automatic_remediation_enabled THEN 2
+				ELSE 1
+			END`,
+		},
+		"created_at": {SQL: "c.created_at"},
+		"updated_at": {SQL: "c.updated_at"},
 	}
 }
 

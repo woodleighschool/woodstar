@@ -5,6 +5,9 @@ import { createTableSearchSchema, TABLE_SEARCH_DEFAULTS } from "@lib/table-searc
 
 const searchSchema = createTableSearchSchema([
   "name",
+  "collected_host_count",
+  "error_host_count",
+  "pending_host_count",
   "created_at",
   "updated_at",
   "schedule_interval",
