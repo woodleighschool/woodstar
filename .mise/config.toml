@@ -20,7 +20,6 @@ mkcert = "1.4.4"
 experimental = true
 pin = true
 lockfile = true
-minimum_release_age = "12 hours"
 
 [monorepo]
 config_roots = ["web", "docs"]
