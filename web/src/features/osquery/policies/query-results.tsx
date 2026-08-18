@@ -94,7 +94,9 @@ export function createPolicyResultColumns({
   if (includeRemediation) {
     columns.push({
       id: "remediation",
+      accessorFn: (row) => row.remediation?.status ?? "not_run",
       header: () => "Remediation",
+      enableColumnFilter: true,
       cell: ({ row }) =>
         row.original.remediation ? (
           <PolicyRemediationStatus status={row.original.remediation.status} />

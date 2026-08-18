@@ -8816,6 +8816,21 @@ paths:
                 - error
               type: string
             type: array
+        - explode: false
+          in: query
+          name: remediation
+          schema:
+            items:
+              enum:
+                - not_run
+                - queued
+                - in_progress
+                - succeeded
+                - failed
+                - no_response
+                - cancelled
+              type: string
+            type: array
       responses:
         "200":
           content:

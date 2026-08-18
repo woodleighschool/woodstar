@@ -15,6 +15,8 @@ import (
 
 const oidcCallbackPath = "/api/auth/sso/callback"
 
+const maxOrbitScriptExecutionTimeout = 5 * time.Hour
+
 // SessionLifetime is the browser session lifetime.
 const SessionLifetime = 14 * 24 * time.Hour
 
@@ -37,6 +39,8 @@ type Config struct {
 	CORSAllowedOrigins  []string `env:"CORS_ALLOWED_ORIGINS"                       validate:"dive,web_origin"`
 	GeoIPCityFile       string   `env:"GEOIP_CITY_FILE"                            validate:"required_with=GeoIPASNFile"`
 	GeoIPASNFile        string   `env:"GEOIP_ASN_FILE"                             validate:"required_with=GeoIPCityFile"`
+
+	OrbitScriptTimeout time.Duration `env:"ORBIT_SCRIPT_EXECUTION_TIMEOUT" envDefault:"5m" validate:"gt=0"`
 
 	SantaEventRetentionDays int           `env:"SANTA_EVENT_RETENTION_DAYS" envDefault:"90" validate:"gte=1"`
 	SantaEventSweepInterval time.Duration `env:"SANTA_EVENT_SWEEP_INTERVAL" envDefault:"1h" validate:"gt=0"`
@@ -152,6 +156,11 @@ func (cfg *Config) Validate() error {
 	}
 	if err := validation.Struct(cfg); err != nil {
 		return err
+	}
+	if cfg.OrbitScriptTimeout < time.Second ||
+		cfg.OrbitScriptTimeout > maxOrbitScriptExecutionTimeout ||
+		cfg.OrbitScriptTimeout%time.Second != 0 {
+		return errors.New("OrbitScriptTimeout must be a whole number of seconds between 1s and 5h")
 	}
 	if cfg.StorageKind == "s3" && cfg.StorageS3Endpoint != "" &&
 		!validation.IsHTTPSOrigin(cfg.StorageS3Endpoint) {

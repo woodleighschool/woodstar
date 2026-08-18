@@ -46,7 +46,6 @@ type orbitFixtureScriptResponse struct {
 	HostID         int64  `json:"host_id"`
 	ExecutionID    string `json:"execution_id"`
 	ScriptContents string `json:"script_contents"`
-	Timeout        int    `json:"timeout"`
 }
 
 type orbitFixturePolicyResults struct {
@@ -549,7 +548,7 @@ func proveOrbitPolicyRemediationLifecycle( //nolint:funlen // Linear cross-proto
 	var script orbitFixtureScriptResponse
 	client.postJSON("/api/fleet/orbit/scripts/request", requestBody, http.StatusOK, &script)
 	if script.HostID != host.Id || script.ExecutionID != executionID ||
-		script.ScriptContents != remediationScript || script.Timeout != 300 {
+		script.ScriptContents != remediationScript {
 		t.Fatalf("claimed Orbit script = %+v, want immutable policy remediation", script)
 	}
 	client.postJSON("/api/fleet/orbit/scripts/request", requestBody, http.StatusNotFound, nil)

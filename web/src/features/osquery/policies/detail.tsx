@@ -27,7 +27,10 @@ import { Skeleton } from "@components/ui/skeleton";
 import { TabsContent, TabsTrigger } from "@components/ui/tabs";
 import { useAuth } from "@features/auth/queries";
 import { LiveRunButton } from "@features/osquery/live/query-actions";
-import { POLICY_RESULT_STATUS_OPTIONS } from "@features/osquery/policies/model";
+import {
+  POLICY_RESULT_STATUS_OPTIONS,
+  REMEDIATION_STATUS_FILTER_OPTIONS,
+} from "@features/osquery/policies/model";
 import { parseRouteID } from "@lib/route-params";
 import { formatRelative } from "@lib/utils";
 
@@ -59,16 +62,28 @@ const remediationExportColumn: DataTableExportOptions<PolicyResultRow>["columns"
   value: (row) => row.remediation?.status,
 };
 
-const STATUS_FILTER_KEYS = [{ id: "status", multiple: true }] as const;
+const RESULT_FILTER_KEYS = [
+  { id: "status", multiple: true },
+  { id: "remediation", multiple: true },
+] as const;
 const routeApi = getRouteApi("/_authenticated/osquery/policies/$id/");
 
 function PolicyResultsToolbar({ table }: { table: DataTableInstance<PolicyResultRow> }) {
   return (
-    <DataTableFacetedFilter
-      column={table.getColumn("status")}
-      title="Status"
-      options={POLICY_RESULT_STATUS_OPTIONS}
-    />
+    <>
+      <DataTableFacetedFilter
+        column={table.getColumn("status")}
+        title="Status"
+        options={POLICY_RESULT_STATUS_OPTIONS}
+      />
+      {table.getColumn("remediation") ? (
+        <DataTableFacetedFilter
+          column={table.getColumn("remediation")}
+          title="Remediation"
+          options={REMEDIATION_STATUS_FILTER_OPTIONS}
+        />
+      ) : null}
+    </>
   );
 }
 
@@ -87,7 +102,7 @@ export function PolicyDetailPage() {
   const tableSearch = useDataTableSearch({
     search,
     onSearchChange: (updater) => void navigate({ search: updater, replace: true }),
-    filterKeys: STATUS_FILTER_KEYS,
+    filterKeys: RESULT_FILTER_KEYS,
   });
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
@@ -104,12 +119,14 @@ export function PolicyDetailPage() {
   );
   const runRemediations = useRunPolicyRemediations();
   const status = search.status;
+  const remediation = search.remediation;
   const results = usePolicyResults(activeTab === "results" ? id : null, {
     q: tableSearch.q,
     page: tableSearch.page,
     per_page: tableSearch.per_page,
     sort: tableSearch.sort,
     status,
+    remediation,
   });
   const rows =
     results.data?.items.map((result) =>
@@ -186,6 +203,7 @@ export function PolicyDetailPage() {
         q: tableSearch.q,
         sort: tableSearch.sort,
         status,
+        remediation,
       }).then((result) => result.map((row) => policyResultFromStatus(row))),
   };
   return (
@@ -371,7 +389,11 @@ export function PolicyDetailPage() {
               onRetry={() => void results.refetch()}
             />
           ) : results.isLoading ? (
-            <DataTableSkeleton columnCount={resultColumns.length} filterCount={1} withExport />
+            <DataTableSkeleton
+              columnCount={resultColumns.length}
+              filterCount={showRemediation ? 2 : 1}
+              withExport
+            />
           ) : (
             <DataTable
               table={table}

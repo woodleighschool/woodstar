@@ -200,7 +200,6 @@ func TestOrbitScriptEndpointsUseStockContract(t *testing.T) {
 			HostID:         42,
 			ExecutionID:    "execution-id",
 			ScriptContents: "#!/bin/zsh\nexit 0\n",
-			Timeout:        300,
 		},
 	}
 	router := newOrbitRouter(service)
@@ -223,9 +222,11 @@ func TestOrbitScriptEndpointsUseStockContract(t *testing.T) {
 	}
 	if response.ExecutionID != "execution-id" ||
 		response.ScriptContents != "#!/bin/zsh\nexit 0\n" ||
-		response.Timeout != 300 ||
 		response.ExitCode != nil {
 		t.Fatalf("script response = %+v, want Fleet-compatible queued execution", response)
+	}
+	if strings.Contains(recorder.Body.String(), `"timeout"`) {
+		t.Fatalf("script response contains unused per-execution timeout: %s", recorder.Body.String())
 	}
 	if service.claimScriptRequest.OrbitNodeKey != "node-key" ||
 		service.claimScriptRequest.ExecutionID != "execution-id" {

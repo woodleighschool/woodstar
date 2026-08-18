@@ -49,7 +49,6 @@ type ScriptResponse struct {
 	Output         string `json:"output"`
 	Runtime        int    `json:"runtime"`
 	ExitCode       *int   `json:"exit_code"`
-	Timeout        int    `json:"timeout"`
 }
 
 // ScriptResult is the stock Orbit script result payload.

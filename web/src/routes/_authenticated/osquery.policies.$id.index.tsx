@@ -2,7 +2,10 @@ import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
 
 import { PolicyDetailPage } from "@features/osquery/policies/detail";
-import { POLICY_RESULT_STATUS_VALUES } from "@features/osquery/policies/model";
+import {
+  POLICY_RESULT_STATUS_VALUES,
+  REMEDIATION_STATUS_FILTER_VALUES,
+} from "@features/osquery/policies/model";
 import { createTableSearchSchema, TABLE_SEARCH_DEFAULTS } from "@lib/table-search";
 
 const SEARCH_DEFAULTS = {
@@ -10,10 +13,11 @@ const SEARCH_DEFAULTS = {
   sort: "host_name.asc",
 } as const;
 
-const searchSchema = createTableSearchSchema(["host_name", "status", "updated_at"], {
+const searchSchema = createTableSearchSchema(["host_name", "status", "remediation", "updated_at"], {
   defaultSort: SEARCH_DEFAULTS.sort,
 }).extend({
   status: z.array(z.enum(POLICY_RESULT_STATUS_VALUES)).optional().catch(undefined),
+  remediation: z.array(z.enum(REMEDIATION_STATUS_FILTER_VALUES)).optional().catch(undefined),
   tab: z.enum(["results", "remediation"]).optional().catch(undefined),
 });
 

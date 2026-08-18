@@ -143,6 +143,40 @@ func TestConfigDefaults(t *testing.T) {
 	if cfg.LogLevel != "info" {
 		t.Fatalf("LogLevel = %q, want info", cfg.LogLevel)
 	}
+	if cfg.OrbitScriptTimeout != 5*time.Minute {
+		t.Fatalf("OrbitScriptTimeout = %s, want 5m", cfg.OrbitScriptTimeout)
+	}
+}
+
+func TestConfigReadsOrbitScriptExecutionTimeout(t *testing.T) {
+	setValidEnvironment(t)
+	t.Setenv("WOODSTAR_ORBIT_SCRIPT_EXECUTION_TIMEOUT", "30m")
+
+	cfg := Config{}
+	if err := resolveConfig(&cfg); err != nil {
+		t.Fatalf("resolveConfig returned error: %v", err)
+	}
+	if cfg.OrbitScriptTimeout != 30*time.Minute {
+		t.Fatalf("OrbitScriptTimeout = %s, want 30m", cfg.OrbitScriptTimeout)
+	}
+}
+
+func TestConfigRejectsInvalidOrbitScriptExecutionTimeout(t *testing.T) {
+	for name, value := range map[string]string{
+		"below one second":  "500ms",
+		"fractional second": "1500ms",
+		"above five hours":  "5h1s",
+	} {
+		t.Run(name, func(t *testing.T) {
+			setValidEnvironment(t)
+			t.Setenv("WOODSTAR_ORBIT_SCRIPT_EXECUTION_TIMEOUT", value)
+
+			err := resolveConfig(&Config{})
+			if err == nil || !strings.Contains(err.Error(), "OrbitScriptTimeout") {
+				t.Fatalf("resolveConfig error = %v, want OrbitScriptTimeout rejection", err)
+			}
+		})
+	}
 }
 
 func TestConfigReadsAndNormalizesEnvironment(t *testing.T) {

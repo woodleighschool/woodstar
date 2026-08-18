@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/enrollment"
@@ -27,11 +28,12 @@ var ErrInvalidDeviceAuthToken = errors.New("invalid Orbit device auth token")
 
 // EnrollmentService performs Orbit enrollment and config operations.
 type EnrollmentService struct {
-	hostStore    hostStore
-	secretStore  agentauth.SecretVerifier
-	primaryUsers primaryUserStore
-	heartbeats   heartbeatRecorder
-	remediations remediationStore
+	hostStore              hostStore
+	secretStore            agentauth.SecretVerifier
+	primaryUsers           primaryUserStore
+	heartbeats             heartbeatRecorder
+	remediations           remediationStore
+	scriptExecutionTimeout time.Duration
 }
 
 type hostStore interface {
@@ -61,10 +63,12 @@ func NewEnrollmentService(
 	primaryUsers primaryUserStore,
 	heartbeats heartbeatRecorder,
 	remediations remediationStore,
+	scriptExecutionTimeout time.Duration,
 ) *EnrollmentService {
 	return &EnrollmentService{
 		hostStore: hostStore, secretStore: secretStore, primaryUsers: primaryUsers,
 		heartbeats: heartbeats, remediations: remediations,
+		scriptExecutionTimeout: scriptExecutionTimeout,
 	}
 }
 
@@ -114,7 +118,7 @@ func (s *EnrollmentService) Config(ctx context.Context, nodeKey string, contact 
 	}
 	return ConfigResponse{
 		CommandLineStartupFlags: json.RawMessage(orbitCommandLineStartupFlags),
-		ScriptExecutionTimeout:  policies.DefaultRemediationTimeoutSeconds,
+		ScriptExecutionTimeout:  int(s.scriptExecutionTimeout / time.Second),
 		Notifications: Notifications{
 			PendingScriptExecutionIDs: pending,
 		},
@@ -142,7 +146,6 @@ func (s *EnrollmentService) ClaimScript(
 		HostID:         claimed.HostID,
 		ExecutionID:    claimed.ExecutionID,
 		ScriptContents: claimed.ScriptContents,
-		Timeout:        claimed.TimeoutSeconds,
 	}, nil
 }
 

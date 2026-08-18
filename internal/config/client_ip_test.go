@@ -109,6 +109,7 @@ func validConfig() Config {
 		StorageKind:             "file",
 		StorageFileRoot:         "data/storage",
 		StorageTransferTTL:      15 * time.Minute,
+		OrbitScriptTimeout:      5 * time.Minute,
 		ClientIPSource:          ClientIPSourceRemoteAddr,
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/fault"
@@ -33,6 +34,26 @@ func TestConfigResponseWireShapeMatchesOrbit(t *testing.T) {
 		flags["logger_plugin"] != "tls" ||
 		flags["logger_min_status"] != float64(2) {
 		t.Fatalf("command-line flags = %#v", flags)
+	}
+}
+
+func TestConfigUsesConfiguredScriptExecutionTimeout(t *testing.T) {
+	t.Parallel()
+
+	service := NewEnrollmentService(
+		&fakeOrbitHostStore{host: &hosts.Host{ID: 42}},
+		fakeOrbitSecretVerifier{ok: true},
+		fakePrimaryUserStore{},
+		&fakeHeartbeatRecorder{},
+		fakeRemediationStore{},
+		30*time.Minute,
+	)
+	response, err := service.Config(t.Context(), "node-key", heartbeats.Contact{})
+	if err != nil {
+		t.Fatalf("Config: %v", err)
+	}
+	if response.ScriptExecutionTimeout != 1_800 {
+		t.Fatalf("ScriptExecutionTimeout = %d, want 1800", response.ScriptExecutionTimeout)
 	}
 }
 
@@ -274,6 +295,7 @@ func newTestEnrollmentService(
 		fakePrimaryUserStore{},
 		recorder,
 		fakeRemediationStore{},
+		5*time.Minute,
 	)
 }
 

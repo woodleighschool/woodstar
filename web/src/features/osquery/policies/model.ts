@@ -4,6 +4,7 @@ import type { EnumMetadataMap, StatusMetadataMap } from "@lib/enum-metadata";
 export type PolicyResultStatus = OsqueryPolicyHostStatus["status"];
 export type PolicyResultDisplayStatus = PolicyResultStatus | "stopped";
 export type RemediationRunStatus = NonNullable<OsqueryPolicyHostStatus["remediation"]>["status"];
+export type RemediationStatusFilter = RemediationRunStatus | "not_run";
 export type PolicyRemediationMode = "none" | "manual" | "automatic";
 
 export const POLICY_RESULT_STATUS_VALUES = ["pending", "pass", "fail", "error"] as const;
@@ -86,3 +87,21 @@ export const REMEDIATION_RUN_STATUSES = {
     variant: "default",
   },
 } satisfies StatusMetadataMap<RemediationRunStatus>;
+
+export const REMEDIATION_STATUS_FILTER_VALUES = [
+  "failed",
+  "no_response",
+  "in_progress",
+  "queued",
+  "succeeded",
+  "cancelled",
+  "not_run",
+] as const satisfies readonly RemediationStatusFilter[];
+
+export const REMEDIATION_STATUS_FILTER_OPTIONS = [
+  ...REMEDIATION_STATUS_FILTER_VALUES.filter((status) => status !== "not_run").map((status) => ({
+    label: REMEDIATION_RUN_STATUSES[status].name,
+    value: status,
+  })),
+  { label: "Not run", value: "not_run" },
+] satisfies { label: string; value: RemediationStatusFilter }[];
