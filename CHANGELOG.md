@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.8.18](https://github.com/woodleighschool/woodstar/compare/0.8.17...0.8.18) (2026-08-18)
+
+
+### Features
+
+* **deps:** update module github.com/oapi-codegen/runtime (v1.6.0 → v1.7.0) ([#202](https://github.com/woodleighschool/woodstar/issues/202)) ([f6eef5d](https://github.com/woodleighschool/woodstar/commit/f6eef5df8c38d5225a93087fb67ba233b6e50c9c))
+* **go:** update module github.com/getkin/kin-openapi (v0.142.0 → v0.144.0) [security] ([#207](https://github.com/woodleighschool/woodstar/issues/207)) ([a7c3b94](https://github.com/woodleighschool/woodstar/commit/a7c3b94197b9b6d726ba86d6c8fbfcc2a72ee39d))
+* **go:** update river monorepo (v0.43.0 → v0.44.0) ([#211](https://github.com/woodleighschool/woodstar/issues/211)) ([f228972](https://github.com/woodleighschool/woodstar/commit/f228972074f4e58d664cbbe69be0989307b85c66))
+* **npm:** update dependency lucide-react (1.31.0 → 1.32.0) ([#212](https://github.com/woodleighschool/woodstar/issues/212)) ([1bebba8](https://github.com/woodleighschool/woodstar/commit/1bebba8206317482ea9553e9f6bfd891dcc10d30))
+* **osquery:** add remediation filters and runtime timeout ([#210](https://github.com/woodleighschool/woodstar/issues/210)) ([e4d14f3](https://github.com/woodleighschool/woodstar/commit/e4d14f393f04c1a07168fe979b6dd4354a9745f6))
+
+
+### Bug Fixes
+
+* **deps:** bump indirect deps ([8f95430](https://github.com/woodleighschool/woodstar/commit/8f95430cc118d9d22ad2b0b424579751b83be4cc))
+* **deps:** update dependency @codemirror/view (6.43.8 → 6.43.9) ([#205](https://github.com/woodleighschool/woodstar/issues/205)) ([d939a69](https://github.com/woodleighschool/woodstar/commit/d939a697b4a448d49fe858ec0c548f450267108c))
+* **docs:** formatting nag ([93f946c](https://github.com/woodleighschool/woodstar/commit/93f946cc4b2c435ca315bcff333b010ea92c7f5a))
+* **lefthook:** allow ignored formatter inputs ([438e3a6](https://github.com/woodleighschool/woodstar/commit/438e3a660f69224a5f27d366ede72c571adbf620))
+
 ## [0.8.17](https://github.com/woodleighschool/woodstar/compare/0.8.16...0.8.17) (2026-08-16)
 
 
