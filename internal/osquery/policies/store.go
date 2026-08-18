@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/woodleighschool/woodstar/internal/directory"
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/listing"
@@ -640,6 +641,8 @@ type policyRow struct {
 	ErrorHostCount              int32     `db:"error_host_count"`
 	PendingHostCount            int32     `db:"pending_host_count"`
 	CreatedByUserID             *int64    `db:"created_by_user_id"`
+	CreatedByName               string    `db:"created_by_name"`
+	CreatedByEmail              string    `db:"created_by_email"`
 	CreatedAt                   time.Time `db:"created_at"`
 	UpdatedAt                   time.Time `db:"updated_at"`
 }
@@ -682,7 +685,7 @@ func policyFromRow(row policyRow) *Policy {
 		FailingHostCount: row.FailingHostCount,
 		ErrorHostCount:   row.ErrorHostCount,
 		PendingHostCount: row.PendingHostCount,
-		CreatedByUserID:  row.CreatedByUserID,
+		CreatedBy:        userSummary(row.CreatedByUserID, row.CreatedByName, row.CreatedByEmail),
 		CreatedAt:        row.CreatedAt,
 		UpdatedAt:        row.UpdatedAt,
 	}
@@ -736,9 +739,12 @@ SELECT
 	result_counts.error_host_count,
 	result_counts.pending_host_count,
 	c.created_by_user_id,
+	COALESCE(creator.name, '') AS created_by_name,
+	COALESCE(creator.email, '') AS created_by_email,
 	c.created_at,
 	c.updated_at
 FROM osquery_policies c
+LEFT JOIN users creator ON creator.id = c.created_by_user_id
 LEFT JOIN LATERAL (
 	SELECT
 		COUNT(*) FILTER (WHERE membership.status = 'pass')::integer AS passing_host_count,
@@ -753,4 +759,11 @@ LEFT JOIN LATERAL (
 	   AND membership.host_id = assignment.host_id
 	WHERE assignment.policy_id = c.id
 ) result_counts ON true`
+}
+
+func userSummary(id *int64, name string, email string) *directory.UserSummary {
+	if id == nil {
+		return nil
+	}
+	return &directory.UserSummary{ID: *id, Name: name, Email: email}
 }

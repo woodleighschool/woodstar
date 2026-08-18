@@ -1,5 +1,5 @@
 import { useRouterState } from "@tanstack/react-router";
-import { ChevronRight, ChevronsUpDown, LogOut, User as UserIcon } from "lucide-react";
+import { ChevronRight, ChevronsUpDown, History, LogOut, User as UserIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { type NavItem, type NavMenu, navSections } from "@components/layout/nav-config";
@@ -52,9 +52,26 @@ export function AppSidebar() {
         ))}
       </SidebarContent>
       <SidebarFooter>
+        <SidebarActivity pathname={pathname} />
         <SidebarUserMenu />
       </SidebarFooter>
     </Sidebar>
+  );
+}
+function SidebarActivity({ pathname }: { pathname: string }) {
+  return (
+    <SidebarMenu>
+      <SidebarMenuItem>
+        <SidebarMenuButton
+          render={<Link to="/activity" />}
+          tooltip="Activity"
+          isActive={pathname.startsWith("/activity")}
+        >
+          <History />
+          <span>Activity</span>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    </SidebarMenu>
   );
 }
 function SidebarBrand() {

@@ -7,6 +7,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
+	"github.com/woodleighschool/woodstar/internal/directory"
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/listing"
 	"github.com/woodleighschool/woodstar/internal/openapischema"
@@ -26,7 +27,7 @@ type Policy struct {
 	FailingHostCount int32                    `json:"failing_host_count"`
 	ErrorHostCount   int32                    `json:"error_host_count"`
 	PendingHostCount int32                    `json:"pending_host_count"`
-	CreatedByUserID  *int64                   `json:"created_by_user_id,omitempty"`
+	CreatedBy        *directory.UserSummary   `json:"created_by,omitempty"`
 	CreatedAt        time.Time                `json:"created_at"`
 	UpdatedAt        time.Time                `json:"updated_at"`
 }

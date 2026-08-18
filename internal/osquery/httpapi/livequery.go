@@ -3,6 +3,7 @@ package httpapi
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"reflect"
@@ -13,6 +14,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/sse"
 
+	"github.com/woodleighschool/woodstar/internal/activity"
 	"github.com/woodleighschool/woodstar/internal/api"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
@@ -96,6 +98,7 @@ func registerLiveQueries(
 	streamingAPI huma.API,
 	store *livequery.Store,
 	hostStore *hosts.Store,
+	activityRecorder activity.Recorder,
 	logger *slog.Logger,
 ) {
 	huma.Register(humaAPI, huma.Operation{
@@ -115,6 +118,14 @@ func registerLiveQueries(
 		if err != nil {
 			return nil, api.HandlerError(ctx, logger, "create-live-query", err)
 		}
+		activity.RecordUser(
+			ctx,
+			activityRecorder,
+			logger,
+			activity.AreaOsquery,
+			activity.ActionLiveQueryStarted,
+			activity.Resource("live_query", handle.ID, fmt.Sprintf("%d hosts", handle.ResolvedHostCount)),
+		)
 		return &liveQueryCreateOutput{Body: handle}, nil
 	})
 
@@ -152,6 +163,14 @@ func registerLiveQueries(
 			}
 			return nil, huma.Error404NotFound("live query not found")
 		}
+		activity.RecordUser(
+			ctx,
+			activityRecorder,
+			logger,
+			activity.AreaOsquery,
+			activity.ActionLiveQueryStopped,
+			activity.Resource("live_query", input.ID, "Live query"),
+		)
 		return &struct{}{}, nil
 	})
 

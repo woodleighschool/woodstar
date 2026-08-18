@@ -2326,7 +2326,7 @@ type MunkiUploadRequest struct {
 type OsqueryReport struct {
 	CollectedHostCount int32                `json:"collected_host_count"`
 	CreatedAt          time.Time            `json:"created_at"`
-	CreatedByUserId    *int64               `json:"created_by_user_id,omitempty"`
+	CreatedBy          *UserSummary         `json:"created_by,omitempty"`
 	Description        string               `json:"description"`
 	ErrorHostCount     int32                `json:"error_host_count"`
 	Id                 int64                `json:"id"`
@@ -2832,6 +2832,13 @@ type UserCreate struct {
 
 // UserCreateRole defines model for UserCreate.Role.
 type UserCreateRole string
+
+// UserSummary defines model for UserSummary.
+type UserSummary struct {
+	Email openapi_types.Email `json:"email"`
+	Id    int64               `json:"id"`
+	Name  string              `json:"name"`
+}
 
 // ListHostsParams defines parameters for ListHosts.
 type ListHostsParams struct {

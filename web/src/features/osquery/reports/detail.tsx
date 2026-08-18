@@ -24,9 +24,10 @@ import { Separator } from "@components/ui/separator";
 import { Skeleton } from "@components/ui/skeleton";
 import { TabsContent, TabsTrigger } from "@components/ui/tabs";
 import { useAuth } from "@features/auth/queries";
+import { creatorMeta } from "@features/osquery/creator-meta";
 import { LiveRunButton } from "@features/osquery/live/query-actions";
 import { parseRouteID } from "@lib/route-params";
-import { formatInterval, formatRelative } from "@lib/utils";
+import { formatInterval } from "@lib/utils";
 
 import { ReportDeleteDialog } from "./delete-dialog";
 import { listAllReportSnapshots, useReport, useReportSnapshots } from "./queries";
@@ -147,7 +148,7 @@ export function ReportDetailPage() {
     <PageShell>
       <PageHeader
         title="Report Details"
-        meta={`Edited ${formatRelative(report.data.updated_at)}`}
+        meta={creatorMeta(report.data.created_by, report.data.updated_at)}
         actions={
           <>
             {isAdmin ? (

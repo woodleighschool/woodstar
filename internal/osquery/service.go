@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/woodleighschool/woodstar/internal/activity"
 	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/enrollment"
 	"github.com/woodleighschool/woodstar/internal/fault"
@@ -36,6 +37,7 @@ type Dependencies struct {
 	LiveQueries        liveQueries
 	SecretStore        agentauth.SecretVerifier
 	Heartbeats         heartbeatRecorder
+	Activity           activity.Recorder
 	Logger             *slog.Logger
 }
 
@@ -135,6 +137,14 @@ func (s *AgentService) Enroll(ctx context.Context, req EnrollRequest, contact he
 	if err := s.deps.Heartbeats.Record(ctx, host.ID, heartbeats.SourceOsquery, contact); err != nil {
 		return "", fmt.Errorf("record heartbeat: %w", err)
 	}
+	activity.RecordSystem(
+		ctx,
+		s.deps.Activity,
+		s.deps.Logger,
+		activity.AreaOsquery,
+		activity.ActionOsqueryHostEnrolled,
+		activity.Resource("host", host.ID, host.DisplayName),
+	)
 	s.deps.Logger.DebugContext(
 		ctx,
 		"osquery host enrolled", "operation", "enroll",

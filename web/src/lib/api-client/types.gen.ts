@@ -15,6 +15,22 @@ export type AccountMutation = {
     password?: string;
 };
 
+export type ActivityEvent = {
+    action: 'orbit_host_enrolled' | 'osquery_host_enrolled' | 'host_deleted' | 'hosts_deleted' | 'host_inventory_requested' | 'host_primary_user_set' | 'host_primary_user_cleared' | 'policy_created' | 'policy_updated' | 'policy_deleted' | 'policies_deleted' | 'policy_remediation_requested' | 'report_created' | 'report_updated' | 'report_deleted' | 'reports_deleted' | 'live_query_started' | 'live_query_stopped';
+    actor: Actor;
+    area: 'hosts' | 'osquery';
+    id: number;
+    occurred_at: string;
+    subject: Subject;
+};
+
+export type Actor = {
+    email?: string;
+    kind: 'user' | 'system';
+    name: string;
+    user_id?: number;
+};
+
 export type AgentSecret = {
     agent: 'orbit' | 'munki' | 'santa';
     created_at: string;
@@ -842,6 +858,12 @@ export type OsqueryHandle = {
     started_at: string;
 };
 
+export type OsqueryHostStatusPoint = {
+    bucket: string;
+    offline_count: number;
+    online_count: number;
+};
+
 export type OsqueryLiveQueryCompletedEvent = {
     type: 'completed';
 };
@@ -884,7 +906,7 @@ export type OsqueryLiveQueryTargetCountOutputBody = {
 
 export type OsqueryPolicy = {
     created_at: string;
-    created_by_user_id?: number;
+    created_by?: UserSummary;
     description: string;
     error_host_count: number;
     failing_host_count: number;
@@ -951,6 +973,14 @@ export type OsqueryPolicyRemediationSummary = {
     configured: boolean;
 };
 
+export type OsqueryPolicyStatusPoint = {
+    bucket: string;
+    error_count: number;
+    fail_count: number;
+    pass_count: number;
+    pending_count: number;
+};
+
 export type OsqueryPolicyTargets = {
     exclude: Array<LabelRef>;
     include: Array<LabelRef>;
@@ -959,7 +989,7 @@ export type OsqueryPolicyTargets = {
 export type OsqueryReport = {
     collected_host_count: number;
     created_at: string;
-    created_by_user_id?: number;
+    created_by?: UserSummary;
     description: string;
     error_host_count: number;
     id: number;
@@ -1000,6 +1030,11 @@ export type OsqueryReportSnapshot = {
 export type OsqueryReportTargets = {
     exclude: Array<LabelRef>;
     include: Array<LabelRef>;
+};
+
+export type PageActivityEvent = {
+    count: number;
+    items: Array<ActivityEvent>;
 };
 
 export type PageConfiguration = {
@@ -1435,6 +1470,12 @@ export type SoftwareVersionList = {
     items: Array<SoftwareVersion>;
 };
 
+export type Subject = {
+    id?: number;
+    name: string;
+    type: string;
+};
+
 export type SyncRun = {
     duration_ms?: number;
     error?: string;
@@ -1484,6 +1525,12 @@ export type UserMutation = {
     name: string;
     password?: string;
     role?: 'admin' | 'viewer';
+};
+
+export type UserSummary = {
+    email: string;
+    id: number;
+    name: string;
 };
 
 export type HostDetailWritable = {
@@ -1677,6 +1724,41 @@ export type RotateAccountApiKeyResponses = {
 };
 
 export type RotateAccountApiKeyResponse = RotateAccountApiKeyResponses[keyof RotateAccountApiKeyResponses];
+
+export type ListActivityData = {
+    body?: never;
+    path?: never;
+    query?: {
+        q?: string;
+        page?: number;
+        per_page?: number;
+        sort?: string;
+        area?: 'hosts' | 'osquery';
+    };
+    url: '/api/activity';
+};
+
+export type ListActivityErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type ListActivityError = ListActivityErrors[keyof ListActivityErrors];
+
+export type ListActivityResponses = {
+    /**
+     * OK
+     */
+    200: PageActivityEvent;
+};
+
+export type ListActivityResponse = ListActivityResponses[keyof ListActivityResponses];
 
 export type ListAgentSecretsData = {
     body?: never;
@@ -4387,6 +4469,37 @@ export type SetMunkiSoftwareIconResponses = {
 
 export type SetMunkiSoftwareIconResponse = SetMunkiSoftwareIconResponses[keyof SetMunkiSoftwareIconResponses];
 
+export type ListOsqueryHostStatusHistoryData = {
+    body?: never;
+    path?: never;
+    query?: {
+        since?: string;
+    };
+    url: '/api/osquery/host-status-history';
+};
+
+export type ListOsqueryHostStatusHistoryErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Error
+     */
+    default: ErrorModel;
+};
+
+export type ListOsqueryHostStatusHistoryError = ListOsqueryHostStatusHistoryErrors[keyof ListOsqueryHostStatusHistoryErrors];
+
+export type ListOsqueryHostStatusHistoryResponses = {
+    /**
+     * OK
+     */
+    200: Array<OsqueryHostStatusPoint>;
+};
+
+export type ListOsqueryHostStatusHistoryResponse = ListOsqueryHostStatusHistoryResponses[keyof ListOsqueryHostStatusHistoryResponses];
+
 export type CreateLiveQueryData = {
     body: OsqueryLiveQueryCreateBody;
     path?: never;
@@ -5002,6 +5115,47 @@ export type ListOsqueryPolicyResultsResponses = {
 };
 
 export type ListOsqueryPolicyResultsResponse = ListOsqueryPolicyResultsResponses[keyof ListOsqueryPolicyResultsResponses];
+
+export type ListOsqueryPolicyStatusHistoryData = {
+    body?: never;
+    path: {
+        id: number;
+    };
+    query?: {
+        since?: string;
+    };
+    url: '/api/osquery/policies/{id}/status-history';
+};
+
+export type ListOsqueryPolicyStatusHistoryErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type ListOsqueryPolicyStatusHistoryError = ListOsqueryPolicyStatusHistoryErrors[keyof ListOsqueryPolicyStatusHistoryErrors];
+
+export type ListOsqueryPolicyStatusHistoryResponses = {
+    /**
+     * OK
+     */
+    200: Array<OsqueryPolicyStatusPoint>;
+};
+
+export type ListOsqueryPolicyStatusHistoryResponse = ListOsqueryPolicyStatusHistoryResponses[keyof ListOsqueryPolicyStatusHistoryResponses];
 
 export type BulkDeleteOsqueryReportsData = {
     body?: never;

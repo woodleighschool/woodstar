@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedAccountRouteImport } from './routes/_authenticated/account'
+import { Route as AuthenticatedActivityRouteImport } from './routes/_authenticated/activity'
 import { Route as AuthenticatedDirectoryRouteImport } from './routes/_authenticated/directory'
 import { Route as AuthenticatedHostsRouteImport } from './routes/_authenticated/hosts'
 import { Route as AuthenticatedLabelsRouteImport } from './routes/_authenticated/labels'
@@ -120,6 +121,11 @@ const LoginRoute = LoginRouteImport.update({
 const AuthenticatedAccountRoute = AuthenticatedAccountRouteImport.update({
   id: '/account',
   path: '/account',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedActivityRoute = AuthenticatedActivityRouteImport.update({
+  id: '/activity',
+  path: '/activity',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedDirectoryRoute = AuthenticatedDirectoryRouteImport.update({
@@ -647,6 +653,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/account': typeof AuthenticatedAccountRoute
+  '/activity': typeof AuthenticatedActivityRoute
   '/directory': typeof AuthenticatedDirectoryRouteWithChildren
   '/hosts': typeof AuthenticatedHostsRouteWithChildren
   '/labels': typeof AuthenticatedLabelsRouteWithChildren
@@ -741,6 +748,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/account': typeof AuthenticatedAccountRoute
+  '/activity': typeof AuthenticatedActivityRoute
   '/labels/new': typeof AuthenticatedLabelsNewRoute
   '/munki/client-resources': typeof AuthenticatedMunkiClientResourcesRoute
   '/directory': typeof AuthenticatedDirectoryIndexRoute
@@ -807,6 +815,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/login': typeof LoginRoute
   '/_authenticated/account': typeof AuthenticatedAccountRoute
+  '/_authenticated/activity': typeof AuthenticatedActivityRoute
   '/_authenticated/directory': typeof AuthenticatedDirectoryRouteWithChildren
   '/_authenticated/hosts': typeof AuthenticatedHostsRouteWithChildren
   '/_authenticated/labels': typeof AuthenticatedLabelsRouteWithChildren
@@ -903,6 +912,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/account'
+    | '/activity'
     | '/directory'
     | '/hosts'
     | '/labels'
@@ -997,6 +1007,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/account'
+    | '/activity'
     | '/labels/new'
     | '/munki/client-resources'
     | '/directory'
@@ -1062,6 +1073,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/login'
     | '/_authenticated/account'
+    | '/_authenticated/activity'
     | '/_authenticated/directory'
     | '/_authenticated/hosts'
     | '/_authenticated/labels'
@@ -1187,6 +1199,13 @@ declare module '@tanstack/react-router' {
       path: '/account'
       fullPath: '/account'
       preLoaderRoute: typeof AuthenticatedAccountRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/activity': {
+      id: '/_authenticated/activity'
+      path: '/activity'
+      fullPath: '/activity'
+      preLoaderRoute: typeof AuthenticatedActivityRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/directory': {
@@ -2368,6 +2387,7 @@ const AuthenticatedSoftwareRouteWithChildren =
 
 interface AuthenticatedRouteChildren {
   AuthenticatedAccountRoute: typeof AuthenticatedAccountRoute
+  AuthenticatedActivityRoute: typeof AuthenticatedActivityRoute
   AuthenticatedDirectoryRoute: typeof AuthenticatedDirectoryRouteWithChildren
   AuthenticatedHostsRoute: typeof AuthenticatedHostsRouteWithChildren
   AuthenticatedLabelsRoute: typeof AuthenticatedLabelsRouteWithChildren
@@ -2379,6 +2399,7 @@ interface AuthenticatedRouteChildren {
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAccountRoute: AuthenticatedAccountRoute,
+  AuthenticatedActivityRoute: AuthenticatedActivityRoute,
   AuthenticatedDirectoryRoute: AuthenticatedDirectoryRouteWithChildren,
   AuthenticatedHostsRoute: AuthenticatedHostsRouteWithChildren,
   AuthenticatedLabelsRoute: AuthenticatedLabelsRouteWithChildren,

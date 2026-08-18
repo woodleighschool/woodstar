@@ -15,7 +15,7 @@ import (
 func TestCreateLiveQueryRejectsBlankSQL(t *testing.T) {
 	router := chi.NewRouter()
 	humaAPI := humachi.New(router, testHumaConfig())
-	registerLiveQueries(humaAPI, humaAPI, nil, nil, discardLogger())
+	registerLiveQueries(humaAPI, humaAPI, nil, nil, nil, discardLogger())
 
 	request := httptest.NewRequestWithContext(
 		t.Context(),
@@ -43,7 +43,7 @@ func TestLiveQueryRoutesSelectStreamingSurface(t *testing.T) {
 		router.With(routeSurfaceMiddleware("streaming")),
 		testHumaConfigWithoutUtilityRoutes(),
 	)
-	registerLiveQueries(ordinary, streaming, nil, nil, discardLogger())
+	registerLiveQueries(ordinary, streaming, nil, nil, nil, discardLogger())
 
 	for _, tc := range []struct {
 		name        string

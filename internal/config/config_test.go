@@ -146,6 +146,12 @@ func TestConfigDefaults(t *testing.T) {
 	if cfg.OrbitScriptTimeout != 5*time.Minute {
 		t.Fatalf("OrbitScriptTimeout = %s, want 5m", cfg.OrbitScriptTimeout)
 	}
+	if cfg.ActivityRetentionDays != 90 {
+		t.Fatalf("ActivityRetentionDays = %d, want 90", cfg.ActivityRetentionDays)
+	}
+	if cfg.OsqueryHistoryRetentionDays != 30 {
+		t.Fatalf("OsqueryHistoryRetentionDays = %d, want 30", cfg.OsqueryHistoryRetentionDays)
+	}
 }
 
 func TestConfigReadsOrbitScriptExecutionTimeout(t *testing.T) {

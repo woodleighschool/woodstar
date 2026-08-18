@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"testing"
 	"time"
 
@@ -40,14 +41,15 @@ func TestConfigResponseWireShapeMatchesOrbit(t *testing.T) {
 func TestConfigUsesConfiguredScriptExecutionTimeout(t *testing.T) {
 	t.Parallel()
 
-	service := NewEnrollmentService(
-		&fakeOrbitHostStore{host: &hosts.Host{ID: 42}},
-		fakeOrbitSecretVerifier{ok: true},
-		fakePrimaryUserStore{},
-		&fakeHeartbeatRecorder{},
-		fakeRemediationStore{},
-		30*time.Minute,
-	)
+	service := NewEnrollmentService(Dependencies{
+		Hosts:                  &fakeOrbitHostStore{host: &hosts.Host{ID: 42}},
+		Secrets:                fakeOrbitSecretVerifier{ok: true},
+		PrimaryUsers:           fakePrimaryUserStore{},
+		Heartbeats:             &fakeHeartbeatRecorder{},
+		Remediations:           fakeRemediationStore{},
+		ScriptExecutionTimeout: 30 * time.Minute,
+		Logger:                 slog.New(slog.DiscardHandler),
+	})
 	response, err := service.Config(t.Context(), "node-key", heartbeats.Contact{})
 	if err != nil {
 		t.Fatalf("Config: %v", err)
@@ -62,12 +64,12 @@ func TestGetScriptReturnsTerminalExecution(t *testing.T) {
 
 	runtimeSeconds := 2
 	exitCode := 0
-	service := NewEnrollmentService(
-		&fakeOrbitHostStore{host: &hosts.Host{ID: 42}},
-		fakeOrbitSecretVerifier{ok: true},
-		fakePrimaryUserStore{},
-		&fakeHeartbeatRecorder{},
-		fakeRemediationStore{execution: &policies.RemediationExecution{
+	service := NewEnrollmentService(Dependencies{
+		Hosts:        &fakeOrbitHostStore{host: &hosts.Host{ID: 42}},
+		Secrets:      fakeOrbitSecretVerifier{ok: true},
+		PrimaryUsers: fakePrimaryUserStore{},
+		Heartbeats:   &fakeHeartbeatRecorder{},
+		Remediations: fakeRemediationStore{execution: &policies.RemediationExecution{
 			HostID:         42,
 			ExecutionID:    "execution-id",
 			ScriptContents: "#!/bin/zsh\nexit 0\n",
@@ -75,8 +77,9 @@ func TestGetScriptReturnsTerminalExecution(t *testing.T) {
 			RuntimeSeconds: &runtimeSeconds,
 			ExitCode:       &exitCode,
 		}},
-		5*time.Minute,
-	)
+		ScriptExecutionTimeout: 5 * time.Minute,
+		Logger:                 slog.New(slog.DiscardHandler),
+	})
 	response, err := service.GetScript(t.Context(), ScriptRequest{
 		OrbitNodeKey: "node-key",
 		ExecutionID:  "execution-id",
@@ -322,14 +325,15 @@ func newTestEnrollmentService(
 	recorder heartbeatRecorder,
 	hostStore *fakeOrbitHostStore,
 ) *EnrollmentService {
-	return NewEnrollmentService(
-		hostStore,
-		fakeOrbitSecretVerifier{ok: true},
-		fakePrimaryUserStore{},
-		recorder,
-		fakeRemediationStore{},
-		5*time.Minute,
-	)
+	return NewEnrollmentService(Dependencies{
+		Hosts:                  hostStore,
+		Secrets:                fakeOrbitSecretVerifier{ok: true},
+		PrimaryUsers:           fakePrimaryUserStore{},
+		Heartbeats:             recorder,
+		Remediations:           fakeRemediationStore{},
+		ScriptExecutionTimeout: 5 * time.Minute,
+		Logger:                 slog.New(slog.DiscardHandler),
+	})
 }
 
 type fakeRemediationStore struct {

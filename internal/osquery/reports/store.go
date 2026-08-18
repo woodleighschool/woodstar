@@ -7,6 +7,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/woodleighschool/woodstar/internal/directory"
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/listing"
@@ -244,6 +245,8 @@ type reportRow struct {
 	MinOsqueryVersion *string   `db:"min_osquery_version"`
 	ScheduleInterval  int32     `db:"schedule_interval"`
 	CreatedByUserID   *int64    `db:"created_by_user_id"`
+	CreatedByName     string    `db:"created_by_name"`
+	CreatedByEmail    string    `db:"created_by_email"`
 	CreatedAt         time.Time `db:"created_at"`
 	UpdatedAt         time.Time `db:"updated_at"`
 }
@@ -265,7 +268,7 @@ func reportFromRow(row reportRow) Report {
 		MinOsqueryVersion: row.MinOsqueryVersion,
 		ScheduleInterval:  row.ScheduleInterval,
 		Targets:           emptyReportTargets(),
-		CreatedByUserID:   row.CreatedByUserID,
+		CreatedBy:         reportUserSummary(row.CreatedByUserID, row.CreatedByName, row.CreatedByEmail),
 		CreatedAt:         row.CreatedAt,
 		UpdatedAt:         row.UpdatedAt,
 	}
@@ -309,9 +312,12 @@ SELECT
 	r.min_osquery_version,
 	r.schedule_interval,
 	r.created_by_user_id,
+	COALESCE(creator.name, '') AS created_by_name,
+	COALESCE(creator.email, '') AS created_by_email,
 	r.created_at,
 	r.updated_at
-FROM osquery_reports r`
+FROM osquery_reports r
+LEFT JOIN users creator ON creator.id = r.created_by_user_id`
 }
 
 func reportSummarySelectSQL() string {
@@ -324,12 +330,15 @@ SELECT
 	r.min_osquery_version,
 	r.schedule_interval,
 	r.created_by_user_id,
+	COALESCE(creator.name, '') AS created_by_name,
+	COALESCE(creator.email, '') AS created_by_email,
 	r.created_at,
 	r.updated_at,
 	result_counts.collected_host_count,
 	result_counts.error_host_count,
 	result_counts.pending_host_count
 FROM osquery_reports r
+LEFT JOIN users creator ON creator.id = r.created_by_user_id
 LEFT JOIN LATERAL (
 	SELECT
 		COUNT(*) FILTER (WHERE snapshot.status = 'collected')::integer AS collected_host_count,
@@ -341,4 +350,11 @@ LEFT JOIN LATERAL (
 	   AND snapshot.host_id = assignment.host_id
 	WHERE assignment.report_id = r.id
 ) result_counts ON true`
+}
+
+func reportUserSummary(id *int64, name string, email string) *directory.UserSummary {
+	if id == nil {
+		return nil
+	}
+	return &directory.UserSummary{ID: *id, Name: name, Email: email}
 }

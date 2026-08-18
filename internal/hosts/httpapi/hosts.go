@@ -2,11 +2,13 @@ package httpapi
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
 
+	"github.com/woodleighschool/woodstar/internal/activity"
 	"github.com/woodleighschool/woodstar/internal/api"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/munki/mdp"
@@ -65,6 +67,7 @@ func RegisterAPI(
 	santaVersions agentVersionLoader,
 	distribution *mdp.Store,
 	geo geoIPLookup,
+	activityRecorder activity.Recorder,
 	logger *slog.Logger,
 ) {
 	registerAPI(
@@ -75,13 +78,14 @@ func RegisterAPI(
 		santaVersions,
 		distribution,
 		geo,
+		activityRecorder,
 		logger,
 	)
 }
 
 // RegisterOpenAPI documents host endpoints without runtime services.
 func RegisterOpenAPI(routes api.AppRoutes) {
-	registerAPI(routes, nil, nil, nil, nil, nil, nil, nil)
+	registerAPI(routes, nil, nil, nil, nil, nil, nil, nil, nil)
 }
 
 func registerAPI(
@@ -92,23 +96,29 @@ func registerAPI(
 	santaVersions agentVersionLoader,
 	distribution *mdp.Store,
 	geo geoIPLookup,
+	activityRecorder activity.Recorder,
 	logger *slog.Logger,
 ) {
 	humaAPI := routes.Ordinary
 	registerListHosts(humaAPI, hostStore, munkiVersions, santaVersions, distribution, geo, logger)
 	registerGetHost(humaAPI, hostStore, munkiVersions, santaVersions, distribution, geo, logger)
-	registerRequestHostInventoryRefresh(humaAPI, hostStore, logger)
-	registerDeleteHost(humaAPI, hostStore, logger)
-	registerBulkDeleteHosts(humaAPI, hostStore, logger)
+	registerRequestHostInventoryRefresh(humaAPI, hostStore, activityRecorder, logger)
+	registerDeleteHost(humaAPI, hostStore, activityRecorder, logger)
+	registerBulkDeleteHosts(humaAPI, hostStore, activityRecorder, logger)
 	registerSetHostPrimaryUser(
-		humaAPI, hostStore, primaryUsers, munkiVersions, santaVersions, distribution, geo, logger,
+		humaAPI, hostStore, primaryUsers, munkiVersions, santaVersions, distribution, geo, activityRecorder, logger,
 	)
 	registerClearHostPrimaryUser(
-		humaAPI, hostStore, primaryUsers, munkiVersions, santaVersions, distribution, geo, logger,
+		humaAPI, hostStore, primaryUsers, munkiVersions, santaVersions, distribution, geo, activityRecorder, logger,
 	)
 }
 
-func registerRequestHostInventoryRefresh(humaAPI huma.API, hostStore *hosts.Store, logger *slog.Logger) {
+func registerRequestHostInventoryRefresh(
+	humaAPI huma.API,
+	hostStore *hosts.Store,
+	activityRecorder activity.Recorder,
+	logger *slog.Logger,
+) {
 	huma.Register(humaAPI, huma.Operation{
 		OperationID:   "request-host-inventory-refresh",
 		Method:        http.MethodPost,
@@ -118,6 +128,12 @@ func registerRequestHostInventoryRefresh(humaAPI huma.API, hostStore *hosts.Stor
 		DefaultStatus: http.StatusAccepted,
 		Errors:        []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *hostGetInput) (*struct{}, error) {
+		host, err := hostStore.GetByID(ctx, input.ID)
+		if err != nil {
+			return nil, api.ResourceError(
+				ctx, logger, "request-host-inventory-refresh", hostResource, err, "host_id", input.ID,
+			)
+		}
 		if err := hostStore.RequestInventoryRefresh(ctx, input.ID); err != nil {
 			return nil, api.ResourceError(
 				ctx,
@@ -129,6 +145,8 @@ func registerRequestHostInventoryRefresh(humaAPI huma.API, hostStore *hosts.Stor
 				input.ID,
 			)
 		}
+		activity.RecordUser(ctx, activityRecorder, logger, activity.AreaHosts, activity.ActionHostInventoryRequested,
+			activity.Resource(hostResource, host.ID, host.DisplayName))
 		return &struct{}{}, nil
 	})
 }
@@ -205,6 +223,7 @@ func registerSetHostPrimaryUser(
 	santaVersions agentVersionLoader,
 	distribution *mdp.Store,
 	geo geoIPLookup,
+	activityRecorder activity.Recorder,
 	logger *slog.Logger,
 ) {
 	huma.Register(humaAPI, huma.Operation{
@@ -235,6 +254,8 @@ func registerSetHostPrimaryUser(
 		if err != nil {
 			return nil, err
 		}
+		activity.RecordUser(ctx, activityRecorder, logger, activity.AreaHosts, activity.ActionHostPrimaryUserSet,
+			activity.Resource(hostResource, body.ID, body.DisplayName))
 		return &hostDetailOutput{Body: *body}, nil
 	})
 }
@@ -247,6 +268,7 @@ func registerClearHostPrimaryUser(
 	santaVersions agentVersionLoader,
 	distribution *mdp.Store,
 	geo geoIPLookup,
+	activityRecorder activity.Recorder,
 	logger *slog.Logger,
 ) {
 	huma.Register(humaAPI, huma.Operation{
@@ -274,6 +296,8 @@ func registerClearHostPrimaryUser(
 		if err != nil {
 			return nil, err
 		}
+		activity.RecordUser(ctx, activityRecorder, logger, activity.AreaHosts, activity.ActionHostPrimaryUserCleared,
+			activity.Resource(hostResource, body.ID, body.DisplayName))
 		return &hostDetailOutput{Body: *body}, nil
 	})
 }
@@ -306,7 +330,12 @@ func loadHostDetailBody(
 	return detail, nil
 }
 
-func registerDeleteHost(humaAPI huma.API, hostStore *hosts.Store, logger *slog.Logger) {
+func registerDeleteHost(
+	humaAPI huma.API,
+	hostStore *hosts.Store,
+	activityRecorder activity.Recorder,
+	logger *slog.Logger,
+) {
 	huma.Register(humaAPI, huma.Operation{
 		OperationID: "delete-host",
 		Method:      http.MethodDelete,
@@ -315,14 +344,25 @@ func registerDeleteHost(humaAPI huma.API, hostStore *hosts.Store, logger *slog.L
 		Summary:     "Delete a host",
 		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *hostGetInput) (*struct{}, error) {
+		host, err := hostStore.GetByID(ctx, input.ID)
+		if err != nil {
+			return nil, api.ResourceError(ctx, logger, "delete-host", hostResource, err, "host_id", input.ID)
+		}
 		if err := hostStore.Delete(ctx, input.ID); err != nil {
 			return nil, api.ResourceError(ctx, logger, "delete-host", hostResource, err, "host_id", input.ID)
 		}
+		activity.RecordUser(ctx, activityRecorder, logger, activity.AreaHosts, activity.ActionHostDeleted,
+			activity.Resource(hostResource, host.ID, host.DisplayName))
 		return &struct{}{}, nil
 	})
 }
 
-func registerBulkDeleteHosts(humaAPI huma.API, hostStore *hosts.Store, logger *slog.Logger) {
+func registerBulkDeleteHosts(
+	humaAPI huma.API,
+	hostStore *hosts.Store,
+	activityRecorder activity.Recorder,
+	logger *slog.Logger,
+) {
 	huma.Register(humaAPI, huma.Operation{
 		OperationID:   "bulk-delete-hosts",
 		Method:        http.MethodDelete,
@@ -332,8 +372,13 @@ func registerBulkDeleteHosts(humaAPI huma.API, hostStore *hosts.Store, logger *s
 		DefaultStatus: http.StatusNoContent,
 		Errors:        []int{http.StatusBadRequest},
 	}, func(ctx context.Context, input *api.DeleteManyInput) (*struct{}, error) {
-		if _, err := hostStore.DeleteMany(ctx, input.IDs); err != nil {
+		deleted, err := hostStore.DeleteMany(ctx, input.IDs)
+		if err != nil {
 			return nil, api.HandlerError(ctx, logger, "bulk-delete-hosts", err)
+		}
+		if deleted > 0 {
+			activity.RecordUser(ctx, activityRecorder, logger, activity.AreaHosts, activity.ActionHostsDeleted,
+				activity.Collection(hostResource, fmt.Sprintf("%d hosts", deleted)))
 		}
 		return &struct{}{}, nil
 	})

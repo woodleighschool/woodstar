@@ -21,6 +21,7 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	"github.com/go-chi/chi/v5"
 
+	"github.com/woodleighschool/woodstar/internal/activity"
 	"github.com/woodleighschool/woodstar/internal/api"
 	"github.com/woodleighschool/woodstar/internal/api/ctxkeys"
 	"github.com/woodleighschool/woodstar/internal/directory"
@@ -36,6 +37,7 @@ import (
 func TestDeleteHostsDecodesCollectionIDs(t *testing.T) {
 	database, ctx := testdb.Open(t)
 	store := hosts.NewStore(database, labels.NewStore(database))
+	activities := &recordingActivity{}
 	seeded := make([]*hosts.Host, 0, 3)
 	for _, name := range []string{"delete-host-a", "delete-host-b", "keep-host"} {
 		host, err := store.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
@@ -49,7 +51,7 @@ func TestDeleteHostsDecodesCollectionIDs(t *testing.T) {
 	}
 
 	router := hostTestRouter(t, func(humaAPI huma.API) {
-		RegisterAPI(api.AppRoutes{Ordinary: humaAPI}, store, nil, nil, nil, nil, nil, discardLogger())
+		RegisterAPI(api.AppRoutes{Ordinary: humaAPI}, store, nil, nil, nil, nil, nil, activities, discardLogger())
 	})
 	for _, path := range []string{"/api/hosts", "/api/hosts?ids="} {
 		rec := hostAPIRequest(t, router, http.MethodDelete, path, "")
@@ -81,6 +83,11 @@ func TestDeleteHostsDecodesCollectionIDs(t *testing.T) {
 	}
 	if _, err := store.GetByID(ctx, seeded[2].ID); err != nil {
 		t.Fatalf("unselected host %d: %v", seeded[2].ID, err)
+	}
+	if len(activities.events) != 1 || activities.events[0].Action != activity.ActionHostsDeleted ||
+		activities.events[0].Actor.UserID == nil || *activities.events[0].Actor.UserID != 1 ||
+		activities.events[0].Subject.Type != hostResource || activities.events[0].Subject.Name != "2 hosts" {
+		t.Fatalf("activity = %+v, want one authenticated bulk-delete event", activities.events)
 	}
 }
 
@@ -130,6 +137,7 @@ RETURNING id`).Scan(&manualUserID); err != nil {
 			api.AppRoutes{Ordinary: humaAPI},
 			hostStore,
 			primaryUsers,
+			nil,
 			nil,
 			nil,
 			nil,
@@ -209,6 +217,7 @@ VALUES ($1, 'osquery', $2, '198.51.100.40', 'osquery/5.14')`, host.ID, now); err
 			nil,
 			munkiVersions,
 			santaVersions,
+			nil,
 			nil,
 			nil,
 			discardLogger(),
@@ -308,6 +317,7 @@ VALUES ($1, 'osquery', now(), '198.51.100.40', 'osquery/5.14')`, host.ID); err !
 			nil,
 			distribution,
 			geo.Lookup,
+			nil,
 			discardLogger(),
 		)
 	})
@@ -472,4 +482,13 @@ func hostAPIRequest(t *testing.T, router *chi.Mux, method, path, body string) *h
 
 func discardLogger() *slog.Logger {
 	return slog.New(slog.DiscardHandler)
+}
+
+type recordingActivity struct {
+	events []activity.NewEvent
+}
+
+func (recorder *recordingActivity) Record(_ context.Context, event activity.NewEvent) error {
+	recorder.events = append(recorder.events, event)
+	return nil
 }

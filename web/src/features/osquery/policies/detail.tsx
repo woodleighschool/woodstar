@@ -26,13 +26,14 @@ import { Separator } from "@components/ui/separator";
 import { Skeleton } from "@components/ui/skeleton";
 import { TabsContent, TabsTrigger } from "@components/ui/tabs";
 import { useAuth } from "@features/auth/queries";
+import { creatorMeta } from "@features/osquery/creator-meta";
+import { PolicyStatusChart } from "@features/osquery/history/policy-status-chart";
 import { LiveRunButton } from "@features/osquery/live/query-actions";
 import {
   POLICY_RESULT_STATUS_OPTIONS,
   REMEDIATION_STATUS_FILTER_OPTIONS,
 } from "@features/osquery/policies/model";
 import { parseRouteID } from "@lib/route-params";
-import { formatRelative } from "@lib/utils";
 
 import { PolicyDeleteDialog } from "./delete-dialog";
 import {
@@ -208,7 +209,7 @@ export function PolicyDetailPage() {
     <PageShell>
       <PageHeader
         title="Policy Details"
-        meta={`Edited ${formatRelative(policy.data.updated_at)}`}
+        meta={creatorMeta(policy.data.created_by, policy.data.updated_at)}
         actions={
           <>
             {isAdmin ? (
@@ -328,6 +329,8 @@ export function PolicyDetailPage() {
               }
             />
           </KeyValueSection>
+
+          <PolicyStatusChart policyID={policy.data.id} />
 
           <section className="flex min-w-0 flex-col gap-3">
             <h2 className="text-base/snug font-medium text-foreground">Query</h2>

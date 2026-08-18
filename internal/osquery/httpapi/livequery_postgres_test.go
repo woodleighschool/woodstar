@@ -17,6 +17,9 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	"github.com/go-chi/chi/v5"
 
+	"github.com/woodleighschool/woodstar/internal/activity"
+	"github.com/woodleighschool/woodstar/internal/api/ctxkeys"
+	"github.com/woodleighschool/woodstar/internal/directory"
 	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
 )
@@ -32,7 +35,7 @@ func TestLiveQueryStreamFollowsResultsFromAnotherStore(t *testing.T) {
 
 	router := chi.NewRouter()
 	humaAPI := humachi.New(router, testHumaConfig())
-	registerLiveQueries(humaAPI, humaAPI, storeB, nil, discardLogger())
+	registerLiveQueries(humaAPI, humaAPI, storeB, nil, nil, discardLogger())
 	server := httptest.NewServer(router)
 	t.Cleanup(server.Close)
 
@@ -104,7 +107,7 @@ func TestLiveQueryStreamReplaysCompletedResultsFromAnotherStore(t *testing.T) {
 
 	router := chi.NewRouter()
 	humaAPI := humachi.New(router, testHumaConfig())
-	registerLiveQueries(humaAPI, humaAPI, storeB, nil, discardLogger())
+	registerLiveQueries(humaAPI, humaAPI, storeB, nil, nil, discardLogger())
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequestWithContext(
 		ctx,
@@ -172,12 +175,16 @@ func TestDeleteLiveQueryStopsSharedRun(t *testing.T) {
 	}
 	router := chi.NewRouter()
 	humaAPI := humachi.New(router, testHumaConfig())
-	registerLiveQueries(humaAPI, humaAPI, store, nil, discardLogger())
+	activities := &recordingActivity{}
+	registerLiveQueries(humaAPI, humaAPI, store, nil, activities, discardLogger())
 
 	recorder := httptest.NewRecorder()
+	requestCtx := ctxkeys.WithUser(ctx, &directory.User{ID: 9, Name: "Query Admin"})
 	router.ServeHTTP(
 		recorder,
-		httptest.NewRequestWithContext(ctx, http.MethodDelete, fmt.Sprintf("/api/osquery/live-queries/%d", handle.ID), nil),
+		httptest.NewRequestWithContext(
+			requestCtx, http.MethodDelete, fmt.Sprintf("/api/osquery/live-queries/%d", handle.ID), nil,
+		),
 	)
 	if recorder.Code != http.StatusNoContent {
 		t.Fatalf("status = %d, want %d; body = %q", recorder.Code, http.StatusNoContent, recorder.Body.String())
@@ -189,6 +196,11 @@ func TestDeleteLiveQueryStopsSharedRun(t *testing.T) {
 	if len(work) != 0 {
 		t.Fatalf("pending work after DELETE = %+v, want none", work)
 	}
+	if len(activities.events) != 1 || activities.events[0].Action != activity.ActionLiveQueryStopped ||
+		activities.events[0].Actor.UserID == nil || *activities.events[0].Actor.UserID != 9 ||
+		activities.events[0].Subject.ID == nil || *activities.events[0].Subject.ID != handle.ID {
+		t.Fatalf("activity = %+v, want one authenticated live-query stop event", activities.events)
+	}
 
 	recorder = httptest.NewRecorder()
 	router.ServeHTTP(
@@ -198,6 +210,18 @@ func TestDeleteLiveQueryStopsSharedRun(t *testing.T) {
 	if recorder.Code != http.StatusNotFound {
 		t.Fatalf("missing status = %d, want %d; body = %q", recorder.Code, http.StatusNotFound, recorder.Body.String())
 	}
+	if len(activities.events) != 1 {
+		t.Fatalf("activity after missing query = %+v, want no additional event", activities.events)
+	}
+}
+
+type recordingActivity struct {
+	events []activity.NewEvent
+}
+
+func (recorder *recordingActivity) Record(_ context.Context, event activity.NewEvent) error {
+	recorder.events = append(recorder.events, event)
+	return nil
 }
 
 func TestLiveQueryStreamReturnsNotFoundBeforeStreaming(t *testing.T) {
@@ -205,7 +229,7 @@ func TestLiveQueryStreamReturnsNotFoundBeforeStreaming(t *testing.T) {
 	store := livequery.NewStore(db)
 	router := chi.NewRouter()
 	humaAPI := humachi.New(router, testHumaConfig())
-	registerLiveQueries(humaAPI, humaAPI, store, nil, discardLogger())
+	registerLiveQueries(humaAPI, humaAPI, store, nil, nil, discardLogger())
 
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequestWithContext(ctx, http.MethodGet, "/api/osquery/live-queries/404/stream", nil)

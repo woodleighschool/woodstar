@@ -2,11 +2,13 @@ package httpapi
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
 
+	"github.com/woodleighschool/woodstar/internal/activity"
 	"github.com/woodleighschool/woodstar/internal/api"
 	"github.com/woodleighschool/woodstar/internal/api/ctxkeys"
 	"github.com/woodleighschool/woodstar/internal/osquery/reports"
@@ -70,13 +72,18 @@ type reportSnapshotsOutput struct {
 	Body api.Page[reports.ReportSnapshot]
 }
 
-func registerOsqueryReports(humaAPI huma.API, reportStore *reports.Store, logger *slog.Logger) {
+func registerOsqueryReports(
+	humaAPI huma.API,
+	reportStore *reports.Store,
+	activityRecorder activity.Recorder,
+	logger *slog.Logger,
+) {
 	registerListReports(humaAPI, reportStore, logger)
-	registerCreateReport(humaAPI, reportStore, logger)
+	registerCreateReport(humaAPI, reportStore, activityRecorder, logger)
 	registerGetReport(humaAPI, reportStore, logger)
-	registerUpdateReport(humaAPI, reportStore, logger)
-	registerDeleteReport(humaAPI, reportStore, logger)
-	registerBulkDeleteReports(humaAPI, reportStore, logger)
+	registerUpdateReport(humaAPI, reportStore, activityRecorder, logger)
+	registerDeleteReport(humaAPI, reportStore, activityRecorder, logger)
+	registerBulkDeleteReports(humaAPI, reportStore, activityRecorder, logger)
 	registerReportSnapshots(humaAPI, reportStore, logger)
 }
 
@@ -96,7 +103,12 @@ func registerListReports(humaAPI huma.API, reportStore *reports.Store, logger *s
 	})
 }
 
-func registerCreateReport(humaAPI huma.API, reportStore *reports.Store, logger *slog.Logger) {
+func registerCreateReport(
+	humaAPI huma.API,
+	reportStore *reports.Store,
+	activityRecorder activity.Recorder,
+	logger *slog.Logger,
+) {
 	huma.Register(humaAPI, huma.Operation{
 		OperationID:   "create-osquery-report",
 		Method:        http.MethodPost,
@@ -113,6 +125,8 @@ func registerCreateReport(humaAPI huma.API, reportStore *reports.Store, logger *
 		if err != nil {
 			return nil, api.ResourceError(ctx, logger, "create-osquery-report", reportResource, err)
 		}
+		activity.RecordUser(ctx, activityRecorder, logger, activity.AreaOsquery, activity.ActionReportCreated,
+			activity.Resource(reportResource, report.ID, report.Name))
 		return &reportOutput{Body: *report}, nil
 	})
 }
@@ -142,7 +156,13 @@ func registerGetReport(humaAPI huma.API, reportStore *reports.Store, logger *slo
 	})
 }
 
-func registerUpdateReport(humaAPI huma.API, reportStore *reports.Store, logger *slog.Logger) {
+//nolint:dupl // Policy and report handlers intentionally keep their domain contracts explicit.
+func registerUpdateReport(
+	humaAPI huma.API,
+	reportStore *reports.Store,
+	activityRecorder activity.Recorder,
+	logger *slog.Logger,
+) {
 	huma.Register(humaAPI, huma.Operation{
 		OperationID: "update-osquery-report",
 		Method:      http.MethodPut,
@@ -163,11 +183,18 @@ func registerUpdateReport(humaAPI huma.API, reportStore *reports.Store, logger *
 				input.ID,
 			)
 		}
+		activity.RecordUser(ctx, activityRecorder, logger, activity.AreaOsquery, activity.ActionReportUpdated,
+			activity.Resource(reportResource, report.ID, report.Name))
 		return &reportOutput{Body: *report}, nil
 	})
 }
 
-func registerDeleteReport(humaAPI huma.API, reportStore *reports.Store, logger *slog.Logger) {
+func registerDeleteReport(
+	humaAPI huma.API,
+	reportStore *reports.Store,
+	activityRecorder activity.Recorder,
+	logger *slog.Logger,
+) {
 	huma.Register(humaAPI, huma.Operation{
 		OperationID: "delete-osquery-report",
 		Method:      http.MethodDelete,
@@ -176,6 +203,10 @@ func registerDeleteReport(humaAPI huma.API, reportStore *reports.Store, logger *
 		Summary:     "Delete a report",
 		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *reportDeleteInput) (*struct{}, error) {
+		report, err := reportStore.GetByID(ctx, input.ID)
+		if err != nil {
+			return nil, api.ResourceError(ctx, logger, "delete-osquery-report", reportResource, err, "id", input.ID)
+		}
 		if err := reportStore.Delete(ctx, input.ID); err != nil {
 			return nil, api.ResourceError(
 				ctx,
@@ -187,11 +218,18 @@ func registerDeleteReport(humaAPI huma.API, reportStore *reports.Store, logger *
 				input.ID,
 			)
 		}
+		activity.RecordUser(ctx, activityRecorder, logger, activity.AreaOsquery, activity.ActionReportDeleted,
+			activity.Resource(reportResource, report.ID, report.Name))
 		return &struct{}{}, nil
 	})
 }
 
-func registerBulkDeleteReports(humaAPI huma.API, reportStore *reports.Store, logger *slog.Logger) {
+func registerBulkDeleteReports(
+	humaAPI huma.API,
+	reportStore *reports.Store,
+	activityRecorder activity.Recorder,
+	logger *slog.Logger,
+) {
 	huma.Register(humaAPI, huma.Operation{
 		OperationID:   "bulk-delete-osquery-reports",
 		Method:        http.MethodDelete,
@@ -201,8 +239,13 @@ func registerBulkDeleteReports(humaAPI huma.API, reportStore *reports.Store, log
 		DefaultStatus: http.StatusNoContent,
 		Errors:        []int{http.StatusBadRequest},
 	}, func(ctx context.Context, input *api.DeleteManyInput) (*struct{}, error) {
-		if _, err := reportStore.DeleteMany(ctx, input.IDs); err != nil {
+		deleted, err := reportStore.DeleteMany(ctx, input.IDs)
+		if err != nil {
 			return nil, api.HandlerError(ctx, logger, "bulk-delete-osquery-reports", err)
+		}
+		if deleted > 0 {
+			activity.RecordUser(ctx, activityRecorder, logger, activity.AreaOsquery, activity.ActionReportsDeleted,
+				activity.Collection(reportResource, fmt.Sprintf("%d reports", deleted)))
 		}
 		return &struct{}{}, nil
 	})
