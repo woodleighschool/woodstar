@@ -15,11 +15,10 @@ import (
 )
 
 const (
-	DefaultRemediationTimeoutSeconds = 300
-	remediationResponseGrace         = time.Minute
-	remediationExecutionIDBytes      = 18
-	maxRemediationOutputRunes        = 10_000
-	maxPolicyErrorRunes              = 4_096
+	remediationResponseGrace    = time.Minute
+	remediationExecutionIDBytes = 18
+	maxRemediationOutputRunes   = 10_000
+	maxPolicyErrorRunes         = 4_096
 )
 
 // PolicyRemediationRunStatus is the user-facing state of the latest run.
@@ -47,6 +46,33 @@ func (PolicyRemediationRunStatus) Schema(_ huma.Registry) *huma.Schema {
 	return openapischema.StringEnum(policyRemediationRunStatusValues...)
 }
 
+// PolicyRemediationStatusFilter is a latest-run state accepted by result listings.
+type PolicyRemediationStatusFilter string
+
+const (
+	PolicyRemediationFilterNotRun     PolicyRemediationStatusFilter = "not_run"
+	PolicyRemediationFilterQueued     PolicyRemediationStatusFilter = "queued"
+	PolicyRemediationFilterInProgress PolicyRemediationStatusFilter = "in_progress"
+	PolicyRemediationFilterSucceeded  PolicyRemediationStatusFilter = "succeeded"
+	PolicyRemediationFilterFailed     PolicyRemediationStatusFilter = "failed"
+	PolicyRemediationFilterNoResponse PolicyRemediationStatusFilter = "no_response"
+	PolicyRemediationFilterCancelled  PolicyRemediationStatusFilter = "cancelled"
+)
+
+var policyRemediationStatusFilterValues = []PolicyRemediationStatusFilter{
+	PolicyRemediationFilterNotRun,
+	PolicyRemediationFilterQueued,
+	PolicyRemediationFilterInProgress,
+	PolicyRemediationFilterSucceeded,
+	PolicyRemediationFilterFailed,
+	PolicyRemediationFilterNoResponse,
+	PolicyRemediationFilterCancelled,
+}
+
+func (PolicyRemediationStatusFilter) Schema(_ huma.Registry) *huma.Schema {
+	return openapischema.StringEnum(policyRemediationStatusFilterValues...)
+}
+
 // PolicyRemediationRunSummary is the non-sensitive latest-run projection.
 type PolicyRemediationRunSummary struct {
 	ExecutionID string                     `json:"-"`
@@ -71,7 +97,6 @@ type PolicyRemediationRun struct {
 	Output         string `json:"output"`
 	RuntimeSeconds *int   `json:"runtime_seconds,omitempty"`
 	ExitCode       *int   `json:"exit_code,omitempty"`
-	TimeoutSeconds int    `json:"-"`
 }
 
 // ClaimedRemediation is the immutable script returned to Orbit.
@@ -79,7 +104,6 @@ type ClaimedRemediation struct {
 	HostID         int64
 	ExecutionID    string
 	ScriptContents string
-	TimeoutSeconds int
 }
 
 // RemediationResult is Orbit's execution result.
@@ -184,7 +208,7 @@ func (s *Store) RunRemediations(
 			queueHostIDs = append(queueHostIDs, candidate.HostID)
 			executionIDs = append(executionIDs, executionID)
 		}
-		queued, err := enqueueRemediationsTx(
+		queued, err := s.enqueueRemediationsTx(
 			ctx,
 			tx,
 			policyID,
@@ -232,7 +256,7 @@ type remediationCandidate struct {
 	Eligible bool
 }
 
-func enqueueRemediationTx(
+func (s *Store) enqueueRemediationTx(
 	ctx context.Context,
 	tx pgx.Tx,
 	policyID, hostID int64,
@@ -244,7 +268,7 @@ func enqueueRemediationTx(
 	if err != nil {
 		return nil, fmt.Errorf("generate remediation execution ID: %w", err)
 	}
-	rows, err := enqueueRemediationsTx(
+	rows, err := s.enqueueRemediationsTx(
 		ctx,
 		tx,
 		policyID,
@@ -260,10 +284,10 @@ func enqueueRemediationTx(
 	if len(rows) == 0 {
 		return nil, nil
 	}
-	return remediationRunSummary(rows[0], time.Now()), nil
+	return remediationRunSummary(rows[0], time.Now(), s.remediationExecutionTimeout), nil
 }
 
-func enqueueRemediationsTx(
+func (s *Store) enqueueRemediationsTx(
 	ctx context.Context,
 	tx pgx.Tx,
 	policyID int64,
@@ -283,8 +307,7 @@ func enqueueRemediationsTx(
 			execution_id,
 			script_contents,
 			evaluation_revision,
-			automatic,
-			timeout_seconds
+			automatic
 		)
 		SELECT
 			$1,
@@ -292,8 +315,7 @@ func enqueueRemediationsTx(
 			batch.execution_id,
 			$4,
 			$5,
-			$6,
-			$7
+			$6
 		FROM unnest($2::bigint[], $3::text[]) AS batch(host_id, execution_id)
 		ON CONFLICT (policy_id, host_id) DO UPDATE SET
 			execution_id = EXCLUDED.execution_id,
@@ -306,17 +328,14 @@ func enqueueRemediationsTx(
 			cancelled_at = NULL,
 			output = '',
 			runtime_seconds = NULL,
-			exit_code = NULL,
-			timeout_seconds = EXCLUDED.timeout_seconds
+			exit_code = NULL
 		WHERE osquery_policy_remediation_runs.reported_at IS NOT NULL
 		   OR osquery_policy_remediation_runs.cancelled_at IS NOT NULL
 		   OR (
 			   osquery_policy_remediation_runs.claimed_at IS NOT NULL
 			   AND osquery_policy_remediation_runs.reported_at IS NULL
 			   AND osquery_policy_remediation_runs.claimed_at
-			       + make_interval(
-			           secs => osquery_policy_remediation_runs.timeout_seconds + $8
-			       ) < now()
+			       + make_interval(secs => $7) < now()
 		   )
 		RETURNING
 			policy_id,
@@ -329,16 +348,14 @@ func enqueueRemediationsTx(
 			cancelled_at,
 			output,
 			runtime_seconds,
-			exit_code,
-			timeout_seconds`,
+			exit_code`,
 		policyID,
 		hostIDs,
 		executionIDs,
 		script,
 		revision,
 		automatic,
-		DefaultRemediationTimeoutSeconds,
-		int(remediationResponseGrace.Seconds()),
+		int(remediationNoResponseAfter(s.remediationExecutionTimeout).Seconds()),
 	)
 	if err != nil {
 		return nil, err
@@ -357,7 +374,6 @@ func enqueueRemediationsTx(
 			&run.Output,
 			&run.RuntimeSeconds,
 			&run.ExitCode,
-			&run.TimeoutSeconds,
 		)
 		return run, err
 	})
@@ -405,14 +421,13 @@ func (s *Store) ClaimRemediation(
 		  AND claimed_at IS NULL
 		  AND reported_at IS NULL
 		  AND cancelled_at IS NULL
-		RETURNING host_id, execution_id, script_contents, timeout_seconds`,
+		RETURNING host_id, execution_id, script_contents`,
 		hostID,
 		executionID,
 	).Scan(
 		&claimed.HostID,
 		&claimed.ExecutionID,
 		&claimed.ScriptContents,
-		&claimed.TimeoutSeconds,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, fault.ErrNotFound
@@ -482,13 +497,12 @@ func (s *Store) RemediationRun(
 	if err != nil {
 		return nil, err
 	}
-	summary := remediationRunSummary(row, time.Now())
+	summary := remediationRunSummary(row, time.Now(), s.remediationExecutionTimeout)
 	return &PolicyRemediationRun{
 		PolicyRemediationRunSummary: *summary,
 		Output:                      row.Output,
 		RuntimeSeconds:              row.RuntimeSeconds,
 		ExitCode:                    row.ExitCode,
-		TimeoutSeconds:              row.TimeoutSeconds,
 	}, nil
 }
 
@@ -509,8 +523,7 @@ func (s *Store) remediationRun(
 			cancelled_at,
 			output,
 			runtime_seconds,
-			exit_code,
-			timeout_seconds
+			exit_code
 		FROM osquery_policy_remediation_runs
 		WHERE policy_id = $1 AND host_id = $2`, policyID, hostID).Scan(
 		&row.PolicyID,
@@ -524,7 +537,6 @@ func (s *Store) remediationRun(
 		&row.Output,
 		&row.RuntimeSeconds,
 		&row.ExitCode,
-		&row.TimeoutSeconds,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return remediationRunRow{}, fault.ErrNotFound
@@ -544,27 +556,29 @@ type remediationRunRow struct {
 	Output         string
 	RuntimeSeconds *int
 	ExitCode       *int
-	TimeoutSeconds int
 }
 
 func remediationRunSummaryFromRow(row policyHostStatusRow) *PolicyRemediationRunSummary {
 	if row.ExecutionID == nil || row.RemediationAutomatic == nil ||
-		row.RemediationQueuedAt == nil || row.RemediationTimeoutSeconds == nil {
+		row.RemediationQueuedAt == nil {
 		return nil
 	}
-	return remediationRunSummary(remediationRunRow{
-		ExecutionID:    *row.ExecutionID,
-		Automatic:      *row.RemediationAutomatic,
-		QueuedAt:       *row.RemediationQueuedAt,
-		ClaimedAt:      row.RemediationClaimedAt,
-		ReportedAt:     row.RemediationReportedAt,
-		CancelledAt:    row.RemediationCancelledAt,
-		ExitCode:       row.RemediationExitCode,
-		TimeoutSeconds: *row.RemediationTimeoutSeconds,
-	}, time.Now())
+	return &PolicyRemediationRunSummary{
+		ExecutionID: *row.ExecutionID,
+		Status:      PolicyRemediationRunStatus(row.RemediationStatus),
+		Automatic:   *row.RemediationAutomatic,
+		QueuedAt:    *row.RemediationQueuedAt,
+		StartedAt:   row.RemediationClaimedAt,
+		CompletedAt: row.RemediationReportedAt,
+		ExitCode:    row.RemediationExitCode,
+	}
 }
 
-func remediationRunSummary(row remediationRunRow, now time.Time) *PolicyRemediationRunSummary {
+func remediationRunSummary(
+	row remediationRunRow,
+	now time.Time,
+	remediationExecutionTimeout time.Duration,
+) *PolicyRemediationRunSummary {
 	status := PolicyRemediationRunStatusQueued
 	switch {
 	case row.CancelledAt != nil:
@@ -573,9 +587,9 @@ func remediationRunSummary(row remediationRunRow, now time.Time) *PolicyRemediat
 		status = PolicyRemediationRunStatusSucceeded
 	case row.ReportedAt != nil:
 		status = PolicyRemediationRunStatusFailed
-	case row.ClaimedAt != nil && now.After(
-		row.ClaimedAt.Add(time.Duration(row.TimeoutSeconds)*time.Second+remediationResponseGrace),
-	):
+	case row.ClaimedAt != nil && now.After(row.ClaimedAt.Add(
+		remediationNoResponseAfter(remediationExecutionTimeout),
+	)):
 		status = PolicyRemediationRunStatusNoResponse
 	case row.ClaimedAt != nil:
 		status = PolicyRemediationRunStatusInProgress
@@ -589,4 +603,33 @@ func remediationRunSummary(row remediationRunRow, now time.Time) *PolicyRemediat
 		CompletedAt: row.ReportedAt,
 		ExitCode:    row.ExitCode,
 	}
+}
+
+func remediationNoResponseAfter(remediationExecutionTimeout time.Duration) time.Duration {
+	return remediationExecutionTimeout + remediationResponseGrace
+}
+
+func remediationStatusSQL(noResponseSecondsSQL string) string {
+	return `CASE
+		WHEN run.execution_id IS NULL THEN 'not_run'
+		WHEN run.cancelled_at IS NOT NULL THEN 'cancelled'
+		WHEN run.reported_at IS NOT NULL AND run.exit_code = 0 THEN 'succeeded'
+		WHEN run.reported_at IS NOT NULL THEN 'failed'
+		WHEN run.claimed_at IS NOT NULL
+			AND run.claimed_at + make_interval(secs => ` + noResponseSecondsSQL + `) < now() THEN 'no_response'
+		WHEN run.claimed_at IS NOT NULL THEN 'in_progress'
+		ELSE 'queued'
+	END`
+}
+
+func remediationStatusOrderSQL(statusSQL string) string {
+	return `CASE (` + statusSQL + `)
+		WHEN 'failed' THEN 0
+		WHEN 'no_response' THEN 1
+		WHEN 'in_progress' THEN 2
+		WHEN 'queued' THEN 3
+		WHEN 'succeeded' THEN 4
+		WHEN 'cancelled' THEN 5
+		ELSE 6
+	END`
 }

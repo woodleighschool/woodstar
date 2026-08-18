@@ -143,6 +143,7 @@ function policyResultQueryParams(params: PolicyResultsParams) {
   return {
     ...baseListParams(params),
     status: params.status,
+    remediation: params.remediation,
   };
 }
 

@@ -4969,6 +4969,7 @@ export type ListOsqueryPolicyResultsData = {
         per_page?: number;
         sort?: string;
         status?: Array<'pending' | 'pass' | 'fail' | 'error'>;
+        remediation?: Array<'not_run' | 'queued' | 'in_progress' | 'succeeded' | 'failed' | 'no_response' | 'cancelled'>;
     };
     url: '/api/osquery/policies/{id}/results';
 };

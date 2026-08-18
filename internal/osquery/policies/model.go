@@ -98,7 +98,8 @@ type PolicyListParams struct {
 type PolicyResultListParams struct {
 	ListParams listing.Params
 
-	Statuses []PolicyStatus
+	Statuses            []PolicyStatus
+	RemediationStatuses []PolicyRemediationStatusFilter
 }
 
 // Evaluation is one issued policy query for a host.

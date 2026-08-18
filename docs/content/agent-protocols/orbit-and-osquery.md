@@ -68,6 +68,8 @@ Deploy the package with the fleetd configuration profile below. Replace the exam
 
 `--enable-scripts` makes script execution part of the package. `EnableScripts` also enables it through the macOS fleetd profile for stock Orbit versions that support dynamic script configuration. Woodstar treats a host as eligible for policy remediation only after `orbit_info` reports scripts enabled and the host has an active Orbit enrollment.
 
+Orbit allows one script execution timeout for all scripts received in a config response. Set `WOODSTAR_ORBIT_SCRIPT_EXECUTION_TIMEOUT` to a Go duration in whole-second increments, such as `30m` or `1800s`. It defaults to `5m` and accepts values from `1s` through `5h`.
+
 ### Optional end-user mapping
 
 Replace `$EMAIL` with the user-email variable supported by your MDM. Orbit reads the inner `com.fleetdm.fleet.mdm.apple.mdm` preference domain exactly as shown.

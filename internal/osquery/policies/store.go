@@ -16,11 +16,12 @@ import (
 
 // Store persists policies and per-host membership state.
 type Store struct {
-	pool *pgxpool.Pool
+	pool                        *pgxpool.Pool
+	remediationExecutionTimeout time.Duration
 }
 
-func NewStore(pool *pgxpool.Pool) *Store {
-	return &Store{pool: pool}
+func NewStore(pool *pgxpool.Pool, remediationExecutionTimeout time.Duration) *Store {
+	return &Store{pool: pool, remediationExecutionTimeout: remediationExecutionTimeout}
 }
 
 func (s *Store) Create(ctx context.Context, in PolicyCreateMutation) (*Policy, error) {
@@ -385,7 +386,7 @@ func (s *Store) RecordEvaluation(
 		if !newlyFailing || !automaticRemediationEnabled || !orbitScriptExecutionAvailable {
 			return nil
 		}
-		_, err = enqueueRemediationTx(
+		_, err = s.enqueueRemediationTx(
 			ctx,
 			tx,
 			policyID,
@@ -413,43 +414,29 @@ func (s *Store) PolicyResults(
 ) ([]PolicyHostStatus, int, error) {
 	params.ListParams = listing.Normalize(params.ListParams)
 	params.Statuses = listing.NormalizeValues(params.Statuses)
+	params.RemediationStatuses = listing.NormalizeValues(params.RemediationStatuses)
 	if err := validatePolicyStatusFilters(params.Statuses); err != nil {
 		return nil, 0, err
 	}
-	where, args := policyResultListWhere(params, "c.id", policyID, "h.display_name")
+	if err := validatePolicyRemediationStatusFilters(params.RemediationStatuses); err != nil {
+		return nil, 0, err
+	}
+	where, args, remediationStatus := policyResultListWhere(
+		params,
+		"c.id",
+		policyID,
+		"h.display_name",
+		int(remediationNoResponseAfter(s.remediationExecutionTimeout).Seconds()),
+	)
 	listQuery := postgres.ListQuery{
-		SelectSQL: `
-		SELECT
-			c.id AS policy_id,
-			c.name AS policy_name,
-			h.id AS host_id,
-			h.display_name AS host_name,
-			COALESCE(m.status, 'pending')::text AS status,
-			COALESCE(m.error, '') AS error,
-			CASE WHEN m.status = 'pending' THEN NULL ELSE m.updated_at END AS updated_at,
-			run.execution_id,
-			run.automatic AS remediation_automatic,
-			run.queued_at AS remediation_queued_at,
-			run.claimed_at AS remediation_claimed_at,
-			run.reported_at AS remediation_reported_at,
-			run.cancelled_at AS remediation_cancelled_at,
-			run.exit_code AS remediation_exit_code,
-			run.timeout_seconds AS remediation_timeout_seconds
-		FROM osquery_policies c
-		JOIN osquery_policy_assignments assignment ON assignment.policy_id = c.id
-		JOIN hosts h ON h.id = assignment.host_id
-		LEFT JOIN osquery_policy_membership m
-			ON m.host_id = h.id
-		   AND m.policy_id = c.id
-		LEFT JOIN osquery_policy_remediation_runs run
-			ON run.host_id = h.id
-		   AND run.policy_id = c.id`,
-		WhereSQL: where,
-		Args:     args,
+		SelectSQL: policyResultSelectSQL(remediationStatus),
+		WhereSQL:  where,
+		Args:      args,
 		OrderKeys: map[string]postgres.OrderExpr{
-			"host_name":  {SQL: "lower(h.display_name)"},
-			"status":     {SQL: policyStatusOrderSQL()},
-			"updated_at": {SQL: "m.updated_at", NullOrder: postgres.NullsLast},
+			"host_name":   {SQL: "lower(h.display_name)"},
+			"status":      {SQL: policyStatusOrderSQL()},
+			"remediation": {SQL: remediationStatusOrderSQL("remediation_status.value")},
+			"updated_at":  {SQL: "m.updated_at", NullOrder: postgres.NullsLast},
 		},
 		DefaultOrder: []postgres.OrderExpr{
 			{SQL: policyStatusOrderSQL()},
@@ -485,42 +472,28 @@ func (s *Store) HostPolicies(
 ) ([]PolicyHostStatus, int, error) {
 	params.ListParams = listing.Normalize(params.ListParams)
 	params.Statuses = listing.NormalizeValues(params.Statuses)
+	params.RemediationStatuses = listing.NormalizeValues(params.RemediationStatuses)
 	if err := validatePolicyStatusFilters(params.Statuses); err != nil {
 		return nil, 0, err
 	}
-	where, args := policyResultListWhere(params, "h.id", host.ID, "c.name")
+	if err := validatePolicyRemediationStatusFilters(params.RemediationStatuses); err != nil {
+		return nil, 0, err
+	}
+	where, args, remediationStatus := policyResultListWhere(
+		params,
+		"h.id",
+		host.ID,
+		"c.name",
+		int(remediationNoResponseAfter(s.remediationExecutionTimeout).Seconds()),
+	)
 	listQuery := postgres.ListQuery{
-		SelectSQL: `
-		SELECT
-			c.id AS policy_id,
-			c.name AS policy_name,
-			h.id AS host_id,
-			h.display_name AS host_name,
-			COALESCE(m.status, 'pending')::text AS status,
-			COALESCE(m.error, '') AS error,
-			CASE WHEN m.status = 'pending' THEN NULL ELSE m.updated_at END AS updated_at,
-			run.execution_id,
-			run.automatic AS remediation_automatic,
-			run.queued_at AS remediation_queued_at,
-			run.claimed_at AS remediation_claimed_at,
-			run.reported_at AS remediation_reported_at,
-			run.cancelled_at AS remediation_cancelled_at,
-			run.exit_code AS remediation_exit_code,
-			run.timeout_seconds AS remediation_timeout_seconds
-		FROM osquery_policies c
-		JOIN osquery_policy_assignments assignment ON assignment.policy_id = c.id
-		JOIN hosts h ON h.id = assignment.host_id
-		LEFT JOIN osquery_policy_membership m
-			ON m.host_id = h.id
-		   AND m.policy_id = c.id
-		LEFT JOIN osquery_policy_remediation_runs run
-			ON run.host_id = h.id
-		   AND run.policy_id = c.id`,
-		WhereSQL: where,
-		Args:     args,
+		SelectSQL: policyResultSelectSQL(remediationStatus),
+		WhereSQL:  where,
+		Args:      args,
 		OrderKeys: map[string]postgres.OrderExpr{
 			"policy_name": {SQL: "lower(c.name)"},
 			"status":      {SQL: policyStatusOrderSQL()},
+			"remediation": {SQL: remediationStatusOrderSQL("remediation_status.value")},
 			"updated_at":  {SQL: "m.updated_at", NullOrder: postgres.NullsLast},
 		},
 		DefaultOrder: []postgres.OrderExpr{
@@ -542,8 +515,10 @@ func policyResultListWhere(
 	scopeSQL string,
 	scopeID int64,
 	nameSQL string,
-) (string, []any) {
+	remediationNoResponseSeconds int,
+) (string, []any, string) {
 	var where postgres.WhereBuilder
+	remediationStatusExpr := remediationStatusSQL(where.Arg(remediationNoResponseSeconds))
 	where.Add(scopeSQL + " = " + where.Arg(scopeID))
 	if params.ListParams.Q != "" {
 		search := where.Arg("%" + params.ListParams.Q + "%")
@@ -553,7 +528,44 @@ func policyResultListWhere(
 		statuses := where.Arg(params.Statuses)
 		where.Add(`COALESCE(m.status, 'pending')::text = ANY(` + statuses + `::text[])`)
 	}
-	return where.Build()
+	if len(params.RemediationStatuses) > 0 {
+		statuses := where.Arg(params.RemediationStatuses)
+		where.Add("remediation_status.value = ANY(" + statuses + "::text[])")
+	}
+	whereSQL, args := where.Build()
+	return whereSQL, args, remediationStatusExpr
+}
+
+func policyResultSelectSQL(remediationStatusExpr string) string {
+	return `
+	SELECT
+		c.id AS policy_id,
+		c.name AS policy_name,
+		h.id AS host_id,
+		h.display_name AS host_name,
+		COALESCE(m.status, 'pending')::text AS status,
+		COALESCE(m.error, '') AS error,
+		CASE WHEN m.status = 'pending' THEN NULL ELSE m.updated_at END AS updated_at,
+		run.execution_id,
+		run.automatic AS remediation_automatic,
+		run.queued_at AS remediation_queued_at,
+		run.claimed_at AS remediation_claimed_at,
+		run.reported_at AS remediation_reported_at,
+		run.cancelled_at AS remediation_cancelled_at,
+		run.exit_code AS remediation_exit_code,
+		remediation_status.value AS remediation_status
+	FROM osquery_policies c
+	JOIN osquery_policy_assignments assignment ON assignment.policy_id = c.id
+	JOIN hosts h ON h.id = assignment.host_id
+	LEFT JOIN osquery_policy_membership m
+		ON m.host_id = h.id
+	   AND m.policy_id = c.id
+	LEFT JOIN osquery_policy_remediation_runs run
+		ON run.host_id = h.id
+	   AND run.policy_id = c.id
+	LEFT JOIN LATERAL (
+		SELECT (` + remediationStatusExpr + `) AS value
+	) remediation_status ON true`
 }
 
 func policyStatusOrderSQL() string {
@@ -580,6 +592,23 @@ func policyHostStatusesFromRows(rows []policyHostStatusRow) []PolicyHostStatus {
 		})
 	}
 	return statuses
+}
+
+func validatePolicyRemediationStatusFilters(statuses []PolicyRemediationStatusFilter) error {
+	for _, status := range statuses {
+		switch status {
+		case PolicyRemediationFilterNotRun,
+			PolicyRemediationFilterQueued,
+			PolicyRemediationFilterInProgress,
+			PolicyRemediationFilterSucceeded,
+			PolicyRemediationFilterFailed,
+			PolicyRemediationFilterNoResponse,
+			PolicyRemediationFilterCancelled:
+		default:
+			return fault.ErrInvalidInput
+		}
+	}
+	return nil
 }
 
 func validatePolicyStatusFilters(statuses []PolicyStatus) error {
@@ -648,21 +677,21 @@ type policyEvaluationRow struct {
 }
 
 type policyHostStatusRow struct {
-	PolicyID                  int64        `db:"policy_id"`
-	PolicyName                string       `db:"policy_name"`
-	HostID                    int64        `db:"host_id"`
-	HostName                  string       `db:"host_name"`
-	Status                    PolicyStatus `db:"status"`
-	Error                     string       `db:"error"`
-	UpdatedAt                 *time.Time   `db:"updated_at"`
-	ExecutionID               *string      `db:"execution_id"`
-	RemediationAutomatic      *bool        `db:"remediation_automatic"`
-	RemediationQueuedAt       *time.Time   `db:"remediation_queued_at"`
-	RemediationClaimedAt      *time.Time   `db:"remediation_claimed_at"`
-	RemediationReportedAt     *time.Time   `db:"remediation_reported_at"`
-	RemediationCancelledAt    *time.Time   `db:"remediation_cancelled_at"`
-	RemediationExitCode       *int         `db:"remediation_exit_code"`
-	RemediationTimeoutSeconds *int         `db:"remediation_timeout_seconds"`
+	PolicyID               int64                         `db:"policy_id"`
+	PolicyName             string                        `db:"policy_name"`
+	HostID                 int64                         `db:"host_id"`
+	HostName               string                        `db:"host_name"`
+	Status                 PolicyStatus                  `db:"status"`
+	Error                  string                        `db:"error"`
+	UpdatedAt              *time.Time                    `db:"updated_at"`
+	ExecutionID            *string                       `db:"execution_id"`
+	RemediationAutomatic   *bool                         `db:"remediation_automatic"`
+	RemediationQueuedAt    *time.Time                    `db:"remediation_queued_at"`
+	RemediationClaimedAt   *time.Time                    `db:"remediation_claimed_at"`
+	RemediationReportedAt  *time.Time                    `db:"remediation_reported_at"`
+	RemediationCancelledAt *time.Time                    `db:"remediation_cancelled_at"`
+	RemediationExitCode    *int                          `db:"remediation_exit_code"`
+	RemediationStatus      PolicyRemediationStatusFilter `db:"remediation_status"`
 }
 
 func policyFromRow(row policyRow) *Policy {

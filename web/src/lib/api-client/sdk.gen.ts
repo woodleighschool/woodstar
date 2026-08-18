@@ -1173,7 +1173,7 @@ export const runOsqueryPolicyRemediations = <ThrowOnError extends boolean = fals
  * List policy results
  */
 export const listOsqueryPolicyResults = <ThrowOnError extends boolean = false>(options: Options<ListOsqueryPolicyResultsData, ThrowOnError>): RequestResult<ListOsqueryPolicyResultsResponses, ListOsqueryPolicyResultsErrors, ThrowOnError> => (options.client ?? client).get<ListOsqueryPolicyResultsResponses, ListOsqueryPolicyResultsErrors, ThrowOnError>({
-    querySerializer: { parameters: { status: { array: { explode: false } } } },
+    querySerializer: { parameters: { status: { array: { explode: false } }, remediation: { array: { explode: false } } } },
     security: [{
             in: 'cookie',
             name: 'woodstar_session',

@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 
@@ -794,6 +795,98 @@ func TestPolicyResultsFiltersByMembershipStatus(t *testing.T) {
 	}
 }
 
+func TestPolicyResultsFiltersAndSortsRemediationStatuses(t *testing.T) {
+	store, labelStore, hostStore, ctx := newPostgresPolicyStore(t)
+	hostsByStatus := map[PolicyRemediationStatusFilter]*hosts.Host{
+		PolicyRemediationFilterFailed:     enrollTestHostDetail(t, ctx, hostStore, "remediation-filter-failed"),
+		PolicyRemediationFilterNoResponse: enrollTestHostDetail(t, ctx, hostStore, "remediation-filter-no-response"),
+		PolicyRemediationFilterInProgress: enrollTestHostDetail(t, ctx, hostStore, "remediation-filter-in-progress"),
+		PolicyRemediationFilterQueued:     enrollTestHostDetail(t, ctx, hostStore, "remediation-filter-queued"),
+		PolicyRemediationFilterSucceeded:  enrollTestHostDetail(t, ctx, hostStore, "remediation-filter-succeeded"),
+		PolicyRemediationFilterCancelled:  enrollTestHostDetail(t, ctx, hostStore, "remediation-filter-cancelled"),
+		PolicyRemediationFilterNotRun:     enrollTestHostDetail(t, ctx, hostStore, "remediation-filter-not-run"),
+	}
+	policy, err := store.Create(ctx, makePolicy(PolicyMutation{
+		Name:    "Remediation filter policy",
+		Query:   "select 1;",
+		Targets: policyTargets([]int64{allHostsLabelID(t, ctx, labelStore)}, nil),
+		Remediation: &PolicyRemediationMutation{
+			Script: "#!/bin/zsh\nexit 0\n",
+		},
+	}))
+	if err != nil {
+		t.Fatalf("create policy: %v", err)
+	}
+
+	_, err = store.pool.Exec(ctx, `
+		INSERT INTO osquery_policy_remediation_runs (
+			policy_id, host_id, execution_id, script_contents, evaluation_revision,
+			automatic, queued_at, claimed_at, reported_at, cancelled_at, exit_code
+		)
+		VALUES
+			($1, $2, 'filter-failed', '#!/bin/zsh', 1, false, now() - interval '3 minutes', now() - interval '2 minutes', now() - interval '1 minute', NULL, 1),
+			($1, $3, 'filter-no-response', '#!/bin/zsh', 1, false, now() - interval '8 minutes', now() - interval '7 minutes', NULL, NULL, NULL),
+			($1, $4, 'filter-in-progress', '#!/bin/zsh', 1, false, now() - interval '2 minutes', now() - interval '1 minute', NULL, NULL, NULL),
+			($1, $5, 'filter-queued', '#!/bin/zsh', 1, false, now(), NULL, NULL, NULL, NULL),
+			($1, $6, 'filter-succeeded', '#!/bin/zsh', 1, false, now() - interval '3 minutes', now() - interval '2 minutes', now() - interval '1 minute', NULL, 0),
+			($1, $7, 'filter-cancelled', '#!/bin/zsh', 1, false, now() - interval '1 minute', NULL, NULL, now(), NULL)`,
+		policy.ID,
+		hostsByStatus[PolicyRemediationFilterFailed].ID,
+		hostsByStatus[PolicyRemediationFilterNoResponse].ID,
+		hostsByStatus[PolicyRemediationFilterInProgress].ID,
+		hostsByStatus[PolicyRemediationFilterQueued].ID,
+		hostsByStatus[PolicyRemediationFilterSucceeded].ID,
+		hostsByStatus[PolicyRemediationFilterCancelled].ID,
+	)
+	if err != nil {
+		t.Fatalf("insert remediation states: %v", err)
+	}
+
+	for status, wantHost := range hostsByStatus {
+		results, count, err := store.PolicyResults(ctx, policy.ID, PolicyResultListParams{
+			RemediationStatuses: []PolicyRemediationStatusFilter{status},
+		})
+		if err != nil {
+			t.Fatalf("filter remediation status %q: %v", status, err)
+		}
+		if count != 1 || len(results) != 1 || results[0].HostID != wantHost.ID {
+			t.Fatalf("filter remediation status %q = %+v count %d, want host %d", status, results, count, wantHost.ID)
+		}
+		if status == PolicyRemediationFilterNotRun {
+			if results[0].Remediation != nil {
+				t.Fatalf("not-run remediation = %+v, want nil", results[0].Remediation)
+			}
+		} else if results[0].Remediation == nil ||
+			results[0].Remediation.Status != PolicyRemediationRunStatus(status) {
+			t.Fatalf("filtered remediation = %+v, want status %q", results[0].Remediation, status)
+		}
+	}
+
+	results, count, err := store.PolicyResults(ctx, policy.ID, PolicyResultListParams{
+		ListParams: listing.Params{Sort: "remediation.asc"},
+	})
+	if err != nil {
+		t.Fatalf("sort remediation statuses: %v", err)
+	}
+	wantOrder := []PolicyRemediationStatusFilter{
+		PolicyRemediationFilterFailed,
+		PolicyRemediationFilterNoResponse,
+		PolicyRemediationFilterInProgress,
+		PolicyRemediationFilterQueued,
+		PolicyRemediationFilterSucceeded,
+		PolicyRemediationFilterCancelled,
+		PolicyRemediationFilterNotRun,
+	}
+	if count != len(wantOrder) || len(results) != len(wantOrder) {
+		t.Fatalf("sorted remediation result count = %d len %d, want %d", count, len(results), len(wantOrder))
+	}
+	for i, status := range wantOrder {
+		if results[i].HostID != hostsByStatus[status].ID {
+			t.Fatalf("sorted remediation result %d host = %d, want %s host %d", i, results[i].HostID, status, hostsByStatus[status].ID)
+		}
+	}
+}
+
 func TestAutomaticRemediationUsesConclusiveTransitions(t *testing.T) {
 	store, labelStore, hostStore, ctx := newPostgresPolicyStore(t)
 	host := enrollTestHostDetail(t, ctx, hostStore, "policy-remediation-transition-host")
@@ -1371,7 +1464,7 @@ func newPostgresPolicyStore(t *testing.T) (*Store, *labels.Store, *hosts.Store, 
 	t.Helper()
 	database, ctx := testdb.Open(t)
 	labelStore := labels.NewStore(database)
-	return NewStore(database), labelStore, hosts.NewStore(database, labelStore), ctx
+	return NewStore(database, 5*time.Minute), labelStore, hosts.NewStore(database, labelStore), ctx
 }
 
 func createManualLabel(t *testing.T, ctx context.Context, store *labels.Store, name string) *labels.Label {

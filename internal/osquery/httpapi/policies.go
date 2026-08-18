@@ -34,14 +34,16 @@ type policyGetInput struct {
 type policyResultsInput struct {
 	api.ListQueryInput
 
-	ID     int64                   `path:"id"`
-	Status []policies.PolicyStatus `          query:"status,omitempty"`
+	ID          int64                                    `path:"id"`
+	Status      []policies.PolicyStatus                  `          query:"status,omitempty"`
+	Remediation []policies.PolicyRemediationStatusFilter `          query:"remediation,omitempty"`
 }
 
 func (input policyResultsInput) params() policies.PolicyResultListParams {
 	return policies.PolicyResultListParams{
-		ListParams: input.Params(),
-		Statuses:   input.Status,
+		ListParams:          input.Params(),
+		Statuses:            input.Status,
+		RemediationStatuses: input.Remediation,
 	}
 }
 
