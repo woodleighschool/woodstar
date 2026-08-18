@@ -21,24 +21,24 @@ defaults write com.github.autopkg WOODSTAR_API_KEY -string "API_KEY"
 
 ```yaml
 Process:
-    - Processor: com.github.woodleighschool.woodstar.processors/WoodstarMunkiImporter
-      Arguments:
-          pkg_path: "%pkg_path%"
-          icon_path: "%RECIPE_CACHE_DIR%/%NAME%.png"
-          pkginfo:
-              name: "%NAME%"
-              display_name: "%NAME%"
-              catalogs:
-                  - testing
-          targets:
-              include:
-                  - label_name: Optional Apps
-                    package:
-                        strategy: latest
-                    actions:
-                        - optional_installs
-                        - managed_updates
-              exclude: []
+  - Processor: com.github.woodleighschool.woodstar.processors/WoodstarMunkiImporter
+    Arguments:
+      pkg_path: "%pkg_path%"
+      icon_path: "%RECIPE_CACHE_DIR%/%NAME%.png"
+      pkginfo:
+        name: "%NAME%"
+        display_name: "%NAME%"
+        catalogs:
+          - testing
+      targets:
+        include:
+          - label_name: Optional Apps
+            package:
+              strategy: latest
+            actions:
+              - optional_installs
+              - managed_updates
+        exclude: []
 ```
 
 `icon_path` and `targets` are optional. Omitting `targets` preserves them on existing software and leaves new software untargeted.

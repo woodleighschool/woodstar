@@ -31,23 +31,23 @@ Use `WoodstarMunkiImporter` after a download processor has produced `pkg_path`:
 
 ```yaml
 Process:
-    - Processor: com.github.woodleighschool.woodstar.processors/WoodstarMunkiImporter
-      Arguments:
-          pkg_path: "%pkg_path%"
-          icon_path: "%RECIPE_CACHE_DIR%/%NAME%.png"
-          pkginfo:
-              name: "%NAME%"
-              display_name: "%NAME%"
-              catalogs:
-                  - testing
-          targets:
-              include:
-                  - label_name: All Hosts
-                    package:
-                        strategy: latest
-                    actions:
-                        - managed_installs
-              exclude: []
+  - Processor: com.github.woodleighschool.woodstar.processors/WoodstarMunkiImporter
+    Arguments:
+      pkg_path: "%pkg_path%"
+      icon_path: "%RECIPE_CACHE_DIR%/%NAME%.png"
+      pkginfo:
+        name: "%NAME%"
+        display_name: "%NAME%"
+        catalogs:
+          - testing
+      targets:
+        include:
+          - label_name: All Hosts
+            package:
+              strategy: latest
+            actions:
+              - managed_installs
+        exclude: []
 ```
 
 The processor runs `/usr/local/munki/makepkginfo`, creates or updates the software title and package version, and uploads the installer and optional icon. Re-running the recipe skips unchanged records and files. Use `force=true` to upload the files again.
@@ -61,7 +61,7 @@ Run `WoodstarMunkiPackageCleaner` after the importer:
 ```yaml
 - Processor: com.github.woodleighschool.woodstar.processors/WoodstarMunkiPackageCleaner
   Arguments:
-      keep_version_count: 5
+    keep_version_count: 5
 ```
 
 `MunkiPackageRemover` uses `woodstar_software_id` from the importer and deletes older package versions.

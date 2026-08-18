@@ -32,12 +32,12 @@ Uploads from the web app go directly to the bucket. Allow the Woodstar origin to
 
 ```json
 [
-    {
-        "AllowedOrigins": ["https://woodstar.example.com"],
-        "AllowedMethods": ["GET", "PUT", "HEAD"],
-        "AllowedHeaders": ["*"],
-        "ExposeHeaders": ["ETag"]
-    }
+  {
+    "AllowedOrigins": ["https://woodstar.example.com"],
+    "AllowedMethods": ["GET", "PUT", "HEAD"],
+    "AllowedHeaders": ["*"],
+    "ExposeHeaders": ["ETag"]
+  }
 ]
 ```
 

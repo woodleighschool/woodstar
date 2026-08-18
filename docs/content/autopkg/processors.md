@@ -35,15 +35,15 @@ An include accepts a `label_id` or `label_name`, a package selector, and one or 
 
 ```yaml
 targets:
-    include:
-        - label_name: Optional Apps
-          package:
-              strategy: latest
-          actions:
-              - optional_installs
-              - managed_updates
-    exclude:
-        - label_name: Lab Macs
+  include:
+    - label_name: Optional Apps
+      package:
+        strategy: latest
+      actions:
+        - optional_installs
+        - managed_updates
+  exclude:
+    - label_name: Lab Macs
 ```
 
 Package strategy is `latest` or `specific`. A specific package requires `package_id`.
