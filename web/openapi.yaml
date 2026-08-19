@@ -2557,11 +2557,8 @@ components:
         status:
           enum:
             - queued
-            - in_progress
             - succeeded
             - failed
-            - no_response
-            - cancelled
           type: string
       required:
         - output
@@ -2576,11 +2573,8 @@ components:
         status:
           enum:
             - queued
-            - in_progress
             - succeeded
             - failed
-            - no_response
-            - cancelled
           type: string
       required:
         - status
@@ -2601,12 +2595,9 @@ components:
           type: boolean
         configured:
           type: boolean
-        has_run:
-          type: boolean
       required:
         - configured
         - automatic
-        - has_run
       type: object
     OsqueryPolicyTargets:
       additionalProperties: false
@@ -8636,7 +8627,7 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Get latest policy remediation run
+      summary: Get current policy remediation run
       tags:
         - Osquery policies
   /api/osquery/policies/{id}/remediation:
@@ -8824,11 +8815,8 @@ paths:
               enum:
                 - not_run
                 - queued
-                - in_progress
                 - succeeded
                 - failed
-                - no_response
-                - cancelled
               type: string
             type: array
       responses:

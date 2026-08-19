@@ -36,7 +36,7 @@ type enrollmentService interface {
 	SetPrimaryUser(context.Context, string, string, heartbeats.Contact) error
 	SetDeviceAuthToken(context.Context, string, string, heartbeats.Contact) error
 	ValidateDeviceAuthToken(context.Context, string, heartbeats.Contact) error
-	ClaimScript(context.Context, orbit.ScriptRequest, heartbeats.Contact) (*orbit.ScriptResponse, error)
+	GetScript(context.Context, orbit.ScriptRequest, heartbeats.Contact) (*orbit.ScriptResponse, error)
 	RecordScriptResult(context.Context, orbit.ScriptResult, heartbeats.Contact) error
 }
 
@@ -67,7 +67,7 @@ func orbitScriptRequestHandler(svc enrollmentService, logger *slog.Logger) http.
 			httpx.WriteDecodeError(w, err)
 			return
 		}
-		resp, err := svc.ClaimScript(r.Context(), req, requestContact(r))
+		resp, err := svc.GetScript(r.Context(), req, requestContact(r))
 		switch {
 		case errors.Is(err, fault.ErrNotFound):
 			httpx.WriteError(w, http.StatusNotFound, "script execution not found")
@@ -94,10 +94,6 @@ func orbitScriptResultHandler(svc enrollmentService, logger *slog.Logger) http.H
 		switch {
 		case errors.Is(err, fault.ErrInvalidInput):
 			httpx.WriteError(w, http.StatusBadRequest, "invalid script result")
-		case errors.Is(err, fault.ErrNotFound):
-			httpx.WriteError(w, http.StatusNotFound, "script execution not found")
-		case errors.Is(err, fault.ErrConflict):
-			httpx.WriteError(w, http.StatusConflict, "script execution was not claimable")
 		case err != nil:
 			logger.ErrorContext(
 				r.Context(), "Orbit script result failed",

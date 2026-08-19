@@ -196,7 +196,7 @@ func TestOrbitRoutesRejectMalformedAndOversizedJSON(t *testing.T) {
 func TestOrbitScriptEndpointsUseStockContract(t *testing.T) {
 	t.Parallel()
 	service := &stubEnrollmentService{
-		claimScriptResponse: &orbit.ScriptResponse{
+		getScriptResponse: &orbit.ScriptResponse{
 			HostID:         42,
 			ExecutionID:    "execution-id",
 			ScriptContents: "#!/bin/zsh\nexit 0\n",
@@ -228,9 +228,9 @@ func TestOrbitScriptEndpointsUseStockContract(t *testing.T) {
 	if strings.Contains(recorder.Body.String(), `"timeout"`) {
 		t.Fatalf("script response contains unused per-execution timeout: %s", recorder.Body.String())
 	}
-	if service.claimScriptRequest.OrbitNodeKey != "node-key" ||
-		service.claimScriptRequest.ExecutionID != "execution-id" {
-		t.Fatalf("script request = %+v", service.claimScriptRequest)
+	if service.getScriptRequest.OrbitNodeKey != "node-key" ||
+		service.getScriptRequest.ExecutionID != "execution-id" {
+		t.Fatalf("script request = %+v", service.getScriptRequest)
 	}
 
 	result := orbit.ScriptResult{
@@ -261,9 +261,9 @@ type stubEnrollmentService struct {
 	setDeviceAuthTokenErr      error
 	validateDeviceAuthTokenErr error
 	configContact              heartbeats.Contact
-	claimScriptResponse        *orbit.ScriptResponse
-	claimScriptRequest         orbit.ScriptRequest
-	claimScriptErr             error
+	getScriptResponse          *orbit.ScriptResponse
+	getScriptRequest           orbit.ScriptRequest
+	getScriptErr               error
 	scriptResult               orbit.ScriptResult
 	scriptResultErr            error
 }
@@ -293,16 +293,16 @@ func (s *stubEnrollmentService) ValidateDeviceAuthToken(context.Context, string,
 	return s.validateDeviceAuthTokenErr
 }
 
-func (s *stubEnrollmentService) ClaimScript(
+func (s *stubEnrollmentService) GetScript(
 	_ context.Context,
 	req orbit.ScriptRequest,
 	_ heartbeats.Contact,
 ) (*orbit.ScriptResponse, error) {
-	s.claimScriptRequest = req
-	if s.claimScriptResponse == nil {
-		return &orbit.ScriptResponse{}, s.claimScriptErr
+	s.getScriptRequest = req
+	if s.getScriptResponse == nil {
+		return &orbit.ScriptResponse{}, s.getScriptErr
 	}
-	return s.claimScriptResponse, s.claimScriptErr
+	return s.getScriptResponse, s.getScriptErr
 }
 
 func (s *stubEnrollmentService) RecordScriptResult(

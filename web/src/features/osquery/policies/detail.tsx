@@ -110,9 +110,7 @@ export function PolicyDetailPage() {
   const [viewRemediation, setViewRemediation] = useState<PolicyResultRow | null>(null);
   const id = parseRouteID(policyId);
   const policy = usePolicy(id);
-  const showRemediation = Boolean(
-    policy.data?.remediation.configured || policy.data?.remediation.has_run,
-  );
+  const showRemediation = Boolean(policy.data?.remediation.configured);
   const canRunRemediation = Boolean(isAdmin && policy.data?.remediation.configured);
   const remediationSource = usePolicyRemediationSource(
     activeTab === "remediation" && isAdmin ? id : null,

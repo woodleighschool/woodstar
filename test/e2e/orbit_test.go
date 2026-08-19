@@ -46,6 +46,9 @@ type orbitFixtureScriptResponse struct {
 	HostID         int64  `json:"host_id"`
 	ExecutionID    string `json:"execution_id"`
 	ScriptContents string `json:"script_contents"`
+	Output         string `json:"output"`
+	Runtime        int    `json:"runtime"`
+	ExitCode       *int   `json:"exit_code"`
 }
 
 type orbitFixturePolicyResults struct {
@@ -266,7 +269,6 @@ func (client orbitProtocolFixtureClient) postFixture(
 func (client orbitProtocolFixtureClient) postJSON(
 	path string,
 	body any,
-	wantStatus int,
 	target any,
 ) {
 	client.t.Helper()
@@ -274,7 +276,7 @@ func (client orbitProtocolFixtureClient) postJSON(
 	if err != nil {
 		client.t.Fatalf("encode POST %s request: %v", path, err)
 	}
-	client.request(http.MethodPost, path, payload, wantStatus, target)
+	client.request(http.MethodPost, path, payload, http.StatusOK, target)
 }
 
 func (client orbitProtocolFixtureClient) putFixture(
@@ -431,7 +433,7 @@ func assertOrbitFixtureConfig(
 	}
 }
 
-func proveOrbitPolicyRemediationLifecycle( //nolint:funlen // Linear cross-protocol policy and Orbit lifecycle.
+func proveOrbitPolicyRemediationLifecycle( //nolint:cyclop,funlen // Linear cross-protocol policy and Orbit lifecycle.
 	t *testing.T,
 	server *testServer,
 	client orbitProtocolFixtureClient,
@@ -546,12 +548,27 @@ func proveOrbitPolicyRemediationLifecycle( //nolint:funlen // Linear cross-proto
 		"execution_id":   executionID,
 	}
 	var script orbitFixtureScriptResponse
-	client.postJSON("/api/fleet/orbit/scripts/request", requestBody, http.StatusOK, &script)
+	client.postJSON("/api/fleet/orbit/scripts/request", requestBody, &script)
 	if script.HostID != host.Id || script.ExecutionID != executionID ||
 		script.ScriptContents != remediationScript {
-		t.Fatalf("claimed Orbit script = %+v, want immutable policy remediation", script)
+		t.Fatalf("requested Orbit script = %+v, want immutable policy remediation", script)
 	}
-	client.postJSON("/api/fleet/orbit/scripts/request", requestBody, http.StatusNotFound, nil)
+	var redelivered orbitFixtureScriptResponse
+	client.postJSON("/api/fleet/orbit/scripts/request", requestBody, &redelivered)
+	if redelivered != script {
+		t.Fatalf("redelivered Orbit script = %+v, want %+v", redelivered, script)
+	}
+	client.postFixture(
+		"config.json",
+		"/api/fleet/orbit/config",
+		map[string]any{"$ORBIT_NODE_KEY": orbitNodeKey},
+		http.StatusOK,
+		&config,
+	)
+	if len(config.Notifications.PendingScriptExecutionIDs) != 1 ||
+		config.Notifications.PendingScriptExecutionIDs[0] != executionID {
+		t.Fatalf("redelivered pending Orbit scripts = %+v, want %q", config.Notifications.PendingScriptExecutionIDs, executionID)
+	}
 	client.postJSON(
 		"/api/fleet/orbit/scripts/result",
 		map[string]any{
@@ -562,9 +579,37 @@ func proveOrbitPolicyRemediationLifecycle( //nolint:funlen // Linear cross-proto
 			"exit_code":      0,
 			"timeout":        300,
 		},
-		http.StatusOK,
 		nil,
 	)
+	client.postJSON(
+		"/api/fleet/orbit/scripts/result",
+		map[string]any{
+			"orbit_node_key": orbitNodeKey,
+			"execution_id":   executionID,
+			"output":         "duplicate\n",
+			"runtime":        2,
+			"exit_code":      1,
+			"timeout":        300,
+		},
+		nil,
+	)
+	var terminal orbitFixtureScriptResponse
+	client.postJSON("/api/fleet/orbit/scripts/request", requestBody, &terminal)
+	if terminal.Output != "remediated\n" || terminal.Runtime != 1 ||
+		terminal.ExitCode == nil || *terminal.ExitCode != 0 {
+		t.Fatalf("terminal Orbit script = %+v, want first result", terminal)
+	}
+	config = orbitFixtureConfigResponse{}
+	client.postFixture(
+		"config.json",
+		"/api/fleet/orbit/config",
+		map[string]any{"$ORBIT_NODE_KEY": orbitNodeKey},
+		http.StatusOK,
+		&config,
+	)
+	if len(config.Notifications.PendingScriptExecutionIDs) != 0 {
+		t.Fatalf("pending Orbit scripts after result = %+v, want none", config.Notifications.PendingScriptExecutionIDs)
+	}
 
 	var results orbitFixturePolicyResults
 	requestFixtureJSON(
@@ -593,7 +638,7 @@ func proveOrbitPolicyRemediationLifecycle( //nolint:funlen // Linear cross-proto
 		&run,
 	)
 	if run.Status != "succeeded" || run.Output != "remediated\n" {
-		t.Fatalf("latest remediation run = %+v, want succeeded output", run)
+		t.Fatalf("current remediation run = %+v, want succeeded output", run)
 	}
 }
 

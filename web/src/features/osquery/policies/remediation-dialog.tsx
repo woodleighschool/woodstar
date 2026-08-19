@@ -32,7 +32,7 @@ export function PolicyRemediationDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[calc(100vh-2rem)] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Latest Remediation</DialogTitle>
+          <DialogTitle>Remediation</DialogTitle>
           <DialogDescription>{hostName}</DialogDescription>
         </DialogHeader>
 

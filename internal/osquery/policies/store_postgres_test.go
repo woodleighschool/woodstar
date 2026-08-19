@@ -8,7 +8,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/jackc/pgx/v5"
 
@@ -795,16 +794,13 @@ func TestPolicyResultsFiltersByMembershipStatus(t *testing.T) {
 	}
 }
 
-func TestPolicyResultsFiltersAndSortsRemediationStatuses(t *testing.T) {
+func TestPolicyResultsFiltersAndSortsRemediationStatuses(t *testing.T) { //nolint:gocognit // Filter matrix setup and assertions belong together.
 	store, labelStore, hostStore, ctx := newPostgresPolicyStore(t)
 	hostsByStatus := map[PolicyRemediationStatusFilter]*hosts.Host{
-		PolicyRemediationFilterFailed:     enrollTestHostDetail(t, ctx, hostStore, "remediation-filter-failed"),
-		PolicyRemediationFilterNoResponse: enrollTestHostDetail(t, ctx, hostStore, "remediation-filter-no-response"),
-		PolicyRemediationFilterInProgress: enrollTestHostDetail(t, ctx, hostStore, "remediation-filter-in-progress"),
-		PolicyRemediationFilterQueued:     enrollTestHostDetail(t, ctx, hostStore, "remediation-filter-queued"),
-		PolicyRemediationFilterSucceeded:  enrollTestHostDetail(t, ctx, hostStore, "remediation-filter-succeeded"),
-		PolicyRemediationFilterCancelled:  enrollTestHostDetail(t, ctx, hostStore, "remediation-filter-cancelled"),
-		PolicyRemediationFilterNotRun:     enrollTestHostDetail(t, ctx, hostStore, "remediation-filter-not-run"),
+		PolicyRemediationFilterFailed:    enrollTestHostDetail(t, ctx, hostStore, "remediation-filter-failed"),
+		PolicyRemediationFilterQueued:    enrollTestHostDetail(t, ctx, hostStore, "remediation-filter-queued"),
+		PolicyRemediationFilterSucceeded: enrollTestHostDetail(t, ctx, hostStore, "remediation-filter-succeeded"),
+		PolicyRemediationFilterNotRun:    enrollTestHostDetail(t, ctx, hostStore, "remediation-filter-not-run"),
 	}
 	policy, err := store.Create(ctx, makePolicy(PolicyMutation{
 		Name:    "Remediation filter policy",
@@ -818,28 +814,34 @@ func TestPolicyResultsFiltersAndSortsRemediationStatuses(t *testing.T) {
 		t.Fatalf("create policy: %v", err)
 	}
 
-	_, err = store.pool.Exec(ctx, `
-		INSERT INTO osquery_policy_remediation_runs (
-			policy_id, host_id, execution_id, script_contents, evaluation_revision,
-			automatic, queued_at, claimed_at, reported_at, cancelled_at, exit_code
-		)
-		VALUES
-			($1, $2, 'filter-failed', '#!/bin/zsh', 1, false, now() - interval '3 minutes', now() - interval '2 minutes', now() - interval '1 minute', NULL, 1),
-			($1, $3, 'filter-no-response', '#!/bin/zsh', 1, false, now() - interval '8 minutes', now() - interval '7 minutes', NULL, NULL, NULL),
-			($1, $4, 'filter-in-progress', '#!/bin/zsh', 1, false, now() - interval '2 minutes', now() - interval '1 minute', NULL, NULL, NULL),
-			($1, $5, 'filter-queued', '#!/bin/zsh', 1, false, now(), NULL, NULL, NULL, NULL),
-			($1, $6, 'filter-succeeded', '#!/bin/zsh', 1, false, now() - interval '3 minutes', now() - interval '2 minutes', now() - interval '1 minute', NULL, 0),
-			($1, $7, 'filter-cancelled', '#!/bin/zsh', 1, false, now() - interval '1 minute', NULL, NULL, now(), NULL)`,
-		policy.ID,
-		hostsByStatus[PolicyRemediationFilterFailed].ID,
-		hostsByStatus[PolicyRemediationFilterNoResponse].ID,
-		hostsByStatus[PolicyRemediationFilterInProgress].ID,
-		hostsByStatus[PolicyRemediationFilterQueued].ID,
-		hostsByStatus[PolicyRemediationFilterSucceeded].ID,
-		hostsByStatus[PolicyRemediationFilterCancelled].ID,
-	)
-	if err != nil {
-		t.Fatalf("insert remediation states: %v", err)
+	for _, host := range hostsByStatus {
+		recordIssuedStatus(t, ctx, store, host, policy, PolicyStatusFail, "")
+	}
+	for _, status := range []PolicyRemediationStatusFilter{
+		PolicyRemediationFilterFailed,
+		PolicyRemediationFilterQueued,
+		PolicyRemediationFilterSucceeded,
+	} {
+		host := hostsByStatus[status]
+		makeOrbitScriptEligible(t, ctx, store, host.ID)
+		summary, err := store.RunRemediations(ctx, policy.ID, []int64{host.ID}, false)
+		if err != nil || summary.Queued != 1 {
+			t.Fatalf("queue remediation status %q: summary=%+v err=%v", status, summary, err)
+		}
+		if status == PolicyRemediationFilterQueued {
+			continue
+		}
+		run := remediationRunForTest(t, ctx, store, policy.ID, host.ID)
+		exitCode := 0
+		if status == PolicyRemediationFilterFailed {
+			exitCode = 1
+		}
+		if err := store.RecordRemediationResult(ctx, host.ID, RemediationResult{
+			ExecutionID: run.ExecutionID,
+			ExitCode:    exitCode,
+		}); err != nil {
+			t.Fatalf("record remediation status %q: %v", status, err)
+		}
 	}
 
 	for status, wantHost := range hostsByStatus {
@@ -870,11 +872,8 @@ func TestPolicyResultsFiltersAndSortsRemediationStatuses(t *testing.T) {
 	}
 	wantOrder := []PolicyRemediationStatusFilter{
 		PolicyRemediationFilterFailed,
-		PolicyRemediationFilterNoResponse,
-		PolicyRemediationFilterInProgress,
 		PolicyRemediationFilterQueued,
 		PolicyRemediationFilterSucceeded,
-		PolicyRemediationFilterCancelled,
 		PolicyRemediationFilterNotRun,
 	}
 	if count != len(wantOrder) || len(results) != len(wantOrder) {
@@ -909,6 +908,16 @@ func TestAutomaticRemediationUsesConclusiveTransitions(t *testing.T) {
 	if !first.Automatic || first.Status != PolicyRemediationRunStatusQueued {
 		t.Fatalf("initial remediation = %+v, want queued automatic run", first)
 	}
+	manual, err := store.RunRemediations(ctx, policy.ID, []int64{host.ID}, false)
+	if err != nil {
+		t.Fatalf("manually run queued automatic remediation: %v", err)
+	}
+	if manual.Queued != 0 || manual.Skipped != 1 {
+		t.Fatalf("manual run summary = %+v, want existing automatic run skipped", manual)
+	}
+	if current := remediationRunForTest(t, ctx, store, policy.ID, host.ID); current.ExecutionID != first.ExecutionID || !current.Automatic {
+		t.Fatalf("remediation after manual run = %+v, want existing automatic execution", current)
+	}
 
 	recordIssuedStatus(t, ctx, store, host, policy, PolicyStatusError, "database locked")
 	errorResults, _, err := store.PolicyResults(ctx, policy.ID, PolicyResultListParams{})
@@ -925,9 +934,12 @@ func TestAutomaticRemediationUsesConclusiveTransitions(t *testing.T) {
 	}
 
 	recordIssuedStatus(t, ctx, store, host, policy, PolicyStatusPass, "")
-	cancelled := remediationRunForTest(t, ctx, store, policy.ID, host.ID)
-	if cancelled.Status != PolicyRemediationRunStatusCancelled {
-		t.Fatalf("passing remediation = %+v, want cancelled", cancelled)
+	if _, err := store.RemediationRun(ctx, policy.ID, host.ID); !errors.Is(err, fault.ErrNotFound) {
+		t.Fatalf("passing remediation error = %v, want ErrNotFound", err)
+	}
+	pending, err := store.PendingRemediationExecutionIDs(ctx, host.ID)
+	if err != nil || len(pending) != 0 {
+		t.Fatalf("pending remediation after pass = %v, err %v", pending, err)
 	}
 	recordIssuedStatus(t, ctx, store, host, policy, PolicyStatusFail, "")
 	second := remediationRunForTest(t, ctx, store, policy.ID, host.ID)
@@ -951,7 +963,7 @@ func TestEnablingAutomaticRemediationDoesNotReplayExistingFailure(t *testing.T) 
 	}
 	recordIssuedStatus(t, ctx, store, host, policy, PolicyStatusFail, "")
 
-	policy, err = store.Update(ctx, policy.ID, PolicyMutation{
+	_, err = store.Update(ctx, policy.ID, PolicyMutation{
 		Name:    policy.Name,
 		Query:   policy.Query,
 		Targets: targets,
@@ -1021,6 +1033,128 @@ func TestAutomaticRemediationRequiresUsableOrbitScriptExecution(t *testing.T) {
 	}
 }
 
+func TestRemediationExecutionRedeliversUntilFirstResult(t *testing.T) {
+	store, labelStore, hostStore, ctx := newPostgresPolicyStore(t)
+	host := enrollTestHostDetail(t, ctx, hostStore, "policy-remediation-redelivery-host")
+	makeOrbitScriptEligible(t, ctx, store, host.ID)
+	policy, err := store.Create(ctx, makePolicy(PolicyMutation{
+		Name:    "Remediation redelivery policy",
+		Query:   "select 1;",
+		Targets: policyTargets([]int64{allHostsLabelID(t, ctx, labelStore)}, nil),
+		Remediation: &PolicyRemediationMutation{
+			Script: "#!/bin/zsh\necho stable\n",
+		},
+	}))
+	if err != nil {
+		t.Fatalf("create policy: %v", err)
+	}
+	recordIssuedStatus(t, ctx, store, host, policy, PolicyStatusFail, "")
+	if _, err := store.RunRemediations(ctx, policy.ID, []int64{host.ID}, false); err != nil {
+		t.Fatalf("queue remediation: %v", err)
+	}
+	run := remediationRunForTest(t, ctx, store, policy.ID, host.ID)
+
+	for i := range 2 {
+		pending, err := store.PendingRemediationExecutionIDs(ctx, host.ID)
+		if err != nil || len(pending) != 1 || pending[0] != run.ExecutionID {
+			t.Fatalf("pending remediation %d = %v, err %v", i, pending, err)
+		}
+		execution, err := store.RemediationExecution(ctx, host.ID, run.ExecutionID)
+		if err != nil {
+			t.Fatalf("get remediation %d: %v", i, err)
+		}
+		if execution.ScriptContents != "#!/bin/zsh\necho stable\n" || execution.ExitCode != nil {
+			t.Fatalf("remediation execution %d = %+v, want stable pending script", i, execution)
+		}
+	}
+
+	if err := store.RecordRemediationResult(ctx, host.ID, RemediationResult{
+		ExecutionID:    run.ExecutionID,
+		Output:         "first",
+		RuntimeSeconds: 2,
+		ExitCode:       0,
+	}); err != nil {
+		t.Fatalf("record first result: %v", err)
+	}
+	if err := store.RecordRemediationResult(ctx, host.ID, RemediationResult{
+		ExecutionID:    run.ExecutionID,
+		Output:         "second",
+		RuntimeSeconds: 3,
+		ExitCode:       1,
+	}); err != nil {
+		t.Fatalf("record duplicate result: %v", err)
+	}
+	if err := store.RecordRemediationResult(ctx, host.ID, RemediationResult{
+		ExecutionID: "removed-execution",
+		ExitCode:    1,
+	}); err != nil {
+		t.Fatalf("record removed result: %v", err)
+	}
+
+	pending, err := store.PendingRemediationExecutionIDs(ctx, host.ID)
+	if err != nil || len(pending) != 0 {
+		t.Fatalf("pending remediation after result = %v, err %v", pending, err)
+	}
+	execution, err := store.RemediationExecution(ctx, host.ID, run.ExecutionID)
+	if err != nil {
+		t.Fatalf("get terminal remediation: %v", err)
+	}
+	if execution.Output != "first" || execution.RuntimeSeconds == nil ||
+		*execution.RuntimeSeconds != 2 || execution.ExitCode == nil || *execution.ExitCode != 0 {
+		t.Fatalf("terminal remediation = %+v, want first result", execution)
+	}
+	completed := remediationRunForTest(t, ctx, store, policy.ID, host.ID)
+	if completed.Status != PolicyRemediationRunStatusSucceeded || completed.Output != "first" {
+		t.Fatalf("completed remediation = %+v, want first successful result", completed)
+	}
+}
+
+func TestTargetRemovalDropsTransientRemediation(t *testing.T) {
+	store, labelStore, hostStore, ctx := newPostgresPolicyStore(t)
+	host := enrollTestHostDetail(t, ctx, hostStore, "policy-remediation-retarget-host")
+	makeOrbitScriptEligible(t, ctx, store, host.ID)
+	include := createManualLabel(t, ctx, labelStore, "Remediation retarget include")
+	if err := labelStore.SetMembership(ctx, include.ID, host.ID, true); err != nil {
+		t.Fatalf("include host: %v", err)
+	}
+	policy, err := store.Create(ctx, makePolicy(PolicyMutation{
+		Name:    "Remediation retarget policy",
+		Query:   "select 1;",
+		Targets: policyTargets([]int64{include.ID}, nil),
+		Remediation: &PolicyRemediationMutation{
+			Script: "#!/bin/zsh\nexit 0\n",
+		},
+	}))
+	if err != nil {
+		t.Fatalf("create policy: %v", err)
+	}
+	recordIssuedStatus(t, ctx, store, host, policy, PolicyStatusFail, "")
+	if _, err := store.RunRemediations(ctx, policy.ID, []int64{host.ID}, false); err != nil {
+		t.Fatalf("queue remediation: %v", err)
+	}
+	run := remediationRunForTest(t, ctx, store, policy.ID, host.ID)
+
+	_, err = store.Update(ctx, policy.ID, PolicyMutation{
+		Name:  policy.Name,
+		Query: policy.Query,
+		Remediation: &PolicyRemediationMutation{
+			Script: "#!/bin/zsh\nexit 0\n",
+		},
+	})
+	if err != nil {
+		t.Fatalf("remove target: %v", err)
+	}
+	if _, err := store.RemediationExecution(ctx, host.ID, run.ExecutionID); !errors.Is(err, fault.ErrNotFound) {
+		t.Fatalf("removed target execution error = %v, want ErrNotFound", err)
+	}
+	if err := store.RecordRemediationResult(ctx, host.ID, RemediationResult{
+		ExecutionID: run.ExecutionID,
+		ExitCode:    0,
+	}); err != nil {
+		t.Fatalf("record removed target result: %v", err)
+	}
+}
+
 func TestEvaluationRejectsSupersededResultBeforeLatestCompletes(t *testing.T) {
 	store, labelStore, hostStore, ctx := newPostgresPolicyStore(t)
 	host := enrollTestHostDetail(t, ctx, hostStore, "policy-superseded-result-host")
@@ -1072,7 +1206,7 @@ func TestEvaluationRejectsSupersededResultBeforeLatestCompletes(t *testing.T) {
 	}
 }
 
-func TestEvaluationOrderingAndRemediationSnapshot(t *testing.T) { //nolint:funlen // One ordered result and remediation lifecycle.
+func TestEvaluationOrderingAndRemediationCurrentIntent(t *testing.T) { //nolint:funlen // One ordered result and remediation lifecycle.
 	store, labelStore, hostStore, ctx := newPostgresPolicyStore(t)
 	host := enrollTestHostDetail(t, ctx, hostStore, "policy-remediation-order-host")
 	makeOrbitScriptEligible(t, ctx, store, host.ID)
@@ -1099,16 +1233,6 @@ func TestEvaluationOrderingAndRemediationSnapshot(t *testing.T) { //nolint:funle
 		t.Fatalf("record newer failure: %v", err)
 	}
 	first := remediationRunForTest(t, ctx, store, policy.ID, host.ID)
-	var queuedRevision int64
-	if err := store.pool.QueryRow(ctx, `
-		SELECT evaluation_revision
-		FROM osquery_policy_remediation_runs
-		WHERE policy_id = $1 AND host_id = $2`, policy.ID, host.ID).Scan(&queuedRevision); err != nil {
-		t.Fatalf("read queued evaluation revision: %v", err)
-	}
-	if queuedRevision != newer.Revision {
-		t.Fatalf("queued evaluation revision = %d, want %d", queuedRevision, newer.Revision)
-	}
 	if err := store.RecordEvaluation(
 		ctx, policy.ID, testQueryHash(policy.Query), older.Revision, older.Sequence, host.ID,
 		EvaluationResult{Status: PolicyStatusPass},
@@ -1123,12 +1247,12 @@ func TestEvaluationOrderingAndRemediationSnapshot(t *testing.T) { //nolint:funle
 		t.Fatalf("result after stale pass = %+v, want fail", results)
 	}
 
-	claimed, err := store.ClaimRemediation(ctx, host.ID, first.ExecutionID)
+	execution, err := store.RemediationExecution(ctx, host.ID, first.ExecutionID)
 	if err != nil {
-		t.Fatalf("claim original remediation: %v", err)
+		t.Fatalf("get original remediation: %v", err)
 	}
-	if claimed.ScriptContents != "#!/bin/zsh\necho original\n" {
-		t.Fatalf("claimed script = %q, want queued snapshot", claimed.ScriptContents)
+	if execution.ScriptContents != "#!/bin/zsh\necho original\n" {
+		t.Fatalf("execution script = %q, want queued snapshot", execution.ScriptContents)
 	}
 	policy, err = store.Update(ctx, policy.ID, PolicyMutation{
 		Name:    policy.Name,
@@ -1142,8 +1266,8 @@ func TestEvaluationOrderingAndRemediationSnapshot(t *testing.T) { //nolint:funle
 	if err != nil {
 		t.Fatalf("edit remediation script: %v", err)
 	}
-	if _, err := store.ClaimRemediation(ctx, host.ID, first.ExecutionID); !errors.Is(err, fault.ErrNotFound) {
-		t.Fatalf("second claim error = %v, want ErrNotFound", err)
+	if _, err := store.RemediationExecution(ctx, host.ID, first.ExecutionID); !errors.Is(err, fault.ErrNotFound) {
+		t.Fatalf("obsolete execution error = %v, want ErrNotFound", err)
 	}
 	if err := store.RecordRemediationResult(ctx, host.ID, RemediationResult{
 		ExecutionID: first.ExecutionID,
@@ -1152,9 +1276,8 @@ func TestEvaluationOrderingAndRemediationSnapshot(t *testing.T) { //nolint:funle
 	}); err != nil {
 		t.Fatalf("record remediation result: %v", err)
 	}
-	succeeded := remediationRunForTest(t, ctx, store, policy.ID, host.ID)
-	if succeeded.Status != PolicyRemediationRunStatusSucceeded {
-		t.Fatalf("completed remediation = %+v, want succeeded", succeeded)
+	if _, err := store.RemediationRun(ctx, policy.ID, host.ID); !errors.Is(err, fault.ErrNotFound) {
+		t.Fatalf("obsolete completed remediation error = %v, want ErrNotFound", err)
 	}
 	results, _, err = store.PolicyResults(ctx, policy.ID, PolicyResultListParams{})
 	if err != nil {
@@ -1162,6 +1285,9 @@ func TestEvaluationOrderingAndRemediationSnapshot(t *testing.T) { //nolint:funle
 	}
 	if results[0].Status != PolicyStatusFail {
 		t.Fatalf("policy status after successful script = %q, want fail", results[0].Status)
+	}
+	if results[0].Remediation != nil {
+		t.Fatalf("obsolete remediation result = %+v, want nil", results[0].Remediation)
 	}
 
 	summary, err := store.RunRemediations(ctx, policy.ID, []int64{host.ID}, false)
@@ -1175,12 +1301,12 @@ func TestEvaluationOrderingAndRemediationSnapshot(t *testing.T) { //nolint:funle
 	if manual.Automatic || manual.ExecutionID == first.ExecutionID {
 		t.Fatalf("manual remediation = %+v, want replacement manual run", manual)
 	}
-	manualClaim, err := store.ClaimRemediation(ctx, host.ID, manual.ExecutionID)
+	manualExecution, err := store.RemediationExecution(ctx, host.ID, manual.ExecutionID)
 	if err != nil {
-		t.Fatalf("claim manual remediation: %v", err)
+		t.Fatalf("get manual remediation: %v", err)
 	}
-	if manualClaim.ScriptContents != "#!/bin/zsh\necho edited\n" {
-		t.Fatalf("manual script = %q, want edited source", manualClaim.ScriptContents)
+	if manualExecution.ScriptContents != "#!/bin/zsh\necho edited\n" {
+		t.Fatalf("manual script = %q, want edited source", manualExecution.ScriptContents)
 	}
 	if err := store.RecordRemediationResult(ctx, host.ID, RemediationResult{
 		ExecutionID: manual.ExecutionID,
@@ -1190,7 +1316,7 @@ func TestEvaluationOrderingAndRemediationSnapshot(t *testing.T) { //nolint:funle
 	}
 }
 
-func TestRunRemediationsQueuesEligibleFailuresAndCancelsObsoleteWork(t *testing.T) {
+func TestRunRemediationsQueuesEligibleFailuresAndSupersedesObsoleteWork(t *testing.T) {
 	store, labelStore, hostStore, ctx := newPostgresPolicyStore(t)
 	hostA := enrollTestHostDetail(t, ctx, hostStore, "policy-bulk-run-a")
 	hostB := enrollTestHostDetail(t, ctx, hostStore, "policy-bulk-run-b")
@@ -1252,8 +1378,8 @@ func TestRunRemediationsQueuesEligibleFailuresAndCancelsObsoleteWork(t *testing.
 	if err != nil {
 		t.Fatalf("edit remediation script: %v", err)
 	}
-	if run := remediationRunForTest(t, ctx, store, policy.ID, hostA.ID); run.Status != PolicyRemediationRunStatusCancelled {
-		t.Fatalf("obsolete remediation = %+v, want cancelled", run)
+	if _, err := store.RemediationRun(ctx, policy.ID, hostA.ID); !errors.Is(err, fault.ErrNotFound) {
+		t.Fatalf("obsolete remediation error = %v, want ErrNotFound", err)
 	}
 
 	summary, err = store.RunRemediations(ctx, policy.ID, []int64{hostA.ID}, false)
@@ -1264,12 +1390,12 @@ func TestRunRemediationsQueuesEligibleFailuresAndCancelsObsoleteWork(t *testing.
 		t.Fatalf("edited run summary = %+v, want selected host queued", summary)
 	}
 	edited := remediationRunForTest(t, ctx, store, policy.ID, hostA.ID)
-	claimed, err := store.ClaimRemediation(ctx, hostA.ID, edited.ExecutionID)
+	execution, err := store.RemediationExecution(ctx, hostA.ID, edited.ExecutionID)
 	if err != nil {
-		t.Fatalf("claim edited remediation: %v", err)
+		t.Fatalf("get edited remediation: %v", err)
 	}
-	if claimed.ScriptContents != "#!/bin/zsh\necho edited\n" {
-		t.Fatalf("claimed script = %q, want edited script", claimed.ScriptContents)
+	if execution.ScriptContents != "#!/bin/zsh\necho edited\n" {
+		t.Fatalf("execution script = %q, want edited script", execution.ScriptContents)
 	}
 
 	policy, err = store.Update(ctx, policy.ID, PolicyMutation{
@@ -1278,8 +1404,8 @@ func TestRunRemediationsQueuesEligibleFailuresAndCancelsObsoleteWork(t *testing.
 	if err != nil {
 		t.Fatalf("remove remediation script: %v", err)
 	}
-	if policy.Remediation.Configured || !policy.Remediation.HasRun {
-		t.Fatalf("remediation summary = %+v, want no script with retained run", policy.Remediation)
+	if policy.Remediation.Configured {
+		t.Fatalf("remediation summary = %+v, want no current remediation", policy.Remediation)
 	}
 }
 
@@ -1464,7 +1590,7 @@ func newPostgresPolicyStore(t *testing.T) (*Store, *labels.Store, *hosts.Store, 
 	t.Helper()
 	database, ctx := testdb.Open(t)
 	labelStore := labels.NewStore(database)
-	return NewStore(database, 5*time.Minute), labelStore, hosts.NewStore(database, labelStore), ctx
+	return NewStore(database), labelStore, hosts.NewStore(database, labelStore), ctx
 }
 
 func createManualLabel(t *testing.T, ctx context.Context, store *labels.Store, name string) *labels.Label {

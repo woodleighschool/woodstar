@@ -256,7 +256,7 @@ func buildApplication(
 
 	// Osquery stores.
 	reportStore := reports.NewStore(pool)
-	policyStore := policies.NewStore(pool, cfg.OrbitScriptTimeout)
+	policyStore := policies.NewStore(pool)
 	liveQueries := livequery.NewStore(pool)
 
 	// Munki stores.

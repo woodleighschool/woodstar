@@ -57,6 +57,39 @@ func TestConfigUsesConfiguredScriptExecutionTimeout(t *testing.T) {
 	}
 }
 
+func TestGetScriptReturnsTerminalExecution(t *testing.T) {
+	t.Parallel()
+
+	runtimeSeconds := 2
+	exitCode := 0
+	service := NewEnrollmentService(
+		&fakeOrbitHostStore{host: &hosts.Host{ID: 42}},
+		fakeOrbitSecretVerifier{ok: true},
+		fakePrimaryUserStore{},
+		&fakeHeartbeatRecorder{},
+		fakeRemediationStore{execution: &policies.RemediationExecution{
+			HostID:         42,
+			ExecutionID:    "execution-id",
+			ScriptContents: "#!/bin/zsh\nexit 0\n",
+			Output:         "complete",
+			RuntimeSeconds: &runtimeSeconds,
+			ExitCode:       &exitCode,
+		}},
+		5*time.Minute,
+	)
+	response, err := service.GetScript(t.Context(), ScriptRequest{
+		OrbitNodeKey: "node-key",
+		ExecutionID:  "execution-id",
+	}, heartbeats.Contact{})
+	if err != nil {
+		t.Fatalf("GetScript: %v", err)
+	}
+	if response.Output != "complete" || response.Runtime != 2 ||
+		response.ExitCode == nil || *response.ExitCode != 0 {
+		t.Fatalf("script response = %+v, want terminal result", response)
+	}
+}
+
 func TestValidateDeviceAuthToken(t *testing.T) {
 	t.Parallel()
 
@@ -299,17 +332,22 @@ func newTestEnrollmentService(
 	)
 }
 
-type fakeRemediationStore struct{}
+type fakeRemediationStore struct {
+	execution *policies.RemediationExecution
+}
 
 func (fakeRemediationStore) PendingRemediationExecutionIDs(context.Context, int64) ([]string, error) {
 	return nil, nil
 }
 
-func (fakeRemediationStore) ClaimRemediation(
+func (s fakeRemediationStore) RemediationExecution(
 	context.Context,
 	int64,
 	string,
-) (*policies.ClaimedRemediation, error) {
+) (*policies.RemediationExecution, error) {
+	if s.execution != nil {
+		return s.execution, nil
+	}
 	return nil, fault.ErrNotFound
 }
 

@@ -16,12 +16,11 @@ import (
 
 // Store persists policies and per-host membership state.
 type Store struct {
-	pool                        *pgxpool.Pool
-	remediationExecutionTimeout time.Duration
+	pool *pgxpool.Pool
 }
 
-func NewStore(pool *pgxpool.Pool, remediationExecutionTimeout time.Duration) *Store {
-	return &Store{pool: pool, remediationExecutionTimeout: remediationExecutionTimeout}
+func NewStore(pool *pgxpool.Pool) *Store {
+	return &Store{pool: pool}
 }
 
 func (s *Store) Create(ctx context.Context, in PolicyCreateMutation) (*Policy, error) {
@@ -73,7 +72,7 @@ func (s *Store) Update(ctx context.Context, id int64, in PolicyMutation) (*Polic
 	write.ID = id
 
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
-		var queryChanged, scriptChanged, automaticDisabled bool
+		var queryChanged bool
 		if err := tx.QueryRow(ctx, `
 			WITH current AS (
 				SELECT
@@ -81,7 +80,8 @@ func (s *Store) Update(ctx context.Context, id int64, in PolicyMutation) (*Polic
 					query,
 					remediation_script,
 					automatic_remediation_enabled,
-					evaluation_revision
+					evaluation_revision,
+					remediation_revision
 				FROM osquery_policies
 				WHERE id = @id
 				FOR UPDATE
@@ -99,45 +99,21 @@ func (s *Store) Update(ctx context.Context, id int64, in PolicyMutation) (*Polic
 					THEN current.evaluation_revision + 1
 					ELSE current.evaluation_revision
 				END,
+				remediation_revision = CASE
+					WHEN current.remediation_script IS DISTINCT FROM @remediation_script
+						OR current.automatic_remediation_enabled IS DISTINCT FROM @automatic_remediation_enabled
+					THEN current.remediation_revision + 1
+					ELSE current.remediation_revision
+				END,
 				updated_at = now()
 			FROM current
 			WHERE c.id = current.id
-			RETURNING
-				current.query IS DISTINCT FROM @query,
-				current.remediation_script IS DISTINCT FROM @remediation_script,
-				current.automatic_remediation_enabled AND NOT @automatic_remediation_enabled`,
+			RETURNING current.query IS DISTINCT FROM @query`,
 			pgx.StructArgs(write),
-		).Scan(&queryChanged, &scriptChanged, &automaticDisabled); err != nil {
+		).Scan(&queryChanged); err != nil {
 			return postgres.MutationError(err)
 		}
 		if err := replacePolicyTargets(ctx, tx, id, in.Targets); err != nil {
-			return err
-		}
-		// Query, script, and target changes make unclaimed work obsolete. Turning
-		// automation off also cancels an automatic run that Orbit has not claimed.
-		if _, err := tx.Exec(ctx, `
-			UPDATE osquery_policy_remediation_runs run
-			SET cancelled_at = now()
-			WHERE run.policy_id = $1
-			  AND run.claimed_at IS NULL
-			  AND run.reported_at IS NULL
-			  AND run.cancelled_at IS NULL
-			  AND (
-				  $2
-				  OR $3
-				  OR ($4 AND run.automatic)
-				  OR NOT EXISTS (
-					  SELECT 1
-					  FROM osquery_policy_assignments assignment
-					  WHERE assignment.policy_id = run.policy_id
-					    AND assignment.host_id = run.host_id
-				  )
-			  )`,
-			id,
-			queryChanged,
-			scriptChanged,
-			automaticDisabled,
-		); err != nil {
 			return err
 		}
 		// Query edits invalidate every prior answer. Retargeting only removes
@@ -316,11 +292,13 @@ func (s *Store) RecordEvaluation(
 	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		var lastConclusivePasses *bool
 		var remediationScript string
+		var remediationRevision int64
 		var automaticRemediationEnabled, orbitScriptExecutionAvailable bool
 		err := tx.QueryRow(ctx, `
 			SELECT
 				membership.last_conclusive_passes,
 				policy_row.remediation_script,
+				policy_row.remediation_revision,
 				policy_row.automatic_remediation_enabled,
 				COALESCE(host.orbit_scripts_enabled, false)
 					AND host.orbit_node_key <> ''
@@ -345,6 +323,7 @@ func (s *Store) RecordEvaluation(
 		).Scan(
 			&lastConclusivePasses,
 			&remediationScript,
+			&remediationRevision,
 			&automaticRemediationEnabled,
 			&orbitScriptExecutionAvailable,
 		)
@@ -366,6 +345,10 @@ func (s *Store) RecordEvaluation(
 					WHEN $3 = 'fail' THEN false
 					ELSE last_conclusive_passes
 				END,
+				remediation_failure_sequence = CASE
+					WHEN $6 THEN $5
+					ELSE remediation_failure_sequence
+				END,
 				last_completed_sequence = $5,
 				updated_at = now()
 			WHERE policy_id = $1 AND host_id = $2`,
@@ -374,14 +357,10 @@ func (s *Store) RecordEvaluation(
 			result.Status,
 			result.Error,
 			sequence,
+			newlyFailing,
 		)
 		if err != nil {
 			return err
-		}
-		if result.Status == PolicyStatusPass {
-			if err := cancelQueuedRemediationTx(ctx, tx, policyID, hostID); err != nil {
-				return err
-			}
 		}
 		if !newlyFailing || !automaticRemediationEnabled || !orbitScriptExecutionAvailable {
 			return nil
@@ -391,7 +370,8 @@ func (s *Store) RecordEvaluation(
 			tx,
 			policyID,
 			hostID,
-			revision,
+			remediationRevision,
+			sequence,
 			remediationScript,
 			true,
 		)
@@ -426,7 +406,6 @@ func (s *Store) PolicyResults(
 		"c.id",
 		policyID,
 		"h.display_name",
-		int(remediationNoResponseAfter(s.remediationExecutionTimeout).Seconds()),
 	)
 	listQuery := postgres.ListQuery{
 		SelectSQL: policyResultSelectSQL(remediationStatus),
@@ -484,7 +463,6 @@ func (s *Store) HostPolicies(
 		"h.id",
 		host.ID,
 		"c.name",
-		int(remediationNoResponseAfter(s.remediationExecutionTimeout).Seconds()),
 	)
 	listQuery := postgres.ListQuery{
 		SelectSQL: policyResultSelectSQL(remediationStatus),
@@ -515,10 +493,9 @@ func policyResultListWhere(
 	scopeSQL string,
 	scopeID int64,
 	nameSQL string,
-	remediationNoResponseSeconds int,
 ) (string, []any, string) {
 	var where postgres.WhereBuilder
-	remediationStatusExpr := remediationStatusSQL(where.Arg(remediationNoResponseSeconds))
+	remediationStatusExpr := remediationStatusSQL()
 	where.Add(scopeSQL + " = " + where.Arg(scopeID))
 	if params.ListParams.Q != "" {
 		search := where.Arg("%" + params.ListParams.Q + "%")
@@ -549,9 +526,7 @@ func policyResultSelectSQL(remediationStatusExpr string) string {
 		run.execution_id,
 		run.automatic AS remediation_automatic,
 		run.queued_at AS remediation_queued_at,
-		run.claimed_at AS remediation_claimed_at,
 		run.reported_at AS remediation_reported_at,
-		run.cancelled_at AS remediation_cancelled_at,
 		run.exit_code AS remediation_exit_code,
 		remediation_status.value AS remediation_status
 	FROM osquery_policies c
@@ -563,6 +538,10 @@ func policyResultSelectSQL(remediationStatusExpr string) string {
 	LEFT JOIN osquery_policy_remediation_runs run
 		ON run.host_id = h.id
 	   AND run.policy_id = c.id
+	   AND m.status = 'fail'
+	   AND run.remediation_revision = c.remediation_revision
+	   AND run.failure_sequence = m.remediation_failure_sequence
+	   AND run.script_contents = c.remediation_script
 	LEFT JOIN LATERAL (
 		SELECT (` + remediationStatusExpr + `) AS value
 	) remediation_status ON true`
@@ -599,11 +578,8 @@ func validatePolicyRemediationStatusFilters(statuses []PolicyRemediationStatusFi
 		switch status {
 		case PolicyRemediationFilterNotRun,
 			PolicyRemediationFilterQueued,
-			PolicyRemediationFilterInProgress,
 			PolicyRemediationFilterSucceeded,
-			PolicyRemediationFilterFailed,
-			PolicyRemediationFilterNoResponse,
-			PolicyRemediationFilterCancelled:
+			PolicyRemediationFilterFailed:
 		default:
 			return fault.ErrInvalidInput
 		}
@@ -659,7 +635,6 @@ type policyRow struct {
 	Query                       string    `db:"query"`
 	RemediationConfigured       bool      `db:"remediation_configured"`
 	AutomaticRemediationEnabled bool      `db:"automatic_remediation_enabled"`
-	RemediationHasRun           bool      `db:"remediation_has_run"`
 	PassingHostCount            int32     `db:"passing_host_count"`
 	FailingHostCount            int32     `db:"failing_host_count"`
 	ErrorHostCount              int32     `db:"error_host_count"`
@@ -677,21 +652,19 @@ type policyEvaluationRow struct {
 }
 
 type policyHostStatusRow struct {
-	PolicyID               int64                         `db:"policy_id"`
-	PolicyName             string                        `db:"policy_name"`
-	HostID                 int64                         `db:"host_id"`
-	HostName               string                        `db:"host_name"`
-	Status                 PolicyStatus                  `db:"status"`
-	Error                  string                        `db:"error"`
-	UpdatedAt              *time.Time                    `db:"updated_at"`
-	ExecutionID            *string                       `db:"execution_id"`
-	RemediationAutomatic   *bool                         `db:"remediation_automatic"`
-	RemediationQueuedAt    *time.Time                    `db:"remediation_queued_at"`
-	RemediationClaimedAt   *time.Time                    `db:"remediation_claimed_at"`
-	RemediationReportedAt  *time.Time                    `db:"remediation_reported_at"`
-	RemediationCancelledAt *time.Time                    `db:"remediation_cancelled_at"`
-	RemediationExitCode    *int                          `db:"remediation_exit_code"`
-	RemediationStatus      PolicyRemediationStatusFilter `db:"remediation_status"`
+	PolicyID              int64                         `db:"policy_id"`
+	PolicyName            string                        `db:"policy_name"`
+	HostID                int64                         `db:"host_id"`
+	HostName              string                        `db:"host_name"`
+	Status                PolicyStatus                  `db:"status"`
+	Error                 string                        `db:"error"`
+	UpdatedAt             *time.Time                    `db:"updated_at"`
+	ExecutionID           *string                       `db:"execution_id"`
+	RemediationAutomatic  *bool                         `db:"remediation_automatic"`
+	RemediationQueuedAt   *time.Time                    `db:"remediation_queued_at"`
+	RemediationReportedAt *time.Time                    `db:"remediation_reported_at"`
+	RemediationExitCode   *int                          `db:"remediation_exit_code"`
+	RemediationStatus     PolicyRemediationStatusFilter `db:"remediation_status"`
 }
 
 func policyFromRow(row policyRow) *Policy {
@@ -704,7 +677,6 @@ func policyFromRow(row policyRow) *Policy {
 		Remediation: PolicyRemediationSummary{
 			Configured: row.RemediationConfigured,
 			Automatic:  row.AutomaticRemediationEnabled,
-			HasRun:     row.RemediationHasRun,
 		},
 		PassingHostCount: row.PassingHostCount,
 		FailingHostCount: row.FailingHostCount,
@@ -759,11 +731,6 @@ SELECT
 	c.query,
 	NULLIF(btrim(c.remediation_script), '') IS NOT NULL AS remediation_configured,
 	c.automatic_remediation_enabled,
-	EXISTS (
-		SELECT 1
-		FROM osquery_policy_remediation_runs run
-		WHERE run.policy_id = c.id
-	) AS remediation_has_run,
 	result_counts.passing_host_count,
 	result_counts.failing_host_count,
 	result_counts.error_host_count,

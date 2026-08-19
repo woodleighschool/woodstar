@@ -193,7 +193,7 @@ func registerPolicyRemediationRun(
 		Method:      http.MethodGet,
 		Path:        "/api/osquery/policies/{id}/hosts/{host_id}/remediation",
 		Tags:        []string{api.TagOsqueryPolicies},
-		Summary:     "Get latest policy remediation run",
+		Summary:     "Get current policy remediation run",
 		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *policyHostInput) (*policyRemediationRunOutput, error) {
 		run, err := policyStore.RemediationRun(ctx, input.ID, input.HostID)

@@ -51,7 +51,6 @@ type PolicyRemediationMutation struct {
 type PolicyRemediationSummary struct {
 	Configured bool `json:"configured"`
 	Automatic  bool `json:"automatic"`
-	HasRun     bool `json:"has_run"`
 }
 
 // PolicyRemediationSource is the administrator-only script source.

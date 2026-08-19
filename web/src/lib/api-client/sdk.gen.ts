@@ -1130,7 +1130,7 @@ export const updateOsqueryPolicy = <ThrowOnError extends boolean = false>(option
 });
 
 /**
- * Get latest policy remediation run
+ * Get current policy remediation run
  */
 export const getOsqueryPolicyRemediationRun = <ThrowOnError extends boolean = false>(options: Options<GetOsqueryPolicyRemediationRunData, ThrowOnError>): RequestResult<GetOsqueryPolicyRemediationRunResponses, GetOsqueryPolicyRemediationRunErrors, ThrowOnError> => (options.client ?? client).get<GetOsqueryPolicyRemediationRunResponses, GetOsqueryPolicyRemediationRunErrors, ThrowOnError>({
     security: [{

@@ -934,12 +934,12 @@ export type OsqueryPolicyRemediationRun = {
     exit_code?: number;
     output: string;
     runtime_seconds?: number;
-    status: 'queued' | 'in_progress' | 'succeeded' | 'failed' | 'no_response' | 'cancelled';
+    status: 'queued' | 'succeeded' | 'failed';
 };
 
 export type OsqueryPolicyRemediationRunSummary = {
     automatic: boolean;
-    status: 'queued' | 'in_progress' | 'succeeded' | 'failed' | 'no_response' | 'cancelled';
+    status: 'queued' | 'succeeded' | 'failed';
 };
 
 export type OsqueryPolicyRemediationSource = {
@@ -949,7 +949,6 @@ export type OsqueryPolicyRemediationSource = {
 export type OsqueryPolicyRemediationSummary = {
     automatic: boolean;
     configured: boolean;
-    has_run: boolean;
 };
 
 export type OsqueryPolicyTargets = {
@@ -4969,7 +4968,7 @@ export type ListOsqueryPolicyResultsData = {
         per_page?: number;
         sort?: string;
         status?: Array<'pending' | 'pass' | 'fail' | 'error'>;
-        remediation?: Array<'not_run' | 'queued' | 'in_progress' | 'succeeded' | 'failed' | 'no_response' | 'cancelled'>;
+        remediation?: Array<'not_run' | 'queued' | 'succeeded' | 'failed'>;
     };
     url: '/api/osquery/policies/{id}/results';
 };

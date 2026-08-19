@@ -66,10 +66,6 @@ export const REMEDIATION_RUN_STATUSES = {
     name: "Queued",
     variant: "default",
   },
-  in_progress: {
-    name: "In progress",
-    variant: "info",
-  },
   succeeded: {
     name: "Succeeded",
     variant: "success",
@@ -78,23 +74,12 @@ export const REMEDIATION_RUN_STATUSES = {
     name: "Failed",
     variant: "error",
   },
-  no_response: {
-    name: "No response",
-    variant: "warning",
-  },
-  cancelled: {
-    name: "Cancelled",
-    variant: "default",
-  },
 } satisfies StatusMetadataMap<RemediationRunStatus>;
 
 export const REMEDIATION_STATUS_FILTER_VALUES = [
   "failed",
-  "no_response",
-  "in_progress",
   "queued",
   "succeeded",
-  "cancelled",
   "not_run",
 ] as const satisfies readonly RemediationStatusFilter[];
 

@@ -53,7 +53,7 @@ type heartbeatRecorder interface {
 
 type remediationStore interface {
 	PendingRemediationExecutionIDs(context.Context, int64) ([]string, error)
-	ClaimRemediation(context.Context, int64, string) (*policies.ClaimedRemediation, error)
+	RemediationExecution(context.Context, int64, string) (*policies.RemediationExecution, error)
 	RecordRemediationResult(context.Context, int64, policies.RemediationResult) error
 }
 
@@ -125,8 +125,8 @@ func (s *EnrollmentService) Config(ctx context.Context, nodeKey string, contact 
 	}, nil
 }
 
-// ClaimScript authenticates Orbit and atomically claims one pending script.
-func (s *EnrollmentService) ClaimScript(
+// GetScript authenticates Orbit and returns an advertised script without consuming it.
+func (s *EnrollmentService) GetScript(
 	ctx context.Context,
 	req ScriptRequest,
 	contact heartbeats.Contact,
@@ -138,14 +138,21 @@ func (s *EnrollmentService) ClaimScript(
 	if err := s.heartbeats.Record(ctx, host.ID, heartbeats.SourceOrbit, contact); err != nil {
 		return nil, fmt.Errorf("record heartbeat: %w", err)
 	}
-	claimed, err := s.remediations.ClaimRemediation(ctx, host.ID, req.ExecutionID)
+	execution, err := s.remediations.RemediationExecution(ctx, host.ID, req.ExecutionID)
 	if err != nil {
 		return nil, err
 	}
+	runtime := 0
+	if execution.RuntimeSeconds != nil {
+		runtime = *execution.RuntimeSeconds
+	}
 	return &ScriptResponse{
-		HostID:         claimed.HostID,
-		ExecutionID:    claimed.ExecutionID,
-		ScriptContents: claimed.ScriptContents,
+		HostID:         execution.HostID,
+		ExecutionID:    execution.ExecutionID,
+		ScriptContents: execution.ScriptContents,
+		Output:         execution.Output,
+		Runtime:        runtime,
+		ExitCode:       execution.ExitCode,
 	}, nil
 }
 
