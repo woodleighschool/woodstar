@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.9.0](https://github.com/woodleighschool/woodstar/compare/0.8.18...0.9.0) (2026-08-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* **osquery:** redeliver queued remediations
+
+### Features
+
+* **go:** update module github.com/moby/go-archive (v0.2.0 → v0.3.0) [security] ([#213](https://github.com/woodleighschool/woodstar/issues/213)) ([891a5f9](https://github.com/woodleighschool/woodstar/commit/891a5f986b5c55f2ded8af5ed802f701d6d543cb))
+
+
+### Bug Fixes
+
+* **npm:** update tanstack-router monorepo ([#214](https://github.com/woodleighschool/woodstar/issues/214)) ([0cfafc0](https://github.com/woodleighschool/woodstar/commit/0cfafc0f67baf4e6476567f3b0dc991c7886bd37))
+* **osquery:** redeliver queued remediations ([2cdfd64](https://github.com/woodleighschool/woodstar/commit/2cdfd6433f6c7d070f3e736e88874abb735d485b))
+
 ## [0.8.18](https://github.com/woodleighschool/woodstar/compare/0.8.17...0.8.18) (2026-08-18)
 
 
