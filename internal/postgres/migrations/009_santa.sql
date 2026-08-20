@@ -174,16 +174,23 @@ CREATE INDEX santa_configuration_targets_label_idx
 
 CREATE TABLE santa_rules (
     id BIGSERIAL PRIMARY KEY,
+    configuration_id BIGINT NOT NULL REFERENCES santa_configurations (id) ON DELETE CASCADE,
     rule_type santa_rule_type NOT NULL,
     identifier TEXT NOT NULL,
     name TEXT NOT NULL DEFAULT '',
     description TEXT NOT NULL DEFAULT '',
+    policy santa_policy NOT NULL,
+    cel_expression TEXT NOT NULL DEFAULT '',
     custom_message TEXT NOT NULL DEFAULT '',
     custom_url TEXT NOT NULL DEFAULT '',
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    UNIQUE (rule_type, identifier),
-    CHECK (NULLIF(btrim(identifier), '') IS NOT NULL)
+    UNIQUE (configuration_id, rule_type, identifier),
+    CHECK (NULLIF(btrim(identifier), '') IS NOT NULL),
+    CHECK (
+        (policy = 'cel' AND NULLIF(btrim(cel_expression), '') IS NOT NULL)
+        OR (policy <> 'cel' AND cel_expression = '')
+    )
 );
 
 CREATE TABLE santa_rule_targets (
@@ -191,19 +198,8 @@ CREATE TABLE santa_rule_targets (
     direction target_direction NOT NULL,
     position INTEGER NOT NULL CHECK (position >= 0),
     label_id BIGINT NOT NULL REFERENCES labels (id) ON DELETE RESTRICT,
-    policy santa_policy,
-    cel_expression TEXT,
     PRIMARY KEY (rule_id, direction, position),
-    UNIQUE (rule_id, label_id),
-    CHECK (
-        (direction = 'include' AND policy IS NOT NULL)
-        OR (direction = 'exclude' AND policy IS NULL AND cel_expression IS NULL)
-    ),
-    CHECK (
-        direction <> 'include'
-        OR (policy = 'cel' AND NULLIF(btrim(COALESCE(cel_expression, '')), '') IS NOT NULL)
-        OR (policy <> 'cel' AND NULLIF(btrim(COALESCE(cel_expression, '')), '') IS NULL)
-    )
+    UNIQUE (rule_id, label_id)
 );
 
 CREATE INDEX santa_rule_targets_label_idx
@@ -399,7 +395,7 @@ AS $$
     END
 $$;
 
-CREATE FUNCTION santa_resolved_rules_for_host(_host_id BIGINT)
+CREATE FUNCTION santa_resolved_rules_for_host(_host_id BIGINT, _configuration_id BIGINT)
 RETURNS TABLE (
     rule_id BIGINT,
     rule_type TEXT,
@@ -421,45 +417,34 @@ WITH host_labels AS (
     FROM label_membership
     WHERE host_id = _host_id
 ),
-matching_includes AS (
+matching_rules AS (
     SELECT
         r.id AS rule_id,
         r.rule_type,
         r.identifier,
         r.name,
         r.description,
-        i.policy,
-        COALESCE(i.cel_expression, '') AS cel_expression,
+        r.policy,
+        r.cel_expression,
         r.custom_message,
         r.custom_url,
-        i.position::bigint AS matched_include_id,
-        santa_rule_type_sort(r.rule_type) AS rule_type_sort,
-        row_number() OVER (PARTITION BY r.id ORDER BY i.position) AS include_rank
+        santa_rule_type_sort(r.rule_type) AS rule_type_sort
     FROM santa_rules r
-    JOIN santa_rule_targets i ON i.rule_id = r.id AND i.direction = 'include'
-    JOIN host_labels include_hl ON include_hl.label_id = i.label_id
-    WHERE NOT EXISTS (
+    WHERE r.configuration_id = _configuration_id
+      AND EXISTS (
+        SELECT 1
+        FROM santa_rule_targets il
+        JOIN host_labels hl ON hl.label_id = il.label_id
+        WHERE il.rule_id = r.id
+          AND il.direction = 'include'
+      )
+      AND NOT EXISTS (
         SELECT 1
         FROM santa_rule_targets el
         JOIN host_labels hl ON hl.label_id = el.label_id
         WHERE el.rule_id = r.id
           AND el.direction = 'exclude'
     )
-),
-selected_includes AS (
-    SELECT
-        rule_id,
-        rule_type,
-        identifier,
-        name,
-        description,
-        policy,
-        cel_expression,
-        custom_message,
-        custom_url,
-        rule_type_sort
-    FROM matching_includes
-    WHERE include_rank = 1
 ),
 expanded_rules AS (
     SELECT
@@ -474,26 +459,26 @@ expanded_rules AS (
         custom_url,
         ''::text AS notification_app_name,
         rule_type_sort
-    FROM selected_includes
+    FROM matching_rules
     WHERE rule_type <> 'bundle'
     UNION ALL
     SELECT
-        si.rule_id,
+        mr.rule_id,
         'binary'::santa_rule_type AS rule_type,
         e.sha256 AS identifier,
-        si.name,
-        si.description,
-        si.policy,
-        si.cel_expression,
-        si.custom_message,
-        si.custom_url,
+        mr.name,
+        mr.description,
+        mr.policy,
+        mr.cel_expression,
+        mr.custom_message,
+        mr.custom_url,
         COALESCE(NULLIF(b.name, ''), '') AS notification_app_name,
         santa_rule_type_sort('binary') AS rule_type_sort
-    FROM selected_includes si
-    JOIN santa_bundles b ON b.sha256 = si.identifier AND b.uploaded_at IS NOT NULL
+    FROM matching_rules mr
+    JOIN santa_bundles b ON b.sha256 = mr.identifier AND b.uploaded_at IS NOT NULL
     JOIN santa_bundle_executables be ON be.bundle_id = b.id
     JOIN santa_executables e ON e.id = be.executable_id
-    WHERE si.rule_type = 'bundle'
+    WHERE mr.rule_type = 'bundle'
       AND e.sha256 <> ''
 )
 SELECT

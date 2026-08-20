@@ -12,14 +12,13 @@ import (
 
 func TestRuleMutationValidatesCELSyntax(t *testing.T) {
 	base := rules.RuleMutation{
-		RuleType:   rules.RuleTypeBinary,
-		Identifier: strings.Repeat("a", 64),
-		Name:       "CEL Rule",
-		Targets: ruleTargets([]rules.RuleInclude{{
-			Policy:        rules.PolicyCEL,
-			CELExpression: "target.signing_id == 'ABCDE12345:com.example.app'",
-			LabelID:       1,
-		}}),
+		ConfigurationID: 1,
+		RuleType:        rules.RuleTypeBinary,
+		Identifier:      strings.Repeat("a", 64),
+		Name:            "CEL Rule",
+		Policy:          rules.PolicyCEL,
+		CELExpression:   "target.signing_id == 'ABCDE12345:com.example.app'",
+		Targets:         ruleTargets(1),
 	}
 
 	if err := base.Validate(); err != nil {
@@ -33,25 +32,25 @@ func TestRuleMutationValidatesCELSyntax(t *testing.T) {
 		{
 			name: "malformed cel",
 			mutate: func(params *rules.RuleMutation) {
-				params.Targets.Include[0].CELExpression = "target.signing_id =="
+				params.CELExpression = "target.signing_id =="
 			},
 		},
 		{
 			name: "empty cel",
 			mutate: func(params *rules.RuleMutation) {
-				params.Targets.Include[0].CELExpression = ""
+				params.CELExpression = ""
 			},
 		},
 		{
 			name: "blank cel",
 			mutate: func(params *rules.RuleMutation) {
-				params.Targets.Include[0].CELExpression = "  "
+				params.CELExpression = "  "
 			},
 		},
 		{
 			name: "non cel with expression",
 			mutate: func(params *rules.RuleMutation) {
-				params.Targets.Include[0].Policy = rules.PolicyAllowlist
+				params.Policy = rules.PolicyAllowlist
 			},
 		},
 		{
@@ -73,7 +72,7 @@ func TestRuleMutationValidatesCELSyntax(t *testing.T) {
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			params := base
-			params.Targets.Include = append([]rules.RuleInclude(nil), base.Targets.Include...)
+			params.Targets.Include = append([]targeting.LabelRef(nil), base.Targets.Include...)
 			params.Targets.Exclude = append([]targeting.LabelRef(nil), base.Targets.Exclude...)
 			tt.mutate(&params)
 
@@ -89,23 +88,24 @@ func TestRuleMutationValidatesShapeAndTargets(t *testing.T) {
 	t.Parallel()
 
 	base := rules.RuleMutation{
-		RuleType:   rules.RuleTypeBinary,
-		Identifier: strings.Repeat("a", 64),
-		Name:       "Example",
-		Targets: ruleTargets([]rules.RuleInclude{{
-			Policy:  rules.PolicyAllowlist,
-			LabelID: 1,
-		}}),
+		ConfigurationID: 1,
+		RuleType:        rules.RuleTypeBinary,
+		Identifier:      strings.Repeat("a", 64),
+		Name:            "Example",
+		Policy:          rules.PolicyAllowlist,
+		Targets:         ruleTargets(1),
 	}
 	cases := []struct {
 		name   string
 		mutate func(*rules.RuleMutation)
 	}{
+		{name: "missing configuration", mutate: func(m *rules.RuleMutation) { m.ConfigurationID = 0 }},
 		{name: "missing type", mutate: func(m *rules.RuleMutation) { m.RuleType = "" }},
 		{name: "missing identifier", mutate: func(m *rules.RuleMutation) { m.Identifier = "" }},
 		{name: "missing name", mutate: func(m *rules.RuleMutation) { m.Name = "" }},
+		{name: "missing policy", mutate: func(m *rules.RuleMutation) { m.Policy = "" }},
 		{name: "duplicate include label", mutate: func(m *rules.RuleMutation) {
-			m.Targets.Include = append(m.Targets.Include, rules.RuleInclude{Policy: rules.PolicyBlocklist, LabelID: 1})
+			m.Targets.Include = append(m.Targets.Include, targeting.LabelRef{LabelID: 1})
 		}},
 		{name: "duplicate exclude label", mutate: func(m *rules.RuleMutation) {
 			m.Targets.Exclude = ruleLabelRefs(2, 2)
@@ -119,7 +119,7 @@ func TestRuleMutationValidatesShapeAndTargets(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			mutation := base
-			mutation.Targets.Include = append([]rules.RuleInclude(nil), base.Targets.Include...)
+			mutation.Targets.Include = append([]targeting.LabelRef(nil), base.Targets.Include...)
 			tt.mutate(&mutation)
 			if err := mutation.Validate(); !errors.Is(err, fault.ErrInvalidInput) {
 				t.Fatalf("Validate error = %v, want ErrInvalidInput", err)
@@ -128,10 +128,10 @@ func TestRuleMutationValidatesShapeAndTargets(t *testing.T) {
 	}
 }
 
-func ruleTargets(includes []rules.RuleInclude, excludedLabelIDs ...int64) rules.RuleTargets {
+func ruleTargets(includeLabelIDs ...int64) rules.RuleTargets {
 	return rules.RuleTargets{
-		Include: includes,
-		Exclude: ruleLabelRefs(excludedLabelIDs...),
+		Include: ruleLabelRefs(includeLabelIDs...),
+		Exclude: []targeting.LabelRef{},
 	}
 }
 

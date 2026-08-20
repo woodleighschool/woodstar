@@ -1,5 +1,5 @@
 import { useNavigate, useParams } from "@tanstack/react-router";
-import { Pencil, Trash2 } from "lucide-react";
+import { ListChecks, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import { BooleanIndicator } from "@components/boolean-indicator";
@@ -63,32 +63,48 @@ export function ConfigurationDetailPage() {
         title="Configuration Details"
         meta={`Edited ${formatRelative(configuration.updated_at)}`}
         actions={
-          isAdmin ? (
-            <>
-              <Button
-                size="sm"
-                render={
-                  <Link
-                    to="/santa/configurations/$id/edit"
-                    params={{ id: String(configuration.id) }}
-                  />
-                }
-                nativeButton={false}
-              >
-                <Pencil data-icon="inline-start" />
-                Edit
-              </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                size="sm"
-                onClick={() => setDeleteOpen(true)}
-              >
-                <Trash2 data-icon="inline-start" />
-                Delete
-              </Button>
-            </>
-          ) : null
+          <>
+            <Button
+              size="sm"
+              variant="outline"
+              render={
+                <Link
+                  to="/santa/configurations/$id/rules"
+                  params={{ id: String(configuration.id) }}
+                />
+              }
+              nativeButton={false}
+            >
+              <ListChecks data-icon="inline-start" />
+              Rules
+            </Button>
+            {isAdmin ? (
+              <>
+                <Button
+                  size="sm"
+                  render={
+                    <Link
+                      to="/santa/configurations/$id/edit"
+                      params={{ id: String(configuration.id) }}
+                    />
+                  }
+                  nativeButton={false}
+                >
+                  <Pencil data-icon="inline-start" />
+                  Edit
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setDeleteOpen(true)}
+                >
+                  <Trash2 data-icon="inline-start" />
+                  Delete
+                </Button>
+              </>
+            ) : null}
+          </>
         }
       />
 

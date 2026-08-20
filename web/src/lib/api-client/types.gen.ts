@@ -1311,6 +1311,8 @@ export type SantaRemovableMediaPolicy = {
 };
 
 export type SantaRule = {
+    cel_expression?: string;
+    configuration_id: number;
     created_at: string;
     custom_message: string;
     custom_url: string;
@@ -1318,23 +1320,21 @@ export type SantaRule = {
     id: number;
     identifier: string;
     name: string;
+    policy: 'allowlist' | 'allowlist_compiler' | 'blocklist' | 'silent_blocklist' | 'silent_gui_blocklist' | 'silent_tty_blocklist' | 'cel';
     rule_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
     targets: SantaRuleTargets;
     updated_at: string;
 };
 
-export type SantaRuleInclude = {
-    cel_expression?: string;
-    label_id: number;
-    policy: 'allowlist' | 'allowlist_compiler' | 'blocklist' | 'silent_blocklist' | 'silent_gui_blocklist' | 'silent_tty_blocklist' | 'cel';
-};
-
 export type SantaRuleMutation = {
+    cel_expression?: string;
+    configuration_id: number;
     custom_message?: string;
     custom_url?: string;
     description?: string;
     identifier: string;
     name: string;
+    policy: 'allowlist' | 'allowlist_compiler' | 'blocklist' | 'silent_blocklist' | 'silent_gui_blocklist' | 'silent_tty_blocklist' | 'cel';
     rule_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
     targets: SantaRuleTargets;
 };
@@ -1361,7 +1361,7 @@ export type SantaRuleSyncSummary = {
 
 export type SantaRuleTargets = {
     exclude: Array<LabelRef>;
-    include: Array<SantaRuleInclude>;
+    include: Array<LabelRef>;
 };
 
 export type SantaSigningChainEntry = {
@@ -2524,6 +2524,10 @@ export type ListHostSantaRulesErrors = {
      * Not Found
      */
     404: ErrorModel;
+    /**
+     * Conflict
+     */
+    409: ErrorModel;
     /**
      * Unprocessable Entity
      */
@@ -5835,6 +5839,7 @@ export type ListSantaRulesData = {
         page?: number;
         per_page?: number;
         sort?: string;
+        configuration_id?: Array<number>;
         rule_type?: Array<'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle'>;
     };
     url: '/api/santa/rules';

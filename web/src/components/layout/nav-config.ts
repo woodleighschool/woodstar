@@ -54,7 +54,6 @@ export const navSections: NavMenu[] = [
         items: linkOptions([
           { label: "Overview", to: "/santa", activeOptions: { exact: true } },
           { label: "Configurations", to: "/santa/configurations" },
-          { label: "Rules", to: "/santa/rules" },
           { label: "Events", to: "/santa/events" },
         ]),
       },

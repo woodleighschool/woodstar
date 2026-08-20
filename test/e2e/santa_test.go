@@ -177,13 +177,15 @@ RETURNING id`,
 	ruleResponse, err := server.Admin.CreateSantaRuleWithResponse(
 		t.Context(),
 		adminapi.SantaRuleMutation{
-			RuleType:      "binary",
-			Identifier:    ruleIdentifier,
-			Name:          "Santa Integration Rule",
-			CustomMessage: new(ruleMessage),
-			CustomUrl:     new(ruleURL),
+			ConfigurationId: configuration.Id,
+			RuleType:        "binary",
+			Identifier:      ruleIdentifier,
+			Name:            "Santa Integration Rule",
+			Policy:          "blocklist",
+			CustomMessage:   new(ruleMessage),
+			CustomUrl:       new(ruleURL),
 			Targets: adminapi.SantaRuleTargets{
-				Include: []adminapi.SantaRuleInclude{{Policy: "blocklist", LabelId: label.Id}},
+				Include: []adminapi.LabelRef{{LabelId: label.Id}},
 				Exclude: []adminapi.LabelRef{},
 			},
 		},
@@ -603,7 +605,7 @@ WHERE host_id = $1`, hostID).Scan(
 	var convergedNoConfigurationPreflight syncv1.PreflightResponse
 	client.postFixture(
 		"preflight",
-		"preflight_normal.json",
+		"preflight_empty.json",
 		nil,
 		&syncv1.PreflightRequest{},
 		&convergedNoConfigurationPreflight,
