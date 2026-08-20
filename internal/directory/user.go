@@ -46,6 +46,13 @@ type User struct {
 	UpdatedAt         time.Time  `json:"updated_at"`
 }
 
+// UserSummary is the small user projection attached to another resource.
+type UserSummary struct {
+	ID    int64  `json:"id"`
+	Email string `json:"email" format:"email"`
+	Name  string `json:"name"`
+}
+
 // Department is one non-empty department value drawn from directory users.
 type Department struct {
 	Value string `json:"value"`

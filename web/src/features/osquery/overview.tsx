@@ -3,7 +3,9 @@ import { ClipboardCheck, FileChartColumn } from "lucide-react";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link } from "@components/link";
 import { ResourceOverviewCard } from "@components/resource-overview-card";
+import { RecentOsqueryActivityCard } from "@features/activity/recent-card";
 import { AgentSecretsHeaderAction } from "@features/agent-secrets/header-action";
+import { HostStatusChart } from "@features/osquery/history/host-status-chart";
 import { usePolicies } from "@features/osquery/policies/queries";
 import { useReports } from "@features/osquery/reports/queries";
 
@@ -40,6 +42,11 @@ export function OsqueryOverviewPage() {
             icon={ClipboardCheck}
           />
         </Link>
+      </div>
+
+      <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(20rem,1fr)]">
+        <HostStatusChart />
+        <RecentOsqueryActivityCard />
       </div>
     </PageShell>
   );

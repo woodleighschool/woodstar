@@ -87,7 +87,7 @@ export function HostHeartbeatTable({ heartbeats }: { heartbeats: Heartbeat[] }) 
       heading="Heartbeats"
       columns={heartbeatColumns}
       data={orderedHeartbeats(heartbeats)}
-      empty={<PanelEmptyState>No agent contact reported</PanelEmptyState>}
+      empty={<PanelEmptyState>No Agent Contact Reported</PanelEmptyState>}
     />
   );
 }

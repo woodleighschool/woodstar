@@ -168,7 +168,7 @@ export function LabelListPage() {
       />
       {query.error ? (
         <QueryError
-          title="Failed to load labels"
+          title="Failed to Load Labels"
           error={query.error}
           onRetry={() => void query.refetch()}
         />
@@ -182,7 +182,7 @@ export function LabelListPage() {
             <DataTableEmpty
               icon={<Tags />}
               filtered={tableSearch.isFiltered}
-              title="No labels"
+              title="No Labels"
               description="Create labels for host targeting."
               filteredDescription="No labels matched the current filters."
             />

@@ -36,14 +36,14 @@ export function LabelDetailPage() {
 
   if (id === null) {
     return (
-      <QueryGate title="Failed to load label" error={{ message: "Label route is invalid." }} />
+      <QueryGate title="Failed to Load Label" error={{ message: "Label route is invalid." }} />
     );
   }
 
   if (query.error || !query.data) {
     return (
       <QueryGate
-        title="Failed to load label"
+        title="Failed to Load Label"
         error={query.error}
         onRetry={() => void query.refetch()}
       />

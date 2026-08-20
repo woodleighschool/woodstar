@@ -198,7 +198,7 @@ function BasicInfoTab({
         form={form}
         name="on_demand"
         id="munki-package-on-demand"
-        label="On demand"
+        label="On Demand"
         description="Use with Optional Installs for repeatable maintenance actions; Munki never considers the item installed."
       />
       <form.Subscribe selector={(state) => state.values.installer_type}>
@@ -212,7 +212,7 @@ function BasicInfoTab({
         form={form}
         name="restart_required"
         id="munki-package-restart-required"
-        label="Restart required"
+        label="Restart Required"
       />
       <form.Subscribe selector={(state) => state.values.restart_required}>
         {(restartRequired) => (restartRequired ? <RestartActionField form={form} /> : null)}
@@ -243,14 +243,14 @@ function BasicInfoTab({
             form={form}
             name="unattended_install"
             id="munki-package-unattended-install"
-            label="Unattended install"
+            label="Unattended Install"
             description="Munki can install without notifying the current GUI user."
           />
           <FormCheckboxField
             form={form}
             name="unattended_uninstall"
             id="munki-package-unattended-uninstall"
-            label="Unattended uninstall"
+            label="Unattended Uninstall"
             description="Munki can uninstall without notifying the current GUI user."
           />
           <FormCheckboxField
@@ -329,7 +329,7 @@ function RequirementsTab({
                 <PackageReferenceEditor
                   legend="Requires"
                   description="Installs these packages first."
-                  addLabel="Add requirement"
+                  addLabel="Add Requirement"
                   rows={field.state.value}
                   packageOptions={packageOptions}
                   onAdd={() => field.pushValue(emptyPackageReferenceRow())}
@@ -349,7 +349,7 @@ function RequirementsTab({
                 <PackageReferenceEditor
                   legend="Update For"
                   description="Treats this package as an update for the selected packages."
-                  addLabel="Add update target"
+                  addLabel="Add Update Target"
                   rows={field.state.value}
                   packageOptions={packageOptions}
                   onAdd={() => field.pushValue(emptyPackageReferenceRow())}
@@ -428,7 +428,7 @@ function InstallationTab({ form }: { form: PackageEditorForm }) {
             form={form}
             name="blocking_applications_manual_quit_only"
             id="munki-package-blocking-applications-manual-quit-only"
-            label="Require manual quit"
+            label="Require Manual Quit"
             description="Prevent Munki from attempting to quit blocking applications."
           />
           <FormCodeField
@@ -639,14 +639,14 @@ function AdvancedTab({ form }: { form: PackageEditorForm }) {
             form={form}
             name="apple_item"
             id="munki-package-apple-item"
-            label="Apple item"
+            label="Apple Item"
             description="Treat this package as an Apple update."
           />
           <FormCheckboxField
             form={form}
             name="suppress_bundle_relocation"
             id="munki-package-suppress-bundle-relocation"
-            label="Suppress bundle relocation"
+            label="Suppress Bundle Relocation"
             description="Prevent legacy bundle packages from updating a moved copy."
           />
         </FieldGroup>

@@ -114,7 +114,7 @@ export function useCreateReport() {
   return useMutation<OsqueryReport, ApiError, OsqueryReportMutation>({
     mutationFn: (body) => unwrap(createOsqueryReport({ body })),
     onSuccess: async () => {
-      toast.add({ title: "Report created", type: "success" });
+      toast.add({ title: "Report Created", type: "success" });
       await queryClient.invalidateQueries({ queryKey: reportKeys.all });
     },
   });
@@ -140,7 +140,7 @@ export function useUpdateReport(id: number | null) {
         queryClient.removeQueries({ queryKey: reportKeys.snapshotsRoot(id) });
       }
       toast.add({
-        title: resultsInvalidated ? "Report saved and results cleared" : "Report saved",
+        title: resultsInvalidated ? "Report saved and results cleared" : "Report Saved",
         type: "success",
       });
       await queryClient.invalidateQueries({ queryKey: reportKeys.all });

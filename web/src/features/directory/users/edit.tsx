@@ -16,13 +16,13 @@ export function UserEditPage() {
   const { user: currentUser } = useAuth();
 
   if (userID === null) {
-    return <QueryGate title="Failed to load user" error={{ message: "User route is invalid." }} />;
+    return <QueryGate title="Failed to Load User" error={{ message: "User route is invalid." }} />;
   }
 
   if (user.error || !user.data) {
     return (
       <QueryGate
-        title="Failed to load user"
+        title="Failed to Load User"
         error={user.error}
         onRetry={() => void user.refetch()}
       />

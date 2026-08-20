@@ -23,6 +23,73 @@ components:
       required:
         - name
       type: object
+    ActivityEvent:
+      additionalProperties: false
+      properties:
+        action:
+          enum:
+            - orbit_host_enrolled
+            - osquery_host_enrolled
+            - host_deleted
+            - hosts_deleted
+            - host_inventory_requested
+            - host_primary_user_set
+            - host_primary_user_cleared
+            - policy_created
+            - policy_updated
+            - policy_deleted
+            - policies_deleted
+            - policy_remediation_requested
+            - report_created
+            - report_updated
+            - report_deleted
+            - reports_deleted
+            - live_query_started
+            - live_query_stopped
+          type: string
+        actor:
+          $ref: "#/components/schemas/Actor"
+        area:
+          enum:
+            - hosts
+            - osquery
+          type: string
+        id:
+          format: int64
+          type: integer
+        occurred_at:
+          format: date-time
+          type: string
+        subject:
+          $ref: "#/components/schemas/Subject"
+      required:
+        - id
+        - area
+        - action
+        - actor
+        - subject
+        - occurred_at
+      type: object
+    Actor:
+      additionalProperties: false
+      properties:
+        email:
+          format: email
+          type: string
+        kind:
+          enum:
+            - user
+            - system
+          type: string
+        name:
+          type: string
+        user_id:
+          format: int64
+          type: integer
+      required:
+        - kind
+        - name
+      type: object
     AgentSecret:
       additionalProperties: false
       properties:
@@ -2301,6 +2368,23 @@ components:
         - started_at
         - resolved_host_count
       type: object
+    OsqueryHostStatusPoint:
+      additionalProperties: false
+      properties:
+        bucket:
+          format: date-time
+          type: string
+        offline_count:
+          format: int32
+          type: integer
+        online_count:
+          format: int32
+          type: integer
+      required:
+        - bucket
+        - online_count
+        - offline_count
+      type: object
     OsqueryLiveQueryCompletedEvent:
       additionalProperties: false
       properties:
@@ -2412,9 +2496,8 @@ components:
         created_at:
           format: date-time
           type: string
-        created_by_user_id:
-          format: int64
-          type: integer
+        created_by:
+          $ref: "#/components/schemas/UserSummary"
         description:
           type: string
         error_host_count:
@@ -2599,6 +2682,31 @@ components:
         - configured
         - automatic
       type: object
+    OsqueryPolicyStatusPoint:
+      additionalProperties: false
+      properties:
+        bucket:
+          format: date-time
+          type: string
+        error_count:
+          format: int32
+          type: integer
+        fail_count:
+          format: int32
+          type: integer
+        pass_count:
+          format: int32
+          type: integer
+        pending_count:
+          format: int32
+          type: integer
+      required:
+        - bucket
+        - pass_count
+        - fail_count
+        - error_count
+        - pending_count
+      type: object
     OsqueryPolicyTargets:
       additionalProperties: false
       properties:
@@ -2623,9 +2731,8 @@ components:
         created_at:
           format: date-time
           type: string
-        created_by_user_id:
-          format: int64
-          type: integer
+        created_by:
+          $ref: "#/components/schemas/UserSummary"
         description:
           type: string
         error_host_count:
@@ -2750,6 +2857,20 @@ components:
       required:
         - include
         - exclude
+      type: object
+    PageActivityEvent:
+      additionalProperties: false
+      properties:
+        count:
+          format: int64
+          type: integer
+        items:
+          items:
+            $ref: "#/components/schemas/ActivityEvent"
+          type: array
+      required:
+        - items
+        - count
       type: object
     PageConfiguration:
       additionalProperties: false
@@ -4065,6 +4186,20 @@ components:
         - items
         - count
       type: object
+    Subject:
+      additionalProperties: false
+      properties:
+        id:
+          format: int64
+          type: integer
+        name:
+          type: string
+        type:
+          type: string
+      required:
+        - type
+        - name
+      type: object
     SyncRun:
       additionalProperties: false
       properties:
@@ -4212,6 +4347,22 @@ components:
             - viewer
           type: string
       required:
+        - name
+      type: object
+    UserSummary:
+      additionalProperties: false
+      properties:
+        email:
+          format: email
+          type: string
+        id:
+          format: int64
+          type: integer
+        name:
+          type: string
+      required:
+        - id
+        - email
         - name
       type: object
   securitySchemes:
@@ -4388,6 +4539,124 @@ paths:
       summary: Rotate API key
       tags:
         - Account
+  /api/activity:
+    get:
+      operationId: list-activity
+      parameters:
+        - explode: false
+          in: query
+          name: q
+          schema:
+            type: string
+        - explode: false
+          in: query
+          name: page
+          schema:
+            format: int32
+            minimum: 1
+            type: integer
+        - explode: false
+          in: query
+          name: per_page
+          schema:
+            format: int32
+            maximum: 1000
+            minimum: 1
+            type: integer
+        - explode: false
+          in: query
+          name: sort
+          schema:
+            type: string
+        - explode: false
+          in: query
+          name: area
+          schema:
+            enum:
+              - hosts
+              - osquery
+            type: string
+        - explode: false
+          in: query
+          name: actor_kind
+          schema:
+            enum:
+              - user
+              - system
+            type: string
+        - explode: false
+          in: query
+          name: action
+          schema:
+            enum:
+              - orbit_host_enrolled
+              - osquery_host_enrolled
+              - host_deleted
+              - hosts_deleted
+              - host_inventory_requested
+              - host_primary_user_set
+              - host_primary_user_cleared
+              - policy_created
+              - policy_updated
+              - policy_deleted
+              - policies_deleted
+              - policy_remediation_requested
+              - report_created
+              - report_updated
+              - report_deleted
+              - reports_deleted
+              - live_query_started
+              - live_query_stopped
+            type: string
+        - explode: false
+          in: query
+          name: since
+          schema:
+            format: date-time
+            type: string
+        - explode: false
+          in: query
+          name: before
+          schema:
+            format: date-time
+            type: string
+        - explode: false
+          in: query
+          name: subject_type
+          schema:
+            type: string
+        - explode: false
+          in: query
+          name: subject_id
+          schema:
+            format: int64
+            minimum: 1
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageActivityEvent"
+          description: OK
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      summary: List activity
+      tags:
+        - Activity
   /api/agent-secrets:
     get:
       operationId: list-agent-secrets
@@ -8026,6 +8295,43 @@ paths:
       summary: Set a software icon
       tags:
         - Munki icons
+  /api/osquery/host-status-history:
+    get:
+      operationId: list-osquery-host-status-history
+      parameters:
+        - explode: false
+          in: query
+          name: since
+          schema:
+            format: date-time
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/OsqueryHostStatusPoint"
+                type: array
+          description: OK
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      summary: List host status history
+      tags:
+        - Osquery overview
   /api/osquery/live-queries:
     post:
       operationId: create-live-query
@@ -8854,6 +9160,61 @@ paths:
         - cookieAuth: []
         - bearerAuth: []
       summary: List policy results
+      tags:
+        - Osquery policies
+  /api/osquery/policies/{id}/status-history:
+    get:
+      operationId: list-osquery-policy-status-history
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+        - explode: false
+          in: query
+          name: since
+          schema:
+            format: date-time
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/OsqueryPolicyStatusPoint"
+                type: array
+          description: OK
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      summary: List policy status history
       tags:
         - Osquery policies
   /api/osquery/reports:
@@ -10914,6 +11275,8 @@ paths:
 tags:
   - name: Account
     x-displayName: Account
+  - name: Activity
+    x-displayName: Activity
   - name: Agent secrets
     x-displayName: Agent secrets
   - name: Directory groups
@@ -10938,6 +11301,8 @@ tags:
     x-displayName: Packages
   - name: Munki software
     x-displayName: Software
+  - name: Osquery overview
+    x-displayName: Overview
   - name: Osquery policies
     x-displayName: Policies
   - name: Osquery live queries
@@ -10958,6 +11323,9 @@ x-tagGroups:
   - name: Account
     tags:
       - Account
+  - name: Activity
+    tags:
+      - Activity
   - name: Agent secrets
     tags:
       - Agent secrets
@@ -10982,6 +11350,7 @@ x-tagGroups:
       - Munki software
   - name: Osquery
     tags:
+      - Osquery overview
       - Osquery policies
       - Osquery live queries
       - Osquery reports

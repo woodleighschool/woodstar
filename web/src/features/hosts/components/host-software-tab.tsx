@@ -104,7 +104,7 @@ const softwareColumns: DataTableColumnDef<HostSoftware>[] = [
   },
   {
     id: "path",
-    header: () => "Installed path",
+    header: () => "Installed Path",
     enableSorting: false,
     cell: ({ row }) => {
       const versions = row.original.installed_versions;
@@ -122,7 +122,7 @@ const softwareColumns: DataTableColumnDef<HostSoftware>[] = [
     },
     size: 360,
     minSize: 240,
-    meta: { label: "Installed path" },
+    meta: { label: "Installed Path" },
   },
 ];
 export function HostSoftwareTab({ hostId }: { hostId: number | null }) {
@@ -155,7 +155,7 @@ export function HostSoftwareTab({ hostId }: { hostId: number | null }) {
   if (query.error) {
     return (
       <QueryError
-        title="Failed to load software"
+        title="Failed to Load Software"
         error={query.error}
         onRetry={() => void query.refetch()}
       />
@@ -168,7 +168,7 @@ export function HostSoftwareTab({ hostId }: { hostId: number | null }) {
       pending={query.isPlaceholderData}
       empty={
         <PanelEmptyState>
-          {tableSearch.isFiltered ? "No matching software" : "No observed software"}
+          {tableSearch.isFiltered ? "No Matching Software" : "No Observed Software"}
         </PanelEmptyState>
       }
     >
@@ -176,7 +176,7 @@ export function HostSoftwareTab({ hostId }: { hostId: number | null }) {
         loading={query.isPlaceholderData}
         value={tableSearch.q ?? ""}
         onValueChange={tableSearch.onQueryChange}
-        placeholder="Search software"
+        placeholder="Search Software"
       />
       <DataTableFacetedFilter
         column={table.getColumn("source")}
@@ -225,7 +225,7 @@ function InstalledPathCell({
             <TableHeader>
               <TableRow>
                 <TableHead>Version</TableHead>
-                <TableHead>Installed path</TableHead>
+                <TableHead>Installed Path</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

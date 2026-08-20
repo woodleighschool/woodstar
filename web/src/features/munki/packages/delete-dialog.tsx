@@ -21,7 +21,7 @@ export function MunkiPackageDeleteDialog({
     if (!pkg) return;
     await remove.mutateAsync(pkg.id);
     onOpenChange(false);
-    toast.add({ title: "Package deleted", type: "success" });
+    toast.add({ title: "Package Deleted", type: "success" });
     onDeleted?.();
   }
 
@@ -29,7 +29,7 @@ export function MunkiPackageDeleteDialog({
     <ConfirmDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Delete package?"
+      title="Delete Package?"
       description={
         pkg
           ? `${pkg.software.name} ${pkg.version} will be deleted. Referenced packages cannot be deleted.`

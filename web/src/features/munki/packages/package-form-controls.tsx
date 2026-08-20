@@ -250,7 +250,7 @@ export function RestartActionField({ form }: { form: PackageEditorForm }) {
 }
 
 const uninstallMethodItems = [
-  { value: null, label: "Select a method" },
+  { value: null, label: "Select a Method" },
   ...MUNKI_UNINSTALL_METHOD_OPTIONS,
 ];
 

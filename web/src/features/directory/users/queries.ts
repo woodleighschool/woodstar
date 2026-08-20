@@ -94,7 +94,7 @@ export function useCreateUser() {
   return useMutation<User, ApiError, UserCreate>({
     mutationFn: (body) => unwrap(createUser({ body })),
     onSuccess: async () => {
-      toast.add({ title: "User created", type: "success" });
+      toast.add({ title: "User Created", type: "success" });
       await queryClient.invalidateQueries({ queryKey: userKeys.all });
     },
   });
@@ -123,7 +123,7 @@ export function useUpdateUser() {
         }),
       ),
     onSuccess: async (user, variables) => {
-      toast.add({ title: "User saved", type: "success" });
+      toast.add({ title: "User Saved", type: "success" });
       queryClient.setQueryData(userKeys.detail(variables.id), user);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: userKeys.all }),

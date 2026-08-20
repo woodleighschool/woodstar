@@ -38,7 +38,7 @@ export function HostPublicIP({
           <PublicIPCardRow label="Public IP" value={address} />
           {distributionPoint ? (
             <PublicIPCardRow
-              label="Distribution point"
+              label="Distribution Point"
               value={
                 <TextLink
                   to="/munki/distribution-points/$id"

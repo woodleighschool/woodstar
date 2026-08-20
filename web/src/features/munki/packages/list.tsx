@@ -167,7 +167,7 @@ export function MunkiPackageListPage() {
       />
       {query.error ? (
         <QueryError
-          title="Failed to load packages"
+          title="Failed to Load Packages"
           error={query.error}
           onRetry={() => void query.refetch()}
         />
@@ -191,8 +191,8 @@ export function MunkiPackageListPage() {
             <DataTableEmpty
               icon={<PackageCheck />}
               filtered={tableSearch.isFiltered}
-              filteredTitle="No matching packages"
-              title="No packages"
+              filteredTitle="No Matching Packages"
+              title="No Packages"
               description="Create package versions for Munki software."
               filteredDescription="Try a different search."
             />

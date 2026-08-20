@@ -24,9 +24,10 @@ import { Separator } from "@components/ui/separator";
 import { Skeleton } from "@components/ui/skeleton";
 import { TabsContent, TabsTrigger } from "@components/ui/tabs";
 import { useAuth } from "@features/auth/queries";
+import { creatorMeta } from "@features/osquery/creator-meta";
 import { LiveRunButton } from "@features/osquery/live/query-actions";
 import { parseRouteID } from "@lib/route-params";
-import { formatInterval, formatRelative } from "@lib/utils";
+import { formatInterval } from "@lib/utils";
 
 import { ReportDeleteDialog } from "./delete-dialog";
 import { listAllReportSnapshots, useReport, useReportSnapshots } from "./queries";
@@ -103,14 +104,14 @@ export function ReportDetailPage() {
 
   if (id === null) {
     return (
-      <QueryGate title="Failed to load report" error={{ message: "Report route is invalid." }} />
+      <QueryGate title="Failed to Load Report" error={{ message: "Report route is invalid." }} />
     );
   }
 
   if (report.error) {
     return (
       <QueryGate
-        title="Failed to load report"
+        title="Failed to Load Report"
         error={report.error}
         onRetry={() => void report.refetch()}
       />
@@ -147,7 +148,7 @@ export function ReportDetailPage() {
     <PageShell>
       <PageHeader
         title="Report Details"
-        meta={`Edited ${formatRelative(report.data.updated_at)}`}
+        meta={creatorMeta(report.data.created_by, report.data.updated_at)}
         actions={
           <>
             {isAdmin ? (
@@ -220,7 +221,7 @@ export function ReportDetailPage() {
                   : "Off"
               }
             />
-            <KeyValueRow label="Minimum Osquery" value={report.data.min_osquery_version || "Any"} />
+            <KeyValueRow label="Minimum osquery" value={report.data.min_osquery_version || "Any"} />
             <KeyValueRow
               label="Collected"
               value={
@@ -281,7 +282,7 @@ export function ReportDetailPage() {
               )}
               empty={
                 <PanelEmptyState>
-                  {tableSearch.isFiltered ? "No matching report results" : "No targeted hosts"}
+                  {tableSearch.isFiltered ? "No Matching Report Results" : "No Targeted Hosts"}
                 </PanelEmptyState>
               }
             >
@@ -289,7 +290,7 @@ export function ReportDetailPage() {
                 loading={snapshots.isPlaceholderData}
                 value={tableSearch.q ?? ""}
                 onValueChange={tableSearch.onQueryChange}
-                placeholder="Search hosts and results"
+                placeholder="Search Hosts and Results"
               />
               <ReportResultsToolbar table={table} />
             </DataTable>

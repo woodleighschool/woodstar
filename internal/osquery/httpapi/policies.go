@@ -2,11 +2,13 @@ package httpapi
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
 
+	"github.com/woodleighschool/woodstar/internal/activity"
 	"github.com/woodleighschool/woodstar/internal/api"
 	"github.com/woodleighschool/woodstar/internal/api/ctxkeys"
 	"github.com/woodleighschool/woodstar/internal/osquery/policies"
@@ -99,16 +101,17 @@ func registerOsqueryPolicies(
 	humaAPI huma.API,
 	sensitiveAPI huma.API,
 	policyStore *policies.Store,
+	activityRecorder activity.Recorder,
 	logger *slog.Logger,
 ) {
 	registerListPolicies(humaAPI, policyStore, logger)
-	registerCreatePolicy(humaAPI, policyStore, logger)
+	registerCreatePolicy(humaAPI, policyStore, activityRecorder, logger)
 	registerGetPolicy(humaAPI, policyStore, logger)
-	registerUpdatePolicy(humaAPI, policyStore, logger)
-	registerDeletePolicy(humaAPI, policyStore, logger)
-	registerBulkDeletePolicies(humaAPI, policyStore, logger)
+	registerUpdatePolicy(humaAPI, policyStore, activityRecorder, logger)
+	registerDeletePolicy(humaAPI, policyStore, activityRecorder, logger)
+	registerBulkDeletePolicies(humaAPI, policyStore, activityRecorder, logger)
 	registerPolicyResults(humaAPI, policyStore, logger)
-	registerRunPolicyRemediations(humaAPI, policyStore, logger)
+	registerRunPolicyRemediations(humaAPI, policyStore, activityRecorder, logger)
 	registerPolicyRemediationSource(sensitiveAPI, policyStore, logger)
 	registerPolicyRemediationRun(sensitiveAPI, policyStore, logger)
 }
@@ -132,6 +135,7 @@ func registerListPolicies(humaAPI huma.API, policyStore *policies.Store, logger 
 func registerRunPolicyRemediations(
 	humaAPI huma.API,
 	policyStore *policies.Store,
+	activityRecorder activity.Recorder,
 	logger *slog.Logger,
 ) {
 	huma.Register(humaAPI, huma.Operation{
@@ -143,6 +147,12 @@ func registerRunPolicyRemediations(
 		DefaultStatus: http.StatusAccepted,
 		Errors:        []int{http.StatusBadRequest, http.StatusNotFound, http.StatusConflict},
 	}, func(ctx context.Context, input *policyRemediationsInput) (*policyRemediationBatchSummaryOutput, error) {
+		policy, err := policyStore.GetByID(ctx, input.ID)
+		if err != nil {
+			return nil, api.ResourceError(
+				ctx, logger, "run-osquery-policy-remediations", policyResource, err, "id", input.ID,
+			)
+		}
 		summary, err := policyStore.RunRemediations(
 			ctx,
 			input.ID,
@@ -155,6 +165,14 @@ func registerRunPolicyRemediations(
 				"id", input.ID, "host_ids", input.HostIDs, "all_failures", input.AllFailures,
 			)
 		}
+		activity.RecordUser(
+			ctx,
+			activityRecorder,
+			logger,
+			activity.AreaOsquery,
+			activity.ActionPolicyRemediationRequested,
+			activity.Resource(policyResource, policy.ID, policy.Name),
+		)
 		return &policyRemediationBatchSummaryOutput{Body: *summary}, nil
 	})
 }
@@ -207,7 +225,12 @@ func registerPolicyRemediationRun(
 	})
 }
 
-func registerCreatePolicy(humaAPI huma.API, policyStore *policies.Store, logger *slog.Logger) {
+func registerCreatePolicy(
+	humaAPI huma.API,
+	policyStore *policies.Store,
+	activityRecorder activity.Recorder,
+	logger *slog.Logger,
+) {
 	huma.Register(humaAPI, huma.Operation{
 		OperationID:   "create-osquery-policy",
 		Method:        http.MethodPost,
@@ -224,6 +247,8 @@ func registerCreatePolicy(humaAPI huma.API, policyStore *policies.Store, logger 
 		if err != nil {
 			return nil, api.ResourceError(ctx, logger, "create-osquery-policy", policyResource, err)
 		}
+		activity.RecordUser(ctx, activityRecorder, logger, activity.AreaOsquery, activity.ActionPolicyCreated,
+			activity.Resource(policyResource, policy.ID, policy.Name))
 		return &policyOutput{Body: *policy}, nil
 	})
 }
@@ -245,7 +270,13 @@ func registerGetPolicy(humaAPI huma.API, policyStore *policies.Store, logger *sl
 	})
 }
 
-func registerUpdatePolicy(humaAPI huma.API, policyStore *policies.Store, logger *slog.Logger) {
+//nolint:dupl // Policy and report handlers intentionally keep their domain contracts explicit.
+func registerUpdatePolicy(
+	humaAPI huma.API,
+	policyStore *policies.Store,
+	activityRecorder activity.Recorder,
+	logger *slog.Logger,
+) {
 	huma.Register(humaAPI, huma.Operation{
 		OperationID: "update-osquery-policy",
 		Method:      http.MethodPut,
@@ -266,11 +297,18 @@ func registerUpdatePolicy(humaAPI huma.API, policyStore *policies.Store, logger 
 				input.ID,
 			)
 		}
+		activity.RecordUser(ctx, activityRecorder, logger, activity.AreaOsquery, activity.ActionPolicyUpdated,
+			activity.Resource(policyResource, policy.ID, policy.Name))
 		return &policyOutput{Body: *policy}, nil
 	})
 }
 
-func registerDeletePolicy(humaAPI huma.API, policyStore *policies.Store, logger *slog.Logger) {
+func registerDeletePolicy(
+	humaAPI huma.API,
+	policyStore *policies.Store,
+	activityRecorder activity.Recorder,
+	logger *slog.Logger,
+) {
 	huma.Register(humaAPI, huma.Operation{
 		OperationID: "delete-osquery-policy",
 		Method:      http.MethodDelete,
@@ -279,6 +317,10 @@ func registerDeletePolicy(humaAPI huma.API, policyStore *policies.Store, logger 
 		Summary:     "Delete a policy",
 		Errors:      []int{http.StatusNotFound},
 	}, func(ctx context.Context, input *policyDeleteInput) (*struct{}, error) {
+		policy, err := policyStore.GetByID(ctx, input.ID)
+		if err != nil {
+			return nil, api.ResourceError(ctx, logger, "delete-osquery-policy", policyResource, err, "id", input.ID)
+		}
 		if err := policyStore.Delete(ctx, input.ID); err != nil {
 			return nil, api.ResourceError(
 				ctx,
@@ -290,11 +332,18 @@ func registerDeletePolicy(humaAPI huma.API, policyStore *policies.Store, logger 
 				input.ID,
 			)
 		}
+		activity.RecordUser(ctx, activityRecorder, logger, activity.AreaOsquery, activity.ActionPolicyDeleted,
+			activity.Resource(policyResource, policy.ID, policy.Name))
 		return &struct{}{}, nil
 	})
 }
 
-func registerBulkDeletePolicies(humaAPI huma.API, policyStore *policies.Store, logger *slog.Logger) {
+func registerBulkDeletePolicies(
+	humaAPI huma.API,
+	policyStore *policies.Store,
+	activityRecorder activity.Recorder,
+	logger *slog.Logger,
+) {
 	huma.Register(humaAPI, huma.Operation{
 		OperationID:   "bulk-delete-osquery-policies",
 		Method:        http.MethodDelete,
@@ -304,8 +353,13 @@ func registerBulkDeletePolicies(humaAPI huma.API, policyStore *policies.Store, l
 		DefaultStatus: http.StatusNoContent,
 		Errors:        []int{http.StatusBadRequest},
 	}, func(ctx context.Context, input *api.DeleteManyInput) (*struct{}, error) {
-		if _, err := policyStore.DeleteMany(ctx, input.IDs); err != nil {
+		deleted, err := policyStore.DeleteMany(ctx, input.IDs)
+		if err != nil {
 			return nil, api.HandlerError(ctx, logger, "bulk-delete-osquery-policies", err)
+		}
+		if deleted > 0 {
+			activity.RecordUser(ctx, activityRecorder, logger, activity.AreaOsquery, activity.ActionPoliciesDeleted,
+				activity.Collection(policyResource, fmt.Sprintf("%d policies", deleted)))
 		}
 		return &struct{}{}, nil
 	})

@@ -89,7 +89,7 @@ export function useUpload<TIntent, TResult, TVars extends { file: File } = { fil
         });
         const result = await completeUpload(intent, vars, abortController.signal);
         toast.update(toastID, {
-          title: uploadText(successText, file, "Upload complete"),
+          title: uploadText(successText, file, "Upload Complete"),
           description: undefined,
           type: "success",
           timeout: 5000,

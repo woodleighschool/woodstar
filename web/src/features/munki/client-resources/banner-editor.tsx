@@ -55,7 +55,7 @@ export function BannerEditor({
       maxSize={clientResourceImageMaxSize}
       disabled={!editable || uploading}
       invalid={invalid || error !== null}
-      label="Banner image"
+      label="Banner Image"
       onFileAccept={onAssetChange}
       onFileReject={(_file, message) => onAssetReject(message)}
       onFileValidate={validateClientResourceImage}
@@ -136,7 +136,7 @@ export function BannerEditor({
           </div>
           <div className="space-y-1 text-center">
             <p className="text-sm font-medium">
-              {editable ? "Add banner image" : "No banner image"}
+              {editable ? "Add Banner Image" : "No Banner Image"}
             </p>
             {editable ? (
               <p className="text-xs text-muted-foreground">Drag and drop a JPG or PNG here</p>
@@ -147,7 +147,7 @@ export function BannerEditor({
               <FileUploadTrigger
                 render={<Button type="button" variant="outline" size="sm" disabled={uploading} />}
               >
-                Choose image
+                Choose Image
               </FileUploadTrigger>
               <p className="text-xs text-muted-foreground">5 MB max</p>
             </>

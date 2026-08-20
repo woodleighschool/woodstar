@@ -70,7 +70,7 @@ function LinkDialogForm({
       <DialogContent className="max-w-xl">
         <div className="contents">
           <DialogHeader>
-            <DialogTitle>{link ? "Edit link" : "Add link"}</DialogTitle>
+            <DialogTitle>{link ? "Edit Link" : "Add Link"}</DialogTitle>
             <DialogDescription>Use an HTTP URL, email address, or Munki route.</DialogDescription>
           </DialogHeader>
 
@@ -119,7 +119,7 @@ function LinkDialogForm({
               {(field) => (
                 <ValidatedFormField
                   field={field}
-                  label="Open in browser"
+                  label="Open in Browser"
                   htmlFor="client-resources-link-browser"
                 >
                   {(control) => (

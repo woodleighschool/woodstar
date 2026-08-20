@@ -204,7 +204,7 @@ export function UserListPage() {
 
       {query.error ? (
         <QueryError
-          title="Failed to load users"
+          title="Failed to Load Users"
           error={query.error}
           onRetry={() => void query.refetch()}
         />
@@ -218,7 +218,7 @@ export function UserListPage() {
             <DataTableEmpty
               icon={<Users />}
               filtered={tableSearch.isFiltered}
-              title="No users"
+              title="No Users"
               description="Create a local user or configure directory sync."
               filteredDescription="No users matched the current filters."
             />

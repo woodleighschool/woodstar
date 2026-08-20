@@ -9,7 +9,7 @@ export function DataTableEmpty({
   title,
   description,
   filtered = false,
-  filteredTitle = "No matches",
+  filteredTitle = "No Matches",
   filteredDescription,
 }: {
   icon: ReactNode;

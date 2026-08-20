@@ -403,7 +403,7 @@ export function PolicyForm({
           onOpenChange={(open) => {
             if (!open && !resultResetPending) setPendingResultReset(null);
           }}
-          title="Save changes?"
+          title="Save Changes?"
           description={
             <>
               <span className="block">

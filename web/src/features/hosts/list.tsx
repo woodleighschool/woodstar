@@ -148,7 +148,7 @@ export function HostListPage() {
 
       {query.error ? (
         <QueryError
-          title="Failed to load hosts"
+          title="Failed to Load Hosts"
           error={query.error}
           onRetry={() => void query.refetch()}
         />
@@ -174,7 +174,7 @@ export function HostListPage() {
             <DataTableEmpty
               icon={<ServerCog />}
               filtered={tableSearch.isFiltered}
-              title="No enrolled devices"
+              title="No Enrolled Devices"
               description="Create a host enrollment secret, then deploy Orbit or osquery."
               filteredDescription="No hosts matched the current filters."
             />
@@ -325,10 +325,10 @@ const hostColumns: DataTableColumnDef<Host>[] = [
   {
     id: "agents.osquery.version",
     accessorFn: (row) => row.agents.osquery.version,
-    header: "Osquery",
+    header: "osquery",
     cell: ({ row }) => row.original.agents.osquery.version || "-",
     size: 120,
-    meta: { label: "Osquery Version" },
+    meta: { label: "osquery Version" },
   },
   {
     id: "last_restarted_at",
@@ -368,7 +368,7 @@ const hostExportColumns: DataTableExportOptions<Host>["columns"] = [
     header: "Memory",
     value: (host) => (host.hardware.memory_bytes > 0 ? filesize(host.hardware.memory_bytes) : ""),
   },
-  { header: "Osquery Version", value: (host) => host.agents.osquery.version },
+  { header: "osquery Version", value: (host) => host.agents.osquery.version },
   {
     header: "Last Restarted",
     value: (host) => host.last_restarted_at,

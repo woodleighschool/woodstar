@@ -5,6 +5,7 @@ import "github.com/danielgtaylor/huma/v2"
 // OpenAPI resource tags are shared by capability operations and API metadata.
 const (
 	TagAccount                 = "Account"
+	TagActivity                = "Activity"
 	TagAgentSecrets            = "Agent secrets"
 	TagDirectoryGroups         = "Directory groups"
 	TagDirectorySync           = "Directory sync"
@@ -17,6 +18,7 @@ const (
 	TagMunkiPackageInstallers  = "Munki package installers"
 	TagMunkiPackages           = "Munki packages"
 	TagMunkiSoftware           = "Munki software"
+	TagOsqueryOverview         = "Osquery overview"
 	TagOsqueryPolicies         = "Osquery policies"
 	TagOsqueryLiveQueries      = "Osquery live queries"
 	TagOsqueryReports          = "Osquery reports"
@@ -36,6 +38,7 @@ type openAPITagGroup struct {
 func configureOpenAPI(doc *huma.OpenAPI) {
 	doc.Tags = []*huma.Tag{
 		resourceTag(TagAccount, "Account"),
+		resourceTag(TagActivity, "Activity"),
 		resourceTag(TagAgentSecrets, "Agent secrets"),
 		resourceTag(TagDirectoryGroups, "Groups"),
 		resourceTag(TagDirectorySync, "Sync"),
@@ -48,6 +51,7 @@ func configureOpenAPI(doc *huma.OpenAPI) {
 		resourceTag(TagMunkiPackageInstallers, "Package installers"),
 		resourceTag(TagMunkiPackages, "Packages"),
 		resourceTag(TagMunkiSoftware, "Software"),
+		resourceTag(TagOsqueryOverview, "Overview"),
 		resourceTag(TagOsqueryPolicies, "Policies"),
 		resourceTag(TagOsqueryLiveQueries, "Live queries"),
 		resourceTag(TagOsqueryReports, "Reports"),
@@ -60,6 +64,7 @@ func configureOpenAPI(doc *huma.OpenAPI) {
 	doc.Extensions = map[string]any{
 		"x-tagGroups": []openAPITagGroup{
 			{Name: "Account", Tags: []string{TagAccount}},
+			{Name: "Activity", Tags: []string{TagActivity}},
 			{Name: "Agent secrets", Tags: []string{TagAgentSecrets}},
 			{Name: "Directory", Tags: []string{TagDirectorySync, TagDirectoryGroups, TagDirectoryUsers}},
 			{Name: "Hosts", Tags: []string{TagHosts}},
@@ -73,6 +78,7 @@ func configureOpenAPI(doc *huma.OpenAPI) {
 				TagMunkiSoftware,
 			}},
 			{Name: "Osquery", Tags: []string{
+				TagOsqueryOverview,
 				TagOsqueryPolicies,
 				TagOsqueryLiveQueries,
 				TagOsqueryReports,

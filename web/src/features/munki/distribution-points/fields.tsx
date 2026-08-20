@@ -189,7 +189,7 @@ export function DistributionPointForm({
                   className="gap-4 data-[invalid=true]:text-destructive"
                   data-invalid={error ? true : undefined}
                 >
-                  <FieldLegend variant="label">Client source CIDRs</FieldLegend>
+                  <FieldLegend variant="label">Client Source CIDRs</FieldLegend>
                   <FieldGroup className="gap-2">
                     <StringArrayRows
                       rows={field.state.value}

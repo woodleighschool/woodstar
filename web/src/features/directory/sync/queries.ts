@@ -27,7 +27,7 @@ export function useTriggerDirectorySync() {
       queryClient.setQueryData(directorySyncKey, status);
       toast.add({
         title:
-          status.activity === "running" ? "Directory sync is running" : "Directory sync queued",
+          status.activity === "running" ? "Directory Sync Is Running" : "Directory Sync Queued",
         type: "success",
       });
     },

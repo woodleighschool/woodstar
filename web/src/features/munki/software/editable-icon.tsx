@@ -88,7 +88,7 @@ export function EditableMunkiIcon({ value, onChange }: EditableMunkiIconProps) {
                 ? value.file.name
                 : value.kind === "stored"
                   ? value.filename
-                  : "Choose an icon"}
+                  : "Choose an Icon"}
             </AttachmentTitle>
             <AttachmentDescription>
               {value.kind === "upload"
@@ -144,7 +144,7 @@ function IconPickerDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Choose icon</DialogTitle>
+          <DialogTitle>Choose Icon</DialogTitle>
         </DialogHeader>
         {items.length > 0 ? (
           <div className="grid max-h-80 grid-cols-[repeat(auto-fill,3.5rem)] overflow-y-auto p-1">
@@ -178,7 +178,7 @@ function IconPickerDialog({
           </div>
         ) : (
           <p className="py-6 text-center text-sm text-muted-foreground">
-            {icons.isLoading ? "Loading icons..." : "No icons uploaded yet."}
+            {icons.isLoading ? "Loading Icons…" : "No Icons Uploaded Yet"}
           </p>
         )}
         <DialogFooter>

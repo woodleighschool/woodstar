@@ -42,8 +42,10 @@ type Config struct {
 
 	OrbitScriptTimeout time.Duration `env:"ORBIT_SCRIPT_EXECUTION_TIMEOUT" envDefault:"5m" validate:"gt=0"`
 
-	SantaEventRetentionDays int           `env:"SANTA_EVENT_RETENTION_DAYS" envDefault:"90" validate:"gte=1"`
-	SantaEventSweepInterval time.Duration `env:"SANTA_EVENT_SWEEP_INTERVAL" envDefault:"1h" validate:"gt=0"`
+	SantaEventRetentionDays     int           `env:"SANTA_EVENT_RETENTION_DAYS" envDefault:"90" validate:"gte=1"`
+	SantaEventSweepInterval     time.Duration `env:"SANTA_EVENT_SWEEP_INTERVAL" envDefault:"1h" validate:"gt=0"`
+	ActivityRetentionDays       int           `env:"ACTIVITY_RETENTION_DAYS"        envDefault:"90" validate:"gte=1"`
+	OsqueryHistoryRetentionDays int           `env:"OSQUERY_HISTORY_RETENTION_DAYS" envDefault:"30" validate:"gte=1"`
 
 	// OIDC is capability-gated: SSO endpoints only mount when IssuerURL,
 	// ClientID, and ClientSecret are all set.

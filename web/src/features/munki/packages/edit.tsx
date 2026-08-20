@@ -25,14 +25,14 @@ export function MunkiPackageEditPage() {
 
   if (validPackageID === null) {
     return (
-      <QueryGate title="Failed to load package" error={{ message: "Package route is invalid." }} />
+      <QueryGate title="Failed to Load Package" error={{ message: "Package route is invalid." }} />
     );
   }
 
   if (pkg.error || !pkg.data) {
     return (
       <QueryGate
-        title="Failed to load package"
+        title="Failed to Load Package"
         error={pkg.error}
         onRetry={() => void pkg.refetch()}
       />

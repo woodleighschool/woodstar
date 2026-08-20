@@ -177,7 +177,7 @@ export function RuleListPage() {
 
       {query.error ? (
         <QueryError
-          title="Failed to load rules"
+          title="Failed to Load Rules"
           error={query.error}
           onRetry={() => void query.refetch()}
         />
@@ -201,7 +201,7 @@ export function RuleListPage() {
             <DataTableEmpty
               icon={<ListChecks />}
               filtered={tableSearch.isFiltered}
-              title="No execution rules"
+              title="No Execution Rules"
               description="Create a rule, then attach label targets."
               filteredDescription="No rules matched these filters."
             />

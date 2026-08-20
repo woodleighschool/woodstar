@@ -126,7 +126,7 @@ export function HostSantaTab({ hostId, santa, stateError, onStateRetry }: HostSa
           <Separator />
           <div className="px-3">
             <QueryError
-              title="Failed to load rules"
+              title="Failed to Load Rules"
               error={rules.error}
               onRetry={() => void rules.refetch()}
             />
@@ -137,7 +137,7 @@ export function HostSantaTab({ hostId, santa, stateError, onStateRetry }: HostSa
           heading="Rules"
           columns={santaRuleColumns}
           data={items}
-          empty={<PanelEmptyState>No matching rules</PanelEmptyState>}
+          empty={<PanelEmptyState>No Matching Rules</PanelEmptyState>}
         />
       )}
     </div>

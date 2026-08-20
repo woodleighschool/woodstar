@@ -17,14 +17,14 @@ export function LabelEditPage() {
 
   if (id === null) {
     return (
-      <QueryGate title="Failed to load label" error={{ message: "Label route is invalid." }} />
+      <QueryGate title="Failed to Load Label" error={{ message: "Label route is invalid." }} />
     );
   }
 
   if (detail.error || !detail.data) {
     return (
       <QueryGate
-        title="Failed to load label"
+        title="Failed to Load Label"
         error={detail.error}
         onRetry={() => void detail.refetch()}
       />

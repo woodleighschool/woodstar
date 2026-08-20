@@ -96,14 +96,14 @@ export function HostOsqueryPoliciesTab({ hostId }: { hostId: number | null }) {
 
   if (hostId === null) {
     return (
-      <QueryError title="Failed to load policies" error={{ message: "Host route is invalid." }} />
+      <QueryError title="Failed to Load Policies" error={{ message: "Host route is invalid." }} />
     );
   }
 
   if (query.error) {
     return (
       <QueryError
-        title="Failed to load policies"
+        title="Failed to Load Policies"
         error={query.error}
         onRetry={() => void query.refetch()}
       />
@@ -120,7 +120,7 @@ export function HostOsqueryPoliciesTab({ hostId }: { hostId: number | null }) {
       heading="Policies"
       empty={
         <PanelEmptyState>
-          {tableSearch.isFiltered ? "No matching policies" : "No policies yet"}
+          {tableSearch.isFiltered ? "No Matching Policies" : "No Policies Yet"}
         </PanelEmptyState>
       }
     >
@@ -128,7 +128,7 @@ export function HostOsqueryPoliciesTab({ hostId }: { hostId: number | null }) {
         loading={query.isPlaceholderData}
         value={tableSearch.q ?? ""}
         onValueChange={tableSearch.onQueryChange}
-        placeholder="Search policies"
+        placeholder="Search Policies"
       />
       <HostPoliciesToolbar table={table} />
     </DataTable>

@@ -1,5 +1,5 @@
 import { useRouterState } from "@tanstack/react-router";
-import { ChevronRight, ChevronsUpDown, LogOut, User as UserIcon } from "lucide-react";
+import { ChevronRight, ChevronsUpDown, History, LogOut, User as UserIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { type NavItem, type NavMenu, navSections } from "@components/layout/nav-config";
@@ -171,7 +171,7 @@ function SidebarUserMenu() {
   const { isMobile } = useSidebar();
   const { user } = useAuth();
   const logout = useLogout();
-  const label = nonEmpty(user?.name) ?? nonEmpty(user?.email) ?? "Signed out";
+  const label = nonEmpty(user?.name) ?? nonEmpty(user?.email) ?? "Signed Out";
   return (
     <SidebarMenu>
       <SidebarMenuItem>
@@ -208,7 +208,7 @@ function SidebarUserMenu() {
                   <div className="grid flex-1 text-left text-sm/tight">
                     <span className="truncate font-medium">{label}</span>
                     <span className="truncate text-xs text-muted-foreground">
-                      {user?.email ?? "Not signed in"}
+                      {user?.email ?? "Not Signed In"}
                     </span>
                   </div>
                 </div>
@@ -216,6 +216,10 @@ function SidebarUserMenu() {
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
+              <DropdownMenuItem render={<Link to="/activity" />}>
+                <History />
+                Activity
+              </DropdownMenuItem>
               <DropdownMenuItem render={<Link to="/account" />}>
                 <UserIcon />
                 Account

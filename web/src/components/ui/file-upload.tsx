@@ -534,7 +534,7 @@ function FileUpload(props: FileUploadProps) {
                 (type.includes("/*") && fileType.startsWith(type.replace("/*", "/"))),
             )
           ) {
-            rejectionMessage = "File type not accepted";
+            rejectionMessage = "File Type Not Accepted";
             propsRef.current.onFileReject?.(file, rejectionMessage);
             rejected = true;
             invalid = true;
@@ -542,7 +542,7 @@ function FileUpload(props: FileUploadProps) {
         }
 
         if (maxSize && file.size > maxSize) {
-          rejectionMessage = "File too large";
+          rejectionMessage = "File Too Large";
           propsRef.current.onFileReject?.(file, rejectionMessage);
           rejected = true;
           invalid = true;
@@ -636,7 +636,7 @@ function FileUpload(props: FileUploadProps) {
               onChange={onInputChange}
             />
             <div id={labelId} className="sr-only">
-              {label ?? "File upload"}
+              {label ?? "File Upload"}
             </div>
           </>
         ),
@@ -1002,8 +1002,8 @@ function FileUploadItem(props: FileUploadItemProps) {
     : fileState?.status === "uploading"
       ? `Uploading: ${fileState.progress}% complete`
       : fileState?.status === "success"
-        ? "Upload complete"
-        : "Ready to upload";
+        ? "Upload Complete"
+        : "Ready to Upload";
 
   const element = useRender({
     defaultTagName: "div",

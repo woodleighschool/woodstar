@@ -58,7 +58,7 @@ export function useCreateLabel() {
   return useMutation<Label, ApiError, LabelMutation>({
     mutationFn: (body) => unwrap(createLabel({ body })),
     onSuccess: async () => {
-      toast.add({ title: "Label created", type: "success" });
+      toast.add({ title: "Label Created", type: "success" });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: labelKeys.all }),
         queryClient.invalidateQueries({ queryKey: hostKeys.all }),
@@ -72,7 +72,7 @@ export function useUpdateLabel(id: number | null) {
   return useMutation<Label, ApiError, LabelMutation>({
     mutationFn: (body) => unwrap(updateLabel({ path: detailPath(id), body })),
     onSuccess: async () => {
-      toast.add({ title: "Label saved", type: "success" });
+      toast.add({ title: "Label Saved", type: "success" });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: labelKeys.all }),
         queryClient.invalidateQueries({ queryKey: hostKeys.all }),

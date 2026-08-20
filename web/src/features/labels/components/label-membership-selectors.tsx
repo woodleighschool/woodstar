@@ -77,7 +77,7 @@ export function HostSelector({
       data={rows}
       totalCount={count}
       controls={controls}
-      searchPlaceholder="Search hosts"
+      searchPlaceholder="Search Hosts"
       selectedCount={value.length}
       isLoading={hosts.isLoading}
       isPlaceholderData={hosts.isPlaceholderData}
@@ -87,7 +87,7 @@ export function HostSelector({
         onChange(ids.map(Number).filter((id) => Number.isInteger(id) && id > 0))
       }
       getRowId={(host) => String(host.id)}
-      emptyTitle={showSelected ? "No selected hosts" : "No hosts found"}
+      emptyTitle={showSelected ? "No Selected Hosts" : "No Hosts Found"}
     />
   );
 }
@@ -147,7 +147,7 @@ function DepartmentSelector({
       data={rows}
       totalCount={count}
       controls={controls}
-      searchPlaceholder="Search departments"
+      searchPlaceholder="Search Departments"
       selectedCount={value.length}
       isLoading={departments.isLoading}
       isPlaceholderData={departments.isPlaceholderData}
@@ -155,7 +155,7 @@ function DepartmentSelector({
       selectedRowIds={value}
       onSelectedRowIdsChange={onChange}
       getRowId={(department) => department.value}
-      emptyTitle={showSelected ? "No selected departments" : "No departments found"}
+      emptyTitle={showSelected ? "No Selected Departments" : "No Departments Found"}
     />
   );
 }
@@ -200,7 +200,7 @@ function GroupSelector({
       data={rows}
       totalCount={count}
       controls={controls}
-      searchPlaceholder="Search groups"
+      searchPlaceholder="Search Groups"
       selectedCount={value.length}
       isLoading={groups.isLoading}
       isPlaceholderData={groups.isPlaceholderData}
@@ -208,7 +208,7 @@ function GroupSelector({
       selectedRowIds={value}
       onSelectedRowIdsChange={onChange}
       getRowId={(group) => group.external_id}
-      emptyTitle={showSelected ? "No selected groups" : "No groups found"}
+      emptyTitle={showSelected ? "No Selected Groups" : "No Groups Found"}
     />
   );
 }
@@ -253,7 +253,7 @@ function UserSelector({
       data={rows}
       totalCount={count}
       controls={controls}
-      searchPlaceholder="Search users"
+      searchPlaceholder="Search Users"
       selectedCount={value.length}
       isLoading={users.isLoading}
       isPlaceholderData={users.isPlaceholderData}
@@ -261,7 +261,7 @@ function UserSelector({
       selectedRowIds={value}
       onSelectedRowIdsChange={onChange}
       getRowId={(user) => String(user.id)}
-      emptyTitle={showSelected ? "No selected users" : "No users found"}
+      emptyTitle={showSelected ? "No Selected Users" : "No Users Found"}
     />
   );
 }
@@ -391,7 +391,7 @@ function SelectorTable<TData extends DataTableRowData>({
   });
 
   if (error) {
-    return <QueryError title="Failed to load options" error={{ message: error }} />;
+    return <QueryError title="Failed to Load Options" error={{ message: error }} />;
   }
 
   return (

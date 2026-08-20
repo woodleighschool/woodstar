@@ -219,7 +219,7 @@ export function LabelForm({
                             {...control}
                             name={field.name}
                             rows={3}
-                            placeholder="Why this label exists"
+                            placeholder="Why This Label Exists"
                             value={field.state.value}
                             onBlur={field.handleBlur}
                             onChange={(event) => field.handleChange(event.target.value)}

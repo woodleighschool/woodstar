@@ -17,7 +17,7 @@ export const queryClient = new QueryClient({
     onError: (error, _variables, _context, mutation) => {
       if (mutation.meta?.inlineError || mutation.options.onError) return;
       toast.add({
-        title: error instanceof Error ? error.message : "Request failed",
+        title: error instanceof Error ? error.message : "Request Failed",
         type: "error",
       });
     },

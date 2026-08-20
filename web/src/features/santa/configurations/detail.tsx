@@ -39,7 +39,7 @@ export function ConfigurationDetailPage() {
   if (id === null) {
     return (
       <QueryGate
-        title="Failed to load configuration"
+        title="Failed to Load Configuration"
         error={{ message: "Configuration route is invalid." }}
       />
     );
@@ -48,7 +48,7 @@ export function ConfigurationDetailPage() {
   if (query.error || !query.data) {
     return (
       <QueryGate
-        title="Failed to load configuration"
+        title="Failed to Load Configuration"
         error={query.error}
         onRetry={() => void query.refetch()}
       />

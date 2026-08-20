@@ -95,7 +95,7 @@ export function GroupListPage() {
 
       {query.error ? (
         <QueryError
-          title="Failed to load groups"
+          title="Failed to Load Groups"
           error={query.error}
           onRetry={() => void query.refetch()}
         />
@@ -109,7 +109,7 @@ export function GroupListPage() {
             <DataTableEmpty
               icon={<UsersRound />}
               filtered={tableSearch.isFiltered}
-              title="No groups"
+              title="No Groups"
               description="Groups appear after directory sync."
               filteredDescription="No groups matched the current search."
             />

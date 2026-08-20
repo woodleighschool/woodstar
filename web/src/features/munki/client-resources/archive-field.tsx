@@ -57,7 +57,7 @@ export function ClientResourcesArchiveField({
           >
             {(control) => {
               const file = field.state.value;
-              const filename = file?.name ?? metadata?.filename ?? "Choose a ZIP archive";
+              const filename = file?.name ?? metadata?.filename ?? "Choose a ZIP Archive";
               const description = error
                 ? error.message
                 : uploading

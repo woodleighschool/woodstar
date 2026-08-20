@@ -84,7 +84,7 @@ export function ReportListPage() {
       />
       {query.error ? (
         <QueryError
-          title="Failed to load reports"
+          title="Failed to Load Reports"
           error={query.error}
           onRetry={() => void query.refetch()}
         />
@@ -107,7 +107,7 @@ export function ReportListPage() {
             <DataTableEmpty
               icon={<FileBarChart2 />}
               filtered={tableSearch.isFiltered}
-              title="No saved queries"
+              title="No Saved Queries"
               description="Create a report from SQL."
               filteredDescription="No reports matched the current search."
             />

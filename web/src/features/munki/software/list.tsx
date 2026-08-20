@@ -155,7 +155,7 @@ export function MunkiSoftwareListPage() {
 
       {query.error ? (
         <QueryError
-          title="Failed to load software"
+          title="Failed to Load Software"
           error={query.error}
           onRetry={() => void query.refetch()}
         />
@@ -180,8 +180,8 @@ export function MunkiSoftwareListPage() {
             <DataTableEmpty
               icon={<PackageSearch />}
               filtered={tableSearch.isFiltered}
-              filteredTitle="No matching software"
-              title="No software"
+              filteredTitle="No Matching Software"
+              title="No Software"
               description="Create software to manage Munki packages."
               filteredDescription="Try a different search."
             />

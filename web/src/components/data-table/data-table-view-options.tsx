@@ -44,7 +44,7 @@ export function DataTableViewOptions<TData extends DataTableRowData>({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-44" {...props}>
         <DropdownMenuGroup>
-          <DropdownMenuLabel>Toggle columns</DropdownMenuLabel>
+          <DropdownMenuLabel>Toggle Columns</DropdownMenuLabel>
           {columns.map((column) => (
             <DropdownMenuCheckboxItem
               key={column.id}

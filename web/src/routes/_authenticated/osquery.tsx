@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_authenticated/osquery")({
-  staticData: { breadcrumb: "Osquery" },
+  staticData: { breadcrumb: "osquery" },
 });

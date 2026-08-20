@@ -20,7 +20,7 @@ export function LabelDeleteDialog({
     if (!label) return;
     await remove.mutateAsync(label.id);
     onOpenChange(false);
-    toast.add({ title: "Label deleted", type: "success" });
+    toast.add({ title: "Label Deleted", type: "success" });
     onDeleted?.();
   }
 
@@ -28,7 +28,7 @@ export function LabelDeleteDialog({
     <ConfirmDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Delete label?"
+      title="Delete Label?"
       description={
         label
           ? `${label.name} will be removed from hosts and filters.`

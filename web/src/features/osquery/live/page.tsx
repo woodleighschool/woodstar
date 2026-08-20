@@ -26,7 +26,7 @@ function OsqueryLivePage({ kind }: { kind: "report" | "policy" }) {
         <PageHeader title="Run Live" />
         <Empty>
           <EmptyHeader>
-            <EmptyTitle>Live query unavailable</EmptyTitle>
+            <EmptyTitle>Live Query Unavailable</EmptyTitle>
             <EmptyDescription>
               Its SQL is unavailable. Return to {listLabel.toLowerCase()} and run it again.
             </EmptyDescription>

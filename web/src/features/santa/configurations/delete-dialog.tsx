@@ -21,7 +21,7 @@ export function ConfigurationDeleteDialog({
     if (!configuration) return;
     await remove.mutateAsync(configuration.id);
     onOpenChange(false);
-    toast.add({ title: "Configuration deleted", type: "success" });
+    toast.add({ title: "Configuration Deleted", type: "success" });
     onDeleted?.();
   }
 
@@ -29,7 +29,7 @@ export function ConfigurationDeleteDialog({
     <ConfirmDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Delete configuration?"
+      title="Delete Configuration?"
       description={
         configuration
           ? `${configuration.name} will stop applying to targeted Santa clients.`

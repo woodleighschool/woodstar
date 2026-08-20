@@ -61,6 +61,13 @@ Container builds package both databases and sets their paths in the runtime imag
 | `WOODSTAR_SANTA_EVENT_RETENTION_DAYS` | `90`    | Number of days to keep Santa events |
 | `WOODSTAR_SANTA_EVENT_SWEEP_INTERVAL` | `1h`    | Cleanup interval                    |
 
+## Activity and osquery history retention
+
+| Variable                                  | Default | Description                                      |
+| ----------------------------------------- | ------- | ------------------------------------------------ |
+| `WOODSTAR_ACTIVITY_RETENTION_DAYS`        | `90`    | Number of days to keep Activity timeline events  |
+| `WOODSTAR_OSQUERY_HISTORY_RETENTION_DAYS` | `30`    | Number of days to keep five-minute status points |
+
 ## OIDC
 
 | Variable                      | Default                | Description                                |

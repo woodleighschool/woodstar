@@ -19,6 +19,8 @@ import (
 	"github.com/riverqueue/river"
 	"github.com/spf13/cobra"
 
+	"github.com/woodleighschool/woodstar/internal/activity"
+	activityapi "github.com/woodleighschool/woodstar/internal/activity/httpapi"
 	"github.com/woodleighschool/woodstar/internal/agentauth"
 	agentauthapi "github.com/woodleighschool/woodstar/internal/agentauth/httpapi"
 	"github.com/woodleighschool/woodstar/internal/api"
@@ -50,6 +52,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/orbit"
 	orbitprotocol "github.com/woodleighschool/woodstar/internal/orbit/protocol"
 	"github.com/woodleighschool/woodstar/internal/osquery"
+	"github.com/woodleighschool/woodstar/internal/osquery/history"
 	osqueryapi "github.com/woodleighschool/woodstar/internal/osquery/httpapi"
 	"github.com/woodleighschool/woodstar/internal/osquery/ingest"
 	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
@@ -253,11 +256,13 @@ func buildApplication(
 	secretStore := agentauth.NewStore(pool)
 	inventoryStore := inventory.NewStore(pool)
 	primaryUsers := hosts.NewPrimaryUserStore(pool, labelStore)
+	activityStore := activity.NewStore(pool)
 
 	// Osquery stores.
 	reportStore := reports.NewStore(pool)
 	policyStore := policies.NewStore(pool)
 	liveQueries := livequery.NewStore(pool)
+	historyStore := history.NewStore(pool)
 
 	// Munki stores.
 	storageLogger := logger.With("component", "storage")
@@ -289,14 +294,16 @@ func buildApplication(
 	if err != nil {
 		return nil, err
 	}
-	orbitAgent := orbit.NewEnrollmentService(
-		hostStore,
-		secretStore,
-		primaryUsers,
-		heartbeatStore,
-		policyStore,
-		cfg.OrbitScriptTimeout,
-	)
+	orbitAgent := orbit.NewEnrollmentService(orbit.Dependencies{
+		Hosts:                  hostStore,
+		Secrets:                secretStore,
+		PrimaryUsers:           primaryUsers,
+		Heartbeats:             heartbeatStore,
+		Remediations:           policyStore,
+		ScriptExecutionTimeout: cfg.OrbitScriptTimeout,
+		Activity:               activityStore,
+		Logger:                 logger.With("component", "orbit"),
+	})
 
 	inventoryProjector := ingest.NewProjector(
 		hostStore,
@@ -315,6 +322,7 @@ func buildApplication(
 		LiveQueries:        liveQueries,
 		SecretStore:        secretStore,
 		Heartbeats:         heartbeatStore,
+		Activity:           activityStore,
 		Logger:             logger.With("component", "osquery"),
 	})
 
@@ -361,6 +369,8 @@ func buildApplication(
 		directoryStore,
 		inventoryStore,
 		eventStore,
+		activityStore,
+		historyStore,
 		logger,
 	)
 	if err != nil {
@@ -386,6 +396,7 @@ func buildApplication(
 		RegisterRoutes: func(routes api.Routes) {
 			storage.RegisterTransferRoutes(routes.StorageTransfers, storageBackend, storageLogger)
 
+			activityapi.RegisterAPI(routes.App, activityStore, apiLogger)
 			authapi.RegisterAPI(routes.App, authapi.Dependencies{
 				AuthService: authService,
 				Users:       userService,
@@ -400,19 +411,21 @@ func buildApplication(
 				santaState,
 				munkiDistribution,
 				geoLookup,
+				activityStore,
 				apiLogger,
 			)
 			inventoryapi.RegisterAPI(routes.App, inventoryStore, apiLogger)
 			labelsapi.RegisterAPI(routes.App, labelStore, apiLogger)
 			agentauthapi.RegisterAPI(routes.App, secretStore, apiLogger)
-			osqueryapi.RegisterAPI(
-				routes.App,
-				reportStore,
-				policyStore,
-				liveQueries,
-				hostStore,
-				apiLogger,
-			)
+			osqueryapi.RegisterAPI(routes.App, osqueryapi.Dependencies{
+				Reports:     reportStore,
+				Policies:    policyStore,
+				LiveQueries: liveQueries,
+				Hosts:       hostStore,
+				History:     historyStore,
+				Activity:    activityStore,
+				Logger:      apiLogger,
+			})
 			munkiapi.RegisterAPI(routes.App, munkiapi.Dependencies{
 				AuthService:     authService,
 				HostState:       munkiHostState,
@@ -486,6 +499,8 @@ func newBackgroundJobs(
 	directoryStore *directory.Store,
 	inventoryStore *inventory.Store,
 	eventStore *events.Store,
+	activityStore *activity.Store,
+	historyStore *history.Store,
 	logger *slog.Logger,
 ) (*backgroundjobs.Runtime, *entra.SyncJobs, error) {
 	jobWorkers := river.NewWorkers()
@@ -500,6 +515,21 @@ func newBackgroundJobs(
 		events.NewCleanupWorker(eventStore, logger.With("component", "santa")),
 	); err != nil {
 		return nil, nil, fmt.Errorf("register Santa cleanup worker: %w", err)
+	}
+	if err := river.AddWorkerSafely(
+		jobWorkers,
+		activity.NewCleanupWorker(activityStore, logger.With("component", "activity")),
+	); err != nil {
+		return nil, nil, fmt.Errorf("register activity cleanup worker: %w", err)
+	}
+	if err := river.AddWorkerSafely(jobWorkers, history.NewSnapshotWorker(historyStore)); err != nil {
+		return nil, nil, fmt.Errorf("register osquery history snapshot worker: %w", err)
+	}
+	if err := river.AddWorkerSafely(
+		jobWorkers,
+		history.NewCleanupWorker(historyStore, logger.With("component", "osquery")),
+	); err != nil {
+		return nil, nil, fmt.Errorf("register osquery history cleanup worker: %w", err)
 	}
 	periodicJobs := []*river.PeriodicJob{
 		periodicJob(
@@ -516,6 +546,33 @@ func newBackgroundJobs(
 				return events.CleanupJobArgs{
 					Trigger:       backgroundjobs.TriggerScheduled,
 					RetentionDays: cfg.SantaEventRetentionDays,
+				}
+			},
+		),
+		periodicJob(
+			activity.CleanupJobKind,
+			activity.CleanupJobInterval,
+			func() river.JobArgs {
+				return activity.CleanupJobArgs{
+					Trigger:       backgroundjobs.TriggerScheduled,
+					RetentionDays: cfg.ActivityRetentionDays,
+				}
+			},
+		),
+		periodicJob(
+			history.SnapshotJobKind,
+			history.SnapshotJobInterval,
+			func() river.JobArgs {
+				return history.SnapshotJobArgs{Trigger: backgroundjobs.TriggerScheduled}
+			},
+		),
+		periodicJob(
+			history.CleanupJobKind,
+			history.CleanupJobInterval,
+			func() river.JobArgs {
+				return history.CleanupJobArgs{
+					Trigger:       backgroundjobs.TriggerScheduled,
+					RetentionDays: cfg.OsqueryHistoryRetentionDays,
 				}
 			},
 		),

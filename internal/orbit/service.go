@@ -6,9 +6,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
+	"github.com/woodleighschool/woodstar/internal/activity"
 	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/enrollment"
 	"github.com/woodleighschool/woodstar/internal/heartbeats"
@@ -34,6 +36,20 @@ type EnrollmentService struct {
 	heartbeats             heartbeatRecorder
 	remediations           remediationStore
 	scriptExecutionTimeout time.Duration
+	activity               activity.Recorder
+	logger                 *slog.Logger
+}
+
+// Dependencies are Orbit's enrollment and runtime collaborators.
+type Dependencies struct {
+	Hosts                  hostStore
+	Secrets                agentauth.SecretVerifier
+	PrimaryUsers           primaryUserStore
+	Heartbeats             heartbeatRecorder
+	Remediations           remediationStore
+	ScriptExecutionTimeout time.Duration
+	Activity               activity.Recorder
+	Logger                 *slog.Logger
 }
 
 type hostStore interface {
@@ -57,18 +73,12 @@ type remediationStore interface {
 	RecordRemediationResult(context.Context, int64, policies.RemediationResult) error
 }
 
-func NewEnrollmentService(
-	hostStore hostStore,
-	secretStore agentauth.SecretVerifier,
-	primaryUsers primaryUserStore,
-	heartbeats heartbeatRecorder,
-	remediations remediationStore,
-	scriptExecutionTimeout time.Duration,
-) *EnrollmentService {
+func NewEnrollmentService(deps Dependencies) *EnrollmentService {
 	return &EnrollmentService{
-		hostStore: hostStore, secretStore: secretStore, primaryUsers: primaryUsers,
-		heartbeats: heartbeats, remediations: remediations,
-		scriptExecutionTimeout: scriptExecutionTimeout,
+		hostStore: deps.Hosts, secretStore: deps.Secrets, primaryUsers: deps.PrimaryUsers,
+		heartbeats: deps.Heartbeats, remediations: deps.Remediations,
+		scriptExecutionTimeout: deps.ScriptExecutionTimeout,
+		activity:               deps.Activity, logger: deps.Logger,
 	}
 }
 
@@ -100,6 +110,14 @@ func (s *EnrollmentService) Enroll(ctx context.Context, req EnrollRequest, conta
 	if err := s.heartbeats.Record(ctx, host.ID, heartbeats.SourceOrbit, contact); err != nil {
 		return nil, "", fmt.Errorf("record heartbeat: %w", err)
 	}
+	activity.RecordSystem(
+		ctx,
+		s.activity,
+		s.logger,
+		activity.AreaOsquery,
+		activity.ActionOrbitHostEnrolled,
+		activity.Resource("host", host.ID, host.DisplayName),
+	)
 	return host, nodeKey, nil
 }
 

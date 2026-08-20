@@ -91,7 +91,7 @@ export function useCreateMunkiDistributionPoint() {
   return useMutation<MunkiRevealedDistributionPoint, ApiError, MunkiDistributionPointMutation>({
     mutationFn: (body) => unwrap(createMunkiDistributionPoint({ body })),
     onSuccess: async (point) => {
-      toast.add({ title: "Distribution point created", type: "success" });
+      toast.add({ title: "Distribution Point Created", type: "success" });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: munkiDistributionPointKeys.root }),
         queryClient.invalidateQueries({ queryKey: munkiDistributionPointKeys.detail(point.id) }),
@@ -109,7 +109,7 @@ export function useUpdateMunkiDistributionPoint() {
   >({
     mutationFn: ({ id, body }) => unwrap(updateMunkiDistributionPoint({ path: { id }, body })),
     onSuccess: async (point) => {
-      toast.add({ title: "Distribution point saved", type: "success" });
+      toast.add({ title: "Distribution Point Saved", type: "success" });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: munkiDistributionPointKeys.root }),
         queryClient.invalidateQueries({ queryKey: munkiDistributionPointKeys.detail(point.id) }),

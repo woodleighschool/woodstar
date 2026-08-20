@@ -95,7 +95,7 @@ export function DistributionPointListPage() {
     <DataTableEmpty
       icon={<HardDrive />}
       filtered={tableSearch.isFiltered}
-      title="No distribution points"
+      title="No Distribution Points"
       description="Create a distribution point for Munki clients."
       filteredDescription="No distribution points matched the current filters."
     />
@@ -335,7 +335,7 @@ function DistributionPointReorder({
       ordered.map((row) => row.id),
       {
         onSuccess: () => {
-          toast.add({ title: "Saved order", type: "success" });
+          toast.add({ title: "Saved Order", type: "success" });
           onDone();
         },
         onError: () => setOrdered(rows),
@@ -428,7 +428,7 @@ function ReorderWarningDialog({
     <ConfirmDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Reorder distribution points?"
+      title="Reorder Distribution Points?"
       description="Woodstar redirects to the first matching distribution point. Reordering changes client behavior immediately."
       confirmLabel="Continue"
       onConfirm={onConfirm}

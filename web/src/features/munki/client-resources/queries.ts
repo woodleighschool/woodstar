@@ -57,7 +57,7 @@ export function useSaveMunkiClientResources() {
   return useMutation<MunkiClientResources, ApiError, SaveVariables>({
     mutationFn: saveClientResources,
     onSuccess: async () => {
-      toast.add({ title: "Client resources saved", type: "success" });
+      toast.add({ title: "Client Resources Saved", type: "success" });
       await queryClient.invalidateQueries({ queryKey: munkiClientResourceKeys.root });
     },
   });
@@ -67,8 +67,8 @@ export function useUploadAndSaveMunkiClientResourcesBanner() {
   const queryClient = useQueryClient();
   return useUpload<MunkiDirectUploadTarget, MunkiClientResources, BannerUploadVariables>({
     mutationKey: ["munki-client-resources-banner-upload"],
-    loadingText: "Saving client resources",
-    successText: "Client resources saved",
+    loadingText: "Saving Client Resources",
+    successText: "Client Resources Saved",
     createIntent: ({ file }) =>
       unwrap(createMunkiClientResourcesBannerUpload({ body: { filename: file.name } })),
     uploadRequest: uploadRequestFromTarget,
@@ -89,8 +89,8 @@ export function useUploadAndSaveMunkiClientResourcesArchive() {
   const queryClient = useQueryClient();
   return useUpload<MunkiDirectUploadTarget, MunkiClientResources, ArchiveUploadVariables>({
     mutationKey: ["munki-client-resources-archive-upload"],
-    loadingText: "Saving client resources",
-    successText: "Client resources saved",
+    loadingText: "Saving Client Resources",
+    successText: "Client Resources Saved",
     createIntent: ({ file }) =>
       unwrap(createMunkiClientResourcesArchiveUpload({ body: { filename: file.name } })),
     uploadRequest: uploadRequestFromTarget,
@@ -112,7 +112,7 @@ export function useDeleteMunkiClientResources() {
   return useMutation<void, ApiError, number>({
     mutationFn: (id) => unwrap(deleteMunkiClientResources({ path: { id } })),
     onSuccess: async () => {
-      toast.add({ title: "Client resources undeployed", type: "success" });
+      toast.add({ title: "Client Resources Undeployed", type: "success" });
       await queryClient.invalidateQueries({ queryKey: munkiClientResourceKeys.root });
     },
   });

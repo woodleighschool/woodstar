@@ -21,12 +21,12 @@ export function RouteErrorPage({ error }: ErrorComponentProps) {
           <EmptyMedia variant="icon">
             <CircleAlert />
           </EmptyMedia>
-          <EmptyTitle>Something went wrong</EmptyTitle>
+          <EmptyTitle>Something Went Wrong</EmptyTitle>
           {error.message ? <EmptyDescription>{error.message}</EmptyDescription> : null}
         </EmptyHeader>
         <EmptyContent>
           <Button size="sm" onClick={() => void router.invalidate()}>
-            Try again
+            Try Again
           </Button>
         </EmptyContent>
       </Empty>

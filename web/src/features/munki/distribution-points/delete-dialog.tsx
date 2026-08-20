@@ -21,7 +21,7 @@ export function DistributionPointDeleteDialog({
     if (!point) return;
     await remove.mutateAsync(point.id);
     onOpenChange(false);
-    toast.add({ title: "Distribution point deleted", type: "success" });
+    toast.add({ title: "Distribution Point Deleted", type: "success" });
     onDeleted?.();
   }
 
@@ -29,7 +29,7 @@ export function DistributionPointDeleteDialog({
     <ConfirmDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Delete distribution point?"
+      title="Delete Distribution Point?"
       description="Clients stop being redirected to this distribution point."
       confirmLabel="Delete"
       variant="destructive"
