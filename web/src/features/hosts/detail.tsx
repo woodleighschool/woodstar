@@ -41,6 +41,7 @@ import type { HostDetail } from "@lib/api";
 
 const hostSections = [
   { value: "details", label: "Details", path: "/hosts/$id" },
+  { value: "activity", label: "Activity", path: "/hosts/$id/activity" },
   { value: "software", label: "Software", path: "/hosts/$id/software" },
   { value: "reports", label: "Reports", path: "/hosts/$id/reports" },
   { value: "policies", label: "Policies", path: "/hosts/$id/policies" },

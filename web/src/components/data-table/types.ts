@@ -21,6 +21,8 @@ import {
   type TableState,
 } from "@tanstack/react-table";
 
+import type { FacetedFilterOption } from "@components/faceted-filter";
+
 interface DataTableColumnMeta {
   label?: string;
   options?: Option[];
@@ -66,9 +68,4 @@ export type DataTableInstance<TData extends RowData> = ReactTable<DataTableFeatu
 export type DataTableOptions<TData extends RowData> = TableOptions<DataTableFeatures, TData>;
 export type DataTableState = TableState<DataTableFeatures>;
 
-export interface Option {
-  label: string;
-  value: string;
-  count?: number;
-  icon?: React.FC<React.SVGProps<SVGSVGElement>>;
-}
+export type Option = FacetedFilterOption;

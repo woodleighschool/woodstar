@@ -3,6 +3,8 @@ package activity
 
 import (
 	"fmt"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -27,7 +29,7 @@ func (Area) Schema(_ huma.Registry) *huma.Schema {
 	return openapischema.StringEnum(areaValues...)
 }
 
-// ActorKind distinguishes administrator actions from Woodstar actions.
+// ActorKind distinguishes administrator actions from system actions.
 type ActorKind string
 
 const (
@@ -92,7 +94,7 @@ func (Action) Schema(_ huma.Registry) *huma.Schema {
 	return openapischema.StringEnum(actionValues...)
 }
 
-// Actor is the user or Woodstar process responsible for an activity.
+// Actor identifies the administrator or system responsible for an activity.
 type Actor struct {
 	Kind   ActorKind `json:"kind"`
 	UserID *int64    `json:"user_id,omitempty"`
@@ -127,12 +129,19 @@ type NewEvent struct {
 
 // ListParams filters the activity timeline.
 type ListParams struct {
-	ListParams listing.Params
-	Area       Area
+	ListParams  listing.Params
+	Area        Area
+	ActorKind   ActorKind
+	Action      Action
+	Since       time.Time
+	Before      time.Time
+	SubjectType string
+	SubjectID   int64
 }
 
 func (params *ListParams) normalize() {
 	params.ListParams = listing.Normalize(params.ListParams)
+	params.SubjectType = strings.TrimSpace(params.SubjectType)
 }
 
 func (params *ListParams) validate() error {
@@ -143,6 +152,21 @@ func (params *ListParams) validate() error {
 	case "", AreaHosts, AreaOsquery:
 	default:
 		return fmt.Errorf("%w: unknown activity area %q", fault.ErrInvalidInput, params.Area)
+	}
+	if params.ActorKind != "" && !slices.Contains(actorKindValues, params.ActorKind) {
+		return fmt.Errorf("%w: unknown activity actor kind %q", fault.ErrInvalidInput, params.ActorKind)
+	}
+	if params.Action != "" && !slices.Contains(actionValues, params.Action) {
+		return fmt.Errorf("%w: unknown activity action %q", fault.ErrInvalidInput, params.Action)
+	}
+	if !params.Since.IsZero() && !params.Before.IsZero() && !params.Since.Before(params.Before) {
+		return fmt.Errorf("%w: activity start must be before end", fault.ErrInvalidInput)
+	}
+	if params.SubjectID < 0 {
+		return fmt.Errorf("%w: activity subject id must be positive", fault.ErrInvalidInput)
+	}
+	if (params.SubjectType == "") != (params.SubjectID == 0) {
+		return fmt.Errorf("%w: activity subject type and id must be supplied together", fault.ErrInvalidInput)
 	}
 	return nil
 }

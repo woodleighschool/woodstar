@@ -47,6 +47,7 @@ import { Route as AuthenticatedDirectoryUsersIndexRouteImport } from './routes/_
 import { Route as AuthenticatedDirectoryUsersIdRouteImport } from './routes/_authenticated/directory.users.$id'
 import { Route as AuthenticatedDirectoryUsersNewRouteImport } from './routes/_authenticated/directory.users.new'
 import { Route as AuthenticatedHostsIdIndexRouteImport } from './routes/_authenticated/hosts.$id.index'
+import { Route as AuthenticatedHostsIdActivityRouteImport } from './routes/_authenticated/hosts.$id.activity'
 import { Route as AuthenticatedHostsIdMunkiRouteImport } from './routes/_authenticated/hosts.$id.munki'
 import { Route as AuthenticatedHostsIdPoliciesRouteImport } from './routes/_authenticated/hosts.$id.policies'
 import { Route as AuthenticatedHostsIdReportsRouteImport } from './routes/_authenticated/hosts.$id.reports'
@@ -310,6 +311,12 @@ const AuthenticatedHostsIdIndexRoute =
   AuthenticatedHostsIdIndexRouteImport.update({
     id: '/',
     path: '/',
+    getParentRoute: () => AuthenticatedHostsIdRoute,
+  } as any)
+const AuthenticatedHostsIdActivityRoute =
+  AuthenticatedHostsIdActivityRouteImport.update({
+    id: '/activity',
+    path: '/activity',
     getParentRoute: () => AuthenticatedHostsIdRoute,
   } as any)
 const AuthenticatedHostsIdMunkiRoute =
@@ -684,6 +691,7 @@ export interface FileRoutesByFullPath {
   '/software/': typeof AuthenticatedSoftwareIndexRoute
   '/directory/users/$id': typeof AuthenticatedDirectoryUsersIdRouteWithChildren
   '/directory/users/new': typeof AuthenticatedDirectoryUsersNewRoute
+  '/hosts/$id/activity': typeof AuthenticatedHostsIdActivityRoute
   '/hosts/$id/munki': typeof AuthenticatedHostsIdMunkiRoute
   '/hosts/$id/policies': typeof AuthenticatedHostsIdPoliciesRoute
   '/hosts/$id/reports': typeof AuthenticatedHostsIdReportsRoute
@@ -759,6 +767,7 @@ export interface FileRoutesByTo {
   '/santa': typeof AuthenticatedSantaIndexRoute
   '/software': typeof AuthenticatedSoftwareIndexRoute
   '/directory/users/new': typeof AuthenticatedDirectoryUsersNewRoute
+  '/hosts/$id/activity': typeof AuthenticatedHostsIdActivityRoute
   '/hosts/$id/munki': typeof AuthenticatedHostsIdMunkiRoute
   '/hosts/$id/policies': typeof AuthenticatedHostsIdPoliciesRoute
   '/hosts/$id/reports': typeof AuthenticatedHostsIdReportsRoute
@@ -846,6 +855,7 @@ export interface FileRoutesById {
   '/_authenticated/software/': typeof AuthenticatedSoftwareIndexRoute
   '/_authenticated/directory/users/$id': typeof AuthenticatedDirectoryUsersIdRouteWithChildren
   '/_authenticated/directory/users/new': typeof AuthenticatedDirectoryUsersNewRoute
+  '/_authenticated/hosts/$id/activity': typeof AuthenticatedHostsIdActivityRoute
   '/_authenticated/hosts/$id/munki': typeof AuthenticatedHostsIdMunkiRoute
   '/_authenticated/hosts/$id/policies': typeof AuthenticatedHostsIdPoliciesRoute
   '/_authenticated/hosts/$id/reports': typeof AuthenticatedHostsIdReportsRoute
@@ -943,6 +953,7 @@ export interface FileRouteTypes {
     | '/software/'
     | '/directory/users/$id'
     | '/directory/users/new'
+    | '/hosts/$id/activity'
     | '/hosts/$id/munki'
     | '/hosts/$id/policies'
     | '/hosts/$id/reports'
@@ -1018,6 +1029,7 @@ export interface FileRouteTypes {
     | '/santa'
     | '/software'
     | '/directory/users/new'
+    | '/hosts/$id/activity'
     | '/hosts/$id/munki'
     | '/hosts/$id/policies'
     | '/hosts/$id/reports'
@@ -1104,6 +1116,7 @@ export interface FileRouteTypes {
     | '/_authenticated/software/'
     | '/_authenticated/directory/users/$id'
     | '/_authenticated/directory/users/new'
+    | '/_authenticated/hosts/$id/activity'
     | '/_authenticated/hosts/$id/munki'
     | '/_authenticated/hosts/$id/policies'
     | '/_authenticated/hosts/$id/reports'
@@ -1437,6 +1450,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/hosts/$id/'
       preLoaderRoute: typeof AuthenticatedHostsIdIndexRouteImport
+      parentRoute: typeof AuthenticatedHostsIdRoute
+    }
+    '/_authenticated/hosts/$id/activity': {
+      id: '/_authenticated/hosts/$id/activity'
+      path: '/activity'
+      fullPath: '/hosts/$id/activity'
+      preLoaderRoute: typeof AuthenticatedHostsIdActivityRouteImport
       parentRoute: typeof AuthenticatedHostsIdRoute
     }
     '/_authenticated/hosts/$id/munki': {
@@ -1908,6 +1928,7 @@ const AuthenticatedDirectoryRouteWithChildren =
   )
 
 interface AuthenticatedHostsIdRouteChildren {
+  AuthenticatedHostsIdActivityRoute: typeof AuthenticatedHostsIdActivityRoute
   AuthenticatedHostsIdMunkiRoute: typeof AuthenticatedHostsIdMunkiRoute
   AuthenticatedHostsIdPoliciesRoute: typeof AuthenticatedHostsIdPoliciesRoute
   AuthenticatedHostsIdReportsRoute: typeof AuthenticatedHostsIdReportsRoute
@@ -1917,6 +1938,7 @@ interface AuthenticatedHostsIdRouteChildren {
 }
 
 const AuthenticatedHostsIdRouteChildren: AuthenticatedHostsIdRouteChildren = {
+  AuthenticatedHostsIdActivityRoute: AuthenticatedHostsIdActivityRoute,
   AuthenticatedHostsIdMunkiRoute: AuthenticatedHostsIdMunkiRoute,
   AuthenticatedHostsIdPoliciesRoute: AuthenticatedHostsIdPoliciesRoute,
   AuthenticatedHostsIdReportsRoute: AuthenticatedHostsIdReportsRoute,

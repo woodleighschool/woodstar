@@ -1,7 +1,5 @@
 import { CircleDot } from "lucide-react";
-import type { ReactNode } from "react";
 
-import { Link } from "@components/link";
 import { RelativeTime } from "@components/relative-time";
 import { Badge } from "@components/ui/badge";
 import type { ActivityEvent } from "@lib/api";
@@ -38,7 +36,8 @@ export function ActivityTimeline({
 }
 
 function actorLabel(event: ActivityEvent): string {
-  return nonEmpty(event.actor.name) ?? nonEmpty(event.actor.email) ?? "Woodstar";
+  if (event.actor.kind === "system") return "System";
+  return nonEmpty(event.actor.name) ?? nonEmpty(event.actor.email) ?? "Administrator";
 }
 
 function actionLabel(action: ActivityEvent["action"]): string {
@@ -77,40 +76,8 @@ function actionLabel(action: ActivityEvent["action"]): string {
   }
 }
 
-function subjectLabel(event: ActivityEvent): ReactNode {
-  const label = nonEmpty(event.subject.name) ?? subjectTypeLabel(event.subject.type);
-  const id = event.subject.id;
-  if (id === undefined || event.action.includes("deleted")) return label;
-  switch (event.subject.type) {
-    case "host":
-      return (
-        <Link to="/hosts/$id" params={{ id: String(id) }} className="font-medium hover:underline">
-          {label}
-        </Link>
-      );
-    case "policy":
-      return (
-        <Link
-          to="/osquery/policies/$id"
-          params={{ id: String(id) }}
-          className="font-medium hover:underline"
-        >
-          {label}
-        </Link>
-      );
-    case "report":
-      return (
-        <Link
-          to="/osquery/reports/$id"
-          params={{ id: String(id) }}
-          className="font-medium hover:underline"
-        >
-          {label}
-        </Link>
-      );
-    default:
-      return label;
-  }
+function subjectLabel(event: ActivityEvent): string {
+  return nonEmpty(event.subject.name) ?? subjectTypeLabel(event.subject.type);
 }
 
 function subjectTypeLabel(type: string): string {

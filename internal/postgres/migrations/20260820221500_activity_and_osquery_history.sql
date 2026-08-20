@@ -18,6 +18,9 @@ CREATE INDEX activity_events_occurred_at_idx
     ON activity_events (occurred_at DESC, id DESC);
 CREATE INDEX activity_events_area_occurred_at_idx
     ON activity_events (area, occurred_at DESC, id DESC);
+CREATE INDEX activity_events_subject_occurred_at_idx
+    ON activity_events (subject_type, subject_id, occurred_at DESC, id DESC)
+    WHERE subject_id IS NOT NULL;
 
 CREATE TABLE osquery_host_status_points (
     bucket TIMESTAMPTZ PRIMARY KEY,

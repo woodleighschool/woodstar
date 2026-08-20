@@ -24,7 +24,12 @@ export function RecentOsqueryActivityCard() {
         <CardTitle>Recent Activity</CardTitle>
         <CardDescription>Enrollments and administrator actions related to osquery.</CardDescription>
         <CardAction>
-          <Button variant="outline" size="sm" render={<Link to="/activity" />} nativeButton={false}>
+          <Button
+            variant="outline"
+            size="sm"
+            render={<Link to="/activity" search={{ scope: "all", area: "osquery" }} />}
+            nativeButton={false}
+          >
             View All
           </Button>
         </CardAction>

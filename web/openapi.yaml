@@ -4576,6 +4576,62 @@ paths:
               - hosts
               - osquery
             type: string
+        - explode: false
+          in: query
+          name: actor_kind
+          schema:
+            enum:
+              - user
+              - system
+            type: string
+        - explode: false
+          in: query
+          name: action
+          schema:
+            enum:
+              - orbit_host_enrolled
+              - osquery_host_enrolled
+              - host_deleted
+              - hosts_deleted
+              - host_inventory_requested
+              - host_primary_user_set
+              - host_primary_user_cleared
+              - policy_created
+              - policy_updated
+              - policy_deleted
+              - policies_deleted
+              - policy_remediation_requested
+              - report_created
+              - report_updated
+              - report_deleted
+              - reports_deleted
+              - live_query_started
+              - live_query_stopped
+            type: string
+        - explode: false
+          in: query
+          name: since
+          schema:
+            format: date-time
+            type: string
+        - explode: false
+          in: query
+          name: before
+          schema:
+            format: date-time
+            type: string
+        - explode: false
+          in: query
+          name: subject_type
+          schema:
+            type: string
+        - explode: false
+          in: query
+          name: subject_id
+          schema:
+            format: int64
+            minimum: 1
+            type: integer
       responses:
         "200":
           content:

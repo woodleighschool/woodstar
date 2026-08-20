@@ -5,6 +5,7 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 
@@ -15,7 +16,13 @@ import (
 type listInput struct {
 	api.ListQueryInput
 
-	Area activity.Area `query:"area,omitempty"`
+	Area        activity.Area      `query:"area,omitempty"`
+	ActorKind   activity.ActorKind `query:"actor_kind,omitempty"`
+	Action      activity.Action    `query:"action,omitempty"`
+	Since       time.Time          `query:"since,omitempty"`
+	Before      time.Time          `query:"before,omitempty"`
+	SubjectType string             `query:"subject_type,omitempty"`
+	SubjectID   int64              `query:"subject_id,omitempty" minimum:"1"`
 }
 
 type listOutput struct {
@@ -41,8 +48,14 @@ func registerAPI(humaAPI huma.API, store *activity.Store, logger *slog.Logger) {
 		Summary:     "List activity",
 	}, func(ctx context.Context, input *listInput) (*listOutput, error) {
 		items, count, err := store.List(ctx, activity.ListParams{
-			ListParams: input.Params(),
-			Area:       input.Area,
+			ListParams:  input.Params(),
+			Area:        input.Area,
+			ActorKind:   input.ActorKind,
+			Action:      input.Action,
+			Since:       input.Since,
+			Before:      input.Before,
+			SubjectType: input.SubjectType,
+			SubjectID:   input.SubjectID,
 		})
 		if err != nil {
 			return nil, api.HandlerError(ctx, logger, "list-activity", err)

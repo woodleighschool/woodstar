@@ -43,7 +43,7 @@ func RecordUser(
 	})
 }
 
-// RecordSystem records a Woodstar-initiated action without changing the operation outcome.
+// RecordSystem records a system-initiated action without changing the operation outcome.
 func RecordSystem(
 	ctx context.Context,
 	recorder Recorder,
@@ -58,7 +58,7 @@ func RecordSystem(
 	record(ctx, recorder, logger, NewEvent{
 		Area:    area,
 		Action:  action,
-		Actor:   Actor{Kind: ActorKindSystem, Name: "Woodstar"},
+		Actor:   Actor{Kind: ActorKindSystem, Name: "System"},
 		Subject: subject,
 	})
 }

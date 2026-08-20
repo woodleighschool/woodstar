@@ -57,6 +57,22 @@ func (s *Store) List(ctx context.Context, params ListParams) ([]ActivityEvent, i
 	if params.Area != "" {
 		where.Add("area = " + where.Arg(params.Area))
 	}
+	if params.ActorKind != "" {
+		where.Add("actor_kind = " + where.Arg(params.ActorKind))
+	}
+	if params.Action != "" {
+		where.Add("action = " + where.Arg(params.Action))
+	}
+	if !params.Since.IsZero() {
+		where.Add("occurred_at >= " + where.Arg(params.Since))
+	}
+	if !params.Before.IsZero() {
+		where.Add("occurred_at < " + where.Arg(params.Before))
+	}
+	if params.SubjectType != "" {
+		where.Add("subject_type = " + where.Arg(params.SubjectType))
+		where.Add("subject_id = " + where.Arg(params.SubjectID))
+	}
 	if params.ListParams.Q != "" {
 		search := where.Arg("%" + params.ListParams.Q + "%")
 		where.Add(`(

@@ -1,20 +1,7 @@
-import { PlusCircle, X } from "lucide-react";
 import * as React from "react";
 
 import type { DataTableColumn, DataTableRowData, Option } from "@components/data-table/types";
-import { Badge } from "@components/ui/badge";
-import { Button } from "@components/ui/button";
-import { ButtonGroup } from "@components/ui/button-group";
-import {
-  Combobox,
-  ComboboxContent,
-  ComboboxEmpty,
-  ComboboxInput,
-  ComboboxItem,
-  ComboboxList,
-  ComboboxTrigger,
-} from "@components/ui/combobox";
-import { Separator } from "@components/ui/separator";
+import { FacetedFilter } from "@components/faceted-filter";
 
 interface DataTableFacetedFilterProps<TData extends DataTableRowData, TValue> {
   column?: DataTableColumn<TData, TValue>;
@@ -28,110 +15,21 @@ export function DataTableFacetedFilter<TData extends DataTableRowData, TValue>({
   options,
 }: DataTableFacetedFilterProps<TData, TValue>) {
   const columnFilterValue = column?.getFilterValue();
-  const selectedValues = React.useMemo(
-    () => new Set(Array.isArray(columnFilterValue) ? columnFilterValue : []),
+  const value = React.useMemo(
+    () => (Array.isArray(columnFilterValue) ? columnFilterValue.map(String) : []),
     [columnFilterValue],
   );
 
-  function setMultipleFilter(next: string[]) {
+  function setFilter(next: string[]) {
     column?.setFilterValue(next.length > 0 ? next : undefined);
   }
-
-  function setSingleFilter(next: string | null) {
-    column?.setFilterValue(next ? [next] : undefined);
-  }
-
-  function resetFilter() {
-    column?.setFilterValue(undefined);
-  }
-
-  const selected = Array.from(selectedValues, String);
-  const items = options.map((option) => option.value);
-  const optionsByValue = React.useMemo(
-    () => new Map(options.map((option) => [option.value, option])),
-    [options],
-  );
-  const multiple = options.length > 2;
-  const content = (
-    <>
-      <ButtonGroup>
-        <ComboboxTrigger
-          render={<Button variant="outline" size="sm" className="h-8 border-dashed font-normal" />}
-        >
-          <PlusCircle data-icon="inline-start" />
-          {title}
-          {selectedValues.size > 0 ? (
-            <>
-              <Separator orientation="vertical" className="mx-0.5 h-4" />
-              {selectedValues.size > 2 ? (
-                <Badge variant="secondary" className="rounded-sm px-1 font-normal">
-                  {selectedValues.size} selected
-                </Badge>
-              ) : (
-                options
-                  .filter((option) => selectedValues.has(option.value))
-                  .map((option) => (
-                    <Badge
-                      key={option.value}
-                      variant="secondary"
-                      className="rounded-sm px-1 font-normal"
-                    >
-                      {option.label}
-                    </Badge>
-                  ))
-              )}
-            </>
-          ) : null}
-        </ComboboxTrigger>
-        {selectedValues.size > 0 ? (
-          <Button
-            type="button"
-            variant="outline"
-            size="icon-sm"
-            className="size-8"
-            onClick={resetFilter}
-          >
-            <X />
-          </Button>
-        ) : null}
-      </ButtonGroup>
-      <ComboboxContent className="w-64 min-w-64">
-        <ComboboxInput
-          showTrigger={false}
-          placeholder={title ? `Search ${title.toLowerCase()}...` : "Search..."}
-        />
-        <ComboboxEmpty>No Results Found</ComboboxEmpty>
-        <ComboboxList className="max-h-72">
-          {(value) => {
-            const option = optionsByValue.get(value);
-            if (!option) return null;
-
-            return (
-              <ComboboxItem key={option.value} value={option.value}>
-                {option.icon ? <option.icon /> : null}
-                <span>{option.label}</span>
-                {option.count !== undefined ? (
-                  <span className="ml-auto pr-5 text-xs tabular-nums">{option.count}</span>
-                ) : null}
-              </ComboboxItem>
-            );
-          }}
-        </ComboboxList>
-      </ComboboxContent>
-    </>
-  );
-
-  if (multiple) {
-    return (
-      <Combobox multiple items={items} value={selected} onValueChange={setMultipleFilter}>
-        {content}
-      </Combobox>
-    );
-  }
-
   return (
-    <Combobox items={items} value={selected[0] ?? null} onValueChange={setSingleFilter}>
-      {content}
-    </Combobox>
+    <FacetedFilter
+      title={title}
+      options={options}
+      value={value}
+      multiple={options.length > 2}
+      onValueChange={setFilter}
+    />
   );
 }

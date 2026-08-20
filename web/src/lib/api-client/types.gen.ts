@@ -1734,6 +1734,12 @@ export type ListActivityData = {
         per_page?: number;
         sort?: string;
         area?: 'hosts' | 'osquery';
+        actor_kind?: 'user' | 'system';
+        action?: 'orbit_host_enrolled' | 'osquery_host_enrolled' | 'host_deleted' | 'hosts_deleted' | 'host_inventory_requested' | 'host_primary_user_set' | 'host_primary_user_cleared' | 'policy_created' | 'policy_updated' | 'policy_deleted' | 'policies_deleted' | 'policy_remediation_requested' | 'report_created' | 'report_updated' | 'report_deleted' | 'reports_deleted' | 'live_query_started' | 'live_query_stopped';
+        since?: string;
+        before?: string;
+        subject_type?: string;
+        subject_id?: number;
     };
     url: '/api/activity';
 };

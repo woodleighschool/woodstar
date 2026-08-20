@@ -37,6 +37,18 @@ func TestRecordUserIgnoresRecorderFailure(t *testing.T) {
 	}), slog.New(slog.DiscardHandler), AreaHosts, ActionHostDeleted, Resource("host", 7, "Lab Mac"))
 }
 
+func TestRecordSystemUsesSystemActor(t *testing.T) {
+	var got NewEvent
+	RecordSystem(t.Context(), recorderFunc(func(_ context.Context, event NewEvent) error {
+		got = event
+		return nil
+	}), slog.New(slog.DiscardHandler), AreaOsquery, ActionOrbitHostEnrolled, Resource("host", 7, "Lab Mac"))
+
+	if got.Actor.Kind != ActorKindSystem || got.Actor.Name != "System" {
+		t.Fatalf("recorded actor = %+v, want system actor named System", got.Actor)
+	}
+}
+
 type recorderFunc func(context.Context, NewEvent) error
 
 func (record recorderFunc) Record(ctx context.Context, event NewEvent) error {

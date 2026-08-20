@@ -59,6 +59,35 @@ func TestActivityStoreFiltersSnapshotsAndSweeps(t *testing.T) {
 		t.Fatalf("activity snapshot = %+v, want retained actor and subject names", events[0])
 	}
 
+	recent := time.Now().UTC()
+	if _, err := db.Exec(ctx, `
+		UPDATE activity_events SET occurred_at = $1 WHERE action = $2`,
+		recent, ActionPolicyCreated); err != nil {
+		t.Fatalf("set policy activity time: %v", err)
+	}
+	events, count, err = store.List(ctx, ListParams{
+		ListParams:  listing.Params{PageSize: 10},
+		Area:        AreaOsquery,
+		ActorKind:   ActorKindUser,
+		Action:      ActionPolicyCreated,
+		Since:       recent.Add(-time.Minute),
+		Before:      recent.Add(time.Minute),
+		SubjectType: "policy",
+		SubjectID:   42,
+	})
+	if err != nil {
+		t.Fatalf("list filtered activity: %v", err)
+	}
+	if count != 1 || len(events) != 1 || events[0].Subject.Name != "Gatekeeper enabled" {
+		t.Fatalf("filtered events = %+v, count = %d, want policy activity", events, count)
+	}
+	if _, _, err := store.List(ctx, ListParams{SubjectID: 42}); err == nil {
+		t.Fatal("list activity with subject id but no type succeeded")
+	}
+	if _, _, err := store.List(ctx, ListParams{Since: recent, Before: recent}); err == nil {
+		t.Fatal("list activity with empty time range succeeded")
+	}
+
 	cutoff := time.Now().Add(-time.Hour)
 	if _, err := db.Exec(ctx, `
 		UPDATE activity_events SET occurred_at = $1 WHERE area = 'hosts'`, cutoff.Add(-time.Minute)); err != nil {
