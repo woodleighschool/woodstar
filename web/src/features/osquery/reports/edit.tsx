@@ -27,14 +27,14 @@ export function ReportEditPage() {
 
   if (id === null) {
     return (
-      <QueryGate title="Failed to load report" error={{ message: "Report route is invalid." }} />
+      <QueryGate title="Failed to Load Report" error={{ message: "Report route is invalid." }} />
     );
   }
 
   if (detail.error || !detail.data) {
     return (
       <QueryGate
-        title="Failed to load report"
+        title="Failed to Load Report"
         error={detail.error}
         onRetry={() => void detail.refetch()}
       />

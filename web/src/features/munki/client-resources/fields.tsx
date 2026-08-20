@@ -159,7 +159,7 @@ export function MunkiClientResourcesForm({
         <ConfirmDialog
           open={confirmUndeploy}
           onOpenChange={setConfirmUndeploy}
-          title="Undeploy client resources?"
+          title="Undeploy Client Resources?"
           description={
             form.state.isDefaultValue
               ? "Woodstar will stop serving this archive. Munki clients will use their built-in resources."

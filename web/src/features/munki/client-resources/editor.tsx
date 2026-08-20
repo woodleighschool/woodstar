@@ -190,7 +190,7 @@ export function ClientResourcesEditor({
               </form.Field>
 
               <div className="px-8 py-6">
-                <h2 className="border-b pb-3 text-2xl font-semibold">All items</h2>
+                <h2 className="border-b pb-3 text-2xl font-semibold">All Items</h2>
                 <div className="grid grid-cols-2 gap-x-9">
                   {sampleSoftware.map((item) => (
                     <SoftwareItem key={item.name} item={item} />
@@ -213,7 +213,7 @@ export function ClientResourcesEditor({
                               <Editable
                                 value={textField.state.value}
                                 onValueChange={textField.handleChange}
-                                placeholder="Add footer text"
+                                placeholder="Add Footer Text"
                                 className="w-56 gap-0"
                               >
                                 <EditableArea className="block w-full">
@@ -229,7 +229,7 @@ export function ClientResourcesEditor({
                               items={linksField.state.value}
                               editable={editable}
                               leadingSeparator={textField.state.value.length > 0}
-                              addLabel="Add footer link"
+                              addLabel="Add Footer Link"
                               onAdd={linksField.pushValue}
                               onReplace={linksField.replaceValue}
                               onRemove={linksField.removeValue}
@@ -254,7 +254,7 @@ function EditableLinks({
   editable,
   emptyState,
   leadingSeparator = false,
-  addLabel = "Add link",
+  addLabel = "Add Link",
   onAdd,
   onReplace,
   onRemove,

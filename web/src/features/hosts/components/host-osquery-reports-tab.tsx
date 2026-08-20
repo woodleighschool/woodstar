@@ -132,14 +132,14 @@ export function HostOsqueryReportsTab({ hostId }: { hostId: number | null }) {
 
   if (hostId === null) {
     return (
-      <QueryError title="Failed to load reports" error={{ message: "Host route is invalid." }} />
+      <QueryError title="Failed to Load Reports" error={{ message: "Host route is invalid." }} />
     );
   }
 
   if (reports.error) {
     return (
       <QueryError
-        title="Failed to load reports"
+        title="Failed to Load Reports"
         error={reports.error}
         onRetry={() => void reports.refetch()}
       />
@@ -179,7 +179,7 @@ export function HostOsqueryReportsTab({ hostId }: { hostId: number | null }) {
       )}
       empty={
         <PanelEmptyState>
-          {tableSearch.isFiltered ? "No matching reports" : "No assigned reports"}
+          {tableSearch.isFiltered ? "No Matching Reports" : "No Assigned Reports"}
         </PanelEmptyState>
       }
     >
@@ -187,7 +187,7 @@ export function HostOsqueryReportsTab({ hostId }: { hostId: number | null }) {
         loading={reports.isPlaceholderData}
         value={tableSearch.q ?? ""}
         onValueChange={tableSearch.onQueryChange}
-        placeholder="Search reports and results"
+        placeholder="Search Reports and Results"
       />
       <HostReportsToolbar table={table} />
     </DataTable>

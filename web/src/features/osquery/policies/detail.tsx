@@ -169,14 +169,14 @@ export function PolicyDetailPage() {
 
   if (id === null) {
     return (
-      <QueryGate title="Failed to load policy" error={{ message: "Policy route is invalid." }} />
+      <QueryGate title="Failed to Load Policy" error={{ message: "Policy route is invalid." }} />
     );
   }
 
   if (policy.error) {
     return (
       <QueryGate
-        title="Failed to load policy"
+        title="Failed to Load Policy"
         error={policy.error}
         onRetry={() => void policy.refetch()}
       />
@@ -407,7 +407,7 @@ export function PolicyDetailPage() {
               }
               empty={
                 <PanelEmptyState>
-                  {tableSearch.isFiltered ? "No matching policy results" : "No policy results yet"}
+                  {tableSearch.isFiltered ? "No Matching Policy Results" : "No Policy Results Yet"}
                 </PanelEmptyState>
               }
             >
@@ -415,7 +415,7 @@ export function PolicyDetailPage() {
                 loading={results.isPlaceholderData}
                 value={tableSearch.q ?? ""}
                 onValueChange={tableSearch.onQueryChange}
-                placeholder="Search policy results"
+                placeholder="Search Policy Results"
               />
               <PolicyResultsToolbar table={table} />
             </DataTable>

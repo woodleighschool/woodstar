@@ -22,7 +22,7 @@ export function AccountPage() {
     return (
       <PageShell>
         <QueryError
-          title="Failed to load account"
+          title="Failed to Load Account"
           error={account.error}
           onRetry={() => void account.refetch()}
         />
@@ -61,7 +61,7 @@ function AccountForm({ account }: { account: Account }) {
       });
       // Re-baseline so the saved values count as unchanged.
       form.reset({ name: value.name, password: "" });
-      toast.add({ title: "Account saved", type: "success" });
+      toast.add({ title: "Account Saved", type: "success" });
     },
   });
   const exitGuard = usePageFormExitGuard({

@@ -41,7 +41,7 @@ export function PolicyStatusChart({ policyID }: { policyID: number }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Status history</CardTitle>
+        <CardTitle>Status History</CardTitle>
         <CardDescription>
           Five-minute snapshots of this policy across assigned hosts.
         </CardDescription>
@@ -103,7 +103,7 @@ export function PolicyStatusChart({ policyID }: { policyID: number }) {
         ) : (
           <Empty className="min-h-72">
             <EmptyHeader>
-              <EmptyTitle>No policy history yet</EmptyTitle>
+              <EmptyTitle>No Policy History Yet</EmptyTitle>
               <EmptyDescription>
                 The first five-minute snapshot will appear here shortly.
               </EmptyDescription>

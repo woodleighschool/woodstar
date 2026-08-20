@@ -62,9 +62,9 @@ export function usePageFormExitGuard({
         setDiscardRequested(false);
         blocker.reset?.();
       }}
-      title="Discard unsaved changes?"
+      title="Discard Unsaved Changes?"
       description="Your changes have not been saved."
-      confirmLabel="Discard changes"
+      confirmLabel="Discard Changes"
       variant="destructive"
       onConfirm={() => {
         if (navigationBlocked) {

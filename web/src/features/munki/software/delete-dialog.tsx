@@ -21,7 +21,7 @@ export function MunkiSoftwareDeleteDialog({
     if (!software) return;
     await remove.mutateAsync(software.id);
     onOpenChange(false);
-    toast.add({ title: "Software deleted", type: "success" });
+    toast.add({ title: "Software Deleted", type: "success" });
     onDeleted?.();
   }
 
@@ -29,7 +29,7 @@ export function MunkiSoftwareDeleteDialog({
     <ConfirmDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Delete software?"
+      title="Delete Software?"
       description={
         software
           ? `${software.name} and its packages and targeting will be deleted.`

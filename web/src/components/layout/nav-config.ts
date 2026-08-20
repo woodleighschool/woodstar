@@ -36,7 +36,7 @@ export const navSections: NavMenu[] = [
     label: "Integrations",
     items: [
       {
-        label: "Osquery",
+        label: "osquery",
         to: "/osquery",
         activeOptions: { exact: true },
         icon: Database,

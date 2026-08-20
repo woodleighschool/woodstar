@@ -197,7 +197,7 @@ export function useRequestHostInventoryRefresh() {
         host ? { ...host, inventory_refresh_requested: true } : host,
       );
       toast.add({
-        title: "Inventory refresh requested",
+        title: "Inventory Refresh Requested",
         description: "It will run when the host next checks in.",
         type: "success",
       });
@@ -217,7 +217,7 @@ export function useSetHostPrimaryUser() {
   return useMutation<HostDetail, ApiError, { id: number; body: HostPrimaryUserMutation }>({
     mutationFn: ({ id, body }) => unwrap(setHostPrimaryUser({ path: { id }, body })),
     onSuccess: async (host) => {
-      toast.add({ title: "Primary user set", type: "success" });
+      toast.add({ title: "Primary User Set", type: "success" });
       queryClient.setQueryData(hostKeys.detail(host.id), host);
       await queryClient.invalidateQueries({ queryKey: hostKeys.all });
     },
@@ -229,7 +229,7 @@ export function useClearHostPrimaryUser() {
   return useMutation<HostDetail, ApiError, number>({
     mutationFn: (id) => unwrap(clearHostPrimaryUser({ path: { id } })),
     onSuccess: async (host) => {
-      toast.add({ title: "Primary user cleared", type: "success" });
+      toast.add({ title: "Primary User Cleared", type: "success" });
       queryClient.setQueryData(hostKeys.detail(host.id), host);
       await queryClient.invalidateQueries({ queryKey: hostKeys.all });
     },

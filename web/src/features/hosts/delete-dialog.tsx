@@ -20,7 +20,7 @@ export function HostDeleteDialog({
     if (!host) return;
     await remove.mutateAsync(host.id);
     onOpenChange(false);
-    toast.add({ title: "Host deleted", type: "success" });
+    toast.add({ title: "Host Deleted", type: "success" });
     onDeleted?.();
   }
 

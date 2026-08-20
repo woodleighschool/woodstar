@@ -23,7 +23,7 @@ export function PolicyDeleteDialog({
     if (!policy) return;
     await remove.mutateAsync(policy.id);
     onOpenChange(false);
-    toast.add({ title: "Policy deleted", type: "success" });
+    toast.add({ title: "Policy Deleted", type: "success" });
     onDeleted?.();
   }
 

@@ -117,7 +117,7 @@ const OSQUERY_VERSION_VALUES = [
   "1.8.1",
 ] as const;
 const OSQUERY_VERSION_OPTIONS = [
-  { value: ALL_OSQUERY_VERSIONS, label: "All versions" },
+  { value: ALL_OSQUERY_VERSIONS, label: "All Versions" },
   ...OSQUERY_VERSION_VALUES.map((value) => ({ value, label: value })),
 ];
 const osqueryVersionSchema = z
@@ -418,7 +418,7 @@ export function ReportForm({
                         return (
                           <ValidatedFormField
                             field={field}
-                            label="Minimum Osquery Version"
+                            label="Minimum osquery Version"
                             htmlFor="report-min-version"
                             description="Runs only on hosts with this osquery version or newer."
                           >
@@ -497,7 +497,7 @@ export function ReportForm({
           onOpenChange={(open) => {
             if (!open && !resultResetPending) setPendingResultReset(null);
           }}
-          title="Save changes?"
+          title="Save Changes?"
           description={
             <>
               <span className="block">

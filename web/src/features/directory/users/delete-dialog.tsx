@@ -25,7 +25,7 @@ export function UserDeleteDialog({ open, onOpenChange, user, onDeleted }: UserDe
     if (!user) return;
     await remove.mutateAsync(user.id);
     onOpenChange(false);
-    toast.add({ title: "User deleted", type: "success" });
+    toast.add({ title: "User Deleted", type: "success" });
     onDeleted?.();
   }
 

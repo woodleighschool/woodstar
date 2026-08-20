@@ -104,7 +104,7 @@ export function ConfigurationListPage() {
     <DataTableEmpty
       icon={<FileSliders />}
       filtered={tableSearch.isFiltered}
-      title="No client configurations"
+      title="No Client Configurations"
       description="Create a configuration for Santa clients."
       filteredDescription="No configurations matched the current filters."
     />
@@ -332,7 +332,7 @@ function ConfigurationReorder({
       ordered.map((row) => row.id),
       {
         onSuccess: () => {
-          toast.add({ title: "Saved order", type: "success" });
+          toast.add({ title: "Saved Order", type: "success" });
           onDone();
         },
         onError: () => setOrdered(rows),
@@ -409,7 +409,7 @@ function ReorderWarningDialog({
     <ConfirmDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Reorder configurations?"
+      title="Reorder Configurations?"
       description="Santa uses the first matching configuration for each host. Reordering can change client behavior immediately."
       confirmLabel="Continue"
       onConfirm={onConfirm}

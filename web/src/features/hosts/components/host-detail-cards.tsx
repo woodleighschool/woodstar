@@ -104,7 +104,7 @@ export function HostIdentityCard({ host }: { host: HostDetail }) {
           canEdit ? (
             <Button type="button" variant="outline" size="sm" onClick={() => setDialogOpen(true)}>
               {hasManualSource ? <Pencil /> : <UserPlus />}
-              {hasManualSource ? "Edit user" : "Set user"}
+              {hasManualSource ? "Edit User" : "Set User"}
             </Button>
           ) : null
         }
@@ -407,7 +407,7 @@ function CertificateDetailsDialog({
                 ["Issued", formatDate(certificate.not_valid_before, { month: "short" })],
                 ["Expires", formatDate(certificate.not_valid_after, { month: "short" })],
                 [
-                  "Certificate authority",
+                  "Certificate Authority",
                   <BooleanIndicator
                     key="certificate-authority"
                     value={certificate.certificate_authority}
@@ -427,7 +427,7 @@ function CertificateDetailsDialog({
             <CertificateDetailSection
               title="Signature and Keychain"
               rows={[
-                ["Signing algorithm", certificate.signing_algorithm],
+                ["Signing Algorithm", certificate.signing_algorithm],
                 ["Keychain", certificateSourceLabel(certificate.source)],
                 ["Username", certificate.username],
               ]}
@@ -472,8 +472,8 @@ function certificateNameRows(name: HostCertificate["subject"]): Array<[string, R
   return [
     ["Country", name.country],
     ["Organization", name.organization],
-    ["Organizational unit", name.organizational_unit],
-    ["Common name", name.common_name],
+    ["Organizational Unit", name.organizational_unit],
+    ["Common Name", name.common_name],
   ];
 }
 function diskPercent(host: Host) {

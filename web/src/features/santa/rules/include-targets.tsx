@@ -124,7 +124,7 @@ export function SantaIncludeTargets({
           </Table>
         </TableSurface>
       ) : (
-        <PanelEmptyState>No includes yet</PanelEmptyState>
+        <PanelEmptyState>No Includes Yet</PanelEmptyState>
       )}
 
       {dialog ? (

@@ -21,11 +21,11 @@ export function RecentOsqueryActivityCard() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Recent activity</CardTitle>
+        <CardTitle>Recent Activity</CardTitle>
         <CardDescription>Enrollments and administrator actions related to osquery.</CardDescription>
         <CardAction>
           <Button variant="outline" size="sm" render={<Link to="/activity" />} nativeButton={false}>
-            View all
+            View All
           </Button>
         </CardAction>
       </CardHeader>
@@ -47,7 +47,7 @@ export function RecentOsqueryActivityCard() {
         ) : (
           <Empty className="min-h-40">
             <EmptyHeader>
-              <EmptyTitle>No osquery activity yet</EmptyTitle>
+              <EmptyTitle>No osquery Activity Yet</EmptyTitle>
               <EmptyDescription>
                 Enrollments and administrative changes will appear here.
               </EmptyDescription>

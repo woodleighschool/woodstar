@@ -66,7 +66,7 @@ export function MunkiSoftwareDetailPage() {
   if (softwareID === null) {
     return (
       <QueryGate
-        title="Failed to load software"
+        title="Failed to Load Software"
         error={{ message: "Software route is invalid." }}
       />
     );
@@ -74,7 +74,7 @@ export function MunkiSoftwareDetailPage() {
   if (query.error || !query.data) {
     return (
       <QueryGate
-        title="Failed to load software"
+        title="Failed to Load Software"
         error={query.error}
         onRetry={() => void query.refetch()}
       />
@@ -139,7 +139,7 @@ export function MunkiSoftwareDetailPage() {
         heading="Packages"
         columns={packageColumns}
         data={software.packages}
-        empty={<PanelEmptyState>No packages yet</PanelEmptyState>}
+        empty={<PanelEmptyState>No Packages Yet</PanelEmptyState>}
       />
 
       <MunkiSoftwareDeleteDialog

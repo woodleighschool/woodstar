@@ -142,7 +142,7 @@ function SoftwareCombobox({
         {...control}
         id="munki-package-software"
         className="w-full"
-        placeholder="Select software"
+        placeholder="Select Software"
         aria-busy={loading}
         showTrigger={!loading}
         onBlur={onBlur}

@@ -19,7 +19,7 @@ export function LabelTargetSetEditor({
       <LabelAssignmentList
         title="Include"
         addLabel="Add Include"
-        emptyText="No includes yet"
+        emptyText="No Includes Yet"
         rows={targetSet.include}
         crossListLabelIDs={excludeLabelIDs}
         includeBuiltins={includeBuiltins}
@@ -28,7 +28,7 @@ export function LabelTargetSetEditor({
       <LabelAssignmentList
         title="Exclude"
         addLabel="Add Exclude"
-        emptyText="No excludes yet"
+        emptyText="No Excludes Yet"
         rows={targetSet.exclude}
         crossListLabelIDs={includeLabelIDs}
         includeBuiltins={includeBuiltins}

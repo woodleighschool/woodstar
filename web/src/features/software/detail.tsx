@@ -79,7 +79,7 @@ function SoftwareSigningIdentities({ title }: { title: SoftwareTitle }) {
   if (identities.length === 0) return null;
 
   return (
-    <TableSurface heading="Signing identities">
+    <TableSurface heading="Signing Identities">
       <Table>
         <TableHeader>
           <TableRow>
@@ -116,7 +116,7 @@ function SoftwareVersions({ title }: { title: SoftwareTitle }) {
   return (
     <TableSurface
       heading="Versions"
-      empty={versions.length ? undefined : <PanelEmptyState>No versions yet</PanelEmptyState>}
+      empty={versions.length ? undefined : <PanelEmptyState>No Versions Yet</PanelEmptyState>}
     >
       <Table>
         <TableHeader>
@@ -129,7 +129,7 @@ function SoftwareVersions({ title }: { title: SoftwareTitle }) {
           {versions.map((version) => (
             <TableRow key={version.id}>
               <TableCell className="font-medium tabular-nums">
-                {version.version || "Unknown version"}
+                {version.version || "Unknown Version"}
               </TableCell>
               <TableCell className="text-right tabular-nums">
                 <TextLink

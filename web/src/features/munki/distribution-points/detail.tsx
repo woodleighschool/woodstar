@@ -52,7 +52,7 @@ export function DistributionPointDetailPage() {
   async function rotateKey() {
     const result = await rotate.mutateAsync(point.id);
     setRotatedKey(result.key);
-    toast.add({ title: "Key rotated", type: "success" });
+    toast.add({ title: "Key Rotated", type: "success" });
   }
   return (
     <PageShell className="gap-6">

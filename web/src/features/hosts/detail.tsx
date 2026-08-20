@@ -73,7 +73,7 @@ export function HostDetailPage() {
   if (query.error || !host) {
     return (
       <QueryGate
-        title="Failed to load host"
+        title="Failed to Load Host"
         error={query.error}
         onRetry={() => void query.refetch()}
       />
@@ -102,8 +102,8 @@ export function HostDetailPage() {
                       {refresh.isPending
                         ? "Requesting…"
                         : host.inventory_refresh_requested
-                          ? "Refresh requested"
-                          : "Refresh inventory"}
+                          ? "Refresh Requested"
+                          : "Refresh Inventory"}
                     </DropdownMenuItem>
                     <DropdownMenuItem variant="destructive" onClick={() => setDeleteOpen(true)}>
                       <Trash2 />

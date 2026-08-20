@@ -78,13 +78,13 @@ export function InstallerFileField({
       {(field) => (
         <ValidatedFormField
           field={field}
-          label="Installer file"
+          label="Installer File"
           htmlFor="munki-package-installer-file"
           required={!metadata}
         >
           {(control) => {
             const file = field.state.value;
-            const filename = file?.name ?? metadata?.filename ?? "Choose an installer";
+            const filename = file?.name ?? metadata?.filename ?? "Choose an Installer";
             const description = file
               ? `${filesize(file.size)} selected`
               : metadata
@@ -157,7 +157,7 @@ export function ArchitectureEditor({
       <FieldGroup data-slot="checkbox-group">
         <CheckboxControl
           id="munki-package-arch-arm64"
-          label="Apple silicon"
+          label="Apple Silicon"
           checked={values.includes("arm64")}
           onChange={(checked) => onChange(toggleArray(values, "arm64", checked))}
         />
@@ -203,7 +203,7 @@ export function BlockingApplicationsEditor({ form }: { form: PackageEditorForm }
                             />
                             <FieldContent>
                               <FieldLabel htmlFor="munki-package-blocking-applications-none">
-                                No blocking applications
+                                No Blocking Applications
                               </FieldLabel>
                               <FieldDescription>
                                 Install without checking for open applications.
@@ -226,7 +226,7 @@ export function BlockingApplicationsEditor({ form }: { form: PackageEditorForm }
                             className="w-fit"
                             onClick={() => field.pushValue(emptyStringRow())}
                           >
-                            Add application
+                            Add Application
                           </Button>
                         </>
                       )}
@@ -315,7 +315,7 @@ export function InstallerEnvironmentEditor({
           </div>
         ))}
         <Button type="button" variant="outline" size="sm" className="w-fit" onClick={onAdd}>
-          Add variable
+          Add Variable
         </Button>
       </FieldGroup>
     </FieldSet>
@@ -439,7 +439,7 @@ export function InstallsTable({
         </TableSurface>
       ) : null}
       <Button type="button" variant="outline" size="sm" className="w-fit" onClick={onAdd}>
-        Add install item
+        Add Install Item
       </Button>
     </FieldSet>
   );
@@ -525,7 +525,7 @@ export function ReceiptsTable({
         </TableSurface>
       ) : null}
       <Button type="button" variant="outline" size="sm" className="w-fit" onClick={onAdd}>
-        Add receipt
+        Add Receipt
       </Button>
     </FieldSet>
   );
@@ -660,7 +660,7 @@ export function ItemsToCopyEditor({
           </div>
         ))}
         <Button type="button" variant="outline" size="sm" className="w-fit" onClick={onAdd}>
-          Add copy item
+          Add Copy Item
         </Button>
       </FieldGroup>
     </FieldSet>

@@ -318,7 +318,7 @@ function ReportRunResults({ snapshots }: { snapshots: LiveQuerySnapshot[] }) {
       renderSubRow={(row) => (
         <SnapshotResultRows rows={row.original.rows} columnNames={columnNames} />
       )}
-      empty={<RunEmptyState text="No targeted hosts" />}
+      empty={<RunEmptyState text="No Targeted Hosts" />}
     />
   );
 }
@@ -329,7 +329,7 @@ function PolicyRunResults({ snapshots }: { snapshots: LiveQuerySnapshot[] }) {
       columns={livePolicyResultColumns}
       data={rows}
       getRowId={(row) => String(row.host_id)}
-      empty={<RunEmptyState text="No targeted hosts" />}
+      empty={<RunEmptyState text="No Targeted Hosts" />}
     />
   );
 }
@@ -362,7 +362,7 @@ function TargetPicker({
             value={selectedLabelIDs}
             onChange={onLabelIDsChange}
             includeBuiltins
-            placeholder="Add label"
+            placeholder="Add Label"
           />
         </Field>
         <HostCombobox
@@ -416,7 +416,7 @@ function HostCombobox({
                 {selected.map((host) => (
                   <ComboboxChip key={host.id}>{host.display_name}</ComboboxChip>
                 ))}
-                <ComboboxChipsInput id="live-host-targets" placeholder="Add host" />
+                <ComboboxChipsInput id="live-host-targets" placeholder="Add Host" />
               </>
             )}
           </ComboboxValue>

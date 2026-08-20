@@ -23,7 +23,7 @@ export function ReportDeleteDialog({
     if (!report) return;
     await remove.mutateAsync(report.id);
     onOpenChange(false);
-    toast.add({ title: "Report deleted", type: "success" });
+    toast.add({ title: "Report Deleted", type: "success" });
     onDeleted?.();
   }
 

@@ -28,12 +28,12 @@ export function UserDetailPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   if (id === null) {
-    return <QueryGate title="Failed to load user" error={{ message: "User route is invalid." }} />;
+    return <QueryGate title="Failed to Load User" error={{ message: "User route is invalid." }} />;
   }
   if (query.error || !query.data) {
     return (
       <QueryGate
-        title="Failed to load user"
+        title="Failed to Load User"
         error={query.error}
         onRetry={() => void query.refetch()}
       />

@@ -47,7 +47,7 @@ export function HostStatusChart() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Hosts online</CardTitle>
+        <CardTitle>Hosts Online</CardTitle>
         <CardDescription>
           {latest
             ? `${latest.online_count.toLocaleString()} online of ${(
@@ -128,7 +128,7 @@ function HistoryEmpty() {
   return (
     <Empty className="min-h-72">
       <EmptyHeader>
-        <EmptyTitle>No host history yet</EmptyTitle>
+        <EmptyTitle>No Host History Yet</EmptyTitle>
         <EmptyDescription>
           The first five-minute snapshot will appear here shortly.
         </EmptyDescription>

@@ -21,7 +21,7 @@ export function RuleDeleteDialog({
     if (!rule) return;
     await remove.mutateAsync(rule.id);
     onOpenChange(false);
-    toast.add({ title: "Rule deleted", type: "success" });
+    toast.add({ title: "Rule Deleted", type: "success" });
     onDeleted?.();
   }
 
@@ -29,7 +29,7 @@ export function RuleDeleteDialog({
     <ConfirmDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Delete rule?"
+      title="Delete Rule?"
       description={
         rule
           ? `${rule.name} will stop syncing to targeted Santa clients.`

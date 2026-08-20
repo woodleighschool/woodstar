@@ -36,7 +36,7 @@ export function KeyRevealDialog({
   async function copyKey() {
     try {
       await navigator.clipboard.writeText(value);
-      toast.add({ title: "Key copied.", type: "success" });
+      toast.add({ title: "Key Copied", type: "success" });
     } catch {
       toast.add({ title: "Could not copy to clipboard.", type: "error" });
     }

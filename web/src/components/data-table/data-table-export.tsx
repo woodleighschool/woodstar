@@ -70,7 +70,7 @@ export function DataTableExport<TData extends DataTableRowData>({
       link.remove();
       URL.revokeObjectURL(url);
     } catch {
-      toast.add({ title: "Failed to export CSV", type: "error" });
+      toast.add({ title: "Failed to Export CSV", type: "error" });
     } finally {
       setIsExporting(false);
     }

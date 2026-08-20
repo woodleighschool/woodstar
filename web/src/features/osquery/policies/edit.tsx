@@ -49,14 +49,14 @@ export function PolicyEditPage() {
 
   if (id === null) {
     return (
-      <QueryGate title="Failed to load policy" error={{ message: "Policy route is invalid." }} />
+      <QueryGate title="Failed to Load Policy" error={{ message: "Policy route is invalid." }} />
     );
   }
 
   if (detail.error || remediationSource.error || !detail.data || !remediationSource.data) {
     return (
       <QueryGate
-        title="Failed to load policy"
+        title="Failed to Load Policy"
         error={detail.error ?? remediationSource.error}
         onRetry={() => {
           void detail.refetch();

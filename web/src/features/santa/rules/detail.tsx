@@ -30,13 +30,13 @@ export function RuleDetailPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   if (id === null) {
-    return <QueryGate title="Failed to load rule" error={{ message: "Rule route is invalid." }} />;
+    return <QueryGate title="Failed to Load Rule" error={{ message: "Rule route is invalid." }} />;
   }
 
   if (query.error || !query.data) {
     return (
       <QueryGate
-        title="Failed to load rule"
+        title="Failed to Load Rule"
         error={query.error}
         onRetry={() => void query.refetch()}
       />

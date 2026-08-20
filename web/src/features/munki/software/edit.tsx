@@ -91,7 +91,7 @@ export function MunkiSoftwareEditPage() {
   if (softwareID === null) {
     return (
       <QueryGate
-        title="Failed to load software"
+        title="Failed to Load Software"
         error={{ message: "Software route is invalid." }}
       />
     );
@@ -99,7 +99,7 @@ export function MunkiSoftwareEditPage() {
   if (query.error || !query.data) {
     return (
       <QueryGate
-        title="Failed to load software"
+        title="Failed to Load Software"
         error={query.error}
         onRetry={() => void query.refetch()}
       />
@@ -238,7 +238,7 @@ function MunkiSoftwareDetailForm({
                     <LabelAssignmentList
                       title="Exclude"
                       addLabel="Add Exclude"
-                      emptyText="No excludes yet"
+                      emptyText="No Excludes Yet"
                       rows={field.state.value.exclude}
                       crossListLabelIDs={includeLabelIDs}
                       includeBuiltins={false}
@@ -272,7 +272,7 @@ function MunkiSoftwareDetailForm({
           {packages.length > 0 ? (
             <DataTableStatic columns={packageColumns} data={packages} />
           ) : (
-            <PanelEmptyState>No packages yet</PanelEmptyState>
+            <PanelEmptyState>No Packages Yet</PanelEmptyState>
           )}
         </div>
       ),

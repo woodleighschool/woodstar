@@ -80,7 +80,7 @@ export function useCreateMunkiSoftware() {
   return useMutation<MunkiSoftwareDetail, ApiError, MunkiCreateMutation>({
     mutationFn: (body) => unwrap(createMunkiSoftware({ body })),
     onSuccess: async () => {
-      toast.add({ title: "Software created", type: "success" });
+      toast.add({ title: "Software Created", type: "success" });
       await queryClient.invalidateQueries({ queryKey: munkiSoftwareKeys.root });
     },
   });
@@ -91,7 +91,7 @@ export function useUpdateMunkiSoftware() {
   return useMutation<MunkiSoftwareDetail, ApiError, { id: number; body: MunkiUpdateMutation }>({
     mutationFn: ({ id, body }) => unwrap(updateMunkiSoftware({ path: { id }, body })),
     onSuccess: async () => {
-      toast.add({ title: "Software saved", type: "success" });
+      toast.add({ title: "Software Saved", type: "success" });
       await invalidateMunkiCatalog(queryClient);
     },
   });
@@ -126,8 +126,8 @@ export function useUploadMunkiIcon() {
   const queryClient = useQueryClient();
   return useUpload<MunkiDirectUploadTarget, MunkiObjectView, IconUploadVariables>({
     mutationKey: ["munki-icon-upload"],
-    loadingText: "Uploading icon",
-    successText: "Icon uploaded",
+    loadingText: "Uploading Icon",
+    successText: "Icon Uploaded",
     errorSurface: "inline",
     createIntent: ({ file }) => unwrap(createMunkiIconUpload({ body: { filename: file.name } })),
     uploadRequest: uploadRequestFromTarget,

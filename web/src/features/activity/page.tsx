@@ -28,7 +28,7 @@ export function ActivityPage() {
 
       {activity.error ? (
         <QueryError
-          title="Failed to load activity"
+          title="Failed to Load Activity"
           error={activity.error}
           onRetry={() => void activity.refetch()}
         />
@@ -70,7 +70,7 @@ export function ActivityPage() {
       ) : (
         <Empty className="min-h-64 border">
           <EmptyHeader>
-            <EmptyTitle>No activity yet</EmptyTitle>
+            <EmptyTitle>No Activity Yet</EmptyTitle>
             <EmptyDescription>
               Administrator actions and agent enrollments will appear here.
             </EmptyDescription>

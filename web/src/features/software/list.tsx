@@ -71,7 +71,7 @@ export function SoftwareListPage() {
 
       {query.error ? (
         <QueryError
-          title="Failed to load software"
+          title="Failed to Load Software"
           error={query.error}
           onRetry={() => void query.refetch()}
         />
@@ -85,7 +85,7 @@ export function SoftwareListPage() {
             <DataTableEmpty
               icon={<Package />}
               filtered={tableSearch.isFiltered}
-              title="No observed software"
+              title="No Observed Software"
               description="Inventory appears after hosts refresh."
               filteredDescription="No titles matched the current filters."
             />

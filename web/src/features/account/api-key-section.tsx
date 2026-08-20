@@ -28,18 +28,18 @@ export function APIKeySection({ account }: { account: Account }) {
       await navigator.clipboard.writeText(apiKey);
       toast.add({ title: "Copied", type: "success" });
     } catch {
-      toast.add({ title: "Copy failed", type: "error" });
+      toast.add({ title: "Copy Failed", type: "error" });
     }
   }
   async function handleRotate() {
     await rotate.mutateAsync();
     setConfirmRotate(false);
-    toast.add({ title: "API key rotated", type: "success" });
+    toast.add({ title: "API Key Rotated", type: "success" });
   }
   async function handleRevoke() {
     await revoke.mutateAsync();
     setConfirmRevoke(false);
-    toast.add({ title: "API key revoked", type: "success" });
+    toast.add({ title: "API Key Revoked", type: "success" });
   }
   return (
     <section className="flex max-w-3xl flex-col gap-4 border-t pt-6">

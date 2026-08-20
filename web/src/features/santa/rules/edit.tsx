@@ -19,13 +19,13 @@ export function RuleEditPage() {
   const update = useUpdateSantaRule();
 
   if (id === null) {
-    return <QueryGate title="Failed to load rule" error={{ message: "Rule route is invalid." }} />;
+    return <QueryGate title="Failed to Load Rule" error={{ message: "Rule route is invalid." }} />;
   }
 
   if (detail.error || !detail.data) {
     return (
       <QueryGate
-        title="Failed to load rule"
+        title="Failed to Load Rule"
         error={detail.error}
         onRetry={() => void detail.refetch()}
       />

@@ -104,7 +104,7 @@ export function AgentSecretsDialog({
 
         {query.error ? (
           <QueryError
-            title="Failed to load secrets"
+            title="Failed to Load Secrets"
             error={query.error}
             onRetry={() => void query.refetch()}
           />
@@ -137,7 +137,7 @@ function SecretManager({ agent, rows }: { agent: SecretAgent; rows: AgentSecret[
   return (
     <div className="grid gap-3">
       {rows.length === 0 && activeRow?.kind !== "create" ? (
-        <PanelEmptyState>No secrets yet</PanelEmptyState>
+        <PanelEmptyState>No Secrets Yet</PanelEmptyState>
       ) : null}
 
       <ItemGroup>

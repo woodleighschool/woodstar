@@ -100,7 +100,7 @@ export function DataTableFacetedFilter<TData extends DataTableRowData, TValue>({
           showTrigger={false}
           placeholder={title ? `Search ${title.toLowerCase()}...` : "Search..."}
         />
-        <ComboboxEmpty>No results found.</ComboboxEmpty>
+        <ComboboxEmpty>No Results Found</ComboboxEmpty>
         <ComboboxList className="max-h-72">
           {(value) => {
             const option = optionsByValue.get(value);

@@ -94,7 +94,7 @@ export function PolicyListPage() {
       />
       {query.error ? (
         <QueryError
-          title="Failed to load policies"
+          title="Failed to Load Policies"
           error={query.error}
           onRetry={() => void query.refetch()}
         />
@@ -117,7 +117,7 @@ export function PolicyListPage() {
             <DataTableEmpty
               icon={<ShieldCheck />}
               filtered={tableSearch.isFiltered}
-              title="No health policies"
+              title="No Health Policies"
               description="Create a policy from SQL."
               filteredDescription="No policies matched the current search."
             />

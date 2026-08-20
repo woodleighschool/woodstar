@@ -82,7 +82,7 @@ export function useCreateMunkiPackage() {
   >({
     mutationFn: ({ body, signal }) => unwrap(createMunkiPackage({ body, signal })),
     onSuccess: async () => {
-      toast.add({ title: "Package created", type: "success" });
+      toast.add({ title: "Package Created", type: "success" });
       await queryClient.invalidateQueries({ queryKey: munkiRoot });
     },
   });
@@ -98,7 +98,7 @@ export function useUpdateMunkiPackage() {
     mutationFn: ({ id, body, signal }) =>
       unwrap(updateMunkiPackage({ path: { id }, body, signal })),
     onSuccess: async () => {
-      toast.add({ title: "Package saved", type: "success" });
+      toast.add({ title: "Package Saved", type: "success" });
       await queryClient.invalidateQueries({ queryKey: munkiRoot });
     },
   });
@@ -123,8 +123,8 @@ export function useDeleteMunkiPackage() {
 export function useUploadMunkiInstaller() {
   return useUpload<MunkiPackageInstallerUploadTarget, MunkiObjectView, PackageUploadVariables>({
     mutationKey: ["munki-installer-upload"],
-    loadingText: "Uploading installer",
-    successText: "Installer uploaded",
+    loadingText: "Uploading Installer",
+    successText: "Installer Uploaded",
     createIntent: ({ file }) =>
       unwrap(createMunkiPackageInstallerUpload({ body: { filename: file.name } })),
     uploadRequest: uploadRequestFromTarget,

@@ -61,7 +61,7 @@ export function useCreateSantaRule() {
   return useMutation<SantaRule, ApiError, SantaRuleMutation>({
     mutationFn: (body) => unwrap(createSantaRule({ body })),
     onSuccess: async () => {
-      toast.add({ title: "Rule created", type: "success" });
+      toast.add({ title: "Rule Created", type: "success" });
       await queryClient.invalidateQueries({ queryKey: ruleKeys.all });
     },
   });
@@ -72,7 +72,7 @@ export function useUpdateSantaRule() {
   return useMutation<SantaRule, ApiError, { id: number; body: SantaRuleMutation }>({
     mutationFn: ({ id, body }) => unwrap(updateSantaRule({ path: { id }, body })),
     onSuccess: async () => {
-      toast.add({ title: "Rule saved", type: "success" });
+      toast.add({ title: "Rule Saved", type: "success" });
       await queryClient.invalidateQueries({ queryKey: ruleKeys.all });
     },
   });

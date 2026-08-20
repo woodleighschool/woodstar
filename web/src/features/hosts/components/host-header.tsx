@@ -19,7 +19,7 @@ export function HostHeader({ host, actions }: { host: Host; actions?: ReactNode 
             Last fetched {formatRelative(host.inventory_updated_at)}
           </span>
         ) : (
-          "Never fetched"
+          "Never Fetched"
         )
       }
     />

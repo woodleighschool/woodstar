@@ -34,7 +34,7 @@ export function SantaEventDetailPage() {
   if (query.error || !query.data) {
     return (
       <QueryGate
-        title="Failed to load event"
+        title="Failed to Load Event"
         error={query.error}
         onRetry={() => void query.refetch()}
       />

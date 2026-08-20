@@ -152,7 +152,7 @@ export function useCreatePolicy() {
   return useMutation<OsqueryPolicy, ApiError, OsqueryPolicyMutation>({
     mutationFn: (body) => unwrap(createOsqueryPolicy({ body })),
     onSuccess: async () => {
-      toast.add({ title: "Policy created", type: "success" });
+      toast.add({ title: "Policy Created", type: "success" });
       await queryClient.invalidateQueries({ queryKey: policyKeys.all });
     },
   });
@@ -175,7 +175,7 @@ export function useUpdatePolicy(id: number | null) {
         queryClient.removeQueries({ queryKey: policyKeys.resultsRoot(id) });
       }
       toast.add({
-        title: queryChanged ? "Policy saved and results cleared" : "Policy saved",
+        title: queryChanged ? "Policy saved and results cleared" : "Policy Saved",
         type: "success",
       });
       await queryClient.invalidateQueries({ queryKey: policyKeys.all });

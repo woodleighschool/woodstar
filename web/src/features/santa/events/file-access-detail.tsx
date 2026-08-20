@@ -100,7 +100,7 @@ export function SantaFileAccessEventDetailPage() {
 
         <TabsContent value="process-chain">
           {processChain.length === 0 ? (
-            <PanelEmptyState>No process chain</PanelEmptyState>
+            <PanelEmptyState>No Process Chain</PanelEmptyState>
           ) : (
             <TableSurface>
               <Table>

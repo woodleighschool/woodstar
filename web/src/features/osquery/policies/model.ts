@@ -88,5 +88,5 @@ export const REMEDIATION_STATUS_FILTER_OPTIONS = [
     label: REMEDIATION_RUN_STATUSES[status].name,
     value: status,
   })),
-  { label: "Not run", value: "not_run" },
+  { label: "Not Run", value: "not_run" },
 ] satisfies { label: string; value: RemediationStatusFilter }[];

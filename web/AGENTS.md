@@ -38,6 +38,7 @@ Frontend guidance for Woodstar.
 - The backend owns API collection search, filtering, sorting, and pagination. React renders the returned projection.
 - Forms use TanStack Form, zod schemas, and the existing form-field/action components.
 - Use CSS variable tokens and existing primitives. Avoid hardcoded palette values, nested card clutter, and long operational copy.
+- Use Title Case for short visible UI strings, generally four words or fewer, including headings, title surfaces, controls, and empty states. Preserve official product styling such as `osquery`.
 - Use effects only for external synchronization. Keep user-driven behavior in event handlers and derive render state directly.
 
 ## Checks

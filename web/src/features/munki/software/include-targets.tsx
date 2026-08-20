@@ -180,7 +180,7 @@ export function MunkiIncludeTargets({
           </TableSurface>
         </DraggableTableRows>
       ) : (
-        <PanelEmptyState>No includes yet</PanelEmptyState>
+        <PanelEmptyState>No Includes Yet</PanelEmptyState>
       )}
 
       {dialog ? (

@@ -188,7 +188,7 @@ function SidebarUserMenu() {
   const { isMobile } = useSidebar();
   const { user } = useAuth();
   const logout = useLogout();
-  const label = nonEmpty(user?.name) ?? nonEmpty(user?.email) ?? "Signed out";
+  const label = nonEmpty(user?.name) ?? nonEmpty(user?.email) ?? "Signed Out";
   return (
     <SidebarMenu>
       <SidebarMenuItem>
@@ -225,7 +225,7 @@ function SidebarUserMenu() {
                   <div className="grid flex-1 text-left text-sm/tight">
                     <span className="truncate font-medium">{label}</span>
                     <span className="truncate text-xs text-muted-foreground">
-                      {user?.email ?? "Not signed in"}
+                      {user?.email ?? "Not Signed In"}
                     </span>
                   </div>
                 </div>

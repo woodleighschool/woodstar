@@ -38,7 +38,7 @@ export function PolicyRemediationDialog({
 
         {query.error ? (
           <QueryError
-            title="Failed to load remediation"
+            title="Failed to Load Remediation"
             error={query.error}
             onRetry={() => void query.refetch()}
           />
