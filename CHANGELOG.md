@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.9.1](https://github.com/woodleighschool/woodstar/compare/0.9.0...0.9.1) (2026-08-20)
+
+
+### Features
+
+* add activity feed and osquery history ([#209](https://github.com/woodleighschool/woodstar/issues/209)) ([7a7f828](https://github.com/woodleighschool/woodstar/commit/7a7f8282d5d9db22d0e105e1f3c9cd28db9cb7d4))
+* **container:** update image golang (1.26.6 → 1.27.0) ([#216](https://github.com/woodleighschool/woodstar/issues/216)) ([a04dbb3](https://github.com/woodleighschool/woodstar/commit/a04dbb3ec1cec7d5206670174b79c20b134afb74))
+* **npm:** update dependency lucide-react (1.32.0 → 1.33.0) ([#220](https://github.com/woodleighschool/woodstar/issues/220)) ([fc63565](https://github.com/woodleighschool/woodstar/commit/fc635652616b54d86703939a2fa8e8945e9cbfe9))
+* **npm:** update dependency sass (1.102.0 → 1.103.0) ([#223](https://github.com/woodleighschool/woodstar/issues/223)) ([79a3311](https://github.com/woodleighschool/woodstar/commit/79a3311dbc261dda56493ba74570df976e0af337))
+
+
+### Bug Fixes
+
+* **go:** update module github.com/go-chi/chi/v5 (v5.3.1 → v5.3.2) ([#227](https://github.com/woodleighschool/woodstar/issues/227)) ([831a2f1](https://github.com/woodleighschool/woodstar/commit/831a2f13327c82dbe2f2ab459e6ad553454e70df))
+* **npm:** update dependency lucide-react (1.33.0 → 1.33.0) ([#229](https://github.com/woodleighschool/woodstar/issues/229)) ([d5f9463](https://github.com/woodleighschool/woodstar/commit/d5f9463305509746d0636b7ddc4a5df4b1f742cf))
+* **npm:** update tanstack-router monorepo ([#219](https://github.com/woodleighschool/woodstar/issues/219)) ([c50148b](https://github.com/woodleighschool/woodstar/commit/c50148bfae70ba91d517ee720d3cf95c0f6ec634))
+* **npm:** update tanstack-router monorepo ([#228](https://github.com/woodleighschool/woodstar/issues/228)) ([0556156](https://github.com/woodleighschool/woodstar/commit/05561560ddd335c95e7bae4cb6467535ee47abcc))
+* **pnpm:** regenerate mature lockfiles ([9b838a7](https://github.com/woodleighschool/woodstar/commit/9b838a7f9da003b126b30741257fd001f79f81d6))
+* **pnpm:** restore default release cooldown ([31bb7f9](https://github.com/woodleighschool/woodstar/commit/31bb7f91065f7e4fe00185d6f43505afcf953032))
+
 ## [0.9.0](https://github.com/woodleighschool/woodstar/compare/0.8.18...0.9.0) (2026-08-19)
 
 
