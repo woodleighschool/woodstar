@@ -3,4 +3,5 @@ allowBuilds:
   "@swc/core": true
   core-js: true
   postman-code-generators: false
-minimumReleaseAge: 720
+minimumReleaseAge: 1440
+minimumReleaseAgeStrict: false
