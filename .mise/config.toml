@@ -62,6 +62,14 @@ description = "Build web bundle and backend binary"
 depends = ["//web:build"]
 run = { task = "backend" }
 
+[tasks.docs]
+description = "Validate and build the docs site"
+run = [
+  { task = "//docs:fmt-check" },
+  { task = "//docs:lint" },
+  { task = "//docs:build" },
+]
+
 [tasks.backend]
 description = "Build backend binary"
 run = "go build -o woodstar ./cmd/woodstar"

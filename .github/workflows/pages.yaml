@@ -1,0 +1,33 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: Pages
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/docs.yaml"
+      - ".github/workflows/pages.yaml"
+      - ".mise/**"
+      - "docs/**"
+      - "web/openapi.yaml"
+  workflow_dispatch:
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  docs:
+    name: Docs
+    uses: ./.github/workflows/docs.yaml
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    with:
+      deploy: true

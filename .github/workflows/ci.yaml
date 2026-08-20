@@ -28,6 +28,15 @@ env:
   MISE_TASK_RUN_AUTO_INSTALL: "false"
 
 jobs:
+  docs:
+    if: ${{ github.event_name != 'push' }}
+    name: Docs
+    uses: ./.github/workflows/docs.yaml
+    permissions:
+      contents: read
+    with:
+      deploy: false
+
   workflow-lint:
     name: Workflow Lint
     runs-on: ubuntu-24.04
@@ -247,6 +256,7 @@ jobs:
     if: ${{ !cancelled() }}
     name: Build Success
     needs:
+      - docs
       - workflow-lint
       - backend
       - e2e
