@@ -123,7 +123,16 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Software, error) {
 	if id <= 0 {
 		return nil, fault.ErrNotFound
 	}
-	return getSoftwareByID(ctx, s.pool, id)
+	software, err := getSoftwareByID(ctx, s.pool, id)
+	if err != nil {
+		return nil, err
+	}
+	counts, err := s.loadSoftwareReportCounts(ctx, []int64{id})
+	if err != nil {
+		return nil, err
+	}
+	setSoftwareReportCounts(software, counts[id])
+	return software, nil
 }
 
 func (s *Store) Delete(ctx context.Context, id int64) error {
@@ -197,10 +206,24 @@ func (s *Store) List(ctx context.Context, params listing.Params) ([]Software, in
 		return nil, 0, err
 	}
 	software := make([]Software, len(rows))
+	ids := make([]int64, len(rows))
 	for i, row := range rows {
 		software[i] = softwareFromRow(row)
+		ids[i] = software[i].ID
+	}
+	counts, err := s.loadSoftwareReportCounts(ctx, ids)
+	if err != nil {
+		return nil, 0, err
+	}
+	for i := range software {
+		setSoftwareReportCounts(&software[i], counts[software[i].ID])
 	}
 	return software, count, nil
+}
+
+func setSoftwareReportCounts(software *Software, count softwareReportCount) {
+	software.ExpectedHostCount = count.Expected
+	software.InstalledHostCount = count.Installed
 }
 
 func (s *Store) validateIcon(ctx context.Context, objectID *int64) error {
