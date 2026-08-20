@@ -9579,7 +9579,7 @@ snapshots:
 
   '@types/sax@1.2.7':
     dependencies:
-      '@types/node': 17.0.45
+      '@types/node': 26.2.0
 
   '@types/send@0.17.6':
     dependencies:
@@ -12348,7 +12348,7 @@ snapshots:
       oas-kit-common: 1.0.8
       path-browserify: 1.0.1
       reftools: 1.1.9
-      yaml: 1.10.2
+      yaml: 1.10.3
       yargs: 17.7.3
 
   oas-resolver@2.5.6:
