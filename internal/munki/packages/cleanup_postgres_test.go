@@ -30,12 +30,10 @@ func TestPackageUpdateSucceedsWhenReplacedInstallerBytesCannotBeRemoved(t *testi
 	replacement := createAvailableInstaller(t, requestCtx, registry, "replacement.pkg")
 
 	pkg, err := store.Create(requestCtx, PackageCreateMutation{
-		SoftwareID: softwareID,
-		PackageMutation: PackageMutation{
-			Version:           "1.0.0",
-			InstallerType:     InstallerTypePkg,
-			InstallerObjectID: &oldInstaller.ID,
-		},
+		SoftwareID:        softwareID,
+		Version:           "1.0.0",
+		InstallerType:     InstallerTypePkg,
+		InstallerObjectID: &oldInstaller.ID,
 	})
 	if err != nil {
 		t.Fatalf("create package: %v", err)

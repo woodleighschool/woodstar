@@ -61,12 +61,10 @@ func TestMunkiPackageInstallerFileLifecycle(t *testing.T) {
 		path := fmt.Sprintf("%s/%d", munkiPackageInstallerPath, target.ObjectID)
 		assertStatus(t, fixture.request(t, http.MethodPut, path), http.StatusOK, "finalize claimed installer")
 		if _, err := fixture.packages.Create(t.Context(), packages.PackageCreateMutation{
-			SoftwareID: fixture.softwareID,
-			PackageMutation: packages.PackageMutation{
-				Version:           "2.0",
-				InstallerType:     packages.InstallerTypePkg,
-				InstallerObjectID: &target.ObjectID,
-			},
+			SoftwareID:        fixture.softwareID,
+			Version:           "2.0",
+			InstallerType:     packages.InstallerTypePkg,
+			InstallerObjectID: &target.ObjectID,
 		}); err != nil {
 			t.Fatalf("create package: %v", err)
 		}

@@ -493,35 +493,33 @@ type configurationRow struct {
 
 func configurationFromRow(row configurationRow) Configuration {
 	return Configuration{
-		ID:          row.ID,
-		Name:        row.Name,
-		Description: row.Description,
-		Position:    row.Position,
-		SyncSettings: SyncSettings{
-			ClientMode:                ClientMode(row.ClientMode),
-			EnableBundles:             row.EnableBundles,
-			EnableTransitiveRules:     row.EnableTransitiveRules,
-			EnableAllEventUpload:      row.EnableAllEventUpload,
-			DisableUnknownEventUpload: row.DisableUnknownEventUpload,
-			OverrideFileAccessAction:  FileAccessAction(row.OverrideFileAccessAction),
-			FullSyncIntervalSeconds:   row.FullSyncIntervalSeconds,
-			BatchSize:                 row.BatchSize,
-			AllowedPathRegex:          row.AllowedPathRegex,
-			BlockedPathRegex:          row.BlockedPathRegex,
-			RemovableMediaPolicy: removableMediaPolicyFromRow(
-				row.RemovableMediaAction,
-				row.RemovableMediaRemountFlags,
-			),
-			EncryptedRemovableMediaPolicy: removableMediaPolicyFromRow(
-				row.EncryptedRemovableMediaAction,
-				row.EncryptedRemovableMediaRemountFlags,
-			),
-			EventDetailURL:  row.EventDetailURL,
-			EventDetailText: row.EventDetailText,
-		},
-		Targets:   emptyConfigurationTargets(),
-		CreatedAt: row.CreatedAt,
-		UpdatedAt: row.UpdatedAt,
+		ID:                        row.ID,
+		Name:                      row.Name,
+		Description:               row.Description,
+		Position:                  row.Position,
+		ClientMode:                ClientMode(row.ClientMode),
+		EnableBundles:             row.EnableBundles,
+		EnableTransitiveRules:     row.EnableTransitiveRules,
+		EnableAllEventUpload:      row.EnableAllEventUpload,
+		DisableUnknownEventUpload: row.DisableUnknownEventUpload,
+		OverrideFileAccessAction:  FileAccessAction(row.OverrideFileAccessAction),
+		FullSyncIntervalSeconds:   row.FullSyncIntervalSeconds,
+		BatchSize:                 row.BatchSize,
+		AllowedPathRegex:          row.AllowedPathRegex,
+		BlockedPathRegex:          row.BlockedPathRegex,
+		RemovableMediaPolicy: removableMediaPolicyFromRow(
+			row.RemovableMediaAction,
+			row.RemovableMediaRemountFlags,
+		),
+		EncryptedRemovableMediaPolicy: removableMediaPolicyFromRow(
+			row.EncryptedRemovableMediaAction,
+			row.EncryptedRemovableMediaRemountFlags,
+		),
+		EventDetailURL:  row.EventDetailURL,
+		EventDetailText: row.EventDetailText,
+		Targets:         emptyConfigurationTargets(),
+		CreatedAt:       row.CreatedAt,
+		UpdatedAt:       row.UpdatedAt,
 	}
 }
 

@@ -122,7 +122,7 @@ func newUploadedEventFixture(t *testing.T) uploadedEventFixture {
 	}
 
 	items, _, err := eventStore.ListEvents(ctx, santaevents.ExecutionEventListParams{
-		EventListParams: santaevents.EventListParams{HostID: host.ID},
+		HostID: host.ID,
 	})
 	if err != nil {
 		t.Fatalf("list events: %v", err)
@@ -535,7 +535,7 @@ func TestEventUploadIngestsFileAccessEvents(t *testing.T) {
 	}
 
 	items, count, err := eventStore.ListFileAccessEvents(ctx, santaevents.FileAccessEventListParams{
-		EventListParams: santaevents.EventListParams{HostID: host.ID},
+		HostID: host.ID,
 	})
 	if err != nil {
 		t.Fatalf("list file access events: %v", err)
@@ -650,10 +650,8 @@ func TestEventListCursorFiltersAndRetention(t *testing.T) {
 	firstPage, count, err := eventStore.ListEvents(
 		ctx,
 		santaevents.ExecutionEventListParams{
-			EventListParams: santaevents.EventListParams{
-				HostID:     host.ID,
-				ListParams: listing.Params{PageSize: 2},
-			},
+			HostID:     host.ID,
+			ListParams: listing.Params{PageSize: 2},
 		},
 	)
 	if err != nil {
@@ -665,10 +663,8 @@ func TestEventListCursorFiltersAndRetention(t *testing.T) {
 	secondPage, _, err := eventStore.ListEvents(
 		ctx,
 		santaevents.ExecutionEventListParams{
-			EventListParams: santaevents.EventListParams{
-				HostID:     host.ID,
-				ListParams: listing.Params{PageSize: 2, PageIndex: 1},
-			},
+			HostID:     host.ID,
+			ListParams: listing.Params{PageSize: 2, PageIndex: 1},
 		},
 	)
 	if err != nil {
@@ -681,8 +677,8 @@ func TestEventListCursorFiltersAndRetention(t *testing.T) {
 	blocked, _, err := eventStore.ListEvents(
 		ctx,
 		santaevents.ExecutionEventListParams{
-			EventListParams: santaevents.EventListParams{HostID: host.ID},
-			Decisions:       []santaevents.DecisionFilter{santaevents.DecisionFilterBlocked},
+			HostID:    host.ID,
+			Decisions: []santaevents.DecisionFilter{santaevents.DecisionFilterBlocked},
 		},
 	)
 	if err != nil {
@@ -695,10 +691,8 @@ func TestEventListCursorFiltersAndRetention(t *testing.T) {
 	allowedBinary, _, err := eventStore.ListEvents(
 		ctx,
 		santaevents.ExecutionEventListParams{
-			EventListParams: santaevents.EventListParams{
-				ListParams: listing.Params{Q: "B"},
-			},
-			Decisions: []santaevents.DecisionFilter{santaevents.DecisionFilterAllowed, "block_certificate"},
+			ListParams: listing.Params{Q: "B"},
+			Decisions:  []santaevents.DecisionFilter{santaevents.DecisionFilterAllowed, "block_certificate"},
 		},
 	)
 	if err != nil {
@@ -716,7 +710,7 @@ func TestEventListCursorFiltersAndRetention(t *testing.T) {
 		t.Fatalf("deleted events = %d, want 2", deleted)
 	}
 	remaining, _, err := eventStore.ListEvents(ctx, santaevents.ExecutionEventListParams{
-		EventListParams: santaevents.EventListParams{HostID: host.ID},
+		HostID: host.ID,
 	})
 	if err != nil {
 		t.Fatalf("list remaining events: %v", err)

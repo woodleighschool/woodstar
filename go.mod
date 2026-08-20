@@ -1,6 +1,6 @@
 module github.com/woodleighschool/woodstar
 
-go 1.26.0
+go 1.27.0
 
 ignore node_modules/
 

@@ -176,11 +176,9 @@ func TestPackageCreateMutationRejectsInvalidSoftwareID(t *testing.T) {
 	t.Parallel()
 
 	m := PackageCreateMutation{
-		SoftwareID: -1,
-		PackageMutation: PackageMutation{
-			Version:       "1.0",
-			InstallerType: InstallerTypeNoPkg,
-		},
+		SoftwareID:    -1,
+		Version:       "1.0",
+		InstallerType: InstallerTypeNoPkg,
 	}
 	if err := m.validate(); !errors.Is(err, fault.ErrInvalidInput) {
 		t.Fatalf("validate() error = %v, want ErrInvalidInput", err)

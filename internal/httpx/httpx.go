@@ -85,8 +85,7 @@ func Decode[T any](w http.ResponseWriter, r *http.Request, maxBytes int64) (T, e
 }
 
 func WriteDecodeError(w http.ResponseWriter, err error) {
-	var tooLarge *http.MaxBytesError
-	if errors.As(err, &tooLarge) {
+	if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
 		WriteError(w, http.StatusRequestEntityTooLarge, "request body too large")
 		return
 	}

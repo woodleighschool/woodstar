@@ -64,24 +64,20 @@ type santaFileAccessEventGetOutput struct {
 
 func (input santaEventListInput) params() events.ExecutionEventListParams {
 	return events.ExecutionEventListParams{
-		EventListParams: events.EventListParams{
-			ListParams: input.Params(),
-			HostID:     input.HostID,
-			Since:      input.Since,
-		},
-		Decisions: input.Decisions,
-		User:      input.User,
+		ListParams: input.Params(),
+		HostID:     input.HostID,
+		Since:      input.Since,
+		Decisions:  input.Decisions,
+		User:       input.User,
 	}
 }
 
 func (input santaFileAccessEventListInput) params() events.FileAccessEventListParams {
 	return events.FileAccessEventListParams{
-		EventListParams: events.EventListParams{
-			ListParams: input.Params(),
-			HostID:     input.HostID,
-			Since:      input.Since,
-		},
-		Decisions: input.Decisions,
+		ListParams: input.Params(),
+		HostID:     input.HostID,
+		Since:      input.Since,
+		Decisions:  input.Decisions,
 	}
 }
 

@@ -36,12 +36,10 @@ func TestPreflightResponseEmitsConcreteConfigurationSettings(t *testing.T) {
 	response, err := preflightResponseToProto(santa.PreflightResponse{
 		SyncType: syncstate.SyncTypeClean,
 		Configuration: &configurations.Configuration{
-			SyncSettings: configurations.SyncSettings{
-				ClientMode:               configurations.ClientModeMonitor,
-				OverrideFileAccessAction: configurations.FileAccessActionNone,
-				FullSyncIntervalSeconds:  600,
-				BatchSize:                50,
-			},
+			ClientMode:               configurations.ClientModeMonitor,
+			OverrideFileAccessAction: configurations.FileAccessActionNone,
+			FullSyncIntervalSeconds:  600,
+			BatchSize:                50,
 		},
 	})
 	if err != nil {

@@ -26,12 +26,11 @@ func TestListIncludesTargets(t *testing.T) {
 	labelB := createManualLabel(t, ctx, labelStore, "Report B")
 	labelC := createManualLabel(t, ctx, labelStore, "Report C")
 
-	if _, err := store.Create(ctx, ReportCreateMutation{ReportMutation: ReportMutation{
+	if _, err := store.Create(ctx, ReportCreateMutation{
 		Name:             "Targeted report",
 		Query:            "select 1;",
 		ScheduleInterval: 60,
-		Targets:          reportTargets([]int64{labelB.ID, labelA.ID}, []int64{labelC.ID}),
-	}}); err != nil {
+		Targets:          reportTargets([]int64{labelB.ID, labelA.ID}, []int64{labelC.ID})}); err != nil {
 		t.Fatalf("create report: %v", err)
 	}
 
@@ -55,9 +54,8 @@ func TestListCountsAndSortsCurrentHostStates(t *testing.T) {
 	}
 	targets := reportTargets([]int64{allHostsID}, nil)
 	create := func(name, query string) *Report {
-		report, err := store.Create(ctx, ReportCreateMutation{ReportMutation: ReportMutation{
-			Name: name, Query: query, ScheduleInterval: 60, Targets: targets,
-		}})
+		report, err := store.Create(ctx, ReportCreateMutation{
+			Name: name, Query: query, ScheduleInterval: 60, Targets: targets})
 		if err != nil {
 			t.Fatalf("create %s report: %v", name, err)
 		}
@@ -125,12 +123,11 @@ func TestUpdateReplacesTargets(t *testing.T) {
 	second := createManualLabel(t, ctx, labelStore, "Report second")
 	third := createManualLabel(t, ctx, labelStore, "Report third")
 
-	report, err := store.Create(ctx, ReportCreateMutation{ReportMutation: ReportMutation{
+	report, err := store.Create(ctx, ReportCreateMutation{
 		Name:             "Replacement report",
 		Query:            "select 1;",
 		ScheduleInterval: 60,
-		Targets:          reportTargets([]int64{first.ID, second.ID}, []int64{third.ID}),
-	}})
+		Targets:          reportTargets([]int64{first.ID, second.ID}, []int64{third.ID})})
 	if err != nil {
 		t.Fatalf("create report: %v", err)
 	}
@@ -166,28 +163,25 @@ func TestScheduledForHostUsesTargetRows(t *testing.T) {
 		t.Fatalf("set excluded label membership: %v", err)
 	}
 
-	if _, err := store.Create(ctx, ReportCreateMutation{ReportMutation: ReportMutation{
+	if _, err := store.Create(ctx, ReportCreateMutation{
 		Name:             "Matching scheduled report",
 		Query:            "select 1;",
 		ScheduleInterval: 60,
-		Targets:          reportTargets([]int64{matching.ID}, nil),
-	}}); err != nil {
+		Targets:          reportTargets([]int64{matching.ID}, nil)}); err != nil {
 		t.Fatalf("create matching report: %v", err)
 	}
-	if _, err := store.Create(ctx, ReportCreateMutation{ReportMutation: ReportMutation{
+	if _, err := store.Create(ctx, ReportCreateMutation{
 		Name:             "Nonmatching scheduled report",
 		Query:            "select 2;",
 		ScheduleInterval: 60,
-		Targets:          reportTargets([]int64{other.ID}, nil),
-	}}); err != nil {
+		Targets:          reportTargets([]int64{other.ID}, nil)}); err != nil {
 		t.Fatalf("create nonmatching report: %v", err)
 	}
-	if _, err := store.Create(ctx, ReportCreateMutation{ReportMutation: ReportMutation{
+	if _, err := store.Create(ctx, ReportCreateMutation{
 		Name:             "Excluded scheduled report",
 		Query:            "select 3;",
 		ScheduleInterval: 60,
-		Targets:          reportTargets([]int64{matching.ID}, []int64{excluded.ID}),
-	}}); err != nil {
+		Targets:          reportTargets([]int64{matching.ID}, []int64{excluded.ID})}); err != nil {
 		t.Fatalf("create excluded report: %v", err)
 	}
 
@@ -208,12 +202,11 @@ func TestScheduledForHostRequiresIncludeTarget(t *testing.T) {
 		t.Fatalf("set excluded label membership: %v", err)
 	}
 
-	if _, err := store.Create(ctx, ReportCreateMutation{ReportMutation: ReportMutation{
+	if _, err := store.Create(ctx, ReportCreateMutation{
 		Name:             "Exclude-only scheduled report",
 		Query:            "select 1;",
 		ScheduleInterval: 60,
-		Targets:          reportTargets(nil, []int64{excluded.ID}),
-	}}); err != nil {
+		Targets:          reportTargets(nil, []int64{excluded.ID})}); err != nil {
 		t.Fatalf("create exclude-only report: %v", err)
 	}
 
@@ -229,12 +222,11 @@ func TestScheduledForHostRequiresIncludeTarget(t *testing.T) {
 func TestCreateReportWithMissingLabelReturnsNotFound(t *testing.T) {
 	store, _, _, ctx := newPostgresReportStore(t)
 
-	_, err := store.Create(ctx, ReportCreateMutation{ReportMutation: ReportMutation{
+	_, err := store.Create(ctx, ReportCreateMutation{
 		Name:             "Missing label target",
 		Query:            "select 1;",
 		ScheduleInterval: 60,
-		Targets:          reportTargets([]int64{999_999}, nil),
-	}})
+		Targets:          reportTargets([]int64{999_999}, nil)})
 	if !errors.Is(err, fault.ErrNotFound) {
 		t.Fatalf("Create error = %v, want ErrNotFound", err)
 	}
@@ -245,30 +237,27 @@ func TestScheduledForHostUsesScheduleState(t *testing.T) {
 	host := enrollTestHostDetail(t, ctx, hostStore, "report-applicable-host")
 	allHostsID := allHostsLabelID(t, ctx, labelStore)
 
-	if _, err := store.Create(ctx, ReportCreateMutation{ReportMutation: ReportMutation{
+	if _, err := store.Create(ctx, ReportCreateMutation{
 		Name:              "Matching scheduled report",
 		Query:             "select 1;",
 		MinOsqueryVersion: new("5.0.0"),
 		ScheduleInterval:  60,
-		Targets:           reportTargets([]int64{allHostsID}, nil),
-	}}); err != nil {
+		Targets:           reportTargets([]int64{allHostsID}, nil)}); err != nil {
 		t.Fatalf("create matching report: %v", err)
 	}
-	if _, err := store.Create(ctx, ReportCreateMutation{ReportMutation: ReportMutation{
+	if _, err := store.Create(ctx, ReportCreateMutation{
 		Name:             "Unscheduled report",
 		Query:            "select 2;",
 		ScheduleInterval: 0,
-		Targets:          reportTargets([]int64{allHostsID}, nil),
-	}}); err != nil {
+		Targets:          reportTargets([]int64{allHostsID}, nil)}); err != nil {
 		t.Fatalf("create unscheduled report: %v", err)
 	}
-	if _, err := store.Create(ctx, ReportCreateMutation{ReportMutation: ReportMutation{
+	if _, err := store.Create(ctx, ReportCreateMutation{
 		Name:              "Version-gated scheduled report",
 		Query:             "select 4;",
 		MinOsqueryVersion: new("6.0.0"),
 		ScheduleInterval:  60,
-		Targets:           reportTargets([]int64{allHostsID}, nil),
-	}}); err != nil {
+		Targets:           reportTargets([]int64{allHostsID}, nil)}); err != nil {
 		t.Fatalf("create version-gated report: %v", err)
 	}
 
@@ -290,30 +279,27 @@ func TestHostSnapshotsIncludeCompleteLatestState(t *testing.T) {
 	allHostsID := allHostsLabelID(t, ctx, labelStore)
 	fetchedAt := time.Date(2026, 5, 14, 10, 30, 0, 0, time.UTC)
 
-	reportWithRows, err := store.Create(ctx, ReportCreateMutation{ReportMutation: ReportMutation{
+	reportWithRows, err := store.Create(ctx, ReportCreateMutation{
 		Name:             "Report with rows",
 		Query:            "select name from apps;",
 		ScheduleInterval: 60,
-		Targets:          reportTargets([]int64{allHostsID}, nil),
-	}})
+		Targets:          reportTargets([]int64{allHostsID}, nil)})
 	if err != nil {
 		t.Fatalf("create report with rows: %v", err)
 	}
-	reportEmpty, err := store.Create(ctx, ReportCreateMutation{ReportMutation: ReportMutation{
+	reportEmpty, err := store.Create(ctx, ReportCreateMutation{
 		Name:             "Report empty",
 		Query:            "select name from missing_apps;",
 		ScheduleInterval: 60,
-		Targets:          reportTargets([]int64{allHostsID}, nil),
-	}})
+		Targets:          reportTargets([]int64{allHostsID}, nil)})
 	if err != nil {
 		t.Fatalf("create empty report: %v", err)
 	}
-	reportOff, err := store.Create(ctx, ReportCreateMutation{ReportMutation: ReportMutation{
+	reportOff, err := store.Create(ctx, ReportCreateMutation{
 		Name:             "Report switched off",
 		Query:            "select name from apps;",
 		ScheduleInterval: 0,
-		Targets:          reportTargets([]int64{allHostsID}, nil),
-	}})
+		Targets:          reportTargets([]int64{allHostsID}, nil)})
 	if err != nil {
 		t.Fatalf("create disabled report: %v", err)
 	}
@@ -396,12 +382,11 @@ func TestSnapshotsIncludePendingTargets(t *testing.T) {
 	collectedHost := enrollTestHost(t, ctx, hostStore, "report-collected-host")
 	pendingHost := enrollTestHost(t, ctx, hostStore, "report-pending-host")
 	allHostsID := allHostsLabelID(t, ctx, labelStore)
-	report, err := store.Create(ctx, ReportCreateMutation{ReportMutation: ReportMutation{
+	report, err := store.Create(ctx, ReportCreateMutation{
 		Name:             "Coverage report",
 		Query:            "select name from apps;",
 		ScheduleInterval: 60,
-		Targets:          reportTargets([]int64{allHostsID}, nil),
-	}})
+		Targets:          reportTargets([]int64{allHostsID}, nil)})
 	if err != nil {
 		t.Fatalf("create report: %v", err)
 	}
@@ -472,12 +457,11 @@ func TestSnapshotsFilterAndSearchErrors(t *testing.T) {
 	errorHost := enrollTestHost(t, ctx, hostStore, "report-error-host")
 	_ = enrollTestHost(t, ctx, hostStore, "report-pending-host")
 	allHostsID := allHostsLabelID(t, ctx, labelStore)
-	report, err := store.Create(ctx, ReportCreateMutation{ReportMutation: ReportMutation{
+	report, err := store.Create(ctx, ReportCreateMutation{
 		Name:             "Error report",
 		Query:            "select * from app_sso_platform_info;",
 		ScheduleInterval: 60,
-		Targets:          reportTargets([]int64{allHostsID}, nil),
-	}})
+		Targets:          reportTargets([]int64{allHostsID}, nil)})
 	if err != nil {
 		t.Fatalf("create report: %v", err)
 	}
@@ -529,12 +513,11 @@ func TestSnapshotsSearchesParentAndPrunesNestedRows(t *testing.T) {
 	matchingHost := enrollTestHost(t, ctx, hostStore, "report-search-matching-host")
 	otherHost := enrollTestHost(t, ctx, hostStore, "report-search-other-host")
 	allHostsID := allHostsLabelID(t, ctx, labelStore)
-	report, err := store.Create(ctx, ReportCreateMutation{ReportMutation: ReportMutation{
+	report, err := store.Create(ctx, ReportCreateMutation{
 		Name:             "Searchable report",
 		Query:            "select command from shell_history;",
 		ScheduleInterval: 60,
-		Targets:          reportTargets([]int64{allHostsID}, nil),
-	}})
+		Targets:          reportTargets([]int64{allHostsID}, nil)})
 	if err != nil {
 		t.Fatalf("create report: %v", err)
 	}
@@ -617,12 +600,11 @@ func TestOverwriteSnapshotReplacesHostStateAndRejectsOlderObservations(t *testin
 	store, labelStore, hostStore, ctx := newPostgresReportStore(t)
 	host := enrollTestHost(t, ctx, hostStore, "report-overwrite-host")
 	allHostsID := allHostsLabelID(t, ctx, labelStore)
-	report, err := store.Create(ctx, ReportCreateMutation{ReportMutation: ReportMutation{
+	report, err := store.Create(ctx, ReportCreateMutation{
 		Name:             "Overwrite report",
 		Query:            "select name from apps;",
 		ScheduleInterval: 60,
-		Targets:          reportTargets([]int64{allHostsID}, nil),
-	}})
+		Targets:          reportTargets([]int64{allHostsID}, nil)})
 	if err != nil {
 		t.Fatalf("create report: %v", err)
 	}
@@ -685,12 +667,11 @@ func TestReportObservationOrderingAcrossResultsAndErrors(t *testing.T) {
 	store, labelStore, hostStore, ctx := newPostgresReportStore(t)
 	host := enrollTestHost(t, ctx, hostStore, "report-error-order-host")
 	allHostsID := allHostsLabelID(t, ctx, labelStore)
-	report, err := store.Create(ctx, ReportCreateMutation{ReportMutation: ReportMutation{
+	report, err := store.Create(ctx, ReportCreateMutation{
 		Name:             "Error ordering report",
 		Query:            "select name from apps;",
 		ScheduleInterval: 60,
-		Targets:          reportTargets([]int64{allHostsID}, nil),
-	}})
+		Targets:          reportTargets([]int64{allHostsID}, nil)})
 	if err != nil {
 		t.Fatalf("create report: %v", err)
 	}
@@ -775,12 +756,11 @@ func TestUpdateInvalidatesResultsWhenQueryChanges(t *testing.T) {
 	host := enrollTestHost(t, ctx, hostStore, "report-query-change-host")
 	allHostsID := allHostsLabelID(t, ctx, labelStore)
 	targets := reportTargets([]int64{allHostsID}, nil)
-	report, err := store.Create(ctx, ReportCreateMutation{ReportMutation: ReportMutation{
+	report, err := store.Create(ctx, ReportCreateMutation{
 		Name:             "Query change report",
 		Query:            "select name from apps;",
 		ScheduleInterval: 60,
-		Targets:          targets,
-	}})
+		Targets:          targets})
 	if err != nil {
 		t.Fatalf("create report: %v", err)
 	}
@@ -873,12 +853,11 @@ func TestUpdateInvalidatesResultsWhenMinimumVersionChanges(t *testing.T) {
 	host := enrollTestHost(t, ctx, hostStore, "report-version-change-host")
 	allHostsID := allHostsLabelID(t, ctx, labelStore)
 	targets := reportTargets([]int64{allHostsID}, nil)
-	report, err := store.Create(ctx, ReportCreateMutation{ReportMutation: ReportMutation{
+	report, err := store.Create(ctx, ReportCreateMutation{
 		Name:             "Version change report",
 		Query:            "select name from apps;",
 		ScheduleInterval: 60,
-		Targets:          targets,
-	}})
+		Targets:          targets})
 	if err != nil {
 		t.Fatalf("create report: %v", err)
 	}
@@ -924,12 +903,11 @@ func TestResultsHiddenWhenHostLeavesScope(t *testing.T) {
 	host := enrollTestHost(t, ctx, hostStore, "report-excluded-host")
 	allHostsID := allHostsLabelID(t, ctx, labelStore)
 	excluded := createManualLabel(t, ctx, labelStore, "Report excluded results")
-	report, err := store.Create(ctx, ReportCreateMutation{ReportMutation: ReportMutation{
+	report, err := store.Create(ctx, ReportCreateMutation{
 		Name:             "Scoped report",
 		Query:            "select name from apps;",
 		ScheduleInterval: 60,
-		Targets:          reportTargets([]int64{allHostsID}, []int64{excluded.ID}),
-	}})
+		Targets:          reportTargets([]int64{allHostsID}, []int64{excluded.ID})})
 	if err != nil {
 		t.Fatalf("create report: %v", err)
 	}
@@ -982,12 +960,11 @@ func TestUpdatePrunesResultsOutsideNewTargets(t *testing.T) {
 	if err := labelStore.SetMembership(ctx, retainedLabel.ID, retainedHost.ID, true); err != nil {
 		t.Fatalf("retain report host: %v", err)
 	}
-	report, err := store.Create(ctx, ReportCreateMutation{ReportMutation: ReportMutation{
+	report, err := store.Create(ctx, ReportCreateMutation{
 		Name:             "Retargeted report",
 		Query:            "select name from apps;",
 		ScheduleInterval: 60,
-		Targets:          reportTargets([]int64{allHostsID}, nil),
-	}})
+		Targets:          reportTargets([]int64{allHostsID}, nil)})
 	if err != nil {
 		t.Fatalf("create report: %v", err)
 	}

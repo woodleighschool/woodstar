@@ -11,13 +11,11 @@ import (
 
 func baseline(name string) configurations.ConfigurationMutation {
 	return configurations.ConfigurationMutation{
-		Name: name,
-		SyncSettings: configurations.SyncSettings{
-			ClientMode:               configurations.ClientModeMonitor,
-			OverrideFileAccessAction: configurations.FileAccessActionNone,
-			FullSyncIntervalSeconds:  600,
-			BatchSize:                50,
-		},
+		Name:                     name,
+		ClientMode:               configurations.ClientModeMonitor,
+		OverrideFileAccessAction: configurations.FileAccessActionNone,
+		FullSyncIntervalSeconds:  600,
+		BatchSize:                50,
 	}
 }
 
@@ -108,16 +106,14 @@ func TestSyncPolicyDigestIncludesIdentityAndExcludesDisplayMetadata(t *testing.T
 	t.Parallel()
 
 	configuration := &configurations.Configuration{
-		ID:          1,
-		Name:        "First",
-		Description: "First description",
-		SyncSettings: configurations.SyncSettings{
-			ClientMode:               configurations.ClientModeLockdown,
-			OverrideFileAccessAction: configurations.FileAccessActionNone,
-			FullSyncIntervalSeconds:  600,
-			BatchSize:                50,
-			BlockedPathRegex:         new(`^/private/tmp/`),
-		},
+		ID:                       1,
+		Name:                     "First",
+		Description:              "First description",
+		ClientMode:               configurations.ClientModeLockdown,
+		OverrideFileAccessAction: configurations.FileAccessActionNone,
+		FullSyncIntervalSeconds:  600,
+		BatchSize:                50,
+		BlockedPathRegex:         new(`^/private/tmp/`),
 	}
 	first, err := configurations.SyncPolicyDigest(configuration)
 	if err != nil {
@@ -163,13 +159,11 @@ func TestSyncPolicyDigestDistinguishesNoConfigurationAndConcreteSettings(t *test
 		t.Fatalf("digest undefined settings: %v", err)
 	}
 	configuration := configurations.Configuration{
-		ID: 1,
-		SyncSettings: configurations.SyncSettings{
-			ClientMode:               configurations.ClientModeMonitor,
-			OverrideFileAccessAction: configurations.FileAccessActionNone,
-			FullSyncIntervalSeconds:  600,
-			BatchSize:                50,
-		},
+		ID:                       1,
+		ClientMode:               configurations.ClientModeMonitor,
+		OverrideFileAccessAction: configurations.FileAccessActionNone,
+		FullSyncIntervalSeconds:  600,
+		BatchSize:                50,
 	}
 	configured, err := configurations.SyncPolicyDigest(&configuration)
 	if err != nil {

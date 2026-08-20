@@ -128,8 +128,7 @@ func (c *woodstarClient) download(ctx context.Context, downloadURL string, path 
 }
 
 func sanitizedRequestError(operation, rawURL string, err error) error {
-	var urlErr *url.Error
-	if errors.As(err, &urlErr) {
+	if urlErr, ok := errors.AsType[*url.Error](err); ok {
 		err = urlErr.Err
 	}
 	parsed, parseErr := url.Parse(rawURL)

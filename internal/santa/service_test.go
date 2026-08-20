@@ -131,13 +131,9 @@ func TestSyncServicePropagatesRecorderErrorsBeforeStageWork(t *testing.T) {
 
 func TestSyncServicePreflightPlansAgainstResolvedConfiguration(t *testing.T) {
 	configuration := &configurations.ConfigurationMatch{
-		Configuration: configurations.Configuration{
-			ID:   42,
-			Name: "Restricted",
-			SyncSettings: configurations.SyncSettings{
-				BlockedPathRegex: new(`^/private/tmp/`),
-			},
-		},
+		ID:               42,
+		Name:             "Restricted",
+		BlockedPathRegex: new(`^/private/tmp/`),
 	}
 	syncStore := &recordingSyncStore{}
 	service := NewSyncService(Dependencies{
