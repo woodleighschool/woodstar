@@ -45,7 +45,10 @@ func newS3Store(ctx context.Context, cfg S3Config, transferTTL time.Duration) (*
 		return nil, fmt.Errorf("load storage s3 config: %w", err)
 	}
 	client := newS3Client(awsCfg, cfg.Endpoint, cfg.PathStyle)
-	presigner := s3.NewPresignClient(client)
+	// Presigned reads are redirects, so their signatures cannot require request headers.
+	presigner := s3.NewPresignClient(client, s3.WithPresignClientFromClientOptions(func(options *s3.Options) {
+		options.ResponseChecksumValidation = aws.ResponseChecksumValidationWhenRequired
+	}))
 	origin, err := presignedTransferOrigin(ctx, presigner, cfg.Bucket)
 	if err != nil {
 		return nil, err

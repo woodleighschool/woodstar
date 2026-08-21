@@ -116,3 +116,30 @@ func TestS3StoreUsesConfiguredTransferTTL(t *testing.T) {
 		})
 	}
 }
+
+func TestS3StorePresignedGetRequiresNoHeaders(t *testing.T) {
+	t.Parallel()
+	store, err := newS3Store(t.Context(), S3Config{
+		Bucket:    "woodstar",
+		Region:    "ap-southeast-2",
+		Endpoint:  "https://downloads.example",
+		AccessKey: "test-access-key",
+		SecretKey: "test-secret-key",
+		PathStyle: true,
+	}, time.Minute)
+	if err != nil {
+		t.Fatalf("newS3Store: %v", err)
+	}
+
+	rawURL, err := store.PresignGet(t.Context(), "munki/packages/42/Installer.pkg", 0, GetOptions{})
+	if err != nil {
+		t.Fatalf("PresignGet: %v", err)
+	}
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		t.Fatalf("parse presigned URL: %v", err)
+	}
+	if got := parsed.Query().Get("X-Amz-SignedHeaders"); got != "host" {
+		t.Fatalf("X-Amz-SignedHeaders = %q, want host", got)
+	}
+}
