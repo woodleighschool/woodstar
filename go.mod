@@ -6,6 +6,7 @@ ignore node_modules/
 
 require (
 	buf.build/gen/go/northpolesec/protos/protocolbuffers/go v1.36.12-20260810190416-9daa40cd8b43.1
+	cel.dev/cel-go v0.32.0
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.14.0
 	github.com/alexedwards/argon2id v1.0.0
 	github.com/alexedwards/scs/pgxstore v0.0.0-20251002162104-209de6e426de
@@ -22,7 +23,6 @@ require (
 	github.com/gabriel-vasile/mimetype v1.4.15
 	github.com/go-chi/chi/v5 v5.3.2
 	github.com/go-playground/validator/v10 v10.30.3
-	github.com/google/cel-go v0.31.0
 	github.com/jackc/pgerrcode v0.0.0-20250907135507-afb5586c32a6
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/microsoft/kiota-abstractions-go v1.9.4

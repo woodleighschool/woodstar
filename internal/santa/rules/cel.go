@@ -3,7 +3,7 @@ package rules
 import (
 	"fmt"
 
-	"github.com/google/cel-go/cel"
+	"cel.dev/cel-go/cel"
 	"github.com/woodleighschool/woodstar/internal/fault"
 )
 
