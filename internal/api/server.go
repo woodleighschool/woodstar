@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/CAFxX/httpcompression"
 	"github.com/alexedwards/scs/v2"
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
@@ -82,11 +81,8 @@ type ProtocolRoutes struct {
 }
 
 // NewServer returns an HTTP server.
-func NewServer(options ServerOptions) (*Server, error) {
-	handler, err := routes(options)
-	if err != nil {
-		return nil, err
-	}
+func NewServer(options ServerOptions) *Server {
+	handler := routes(options)
 	return &Server{
 		config:  options.Config,
 		logger:  options.Logger,
@@ -97,7 +93,7 @@ func NewServer(options ServerOptions) (*Server, error) {
 			ReadHeaderTimeout: 15 * time.Second,
 			IdleTimeout:       180 * time.Second,
 		},
-	}, nil
+	}
 }
 
 // Addr returns the configured HTTP listen address.
@@ -140,11 +136,8 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	return s.httpServer.Shutdown(ctx)
 }
 
-func routes(options ServerOptions) (http.Handler, error) {
-	compression, err := compressionMiddleware()
-	if err != nil {
-		return nil, fmt.Errorf("create HTTP compression adapter: %w", err)
-	}
+func routes(options ServerOptions) http.Handler {
+	compression := compressionMiddleware()
 
 	r := chi.NewRouter()
 	r.Use(clientIPMiddleware(options.Config))
@@ -184,7 +177,7 @@ func routes(options ServerOptions) (http.Handler, error) {
 	}
 	options.WebHandler.RegisterRoutes(app.Router)
 
-	return r, nil
+	return r
 }
 
 func newProtocolRoutes(
@@ -395,12 +388,8 @@ func clientIPMiddleware(cfg config.Config) func(http.Handler) http.Handler {
 	}
 }
 
-func compressionMiddleware() (func(http.Handler) http.Handler, error) {
-	return httpcompression.DefaultAdapter(
-		httpcompression.MinSize(1024),
-		httpcompression.GzipCompressionLevel(2),
-		httpcompression.Prefer(httpcompression.PreferServer),
-	)
+func compressionMiddleware() func(http.Handler) http.Handler {
+	return chimiddleware.Compress(2)
 }
 
 func requestTimeoutMiddleware(timeout time.Duration) func(http.Handler) http.Handler {

@@ -1,27 +1,9 @@
 import { mergeProps } from "@base-ui/react/merge-props";
 import { useRender } from "@base-ui/react/use-render";
-import {
-  closestCenter,
-  DndContext,
-  type DragEndEvent,
-  type DraggableAttributes,
-  type DraggableSyntheticListeners,
-  KeyboardSensor,
-  MouseSensor,
-  TouchSensor,
-  type UniqueIdentifier,
-  useSensor,
-  useSensors,
-} from "@dnd-kit/core";
-import { restrictToParentElement } from "@dnd-kit/modifiers";
-import {
-  arrayMove,
-  rectSortingStrategy,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  useSortable,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+import type { UniqueIdentifier } from "@dnd-kit/abstract";
+import { arrayMove } from "@dnd-kit/helpers";
+import { DragDropProvider } from "@dnd-kit/react";
+import { isSortable, useSortable } from "@dnd-kit/react/sortable";
 import * as React from "react";
 
 import { useComposedRefs } from "@lib/compose-refs";
@@ -46,43 +28,23 @@ export function Sortable<TItem>({
   getItemValue,
   children,
 }: SortableProps<TItem>) {
-  const id = React.useId();
   const itemIDs = React.useMemo(() => value.map(getItemValue), [getItemValue, value]);
   const context = React.useMemo(() => ({ itemIDs }), [itemIDs]);
-  const sensors = useSensors(
-    useSensor(MouseSensor, { activationConstraint: { distance: 4 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  );
-
-  function handleDragEnd(event: DragEndEvent) {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-
-    const activeIndex = itemIDs.indexOf(active.id);
-    const overIndex = itemIDs.indexOf(over.id);
-    if (activeIndex < 0 || overIndex < 0) return;
-
-    onValueChange(arrayMove(value, activeIndex, overIndex));
-  }
 
   return (
     <SortableRootContext.Provider value={context}>
-      <DndContext
-        id={id}
-        collisionDetection={closestCenter}
-        modifiers={[restrictToParentElement]}
-        sensors={sensors}
-        onDragEnd={handleDragEnd}
-        accessibility={{
-          screenReaderInstructions: {
-            draggable:
-              "Press space to pick up an item. Use the arrow keys to move it, then press space to drop it. Press escape to cancel.",
-          },
+      <DragDropProvider
+        onDragEnd={(event) => {
+          if (event.canceled) return;
+
+          const { source } = event.operation;
+          if (!isSortable(source) || source.initialIndex === source.index) return;
+
+          onValueChange(arrayMove(value, source.initialIndex, source.index));
         }}
       >
         {children}
-      </DndContext>
+      </DragDropProvider>
     </SortableRootContext.Provider>
   );
 }
@@ -91,17 +53,11 @@ export function SortableContent({ className, ...props }: React.ComponentProps<"d
   const context = React.useContext(SortableRootContext);
   if (!context) throw new Error("SortableContent must be used inside Sortable");
 
-  return (
-    <SortableContext items={context.itemIDs} strategy={rectSortingStrategy}>
-      <div data-slot="sortable-content" className={cn(className)} {...props} />
-    </SortableContext>
-  );
+  return <div data-slot="sortable-content" className={cn(className)} {...props} />;
 }
 
 interface SortableItemContextValue {
-  attributes: DraggableAttributes;
-  listeners: DraggableSyntheticListeners | undefined;
-  setActivatorNodeRef: (node: HTMLElement | null) => void;
+  handleRef: ReturnType<typeof useSortable>["handleRef"];
   disabled: boolean;
   dragging: boolean;
 }
@@ -112,30 +68,25 @@ export function SortableItem({
   value,
   disabled = false,
   className,
-  style,
   ref,
   ...props
 }: React.ComponentProps<"div"> & {
   value: UniqueIdentifier;
   disabled?: boolean;
 }) {
-  const sortable = useSortable({ id: value, disabled });
-  const composedRef = useComposedRefs(ref, sortable.setNodeRef);
+  const root = React.useContext(SortableRootContext);
+  if (!root) throw new Error("SortableItem must be used inside Sortable");
+
+  const index = root.itemIDs.indexOf(value);
+  const sortable = useSortable({ id: value, index, disabled });
+  const composedRef = useComposedRefs(ref, sortable.ref);
   const context = React.useMemo<SortableItemContextValue>(
     () => ({
-      attributes: sortable.attributes,
-      listeners: sortable.listeners,
-      setActivatorNodeRef: sortable.setActivatorNodeRef,
+      handleRef: sortable.handleRef,
       disabled,
       dragging: sortable.isDragging,
     }),
-    [
-      disabled,
-      sortable.attributes,
-      sortable.isDragging,
-      sortable.listeners,
-      sortable.setActivatorNodeRef,
-    ],
+    [disabled, sortable.handleRef, sortable.isDragging],
   );
 
   return (
@@ -148,11 +99,6 @@ export function SortableItem({
           "data-dragging:relative data-dragging:z-10 data-dragging:opacity-80",
           className,
         )}
-        style={{
-          transform: CSS.Translate.toString(sortable.transform),
-          transition: sortable.transition,
-          ...style,
-        }}
         {...props}
       />
     </SortableItemContext.Provider>
@@ -173,7 +119,7 @@ export function SortableItemHandle({
   if (!context) throw new Error("SortableItemHandle must be used inside SortableItem");
 
   const isDisabled = disabled ?? context.disabled;
-  const composedRef = useComposedRefs(ref, context.setActivatorNodeRef);
+  const composedRef = useComposedRefs(ref, context.handleRef);
 
   return useRender({
     defaultTagName: "button",
@@ -182,8 +128,6 @@ export function SortableItemHandle({
         type: "button",
         "data-slot": "sortable-item-handle",
         "data-dragging": context.dragging || undefined,
-        ...(isDisabled ? {} : context.attributes),
-        ...(isDisabled ? {} : context.listeners),
         ref: composedRef,
         disabled: isDisabled,
         className: cn(

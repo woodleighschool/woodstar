@@ -57,11 +57,9 @@ func TestCORSPreflightAllowsConfiguredOriginAndBlobHeaders(t *testing.T) {
 
 func TestCompressionMiddlewareCompressesResponse(t *testing.T) {
 	t.Parallel()
-	compression, err := compressionMiddleware()
-	if err != nil {
-		t.Fatalf("compressionMiddleware returned error: %v", err)
-	}
+	compression := compressionMiddleware()
 	handler := compression(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
 		_, _ = w.Write([]byte(strings.Repeat("api-bytes", 200)))
 	}))
 

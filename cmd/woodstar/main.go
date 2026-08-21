@@ -379,7 +379,7 @@ func buildApplication(
 	}
 
 	apiLogger := logger.With("component", "api")
-	server, err := api.NewServer(api.ServerOptions{
+	server := api.NewServer(api.ServerOptions{
 		Config:         cfg,
 		Ready:          pool.Ping,
 		Version:        buildinfo.Version,
@@ -477,10 +477,6 @@ func buildApplication(
 			).RegisterRoutes(routes.Protocols.Ordinary)
 		},
 	})
-	if err != nil {
-		munkiDistributionProtocol.Close()
-		return nil, fmt.Errorf("build HTTP server: %w", err)
-	}
 	starters := []starter{
 		storageUploadCleanupStarter(storageIngestor, cfg.StorageTransferTTL, storageLogger),
 		backgroundJobsStarter(jobs, logger.With("component", "background_jobs")),

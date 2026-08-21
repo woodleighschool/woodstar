@@ -1,4 +1,4 @@
-import type { VariantProps } from "class-variance-authority";
+import type { VariantProps } from "cva";
 import type { ReactNode } from "react";
 
 import { Pending } from "@components/pending";

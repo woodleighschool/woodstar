@@ -21,7 +21,7 @@ func TestServerMountsComposedRoutes(t *testing.T) {
 	sessions.Store = memstore.New()
 	logger := slog.New(slog.DiscardHandler)
 
-	server, err := NewServer(ServerOptions{
+	server := NewServer(ServerOptions{
 		Config: config.Config{
 			ClientIPSource: config.ClientIPSourceRemoteAddr,
 		},
@@ -43,9 +43,6 @@ func TestServerMountsComposedRoutes(t *testing.T) {
 			})
 		},
 	})
-	if err != nil {
-		t.Fatalf("NewServer: %v", err)
-	}
 
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/composed", nil)
