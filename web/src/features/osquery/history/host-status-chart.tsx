@@ -20,9 +20,8 @@ import {
 } from "@components/ui/chart";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@components/ui/empty";
 import { Skeleton } from "@components/ui/skeleton";
-import { formatDateTime } from "@lib/utils";
 
-import { formatHistoryTick, withHistoryGaps } from "./chart-data";
+import { formatHistoryDateTime, formatHistoryTick, withHistoryGaps } from "./chart-data";
 import { historyBounds, useHostStatusHistory, type HistoryRange } from "./queries";
 import { HistoryRangeToggle } from "./range-toggle";
 
@@ -33,8 +32,14 @@ const chartConfig = {
 
 export function HostStatusChart() {
   const [range, setRange] = useState<HistoryRange>("24h");
+  const [hiddenSeries, setHiddenSeries] = useState<string[]>([]);
   const history = useHostStatusHistory(range);
   const bounds = historyBounds(range, history.dataUpdatedAt || Date.now());
+  const toggleSeries = (key: string) => {
+    setHiddenSeries((current) =>
+      current.includes(key) ? current.filter((value) => value !== key) : [...current, key],
+    );
+  };
 
   return (
     <Card>
@@ -79,13 +84,20 @@ export function HostStatusChart() {
               <ChartTooltip
                 content={
                   <ChartTooltipContent
-                    labelFormatter={(_, payload) => formatDateTime(payload[0]?.payload.bucket)}
+                    labelFormatter={(_, payload) =>
+                      formatHistoryDateTime(payload[0]?.payload.bucket)
+                    }
                   />
                 }
               />
-              <ChartLegend content={<ChartLegendContent />} />
+              <ChartLegend
+                content={
+                  <ChartLegendContent hiddenKeys={hiddenSeries} onItemToggle={toggleSeries} />
+                }
+              />
               <Line
                 dataKey="online_count"
+                hide={hiddenSeries.includes("online_count")}
                 type="monotone"
                 stroke="var(--color-online_count)"
                 strokeWidth={2}
@@ -95,6 +107,7 @@ export function HostStatusChart() {
               />
               <Line
                 dataKey="offline_count"
+                hide={hiddenSeries.includes("offline_count")}
                 type="monotone"
                 stroke="var(--color-offline_count)"
                 strokeWidth={2}

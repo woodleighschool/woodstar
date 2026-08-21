@@ -36,5 +36,20 @@ export function formatHistoryTick(value: number, range: HistoryRange): string {
     month: range === "24h" ? undefined : "short",
     day: range === "24h" ? undefined : "numeric",
     hour: range === "24h" ? "numeric" : undefined,
+    hour12: range === "24h" ? true : undefined,
+  }).format(date);
+}
+
+export function formatHistoryDateTime(value: number | string | undefined): string {
+  if (value === undefined) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
   }).format(date);
 }
