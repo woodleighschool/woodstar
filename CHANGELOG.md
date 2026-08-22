@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.9.3](https://github.com/woodleighschool/woodstar/compare/0.9.2...0.9.3) (2026-08-22)
+
+
+### Features
+
+* **npm:** update dependency shadcn (4.18.0 → 4.19.0) ([#250](https://github.com/woodleighschool/woodstar/issues/250)) ([63742e2](https://github.com/woodleighschool/woodstar/commit/63742e2b77e536a35ab95fbb1fdaaf10009ed97c))
+
+
+### Bug Fixes
+
+* **build:** keep GeoIP tool standalone ([ea56d69](https://github.com/woodleighschool/woodstar/commit/ea56d69ea1987b278acf17fa3c843044d3c39044))
+
+
+### Code Refactoring
+
+* align logging and interface metadata ([4b59aea](https://github.com/woodleighschool/woodstar/commit/4b59aea125189aad33b728b23fd1fe4e136683dc))
+
+
+### Miscellaneous Chores
+
+* align ignore rules ([683fdbc](https://github.com/woodleighschool/woodstar/commit/683fdbc4a1bc246b610c1057336d1f7765c49fcf))
+* align repository conventions ([d7e705a](https://github.com/woodleighschool/woodstar/commit/d7e705aa15eea307177641d6a32533fa866e31e0))
+* **npm:** lock file maintenance dependency (npm) ([#248](https://github.com/woodleighschool/woodstar/issues/248)) ([8855450](https://github.com/woodleighschool/woodstar/commit/8855450ba76da6bcc16cfe36f5fc84c3a5db25cf))
+* **release-please:** sync configuration ([de04e00](https://github.com/woodleighschool/woodstar/commit/de04e007ecb3c387466f3dc9aeb2715700791b43))
+
 ## [0.9.2](https://github.com/woodleighschool/woodstar/compare/0.9.1...0.9.2) (2026-08-22)
 
 
