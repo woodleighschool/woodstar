@@ -48,12 +48,12 @@ const dialogCopy: Record<SecretAgent, { title: string; description: string; docs
   },
   munki: {
     title: "Munki Secrets",
-    description: "Allow Munki clients to authenticate to Woodstar.",
+    description: "Allow Munki clients to authenticate to the server.",
     docsURL: `${DOCS_BASE_URL}/munki-repository`,
   },
   santa: {
     title: "Santa Secrets",
-    description: "Allow Santa clients to authenticate to Woodstar.",
+    description: "Allow Santa clients to authenticate to the server.",
     docsURL: `${DOCS_BASE_URL}/santa-sync`,
   },
 };

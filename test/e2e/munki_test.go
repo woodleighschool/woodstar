@@ -66,13 +66,13 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 
 	database, err := pgx.Connect(t.Context(), server.DatabaseURL)
 	if err != nil {
-		t.Fatalf("connect to isolated Woodstar database: %v", err)
+		t.Fatalf("connect to isolated database: %v", err)
 	}
 	t.Cleanup(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), databaseOperationTimeout)
 		defer cancel()
 		if closeErr := database.Close(ctx); closeErr != nil {
-			t.Errorf("close isolated Woodstar database connection: %v", closeErr)
+			t.Errorf("close isolated database connection: %v", closeErr)
 		}
 	})
 	var sessionCookie *http.Cookie
@@ -285,7 +285,7 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 			DisplayName: new("Woodstar Integration App"),
 			Description: new("Compiled Munki repository lifecycle fixture."),
 			Category:    new("Testing"),
-			Developer:   new("Woodleigh School"),
+			Developer:   new("Example Developer"),
 			Targets:     targets,
 		},
 	)
@@ -518,7 +518,7 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 		BannerFit:      "cover",
 		BannerFocalX:   50,
 		Links:          links,
-		FooterText:     "Managed by Woodstar",
+		FooterText:     "Managed by Example IT",
 		FooterLinks:    footerLinks,
 	}
 	savedResources, err := server.Admin.CreateMunkiClientResourcesWithResponse(
@@ -545,7 +545,7 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 		*clientResources.Builder.Banner.Sha256 != bannerSHA256 ||
 		clientResources.Builder.BannerFit != "cover" ||
 		clientResources.Builder.BannerFocalX != 50 ||
-		clientResources.Builder.FooterText != "Managed by Woodstar" ||
+		clientResources.Builder.FooterText != "Managed by Example IT" ||
 		clientResources.Archive.ContentType != "application/zip" {
 		t.Fatal("saved client resources did not contain the expected compiled banner state")
 	}

@@ -26,7 +26,7 @@ func TestPkginfoProjectsMunkiTransportShape(t *testing.T) {
 			ID:          7,
 			Name:        "com.example.app",
 			DisplayName: &displayName,
-			Description: "Managed by Woodstar",
+			Description: "Managed by Example IT",
 			Category:    "Utilities",
 			Developer:   "Example Co",
 		},

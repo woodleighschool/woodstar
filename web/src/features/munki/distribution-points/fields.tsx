@@ -208,7 +208,7 @@ export function DistributionPointForm({
                     </Button>
                   </FieldGroup>
                   <FieldDescription>
-                    Matches the client IP Woodstar derives for each package request. Review{" "}
+                    Matches the client IP derived for each package request. Review{" "}
                     <a href={CLIENT_MATCHING_DOCS_URL} target="_blank" rel="noreferrer">
                       client-IP handling
                     </a>{" "}

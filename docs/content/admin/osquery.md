@@ -6,11 +6,11 @@ description: Scheduled reports, policies, remediation, and live queries.
 
 # osquery
 
-Woodstar uses osquery for inventory and SQL queries across enrolled Macs. Queries can run as reports, policies, dynamic labels, or one-off live queries.
+The server uses osquery for inventory and SQL queries across enrolled Macs. Queries can run as reports, policies, dynamic labels, or one-off live queries.
 
 ## Reports
 
-A report is a saved query with a schedule. Reports can run on all hosts or only hosts in selected labels. Woodstar stores the latest complete result snapshot for each targeted host, including empty observations, and shows hosts that have not reported yet as pending.
+A report is a saved query with a schedule. Reports can run on all hosts or only hosts in selected labels. The latest complete result snapshot is stored for each targeted host, including empty observations, and hosts that have not reported yet appear as pending.
 
 ## Policies
 

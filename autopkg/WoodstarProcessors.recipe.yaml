@@ -1,5 +1,5 @@
 ---
-Description: Recipe stub for Woodstar AutoPkg processors.
+Description: Recipe stub for the AutoPkg processors.
 Identifier: com.github.woodleighschool.woodstar.processors
 Input: {}
 MinimumVersion: "2.7"

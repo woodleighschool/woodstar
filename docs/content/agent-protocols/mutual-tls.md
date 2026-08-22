@@ -1,14 +1,14 @@
 ---
 sidebar_position: 5
 title: Mutual TLS
-description: Present client certificates for Woodstar agent traffic at the network edge.
+description: Present client certificates for agent traffic at the network edge.
 ---
 
 # Mutual TLS
 
-Woodstar can sit behind a reverse proxy or edge service that requires a trusted client certificate. The edge terminates mTLS; Woodstar continues to authenticate Orbit and osquery with enrollment secrets and node keys, and Munki and Santa with bearer secrets.
+The server can sit behind a reverse proxy or edge service that requires a trusted client certificate. The edge terminates mTLS; the server continues to authenticate Orbit and osquery with enrollment secrets and node keys, and Munki and Santa with bearer secrets.
 
-Woodstar does not receive or trust a forwarded client-certificate header. Configure the edge to require mTLS on the agent route families and forward accepted requests to Woodstar:
+The server does not receive or trust a forwarded client-certificate header. Configure the edge to require mTLS on the agent route families and forward accepted requests to it:
 
 - `/api/fleet/orbit/`
 - `/api/latest/fleet/device/`
@@ -35,7 +35,7 @@ The package installs the files as:
 - `/opt/orbit/fleet_client.crt`
 - `/opt/orbit/fleet_client.key`
 
-Orbit uses that identity for its requests and configures its managed osquery process to use it too. The certificate requirement is additive: it does not replace the Woodstar enrollment secret or issued node key.
+Orbit uses that identity for its requests and configures its managed osquery process to use it too. The certificate requirement is additive: it does not replace the enrollment secret or issued node key.
 
 For an independently managed osquery deployment, put the same PEM paths in its flagfile:
 
@@ -46,7 +46,7 @@ For an independently managed osquery deployment, put the same PEM paths in its f
 
 If the fleetd package is not installed, deploy the certificate and unencrypted private key to another protected path and update both flags.
 
-Fleet currently labels the two packaging flags as Fleet EE-licensed functionality. That label belongs to the upstream client packaging feature; it is not a Woodstar server or edge capability check.
+Fleet currently labels the two packaging flags as Fleet EE-licensed functionality. That label belongs to the upstream client packaging feature; it is not a server or edge capability check.
 
 ## Munki
 

@@ -57,7 +57,7 @@ func TestSanta(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear protoco
 		eventSHA256      = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
 		eventCDHash      = "cccccccccccccccccccccccccccccccccccccccc"
 		eventPath        = "/Applications/Woodstar Santa Test.app/Contents/MacOS/Woodstar Santa Test"
-		ruleMessage      = "Blocked by Woodstar integration"
+		ruleMessage      = "Blocked by test policy"
 		ruleURL          = "https://woodstar.example.test/santa"
 	)
 
@@ -74,13 +74,13 @@ func TestSanta(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear protoco
 
 	database, err := pgx.Connect(t.Context(), server.DatabaseURL)
 	if err != nil {
-		t.Fatalf("connect to isolated Woodstar database: %v", err)
+		t.Fatalf("connect to isolated database: %v", err)
 	}
 	t.Cleanup(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), databaseOperationTimeout)
 		defer cancel()
 		if closeErr := database.Close(ctx); closeErr != nil {
-			t.Errorf("close isolated Woodstar database connection: %v", closeErr)
+			t.Errorf("close isolated database connection: %v", closeErr)
 		}
 	})
 
@@ -867,7 +867,7 @@ func requireSantaPreflightSettingsOmitted(
 		response.GetEncryptedRemovableMediaPolicy() != nil || response.EventDetailUrl != nil ||
 		response.EventDetailText != nil {
 		t.Fatalf(
-			"preflight without configuration = %+v, want %s with all Woodstar settings omitted",
+			"preflight without configuration = %+v, want %s with all server settings omitted",
 			response,
 			wantSyncType,
 		)

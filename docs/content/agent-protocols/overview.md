@@ -6,7 +6,7 @@ description: Client routes and credentials for Orbit, osquery, Santa, and Munki.
 
 # Agent Protocols
 
-Woodstar exposes the native protocol expected by each Mac client. These routes are separate from the JSON API used by the web app.
+The server exposes the native protocol expected by each Mac client. These routes are separate from the JSON API used by the web app.
 
 | Client                   | Route family                  | Authentication                           |
 | ------------------------ | ----------------------------- | ---------------------------------------- |

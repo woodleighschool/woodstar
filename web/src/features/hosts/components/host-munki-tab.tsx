@@ -101,7 +101,7 @@ export function HostMunkiTab({
 }: HostMunkiTabProps) {
   const software = useHostMunkiSoftware(hostId, { per_page: MAX_PAGE_SIZE });
   const hasReport = Boolean(munki && (munki.run_at || munki.version || munki.manifest_name));
-  // This is good enough for now: a serial-named manifest means Munki is pointed at Woodstar.
+  // A serial-named manifest identifies a managed client.
   const showManifest = Boolean(munki?.manifest_name && munki.manifest_name !== hostSerial);
   const problems = munki
     ? [

@@ -75,7 +75,7 @@ type EffectivePackage struct {
 	Selector PackageSelector
 }
 
-// HostManifestSoftware is one Woodstar software item resolved into a host's manifest.
+// HostManifestSoftware is one software item resolved into a host's manifest.
 type HostManifestSoftware struct {
 	Software    packages.PackageSoftware         `json:"software"`
 	Package     HostManifestPackage              `json:"package"`

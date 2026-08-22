@@ -13,11 +13,11 @@ export const USER_ACCESS_ROLE_VALUES = [
 const USER_ROLES = {
   admin: {
     name: "Admin",
-    description: "Can manage Woodstar settings, users, enrollments, and data.",
+    description: "Can manage settings, users, enrollments, and data.",
   },
   viewer: {
     name: "Viewer",
-    description: "Can view Woodstar data without making administrative changes.",
+    description: "Can view data without making administrative changes.",
   },
 } satisfies EnumMetadataMap<UserRole>;
 

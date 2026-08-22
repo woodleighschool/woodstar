@@ -1,12 +1,12 @@
 ---
 sidebar_position: 1
 title: Environment
-description: Woodstar server and distribution-point settings.
+description: Server and distribution-point settings.
 ---
 
 # Environment
 
-Woodstar reads settings from `WOODSTAR_` environment variables. `WOODSTAR_URL` and `WOODSTAR_DATABASE_URL` are required. File storage also requires `WOODSTAR_STORAGE_CAPABILITY_KEY`.
+The server reads settings from `WOODSTAR_` environment variables. `WOODSTAR_URL` and `WOODSTAR_DATABASE_URL` are required. File storage also requires `WOODSTAR_STORAGE_CAPABILITY_KEY`.
 
 OIDC and Entra sync remain disabled when their settings are empty. Supplying only part of either configuration is an error.
 
@@ -24,13 +24,13 @@ OIDC and Entra sync remain disabled when their settings are empty. Supplying onl
 | `WOODSTAR_LOG_LEVEL`             | `info`    | `debug`, `info`, `warn`, or `error`                                   |
 | `WOODSTAR_CORS_ALLOWED_ORIGINS`  | empty     | Comma-separated web origins allowed to make credentialed API requests |
 
-`WOODSTAR_URL` must be an HTTPS origin without credentials, a query, a fragment, or a sub-path. Set both TLS files when Woodstar terminates HTTPS. Leave both empty when a reverse proxy handles TLS.
+`WOODSTAR_URL` must be an HTTPS origin without credentials, a query, a fragment, or a sub-path. Set both TLS files when the server terminates HTTPS. Leave both empty when a reverse proxy handles TLS.
 
 Set `WOODSTAR_SESSION_COOKIE_SECURE=false` only for HTTP development. CORS origins must be origins such as `http://localhost:5173`, not URLs with paths.
 
 ## Client IP
 
-Woodstar derives a client IP from each package request to select a [Munki distribution point](../agent-protocols/munki-distribution#how-client-matching-works). The default reads the connection address. Choose a proxy-aware source when TLS or HTTP terminates elsewhere.
+The server derives a client IP from each package request to select a [Munki distribution point](../agent-protocols/munki-distribution#how-client-matching-works). The default reads the connection address. Choose a proxy-aware source when TLS or HTTP terminates elsewhere.
 
 | Variable                                      | Default       | Description                                                            |
 | --------------------------------------------- | ------------- | ---------------------------------------------------------------------- |
@@ -41,7 +41,7 @@ Woodstar derives a client IP from each package request to select a [Munki distri
 
 Each non-default mode requires its matching setting. Use `xff_trusted_cidrs` for known proxy networks, `xff_trusted_proxies` for a fixed proxy chain, or `header` when the proxy supplies a dedicated client-IP header.
 
-Only trust forwarded addresses when the Woodstar origin is restricted to that proxy path and the proxy replaces or sanitizes the selected header. If clients can reach the origin directly, they can otherwise supply a false source address and affect distribution-point selection.
+Only trust forwarded addresses when the server origin is restricted to that proxy path and the proxy replaces or sanitizes the selected header. If clients can reach the origin directly, they can otherwise supply a false source address and affect distribution-point selection.
 
 ## Public IP enrichment
 
@@ -50,9 +50,9 @@ Only trust forwarded addresses when the Woodstar origin is restricted to that pr
 | `WOODSTAR_GEOIP_CITY_FILE` | empty   | Path to the DB-IP City Lite MMDB |
 | `WOODSTAR_GEOIP_ASN_FILE`  | empty   | Path to the DB-IP ASN Lite MMDB  |
 
-GeoIP enrichment is disabled unless both paths are set. When configured, Woodstar opens both databases at startup; if either file is missing or invalid, the server continues without public IP location and network enrichment. MDP matching remains available independently.
+GeoIP enrichment is disabled unless both paths are set. When configured, the server opens both databases at startup; if either file is missing or invalid, it continues without public IP location and network enrichment. MDP matching remains available independently.
 
-Container builds package both databases and sets their paths in the runtime image. For a raw binary, run `mise run geoip` and set the two file paths to the resulting files in `.local/geoip`. The databases are build and development inputs; Woodstar does not update them at runtime.
+Container builds package both databases and set their paths in the runtime image. For a raw binary, run `mise run geoip` and set the two file paths to the resulting files in `.local/geoip`. The databases are build and development inputs and are not updated at runtime.
 
 ## Santa event retention
 
@@ -70,14 +70,14 @@ Container builds package both databases and sets their paths in the runtime imag
 
 ## OIDC
 
-| Variable                      | Default                | Description                                |
-| ----------------------------- | ---------------------- | ------------------------------------------ |
-| `WOODSTAR_OIDC_ISSUER_URL`    | empty                  | Provider issuer URL                        |
-| `WOODSTAR_OIDC_CLIENT_ID`     | empty                  | Client ID                                  |
-| `WOODSTAR_OIDC_CLIENT_SECRET` | empty                  | Client secret                              |
-| `WOODSTAR_OIDC_REDIRECT_URL`  | server callback        | Browser callback URL                       |
-| `WOODSTAR_OIDC_SCOPES`        | `openid,email,profile` | Comma-separated scopes                     |
-| `WOODSTAR_OIDC_EMAIL_CLAIM`   | `email`                | Claim matched to the Woodstar user's email |
+| Variable                      | Default                | Description                       |
+| ----------------------------- | ---------------------- | --------------------------------- |
+| `WOODSTAR_OIDC_ISSUER_URL`    | empty                  | Provider issuer URL               |
+| `WOODSTAR_OIDC_CLIENT_ID`     | empty                  | Client ID                         |
+| `WOODSTAR_OIDC_CLIENT_SECRET` | empty                  | Client secret                     |
+| `WOODSTAR_OIDC_REDIRECT_URL`  | server callback        | Browser callback URL              |
+| `WOODSTAR_OIDC_SCOPES`        | `openid,email,profile` | Comma-separated scopes            |
+| `WOODSTAR_OIDC_EMAIL_CLAIM`   | `email`                | Claim matched to the user's email |
 
 The default redirect is `<WOODSTAR_URL>/api/auth/sso/callback`. An override must use the same path and HTTPS, except that loopback HTTP is accepted for development.
 
@@ -91,7 +91,7 @@ The default redirect is `<WOODSTAR_URL>/api/auth/sso/callback`. An override must
 | `WOODSTAR_ENTRA_TRANSITIVE_GROUPS` | `false` | Expand nested group membership |
 | `WOODSTAR_ENTRA_SYNC_INTERVAL`     | `1h`    | Sync interval                  |
 
-See [Directory](../admin/directory) for the data Woodstar imports.
+See [Directory](../admin/directory) for imported data.
 
 ## Storage
 
@@ -122,7 +122,7 @@ These settings belong to the separate `woodstar mdp` process.
 
 | Variable                            | Default  | Description                                                 |
 | ----------------------------------- | -------- | ----------------------------------------------------------- |
-| `WOODSTAR_MDP_SERVER_URL`           | required | Woodstar HTTPS origin                                       |
+| `WOODSTAR_MDP_SERVER_URL`           | required | Server HTTPS origin                                         |
 | `WOODSTAR_MDP_SERVER_CA_FILE`       | empty    | Additional CA certificate trusted by the worker             |
 | `WOODSTAR_MDP_KEY`                  | required | Key shown when the distribution point is created or rotated |
 | `WOODSTAR_MDP_DATA_DIR`             | required | Directory for cached installers and worker state            |
@@ -132,7 +132,7 @@ These settings belong to the separate `woodstar mdp` process.
 | `WOODSTAR_MDP_LOG_LEVEL`            | `info`   | `debug`, `info`, `warn`, or `error`                         |
 | `WOODSTAR_MDP_DOWNLOAD_CONCURRENCY` | `4`      | Number of concurrent installer downloads                    |
 
-The client-facing cache URL is configured on the distribution-point record in Woodstar. The URL must use HTTPS and be reachable from every client CIDR assigned to the point. Woodstar does not test that client-side route.
+The client-facing cache URL is configured on the distribution-point record. The URL must use HTTPS and be reachable from every client CIDR assigned to the point. The server does not test that client-side route.
 
 ## Example
 

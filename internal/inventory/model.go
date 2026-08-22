@@ -43,7 +43,7 @@ func (SoftwareSource) Schema(_ huma.Registry) *huma.Schema {
 	return openapischema.StringEnum(softwareSourceValues...)
 }
 
-// Valid reports whether the source is produced by Woodstar's software inventory queries.
+// Valid reports whether the source is produced by the software inventory queries.
 func (source SoftwareSource) Valid() bool {
 	switch source {
 	case SoftwareSourceApps,

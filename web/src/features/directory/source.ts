@@ -11,7 +11,7 @@ export const DIRECTORY_SOURCE_VALUES = [
 export const DIRECTORY_SOURCES = {
   local: {
     name: "Local",
-    description: "Created and managed in Woodstar.",
+    description: "Created and managed here.",
   },
   entra: {
     name: "Entra",

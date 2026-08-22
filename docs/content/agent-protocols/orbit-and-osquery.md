@@ -6,13 +6,13 @@ description: Enroll Macs and run osquery through Fleet-compatible endpoints.
 
 # Orbit and osquery
 
-Orbit and osquery enroll with the Orbit agent secret, then use a per-host node key. Woodstar supports the Fleet route and response shapes used by both clients.
+Orbit and osquery enroll with the Orbit agent secret, then use a per-host node key. The server supports the Fleet route and response shapes used by both clients.
 
 ## Configure Orbit
 
 Create a host enrollment secret from **Hosts > Enroll Hosts** or the **osquery** overview. Orbit and direct osquery enrollment use the same secret.
 
-Build the macOS package without embedding the Woodstar URL or enrollment secret:
+Build the macOS package without embedding the server URL or enrollment secret:
 
 ```shell
 fleetctl package --type=pkg --use-system-configuration --enable-scripts
@@ -47,7 +47,7 @@ Deploy the package with the fleetd configuration profile below. Replace the exam
     </dict>
   </array>
   <key>PayloadDescription</key>
-  <string>Configures fleetd for Woodstar.</string>
+  <string>Configures fleetd for device management.</string>
   <key>PayloadDisplayName</key>
   <string>Woodstar - fleetd</string>
   <key>PayloadIdentifier</key>
@@ -66,7 +66,7 @@ Deploy the package with the fleetd configuration profile below. Replace the exam
 </plist>
 ```
 
-`--enable-scripts` makes script execution part of the package. `EnableScripts` also enables it through the macOS fleetd profile for stock Orbit versions that support dynamic script configuration. Woodstar treats a host as eligible for policy remediation only after `orbit_info` reports scripts enabled and the host has an active Orbit enrollment.
+`--enable-scripts` makes script execution part of the package. `EnableScripts` also enables it through the macOS fleetd profile for stock Orbit versions that support dynamic script configuration. A host is eligible for policy remediation only after `orbit_info` reports scripts enabled and the host has an active Orbit enrollment.
 
 Orbit allows one script execution timeout for all scripts received in a config response. Set `WOODSTAR_ORBIT_SCRIPT_EXECUTION_TIMEOUT` to a Go duration in whole-second increments, such as `30m` or `1800s`. It defaults to `5m` and accepts values from `1s` through `5h`.
 
@@ -97,7 +97,7 @@ Replace `$EMAIL` with the user-email variable supported by your MDM. Orbit reads
     </dict>
   </array>
   <key>PayloadDescription</key>
-  <string>Maps the assigned MDM user to a Woodstar host.</string>
+  <string>Maps the assigned MDM user to a managed host.</string>
   <key>PayloadDisplayName</key>
   <string>Woodstar - fleetd user</string>
   <key>PayloadIdentifier</key>
@@ -141,6 +141,6 @@ See [Mutual TLS](./mutual-tls) to include a client certificate and key in the fl
 | `POST` | `/api/v1/osquery/distributed/write` | Receive distributed-query results  |
 | `POST` | `/api/v1/osquery/log`               | Receive scheduled report results   |
 
-An invalid node key tells osquery to enroll again. Woodstar disables file carving and uses TLS-only osquery logging at error severity so scheduled report failures can replace stale results.
+An invalid node key tells osquery to enroll again. The server disables file carving and uses TLS-only osquery logging at error severity so scheduled report failures can replace stale results.
 
 Distributed results update host details, software inventory, dynamic labels, policies, reports, and active live queries.

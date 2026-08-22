@@ -35,7 +35,7 @@ func TestActivityStoreFiltersSnapshotsAndSweeps(t *testing.T) {
 	if err := store.Record(ctx, NewEvent{
 		Area:    AreaHosts,
 		Action:  ActionHostDeleted,
-		Actor:   Actor{Kind: ActorKindSystem, Name: "Woodstar"},
+		Actor:   Actor{Kind: ActorKindSystem, Name: "System"},
 		Subject: Resource("host", 7, "Lab Mac"),
 	}); err != nil {
 		t.Fatalf("record host activity: %v", err)

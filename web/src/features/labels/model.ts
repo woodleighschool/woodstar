@@ -18,7 +18,7 @@ export const LABEL_MEMBERSHIP_TYPES = {
   },
   manual: {
     name: "Manual",
-    description: "Membership is managed directly in Woodstar.",
+    description: "Membership is managed directly.",
   },
   derived: {
     name: "Derived",

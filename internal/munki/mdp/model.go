@@ -50,7 +50,7 @@ type DistributionPoint struct {
 }
 
 // DistributionPointWorker describes the current compatible session or latest
-// incompatible worker observed by Woodstar.
+// incompatible worker observed by the server.
 type DistributionPointWorker struct {
 	Compatible      bool   `json:"compatible"`
 	ProtocolVersion *int   `json:"protocol_version,omitempty"`

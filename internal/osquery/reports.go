@@ -60,7 +60,7 @@ func (s *AgentService) ingestReportLogs(ctx context.Context, hostID int64, data 
 	return nil
 }
 
-// ingestReportStatusLogs writes scheduled-query errors for Woodstar reports.
+// ingestReportStatusLogs writes scheduled-query errors for reports.
 func (s *AgentService) ingestReportStatusLogs(
 	ctx context.Context,
 	hostID int64,

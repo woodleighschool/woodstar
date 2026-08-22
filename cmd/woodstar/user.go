@@ -20,7 +20,7 @@ func userCommand() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "user",
-		Short: "Manage Woodstar users",
+		Short: "Manage users",
 		Args:  cobra.NoArgs,
 	}
 	cmd.PersistentFlags().StringVar(

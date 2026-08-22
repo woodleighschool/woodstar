@@ -1,6 +1,6 @@
-# Woodstar AutoPkg processors
+# AutoPkg processors
 
-The Woodstar processors create Munki pkginfo and upload software, packages, installers, icons, and targets to Woodstar.
+These processors create Munki pkginfo and upload software, packages, installers, icons, and targets to the server.
 
 Add the repository to AutoPkg:
 
@@ -8,7 +8,7 @@ Add the repository to AutoPkg:
 autopkg repo-add woodleighschool/woodstar
 ```
 
-Set the Woodstar URL and an account API key:
+Set the server URL and an account API key:
 
 ```sh
 defaults write com.github.autopkg WOODSTAR_URL -string "https://woodstar.example"
@@ -17,7 +17,7 @@ defaults write com.github.autopkg WOODSTAR_API_KEY -string "API_KEY"
 
 ## Import a package
 
-`WoodstarMunkiImporter` runs Munki's installed `/usr/local/munki/makepkginfo`, then uploads the result directly to Woodstar. No local Munki repository is required.
+`WoodstarMunkiImporter` runs Munki's installed `/usr/local/munki/makepkginfo`, then uploads the result directly to the server. No local Munki repository is required.
 
 ```yaml
 Process:

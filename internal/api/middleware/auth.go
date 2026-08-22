@@ -14,7 +14,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/directory"
 )
 
-// Authenticator resolves a browser session or API key into a Woodstar user.
+// Authenticator resolves a browser session or API key into an application user.
 type Authenticator interface {
 	Authenticate(ctx context.Context, authHeader string) (*directory.User, error)
 }

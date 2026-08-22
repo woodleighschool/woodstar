@@ -20,7 +20,7 @@ const (
 	downloadRequestTimeout = time.Hour
 )
 
-// woodstarClient talks to Woodstar over HTTPS: it asks for a fresh per-job
+// woodstarClient talks to the server over HTTPS: it asks for a fresh per-job
 // download URL and then streams the installer bytes. The control channel
 // (desired set in, package events out) runs over the WebSocket instead.
 type woodstarClient struct {

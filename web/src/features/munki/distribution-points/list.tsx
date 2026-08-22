@@ -429,7 +429,7 @@ function ReorderWarningDialog({
       open={open}
       onOpenChange={onOpenChange}
       title="Reorder Distribution Points?"
-      description="Woodstar redirects to the first matching distribution point. Reordering changes client behavior immediately."
+      description="The server redirects to the first matching distribution point. Reordering changes client behavior immediately."
       confirmLabel="Continue"
       onConfirm={onConfirm}
     />

@@ -1,12 +1,12 @@
 ---
 sidebar_position: 1
-title: How Woodstar Fits Together
+title: How It Fits Together
 description: The web app, agent protocols, hosts, and labels.
 ---
 
-# How Woodstar Fits Together
+# How It Fits Together
 
-Woodstar serves the web app and the Mac agent protocols from the same process. They share host and policy data but use different routes and credentials.
+The server serves the web app and Mac agent protocols from the same process. They share host and policy data but use different routes and credentials.
 
 ## Web app and API
 
@@ -28,7 +28,7 @@ Labels group hosts for targeting.
 
 | Type    | Membership                                               |
 | ------- | -------------------------------------------------------- |
-| Manual  | Hosts selected in Woodstar                               |
+| Manual  | Hosts selected in the app                                |
 | Dynamic | Hosts that match an osquery query                        |
 | Derived | Hosts that match directory data, such as a group or user |
 

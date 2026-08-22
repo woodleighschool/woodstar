@@ -18,7 +18,7 @@ type syncPolicyDigestConfiguration struct {
 	Settings SyncSettings `json:"settings"`
 }
 
-// SyncPolicyDigest identifies the selected configuration and the settings Woodstar sends to Santa.
+// SyncPolicyDigest identifies the selected configuration and the settings sent to Santa.
 func SyncPolicyDigest(configuration *Configuration) (string, error) {
 	input := syncPolicyDigestInput{Version: syncPolicyDigestVersion}
 	if configuration != nil {

@@ -127,7 +127,7 @@ type PackageInstaller struct {
 
 // ResolvePackageFile resolves a package installer Munki path to the package
 // identity and storage key for serving. The identity lets the delivery path mint
-// a distribution grant; the key serves Woodstar-direct.
+// a distribution grant; the key serves the file directly.
 func (s *RepositoryService) ResolvePackageFile(
 	ctx context.Context,
 	hostID int64,

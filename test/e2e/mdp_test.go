@@ -222,13 +222,13 @@ func seedMDPHost(t *testing.T, server *testServer, serial string) int64 {
 
 	database, err := pgx.Connect(t.Context(), server.DatabaseURL)
 	if err != nil {
-		t.Fatalf("connect to isolated Woodstar database: %v", err)
+		t.Fatalf("connect to isolated database: %v", err)
 	}
 	t.Cleanup(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), databaseOperationTimeout)
 		defer cancel()
 		if closeErr := database.Close(ctx); closeErr != nil {
-			t.Errorf("close isolated Woodstar database connection: %v", closeErr)
+			t.Errorf("close isolated database connection: %v", closeErr)
 		}
 	})
 

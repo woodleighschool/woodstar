@@ -228,9 +228,7 @@ function HostPrimaryUserDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{manual ? "Edit Primary User" : "Set Primary User"}</DialogTitle>
-          <DialogDescription>
-            Set the email or UPN Woodstar should prefer for this host.
-          </DialogDescription>
+          <DialogDescription>Set the email or UPN to prefer for this host.</DialogDescription>
         </DialogHeader>
         <form
           noValidate

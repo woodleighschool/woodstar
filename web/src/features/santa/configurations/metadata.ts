@@ -59,7 +59,7 @@ export const MEDIA_ACTION_VALUES = [
 export const MEDIA_ACTIONS = {
   none: {
     name: "No Policy",
-    description: "Woodstar sends no policy for this volume type.",
+    description: "No policy is sent for this volume type.",
   },
   allow: {
     name: "Allow",

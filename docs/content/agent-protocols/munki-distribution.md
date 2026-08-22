@@ -6,13 +6,13 @@ description: Run a local cache for Munki package installers.
 
 # Munki Distribution Points
 
-A distribution point is a local cache for Munki package installers. Woodstar redirects matching package requests to the cache's configured HTTPS URL. The Munki client then downloads the installer from the cache.
+A distribution point is a local cache for Munki package installers. The server redirects matching package requests to the cache's configured HTTPS URL. The Munki client then downloads the installer from the cache.
 
 ## How client matching works
 
-Woodstar selects a distribution point using the client IP derived from the current package request. It evaluates the address on every request rather than using an interface address reported by osquery. Request-time matching follows a client as it changes networks and avoids routing from stale inventory.
+The server selects a distribution point using the client IP derived from the current package request. It evaluates the address on every request rather than using an interface address reported by osquery. Request-time matching follows a client as it changes networks and avoids routing from stale inventory.
 
-The address depends on how the client reaches Woodstar:
+The address depends on how the client reaches the server:
 
 | Request path                                    | Address the client CIDR must match                                                                                     |
 | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
@@ -21,20 +21,20 @@ The address depends on how the client reaches Woodstar:
 | Through a correctly configured reverse proxy    | The client address selected from a trusted forwarded header, commonly the client's public egress address               |
 | Through a proxy without client-IP configuration | The proxy's connection address; unrelated clients can appear to come from the same source and match the wrong location |
 
-If clients can reach Woodstar over both IPv4 and IPv6, assign the relevant ranges for both protocols.
+If clients can reach the server over both IPv4 and IPv6, assign the relevant ranges for both protocols.
 
-The default `remote_addr` source reads the peer connected directly to Woodstar. Before assigning client CIDRs behind a proxy, configure [Client IP](../configuration/environment#client-ip) so Woodstar trusts only the proxy's sanitized forwarded address. Otherwise, the CIDRs describe the proxy network rather than the Munki clients.
+The default `remote_addr` source reads the peer connected directly to the server. Before assigning client CIDRs behind a proxy, configure [Client IP](../configuration/environment#client-ip) so the server trusts only the proxy's sanitized forwarded address. Otherwise, the CIDRs describe the proxy network rather than the Munki clients.
 
-### Example: internet-hosted Woodstar with an on-premises cache
+### Example: internet-hosted server with an on-premises cache
 
-Suppose a campus has the public egress address `203.0.113.42`, Woodstar sits behind Cloudflare, and `mdp.example.com` is reachable only from the campus:
+Suppose a campus has the public egress address `203.0.113.42`, the server sits behind Cloudflare, and `mdp.example.com` is reachable only from the campus:
 
-1. Restrict the Woodstar origin to the Cloudflare path. Cloudflare supplies the connecting client address in `CF-Connecting-IP`.
-2. Configure Woodstar with `WOODSTAR_HTTP_CLIENT_IP_SOURCE=header` and `WOODSTAR_HTTP_CLIENT_IP_HEADER=CF-Connecting-IP`.
+1. Restrict the server origin to the Cloudflare path. Cloudflare supplies the connecting client address in `CF-Connecting-IP`.
+2. Configure `WOODSTAR_HTTP_CLIENT_IP_SOURCE=header` and `WOODSTAR_HTTP_CLIENT_IP_HEADER=CF-Connecting-IP`.
 3. Assign `203.0.113.42/32` to the distribution point.
 4. Ensure campus clients can resolve and reach `https://mdp.example.com`.
 
-Campus requests match the cache using their current public egress address. Off-campus requests do not match and Woodstar serves those packages from primary storage. If clients instead reach Woodstar directly over the campus network, keep the default client-IP source and assign the relevant private subnet.
+Campus requests match the cache using their current public egress address. Off-campus requests do not match and the server serves those packages from primary storage. If clients instead reach it directly over the campus network, keep the default client-IP source and assign the relevant private subnet.
 
 ## Create a distribution point
 
@@ -45,11 +45,11 @@ Under **Munki > Distribution Points**:
 3. Copy the key shown after creation.
 4. Start `woodstar mdp` on the machine that will hold the cached installers.
 
-Woodstar evaluates points in their displayed order. A package is redirected only when the point is enabled, the worker is connected, the derived client IP matches one of the configured CIDRs, and the cached package is current.
+Points are evaluated in their displayed order. A package is redirected only when the point is enabled, the worker is connected, the derived client IP matches one of the configured CIDRs, and the cached package is current.
 
 :::warning
 
-Woodstar cannot test whether a Munki client can reach the cache URL. Woodstar knows that the worker is connected and has the package, but cannot see DNS, routing, firewall, or TLS failures between the client and the cache. If that connection fails after the redirect, the package download fails; Woodstar cannot send the same request back through primary storage.
+The server cannot test whether a Munki client can reach the cache URL. It knows that the worker is connected and has the package, but cannot see DNS, routing, firewall, or TLS failures between the client and the cache. If that connection fails after the redirect, the package download fails and the same request cannot fall back to primary storage.
 
 Only assign client CIDRs that can resolve and connect to the configured URL over HTTPS.
 
@@ -82,18 +82,18 @@ See [Environment](../configuration/environment#distribution-point-worker) for ev
 
 ## Caching
 
-The worker keeps a WebSocket connection to Woodstar and receives the complete desired package list. Missing or changed installers are cached and checked by size and SHA-256. Installers no longer wanted are removed.
+The worker keeps a WebSocket connection to the server and receives the complete desired package list. Missing or changed installers are cached and checked by size and SHA-256. Unwanted installers are removed.
 
-The WebSocket upgrade requires an exact protocol match. Woodstar rejects mismatched workers instead of attempting compatibility, and the UI marks them as incompatible. The server and worker also exchange their Woodstar build versions for diagnostics; build versions do not control protocol compatibility. Run the same Woodstar release for both processes.
+The WebSocket upgrade requires an exact protocol match. The server rejects mismatched workers, and the UI marks them as incompatible. The two processes exchange build versions for diagnostics; build versions do not control protocol compatibility. Run the same release for both.
 
-Cache state is kept in the data directory, and downloads resume after a restart. The Woodstar UI reports each package as pending, syncing, current, or in error.
+Cache state is kept in the data directory, and downloads resume after a restart. The UI reports each package as pending, syncing, current, or in error.
 
 The worker uses the distribution-point key to connect and request short-lived download URLs. Database and storage credentials stay on the server.
 
 ## Serving packages
 
-Munki requests packages from Woodstar as usual. When a matching point has the package, Woodstar redirects the request with a signed, short-lived grant. The worker validates the grant and supports byte ranges for resumed downloads.
+Munki requests packages from the server as usual. When a matching point has the package, the server redirects the request with a signed, short-lived grant. The worker validates the grant and supports byte ranges for resumed downloads.
 
-If the worker is offline, the cached package is stale, or the client's address does not match the configured CIDRs, Woodstar serves the package from primary storage instead. This fallback happens before a redirect and cannot help when the selected cache is unreachable from the client.
+If the worker is offline, the cached package is stale, or the client's address does not match the configured CIDRs, the package comes from primary storage. This fallback happens before a redirect and cannot help when the selected cache is unreachable from the client.
 
 Rotating a distribution-point key disconnects the old worker and invalidates its download grants. Update `WOODSTAR_MDP_KEY` before restarting the worker.

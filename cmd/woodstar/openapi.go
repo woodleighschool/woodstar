@@ -26,7 +26,7 @@ func openAPICommand() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "openapi",
-		Short: "Print the OpenAPI document for the Woodstar API",
+		Short: "Print the OpenAPI document for the API",
 		Long: `Builds the same Huma app API the server registers and writes its OpenAPI 3.1
 document as YAML to stdout (or to the path given by --output). Handlers are
 not invoked, so this command does not require a database.`,

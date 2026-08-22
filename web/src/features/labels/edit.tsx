@@ -38,7 +38,7 @@ export function LabelEditPage() {
         <Alert>
           <AlertTitle>Built-In Label</AlertTitle>
           <AlertDescription>
-            Built-in labels are managed by Woodstar and cannot be edited.
+            Built-in labels are managed by the server and cannot be edited.
           </AlertDescription>
         </Alert>
       </PageShell>

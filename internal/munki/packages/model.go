@@ -13,7 +13,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/validation"
 )
 
-// InstallerType describes the Munki installer modes Woodstar exposes for app
+// InstallerType describes the Munki installer modes exposed for app
 // distribution. OS upgrades and profile delivery are outside this package scope.
 type InstallerType string
 
@@ -54,7 +54,7 @@ func (RestartAction) Schema(_ huma.Registry) *huma.Schema {
 	return openapischema.StringEnum(restartActionValues...)
 }
 
-// UninstallMethod describes the Munki uninstall modes Woodstar exposes.
+// UninstallMethod describes the supported Munki uninstall modes.
 // Absence means no uninstall mechanism is configured.
 type UninstallMethod string
 
@@ -74,7 +74,7 @@ func (UninstallMethod) Schema(_ huma.Registry) *huma.Schema {
 	return openapischema.StringEnum(uninstallMethodValues...)
 }
 
-// PackageReferenceMutation selects Woodstar-authored software and optionally one package version.
+// PackageReferenceMutation selects managed software and optionally one package version.
 type PackageReferenceMutation struct {
 	SoftwareID int64 `json:"software_id"          validate:"gt=0"  minimum:"1"`
 	PackageID  int64 `json:"package_id,omitempty" validate:"gte=0" minimum:"0"`
@@ -243,7 +243,7 @@ type PackageSoftware struct {
 	IconURL      string  `json:"icon_url,omitempty"`
 }
 
-// Package is one Woodstar-authored Munki package version available for targeting.
+// Package is one managed Munki package version available for targeting.
 type Package struct {
 	ID                       int64                                 `json:"id"`
 	Software                 PackageSoftware                       `json:"software"`

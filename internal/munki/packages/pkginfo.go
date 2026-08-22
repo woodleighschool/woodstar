@@ -19,7 +19,7 @@ func MunkiVersionedSoftwareName(softwareName, packageVersion string) string {
 	return name + "--" + version
 }
 
-// Pkginfo renders the Munki pkginfo shape for a Woodstar package.
+// Pkginfo renders the Munki pkginfo shape for a managed package.
 func Pkginfo(pkg Package, objects PkginfoObjects) (any, error) {
 	if pkg.InstallerType != InstallerTypeNoPkg {
 		installer := objects.Installer
@@ -214,7 +214,7 @@ func InstallerItemLocation(pkg Package, obj storage.Object) string {
 	return packageObjectLocation(pkg.ID, "installer", obj)
 }
 
-// ParseInstallerItemLocation returns the package id embedded in a Woodstar
+// ParseInstallerItemLocation returns the package id embedded in an
 // installer_item_location.
 func ParseInstallerItemLocation(location string) (int64, bool) {
 	parts := strings.Split(location, "/")
@@ -233,7 +233,7 @@ func IconName(obj storage.Object) string {
 	return fmt.Sprintf("%d-%s", obj.ID, obj.Filename)
 }
 
-// ParseIconName returns the storage object id embedded in a Woodstar icon name.
+// ParseIconName returns the storage object id embedded in a managed icon name.
 func ParseIconName(name string) (int64, bool) {
 	rawID, filename, ok := strings.Cut(name, "-")
 	if !ok || filename == "" {

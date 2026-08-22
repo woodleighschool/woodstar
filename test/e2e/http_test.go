@@ -95,7 +95,7 @@ func runUserCommand(t *testing.T, server *testServer, args ...string) {
 	commandArgs = append(commandArgs, args...)
 	command := exec.CommandContext(t.Context(), server.BinaryPath, commandArgs...) //nolint:gosec // Test-configured or test-built binary and arguments.
 	if output, err := command.CombinedOutput(); err != nil {
-		t.Fatalf("run Woodstar user command: %v\n%s", err, output)
+		t.Fatalf("run user command: %v\n%s", err, output)
 	}
 }
 

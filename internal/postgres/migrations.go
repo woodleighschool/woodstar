@@ -18,14 +18,14 @@ import (
 )
 
 const (
-	// migrationLockID identifies Woodstar's session-level PostgreSQL advisory lock.
+	// migrationLockID identifies the session-level PostgreSQL advisory lock.
 	migrationLockID int64 = 7146808627076917000
 
 	// riverMigrationLockID serializes River schema migrations between replicas.
 	riverMigrationLockID int64 = 7146808627076917001
 
 	// riverMigrationVersion is deliberately pinned so dependency updates do not
-	// mutate the database schema without an explicit Woodstar change.
+	// mutate the database schema without an explicit application change.
 	riverMigrationVersion = 7
 )
 

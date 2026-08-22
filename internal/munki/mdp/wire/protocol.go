@@ -15,7 +15,7 @@ const (
 	// ProtocolHeader identifies the protocol required by a rejected upgrade.
 	ProtocolHeader = "Woodstar-MDP-Protocol"
 
-	// BuildVersionHeader carries a Woodstar binary version during an upgrade.
+	// BuildVersionHeader carries a server binary version during an upgrade.
 	BuildVersionHeader = "Woodstar-Version"
 
 	// MaxBuildVersionLength bounds diagnostic build-version values.
@@ -66,7 +66,7 @@ type PointIdentity struct {
 	Name string `json:"name"`
 }
 
-// ServerMessage is one control message sent from central Woodstar to a worker.
+// ServerMessage is one control message sent from the central server to a worker.
 type ServerMessage struct {
 	Type              string           `json:"type"`
 	DistributionPoint PointIdentity    `json:"distribution_point,omitzero"`
@@ -81,7 +81,7 @@ type DesiredPackage struct {
 	SizeBytes int64  `json:"size_bytes"`
 }
 
-// PackageEvent reports one worker mirror-state transition to central Woodstar.
+// PackageEvent reports one worker mirror-state transition to the central server.
 type PackageEvent struct {
 	Type      string `json:"type"`
 	PackageID int64  `json:"package_id"`

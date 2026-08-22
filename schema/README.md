@@ -1,6 +1,6 @@
 # osquery schema data
 
-`osquery_fleet_schema.json` provides schema browsing and autocomplete in Woodstar's osquery editor. Woodstar syncs the file from Fleet's osquery schema data.
+`osquery_fleet_schema.json` provides schema browsing and autocomplete in the osquery editor. The file is synced from Fleet's osquery schema data.
 
 Refresh the schema with:
 

@@ -1,12 +1,12 @@
 ---
 sidebar_position: 1
 title: Introduction
-description: What Woodstar does and how its parts fit together.
+description: What the app does and how its parts fit together.
 ---
 
 # Woodstar
 
-Woodstar is self-hosted macOS management for the gaps Intune leaves. Woodstar provides:
+Self-hosted macOS management for the gaps Intune leaves. It provides:
 
 - **Managed software** through Munki.
 - **Execution rules and events** through Santa.
@@ -15,7 +15,7 @@ Woodstar is self-hosted macOS management for the gaps Intune leaves. Woodstar pr
 
 ## Clients
 
-| Client  | What the client uses Woodstar for                            |
+| Client  | What the client uses the server for                          |
 | ------- | ------------------------------------------------------------ |
 | Orbit   | Enrollment, basic host details, and remediation execution    |
 | osquery | Inventory, reports, policies, labels, and live queries       |
@@ -26,13 +26,13 @@ Orbit and osquery can enroll a Mac. Santa and Munki connect to an existing host 
 
 Labels group hosts. The same labels can scope osquery work, Santa policy, and Munki software.
 
-Woodstar implements the Fleet-compatible endpoints used by Orbit and osquery. Santa and Munki use their own native protocols.
+The server implements the Fleet-compatible endpoints used by Orbit and osquery. Santa and Munki use their own native protocols.
 
 ## Documentation
 
-- [Getting Started](./getting-started/docker-compose) runs Woodstar with Docker Compose.
+- [Getting Started](./getting-started/docker-compose) runs the server with Docker Compose.
 - [Concepts](./concepts/capability-boundaries) explains hosts, labels, accounts, and agent credentials.
-- [Using Woodstar](./admin/hosts-and-inventory) covers the main areas of the web app.
+- [Using the app](./admin/hosts-and-inventory) covers the main areas of the web app.
 - [Agent Protocols](./agent-protocols/overview) documents client configuration and routes.
 - [AutoPkg](./autopkg/overview) covers package imports.
 - [Configuration](./configuration/environment) lists server settings.

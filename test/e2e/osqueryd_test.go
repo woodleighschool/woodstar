@@ -90,7 +90,7 @@ func TestOsqueryd(t *testing.T) {
 	)
 	startCancel()
 	if runErr != nil {
-		t.Fatalf("start osqueryd container: %v\nWoodstar server logs (tail):\n%s", runErr, server.logs())
+		t.Fatalf("start osqueryd container: %v\nserver logs (tail):\n%s", runErr, server.logs())
 	}
 	t.Cleanup(func() {
 		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), osquerydCleanupTimeout)
@@ -177,7 +177,7 @@ func waitForOsquerydReportError(
 
 		if ctx.Err() != nil {
 			t.Fatalf(
-				"wait for real-osquery report error: %v\nlast public response: %s\nWoodstar server logs (tail):\n%s",
+				"wait for real-osquery report error: %v\nlast public response: %s\nserver logs (tail):\n%s",
 				ctx.Err(),
 				lastResponse,
 				server.logs(),
@@ -241,7 +241,7 @@ func waitForOsquerydHost(t *testing.T, server *testServer, container testcontain
 		ready := err == nil && osquerydHostReady(hosts)
 		if ctx.Err() != nil {
 			t.Fatalf(
-				"wait for osqueryd enrollment: %v\nlast public response: %s\nWoodstar server logs (tail):\n%s",
+				"wait for osqueryd enrollment: %v\nlast public response: %s\nserver logs (tail):\n%s",
 				ctx.Err(),
 				lastResponse,
 				server.logs(),
@@ -253,7 +253,7 @@ func waitForOsquerydHost(t *testing.T, server *testServer, container testcontain
 		stateCancel()
 		if stateErr != nil {
 			t.Fatalf(
-				"inspect osqueryd container: %v\nlast public response: %s\nWoodstar server logs (tail):\n%s",
+				"inspect osqueryd container: %v\nlast public response: %s\nserver logs (tail):\n%s",
 				stateErr,
 				lastResponse,
 				server.logs(),
@@ -261,7 +261,7 @@ func waitForOsquerydHost(t *testing.T, server *testServer, container testcontain
 		}
 		if state == nil || !state.Running {
 			t.Fatalf(
-				"osqueryd exited before enrollment\nlast public response: %s\nWoodstar server logs (tail):\n%s",
+				"osqueryd exited before enrollment\nlast public response: %s\nserver logs (tail):\n%s",
 				lastResponse,
 				server.logs(),
 			)
@@ -275,7 +275,7 @@ func waitForOsquerydHost(t *testing.T, server *testServer, container testcontain
 		case <-ctx.Done():
 			timer.Stop()
 			t.Fatalf(
-				"wait for osqueryd enrollment: %v\nlast public response: %s\nWoodstar server logs (tail):\n%s",
+				"wait for osqueryd enrollment: %v\nlast public response: %s\nserver logs (tail):\n%s",
 				ctx.Err(),
 				lastResponse,
 				server.logs(),

@@ -87,7 +87,7 @@ var compiledTestBinary binaryCache
 func TestMain(m *testing.M) {
 	exitCode := m.Run()
 	if err := compiledTestBinary.cleanup(); err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "remove compiled Woodstar test binary: %v\n", err)
+		_, _ = fmt.Fprintf(os.Stderr, "remove compiled test binary: %v\n", err)
 		if exitCode == 0 {
 			exitCode = 1
 		}
@@ -153,17 +153,17 @@ func startTestServer(t *testing.T) *testServer {
 	)
 	process, err := startProcess(command)
 	if err != nil {
-		t.Fatalf("start Woodstar: %v\n%s", err, server.logs())
+		t.Fatalf("start server: %v\n%s", err, server.logs())
 	}
 	t.Cleanup(func() {
-		stopProcess(t, "Woodstar", process)
+		stopProcess(t, "server", process)
 		if t.Failed() {
-			t.Logf("Woodstar server logs (tail):\n%s", server.logs())
+			t.Logf("server logs (tail):\n%s", server.logs())
 		}
 	})
 
 	if err := waitForHealth(t.Context(), client, baseURL, process); err != nil {
-		t.Fatalf("wait for Woodstar readiness: %v", err)
+		t.Fatalf("wait for server readiness: %v", err)
 	}
 
 	return server
@@ -182,7 +182,7 @@ func testBinary(t *testing.T) string {
 
 	compiledTestBinary.once.Do(func() { compiledTestBinary.resolve(t.Context()) })
 	if compiledTestBinary.err != nil {
-		t.Fatalf("prepare Woodstar test binary: %v", compiledTestBinary.err)
+		t.Fatalf("prepare test binary: %v", compiledTestBinary.err)
 	}
 	return compiledTestBinary.path
 }
@@ -257,7 +257,7 @@ func createTestTLS(t *testing.T, root string) testTLS {
 	}
 	caTemplate := &x509.Certificate{
 		SerialNumber:          randomSerial(t),
-		Subject:               pkix.Name{CommonName: "Woodstar integration test CA"},
+		Subject:               pkix.Name{CommonName: "Integration test CA"},
 		NotBefore:             now.Add(-time.Minute),
 		NotAfter:              now.Add(24 * time.Hour),
 		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
@@ -478,9 +478,9 @@ func waitForHealth(
 		case <-process.done:
 			timer.Stop()
 			if process.waitErr == nil {
-				return errors.New("Woodstar exited before readiness")
+				return errors.New("server exited before readiness")
 			}
-			return fmt.Errorf("Woodstar exited before readiness: %w", process.waitErr)
+			return fmt.Errorf("server exited before readiness: %w", process.waitErr)
 		case <-ctx.Done():
 			timer.Stop()
 			return fmt.Errorf("health check deadline: %w (last error: %w)", ctx.Err(), lastErr)

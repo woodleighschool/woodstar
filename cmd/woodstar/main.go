@@ -86,7 +86,7 @@ func rootCommand() *cobra.Command {
 
 	root := &cobra.Command{
 		Use:           "woodstar",
-		Short:         "Woodstar macOS observability and admin server",
+		Short:         "macOS observability and admin server",
 		Version:       buildinfo.Version,
 		SilenceUsage:  true,
 		SilenceErrors: true,

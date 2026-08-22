@@ -82,7 +82,7 @@ func New(
 	logger *slog.Logger,
 ) (*Runtime, error) {
 	client, err := river.NewClient(riverpgxv5.New(pool), &river.Config{
-		// Keep River's five-second housekeeping chatter out of Woodstar's debug logs.
+		// Keep River's five-second housekeeping chatter out of debug logs.
 		Logger:          riverLogger(logger),
 		JobTimeout:      30 * time.Minute,
 		SoftStopTimeout: softStopTimeout,

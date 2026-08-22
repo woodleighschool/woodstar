@@ -1,4 +1,4 @@
-// Package activity records the small, curated stream of durable Woodstar actions.
+// Package activity records a small, curated stream of durable actions.
 package activity
 
 import (
@@ -89,7 +89,7 @@ var actionValues = []Action{
 	ActionLiveQueryStopped,
 }
 
-// Schema documents activity actions currently emitted by Woodstar.
+// Schema documents activity actions emitted by the server.
 func (Action) Schema(_ huma.Registry) *huma.Schema {
 	return openapischema.StringEnum(actionValues...)
 }

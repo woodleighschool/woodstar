@@ -1,12 +1,12 @@
 ---
 sidebar_position: 3
 title: Santa Sync
-description: Configure Santa to sync with Woodstar.
+description: Configure Santa to sync with the server.
 ---
 
 # Santa Sync
 
-Woodstar implements Santa's SyncV1 protocol over HTTPS with gzipped protobuf messages.
+The server implements Santa's SyncV1 protocol over HTTPS with gzipped protobuf messages.
 
 ## Configure Santa
 
@@ -46,7 +46,7 @@ Create a secret from the **Santa** overview, then replace the example URL and se
     </dict>
   </array>
   <key>PayloadDescription</key>
-  <string>Configures Santa for Woodstar.</string>
+  <string>Configures Santa for device management.</string>
   <key>PayloadDisplayName</key>
   <string>Woodstar - Santa</string>
   <key>PayloadIdentifier</key>
@@ -86,6 +86,6 @@ See [Mutual TLS](./mutual-tls#santa) for Santa's PKCS#12 and System Keychain opt
 
 Santa must match an existing host. Preflight updates the Santa version, client mode, user details, SIP state, and rule-sync state. Rule downloads are paged in batches of 500.
 
-Woodstar supports SyncV1. Santa SyncV2 and the associated push infrastructure are not implemented.
+The server supports SyncV1.
 
 See [Santa](../admin/santa) for configurations, rules, and events.

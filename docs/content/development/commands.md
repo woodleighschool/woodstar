@@ -1,7 +1,7 @@
 ---
 sidebar_position: 2
 title: Commands
-description: Build, test, lint, format, and generate Woodstar.
+description: Build, test, lint, format, and generate the server.
 ---
 
 # Commands

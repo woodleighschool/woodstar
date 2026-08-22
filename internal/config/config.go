@@ -23,7 +23,7 @@ const SessionLifetime = 14 * 24 * time.Hour
 // ErrInvalidServerURL is returned when ServerURL is not a valid HTTPS origin.
 var ErrInvalidServerURL = errors.New("invalid server URL")
 
-// ErrInvalidOIDCRedirectURL is returned when OIDCRedirectURL cannot reach Woodstar's callback.
+// ErrInvalidOIDCRedirectURL is returned when OIDCRedirectURL cannot reach the callback.
 var ErrInvalidOIDCRedirectURL = errors.New("invalid OIDC redirect URL")
 
 // Config contains runtime settings.
@@ -231,7 +231,7 @@ func normalizeOrigin(value string) string {
 	return parsed.String()
 }
 
-// TLSConfigured reports whether Woodstar should terminate TLS itself.
+// TLSConfigured reports whether the server should terminate TLS itself.
 func (cfg *Config) TLSConfigured() bool {
 	return cfg.TLSCertFile != ""
 }

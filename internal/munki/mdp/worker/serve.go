@@ -64,7 +64,7 @@ func (s *server) serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// The grant must bind to the bytes the worker has verified. A mismatch means
-	// the mirror is stale relative to what Woodstar expects.
+	// the mirror is stale relative to what the server expects.
 	if claims.SHA256 != state.SHA256 || claims.SizeBytes != state.SizeBytes {
 		s.reject(w, r, http.StatusConflict, "mirror stale")
 		return

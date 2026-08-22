@@ -14,7 +14,7 @@ type Fetcher interface {
 	Fetch(ctx context.Context) (directory.ProviderSnapshot, error)
 }
 
-// SnapshotApplier applies fetched Entra snapshots to Woodstar directory state.
+// SnapshotApplier applies fetched Entra snapshots to local directory state.
 type SnapshotApplier interface {
 	ApplyProviderSnapshot(ctx context.Context, source directory.Source, snapshot directory.ProviderSnapshot) error
 }

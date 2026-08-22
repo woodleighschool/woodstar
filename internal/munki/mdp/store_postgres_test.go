@@ -134,7 +134,7 @@ func TestGetByIDDerivesPackageStatusFromDesiredAndMirrorState(t *testing.T) {
 	}
 
 	// pkgA reports the desired hash; pkgB reports a stale one. Each is derived
-	// independently against Woodstar's current desired installer.
+	// independently against the current desired installer.
 	recordCurrent(t, ctx, store, point.ID, pkgA, shaA)
 	recordCurrent(t, ctx, store, point.ID, pkgB, strings.Repeat("c", 64))
 

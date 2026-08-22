@@ -10,7 +10,7 @@ const (
 	referrerPolicy    = "no-referrer"
 )
 
-// SecurityHeaders restricts browser capabilities to Woodstar and its storage transfer origin.
+// SecurityHeaders restricts browser capabilities to the application and its storage transfer origin.
 func SecurityHeaders(transferOrigin string) func(http.Handler) http.Handler {
 	connectSources := []string{"'self'"}
 	imageSources := []string{"'self'", "blob:"}

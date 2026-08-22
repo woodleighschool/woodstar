@@ -13,12 +13,12 @@ type LinkItem = {
 
 const primaryLinks: LinkItem[] = [
   {
-    title: "Run Woodstar",
-    text: "Start Woodstar and PostgreSQL with Docker Compose.",
+    title: "Run the server",
+    text: "Start the server and PostgreSQL with Docker Compose.",
     to: "/docs/getting-started/docker-compose",
   },
   {
-    title: "How Woodstar fits together",
+    title: "How it fits together",
     text: "Learn how hosts, labels, the web app, and agent protocols relate.",
     to: "/docs/concepts/capability-boundaries",
   },
@@ -37,7 +37,7 @@ const secondaryLinks: LinkItem[] = [
   },
   {
     title: "API reference",
-    text: "Browse the API generated from Woodstar's OpenAPI schema.",
+    text: "Browse the API generated from the OpenAPI schema.",
     to: "/docs/api/overview",
   },
   {
@@ -62,7 +62,7 @@ export default function Home(): ReactNode {
   return (
     <Layout
       title="Woodstar documentation"
-      description="Documentation for the Woodstar macOS management server."
+      description="Documentation for the macOS management server."
     >
       <main className={styles.main}>
         <section className={styles.intro}>

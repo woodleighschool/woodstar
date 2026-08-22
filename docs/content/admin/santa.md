@@ -6,7 +6,7 @@ description: Santa configurations, rules, and events.
 
 # Santa
 
-Woodstar provides the sync server for [Santa](https://github.com/northpolesec/santa). Macs download their configuration and rules, then upload execution and file-access events.
+The app provides the sync server for [Santa](https://github.com/northpolesec/santa). Macs download their configuration and rules, then upload execution and file-access events.
 
 ## Configurations
 
@@ -22,7 +22,7 @@ The rule form can search observed execution events for known targets. A host pag
 
 ## Events
 
-Woodstar stores execution events and file-access events reported by Santa. The event pages are read-only.
+Execution events and file-access events reported by Santa appear on read-only event pages.
 
 `WOODSTAR_SANTA_EVENT_RETENTION_DAYS` controls retention. See [Environment](../configuration/environment#santa-event-retention).
 

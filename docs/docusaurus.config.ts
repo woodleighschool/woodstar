@@ -175,7 +175,7 @@ const config: Config = {
           title: "Docs",
           items: [
             { label: "Overview", to: "/docs/intro" },
-            { label: "Run Woodstar", to: "/docs/getting-started/docker-compose" },
+            { label: "Run the server", to: "/docs/getting-started/docker-compose" },
             { label: "Configuration", to: "/docs/configuration/environment" },
           ],
         },

@@ -1,12 +1,12 @@
 ---
 sidebar_position: 1
 title: Overview
-description: Import Munki packages into Woodstar with AutoPkg.
+description: Import Munki packages with AutoPkg.
 ---
 
 # AutoPkg
 
-Woodstar includes AutoPkg processors for importing Munki software and package versions. The normal recipe flow uploads directly to Woodstar and does not require a Munki repository.
+The repository includes AutoPkg processors for importing Munki software and package versions. The normal recipe flow uploads directly to the server and does not require a Munki repository.
 
 ## Install the processors
 
@@ -18,7 +18,7 @@ Recipes refer to them through `com.github.woodleighschool.woodstar.processors`.
 
 ## Configure access
 
-Set the Woodstar URL and an account API key in AutoPkg preferences:
+Set the server URL and an account API key in AutoPkg preferences:
 
 ```sh
 defaults write com.github.autopkg WOODSTAR_URL -string "https://woodstar.example"

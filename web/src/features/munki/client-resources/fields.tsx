@@ -162,8 +162,8 @@ export function MunkiClientResourcesForm({
           title="Undeploy Client Resources?"
           description={
             form.state.isDefaultValue
-              ? "Woodstar will stop serving this archive. Munki clients will use their built-in resources."
-              : "Woodstar will stop serving this archive and discard your unsaved changes. Munki clients will use their built-in resources."
+              ? "The server will stop serving this archive. Munki clients will use their built-in resources."
+              : "The server will stop serving this archive and discard your unsaved changes. Munki clients will use their built-in resources."
           }
           confirmLabel="Undeploy"
           variant="destructive"
@@ -188,8 +188,8 @@ function DeploymentBadge({ deployed }: { deployed: boolean }) {
       <TooltipTrigger render={badge} />
       <TooltipContent>
         {deployed
-          ? "Woodstar is serving this archive to Munki clients."
-          : "Woodstar is not serving client resources. Munki clients use their built-in resources."}
+          ? "The server is serving this archive to Munki clients."
+          : "The server is not serving client resources. Munki clients use their built-in resources."}
       </TooltipContent>
     </Tooltip>
   );

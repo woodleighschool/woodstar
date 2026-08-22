@@ -26,7 +26,7 @@ const (
 
 var RoleValues = []Role{RoleAdmin, RoleViewer}
 
-// User is a Woodstar account row, optionally granted app access by Role.
+// User is an application account row, optionally granted access by Role.
 type User struct {
 	ID                int64      `json:"id"`
 	Email             string     `json:"email"                         format:"email"`

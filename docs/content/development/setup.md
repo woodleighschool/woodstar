@@ -6,7 +6,7 @@ description: Run the backend and frontend from a checkout.
 
 # Development Setup
 
-Woodstar uses [mise](https://mise.jdx.dev/) for Go, Node, pnpm, and repository commands.
+The repository uses [mise](https://mise.jdx.dev/) for Go, Node, pnpm, and repository commands.
 
 ## Install dependencies
 
@@ -27,7 +27,7 @@ openssl rand -hex 32
 
 ## Set up the development hostname and certificate
 
-Woodstar's development URL is `https://woodstar:8443`. Add the hostname to `/etc/hosts`:
+The development URL is `https://woodstar:8443`. Add the hostname to `/etc/hosts`:
 
 ```text
 127.0.0.1 woodstar
@@ -58,7 +58,7 @@ WOODSTAR_DATABASE_URL='postgres://woodstar:woodstar@localhost:5432/woodstar?sslm
 
 The command prompts for a password and runs pending migrations.
 
-## Start Woodstar
+## Start the server
 
 ```bash
 mise run dev

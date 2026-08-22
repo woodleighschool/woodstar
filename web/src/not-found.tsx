@@ -19,7 +19,7 @@ export function NotFoundPage() {
             <Compass />
           </EmptyMedia>
           <EmptyTitle>Page Not Found</EmptyTitle>
-          <EmptyDescription>That route doesn't exist in this Woodstar build.</EmptyDescription>
+          <EmptyDescription>That route doesn't exist in this build.</EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
           <Button size="sm" render={<Link to="/hosts" />} nativeButton={false}>

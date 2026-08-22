@@ -1,4 +1,4 @@
-// Package httpapi exposes the Woodstar activity timeline.
+// Package httpapi exposes the activity timeline.
 package httpapi
 
 import (

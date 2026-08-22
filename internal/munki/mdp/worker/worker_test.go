@@ -51,12 +51,12 @@ func newTestSession(t *testing.T, serverURL string) *session {
 	}
 	client, err := newWoodstarClient(serverURL, "dp-key", "")
 	if err != nil {
-		t.Fatalf("new Woodstar client: %v", err)
+		t.Fatalf("new server client: %v", err)
 	}
 	return newSession(mirror, client, discardLogger(), 2, time.Millisecond)
 }
 
-// fakeWoodstar serves the worker's HTTP side: a per-job download URL that points
+// The fake server provides a per-job download URL that points
 // back at its own storage route, which streams content with the given handler.
 func fakeWoodstar(t *testing.T, storage http.HandlerFunc) *httptest.Server {
 	t.Helper()

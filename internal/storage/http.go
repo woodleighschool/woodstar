@@ -16,7 +16,7 @@ type transferRouteRegistrar interface {
 	registerTransferRoutes(r chi.Router, logger *slog.Logger)
 }
 
-// RegisterTransferRoutes mounts Woodstar-hosted transfers for the file backend.
+// RegisterTransferRoutes mounts server-hosted transfers for the file backend.
 // S3 transfers are served exclusively by provider-signed URLs.
 func RegisterTransferRoutes(r chi.Router, backend Backend, logger *slog.Logger) {
 	backend.registerTransferRoutes(r, logger)

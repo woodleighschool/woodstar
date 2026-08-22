@@ -1,6 +1,6 @@
 ---
 Description: >-
-  Imports the Munki repo into Woodstar. Existing software metadata is left alone;
+  Imports the Munki repo into the server. Existing software metadata is left alone;
   package rows are synced from pkginfo.
 Identifier: com.github.woodleighschool.woodstar.munki.repo-import
 Input: {}

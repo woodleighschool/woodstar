@@ -1,6 +1,6 @@
 package storage
 
-// BlobCapabilityClaims is the signed payload for Woodstar-direct blob
+// BlobCapabilityClaims is the signed payload for server-direct blob
 // transfers.
 type BlobCapabilityClaims struct {
 	Op          string `json:"op"`

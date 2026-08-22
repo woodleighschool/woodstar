@@ -24,7 +24,7 @@ type Config struct {
 	S3          S3Config
 }
 
-// FileConfig holds the settings for Woodstar-hosted storage transfers.
+// FileConfig holds the settings for server-hosted storage transfers.
 type FileConfig struct {
 	Root             string
 	BaseURL          string

@@ -1,7 +1,7 @@
 ---
 sidebar_position: 3
 title: Docs Site
-description: Work on the Woodstar documentation site.
+description: Work on the documentation site.
 ---
 
 # Docs Site

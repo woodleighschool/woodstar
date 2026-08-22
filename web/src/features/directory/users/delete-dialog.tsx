@@ -19,7 +19,7 @@ export function UserDeleteDialog({ open, onOpenChange, user, onDeleted }: UserDe
   const userDescription = user?.name ? `${name} (${user.email})` : name;
   const description = isLocal
     ? "This permanently deletes the local user. Their next request will sign them out automatically."
-    : "This removes the user from Woodstar's current directory view. Directory sync can restore the user if the source still contains it.";
+    : "This removes the user from the current directory view. Directory sync can restore the user if the source still contains it.";
 
   async function handleConfirm() {
     if (!user) return;

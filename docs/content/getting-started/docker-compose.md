@@ -1,12 +1,12 @@
 ---
 sidebar_position: 1
-title: Run Woodstar
-description: Run Woodstar and PostgreSQL with Docker Compose.
+title: Run the Server
+description: Run the server and PostgreSQL with Docker Compose.
 ---
 
-# Run Woodstar
+# Run the Server
 
-The repository includes a Compose file for Woodstar and PostgreSQL. Woodstar uses the published `ghcr.io/woodleighschool/woodstar:rolling` image by default.
+The repository includes a Compose file for the server and PostgreSQL. Compose uses the published `ghcr.io/woodleighschool/woodstar:rolling` image by default.
 
 ## Configuration
 
@@ -22,11 +22,11 @@ Set these values in `.env`:
 - `WOODSTAR_TLS_CERT_FILE` and `WOODSTAR_TLS_KEY_FILE` to certificate files on the Docker host.
 - `WOODSTAR_STORAGE_CAPABILITY_KEY` to the output of `openssl rand -hex 32`.
 
-The certificate must match `WOODSTAR_URL` and be trusted by the Macs connecting to Woodstar. Make sure the hostname resolves to the Docker host.
+The certificate must match `WOODSTAR_URL` and be trusted by connecting Macs. Make sure the hostname resolves to the Docker host.
 
 For development on one Mac, the [development setup](../development/setup) can generate a certificate and add the local hostname.
 
-## Start Woodstar
+## Start the server
 
 ```bash
 docker compose up -d

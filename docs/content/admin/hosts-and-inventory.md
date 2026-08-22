@@ -32,4 +32,4 @@ This inventory is read-only. Use [Munki](./munki) to manage desired software.
 
 ## Directory
 
-When Entra sync is configured, Woodstar lists its users and groups under **Directory**. This data supports derived labels and user affinity. See [Directory](./directory).
+When Entra sync is configured, users and groups appear under **Directory**. This data supports derived labels and user affinity. See [Directory](./directory).

@@ -15,7 +15,7 @@ import (
 )
 
 // eventBuffer holds package events between the jobs that emit them and the
-// writer that flushes them to Woodstar, so a job never blocks on the socket.
+// writer that flushes them to the server, so a job never blocks on the socket.
 const eventBuffer = 64
 
 // maxJobRetry caps the backoff between failed mirror attempts so a persistently

@@ -55,7 +55,7 @@ type Worker struct {
 // New restores the worker's mirror and wires its collaborators.
 func New(cfg Config, version string, logger *slog.Logger) (*Worker, error) {
 	if !wire.ValidBuildVersion(version) {
-		return nil, errors.New("invalid Woodstar build version")
+		return nil, errors.New("invalid server build version")
 	}
 	m, err := loadMirror(cfg.DataDir)
 	if err != nil {
@@ -63,7 +63,7 @@ func New(cfg Config, version string, logger *slog.Logger) (*Worker, error) {
 	}
 	client, err := newWoodstarClient(cfg.ServerURL, cfg.Key, cfg.ServerCAFile)
 	if err != nil {
-		return nil, fmt.Errorf("configure Woodstar client: %w", err)
+		return nil, fmt.Errorf("configure server client: %w", err)
 	}
 	return &Worker{
 		cfg:     cfg,
@@ -75,7 +75,7 @@ func New(cfg Config, version string, logger *slog.Logger) (*Worker, error) {
 	}, nil
 }
 
-// Run starts the serve node and the Woodstar connection loop. It returns when
+// Run starts the serve node and the server connection loop. It returns when
 // ctx is cancelled, the serve node exits, or the control connection encounters
 // a terminal protocol error. Failure in either half stops the other so the
 // worker never lingers partially available.
@@ -145,7 +145,7 @@ func (w *Worker) Run(ctx context.Context) error {
 	return runErr
 }
 
-// connectLoop keeps a Woodstar connection up, reconnecting with capped backoff.
+// connectLoop keeps the server connection up, reconnecting with capped backoff.
 // Each reconnect receives the whole desired set, so a missed change is recovered.
 func (w *Worker) connectLoop(ctx context.Context) error {
 	backoff := initialReconnectDelay
@@ -174,7 +174,7 @@ func (w *Worker) connectLoop(ctx context.Context) error {
 	}
 }
 
-// connectOnce dials Woodstar and processes hello and desired_set messages until
+// connectOnce dials the server and processes hello and desired_set messages until
 // the connection ends. The read loop only updates state and kicks the session's
 // reconciler; downloads and reporting run on the session's own goroutines, so a
 // large download never blocks the control channel or its ping responses.

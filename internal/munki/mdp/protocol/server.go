@@ -67,7 +67,7 @@ func NewServer(
 	logger *slog.Logger,
 ) (*Server, error) {
 	if !wire.ValidBuildVersion(version) {
-		return nil, fmt.Errorf("invalid Woodstar build version %q", version)
+		return nil, fmt.Errorf("invalid server build version %q", version)
 	}
 	return &Server{
 		store:    store,

@@ -6,7 +6,7 @@ description: Managed software, packages, client resources, and distribution poin
 
 # Munki
 
-Woodstar stores Munki software and package metadata, builds manifests and catalogs for each Mac, and serves package files and Managed Software Center resources.
+The server stores Munki software and package metadata, builds manifests and catalogs for each Mac, and serves package files and Managed Software Center resources.
 
 ## Software
 
@@ -14,7 +14,7 @@ A software title represents one managed item, such as Google Chrome. Each title 
 
 ## Packages
 
-A package contains the Munki metadata for one version. Woodstar supports `pkg`, `copy_from_dmg`, and `nopkg` installer types.
+A package contains the Munki metadata for one version. The server supports `pkg`, `copy_from_dmg`, and `nopkg` installer types.
 
 `pkg` and `copy_from_dmg` packages require an uploaded installer. A `nopkg` item has no installer file. The package form includes Munki settings such as restart behaviour, supported architectures, blocking applications, requirements, update relationships, install checks, and uninstall methods.
 
@@ -45,19 +45,19 @@ Changes are published when you select **Save**. **Cancel** restores the saved va
 
 ## Distribution points
 
-A distribution point is a local cache for package installers. Woodstar continues to provide manifests and catalogs, while matching Munki clients download installers directly from the cache.
+A distribution point is a local cache for package installers. The server provides manifests and catalogs, while matching Munki clients download installers directly from the cache.
 
 Each point has:
 
 - An HTTPS URL that its Munki clients can resolve and reach.
-- Client source CIDRs that match the address Woodstar derives from each package request.
+- Client source CIDRs that match the address derived from each package request.
 - A position used when more than one point matches.
 - A key shown when the point is created or rotated.
 
 A point with no client CIDRs receives no redirects. Use `0.0.0.0/0` and `::/0` for a catch-all. See [how client matching works](../agent-protocols/munki-distribution#how-client-matching-works) before assigning ranges behind a proxy.
 
-The package list shows whether each installer is pending, syncing, current, or in error. Woodstar selects a point only while the worker is online and the requested package is current. Otherwise, the package comes from Woodstar's primary storage.
+The package list shows whether each installer is pending, syncing, current, or in error. A point is selected only while the worker is online and the requested package is current. Otherwise, the package comes from primary storage.
 
-Woodstar cannot check the route from a Mac to the cache. If a client's address matches a point but DNS, routing, firewall rules, or TLS prevent access to its URL, the Munki download fails. Woodstar has already redirected the request and cannot serve that attempt from primary storage.
+The server cannot check the route from a Mac to the cache. If a client's address matches a point but DNS, routing, firewall rules, or TLS prevent access to its URL, the Munki download fails after the redirect and cannot fall back to primary storage.
 
 See [Munki Distribution Points](../agent-protocols/munki-distribution) to run the worker.

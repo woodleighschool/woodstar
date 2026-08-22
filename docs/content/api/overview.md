@@ -6,7 +6,7 @@ description: Authentication and generation for the API reference.
 
 # API Reference
 
-Woodstar's JSON API is served under `/api`. The web app uses the same endpoints documented here.
+The JSON API is served under `/api`. The web app uses the same endpoints documented here.
 
 Mac clients use separate [agent protocols](../agent-protocols/overview).
 

@@ -1,7 +1,7 @@
 ---
 sidebar_position: 2
 title: Processor Reference
-description: Inputs and outputs for the Woodstar AutoPkg processors.
+description: Inputs and outputs for the AutoPkg processors.
 ---
 
 # Processor Reference

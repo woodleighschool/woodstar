@@ -414,7 +414,7 @@ func (s *Store) CandidatesForClient(
 }
 
 // ResolveForClient returns the first matching candidate eligible to serve the
-// requested package, or nil when Woodstar should serve the file itself.
+// requested package, or nil when the primary server should serve the file.
 func (s *Store) ResolveForClient(
 	ctx context.Context,
 	clientIP netip.Addr,
@@ -540,7 +540,7 @@ WHERE id = $1`, packageID).Scan(&objectID)
 // RecordPackageState upserts one package's mirror state for a distribution
 // point while the reporting connection owns its current worker session.
 // Eligibility is derived at read and redirect time by comparing the reported
-// hash against Woodstar's current desired installer, so a stale or removed
+// hash against the current desired installer, so a stale or removed
 // package stops matching on its own and needs no separate cleanup.
 func (s *Store) RecordPackageState(
 	ctx context.Context,

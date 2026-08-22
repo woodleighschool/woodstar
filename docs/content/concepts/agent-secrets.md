@@ -18,7 +18,7 @@ Each secret must be at least 32 characters.
 
 ## Orbit and osquery
 
-Orbit and osquery send the shared enrollment secret once. Woodstar returns a node key for later requests. The other protocol's first enrollment attaches to the same host. Re-enrollment retains the host identity and dependent state while replacing that protocol's node key.
+Orbit and osquery send the shared enrollment secret once. The server returns a node key for later requests. The other protocol's first enrollment attaches to the same host. Re-enrollment retains the host identity and dependent state while replacing that protocol's node key.
 
 ## Santa and Munki
 

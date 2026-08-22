@@ -426,7 +426,7 @@ func assertOrbitFixtureConfig(
 		flags["carver_disable_function"] != true ||
 		flags["logger_plugin"] != "tls" ||
 		flags["logger_min_status"] != float64(2) {
-		t.Fatalf("Orbit startup flags = %+v, want Woodstar defaults", flags)
+		t.Fatalf("Orbit startup flags = %+v, want server defaults", flags)
 	}
 	if response.ScriptExecutionTimeout != 300 {
 		t.Fatalf("Orbit script timeout = %d, want 300", response.ScriptExecutionTimeout)

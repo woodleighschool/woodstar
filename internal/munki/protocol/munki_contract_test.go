@@ -555,7 +555,7 @@ func TestMunkiHTTPRedirectsPackageFileToDistributionPoint(t *testing.T) {
 		t.Fatalf("selection installer_item_location = %q", selector.got.InstallerItemLocation)
 	}
 	if delivery.gotObject.ID != 0 {
-		t.Fatalf("Woodstar delivery should be skipped, got object %+v", delivery.gotObject)
+		t.Fatalf("server delivery should be skipped, got object %+v", delivery.gotObject)
 	}
 }
 

@@ -38,7 +38,7 @@ export function LoginPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="items-center justify-items-center text-center">
           <Logo size="md" />
-          <CardTitle>Log In to Woodstar</CardTitle>
+          <CardTitle>Log In</CardTitle>
         </CardHeader>
         <CardContent>
           <form

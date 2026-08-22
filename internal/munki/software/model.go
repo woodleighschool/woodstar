@@ -98,7 +98,7 @@ func validateName(name string) error {
 	return nil
 }
 
-// Software is Woodstar-managed metadata for a Munki software item.
+// Software is managed metadata for a Munki software item.
 type Software struct {
 	ID           int64     `json:"id"`
 	Name         string    `json:"name"`

@@ -141,7 +141,7 @@ export function ConfigurationOptionsFields({ form }: { form: ConfigurationEditor
       <FieldSet>
         <FieldLegend>Sync</FieldLegend>
         <FieldDescription>
-          Controls how Santa exchanges rules and events with Woodstar.
+          Controls how Santa exchanges rules and events with the server.
         </FieldDescription>
         <FieldGroup>
           <div className="grid gap-4 md:grid-cols-2">
