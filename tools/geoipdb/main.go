@@ -3,6 +3,7 @@ package main
 import (
 	"compress/gzip"
 	"context"
+	"flag"
 	"fmt"
 	"io"
 	"net/http"
@@ -10,8 +11,6 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-
-	"github.com/spf13/pflag"
 )
 
 const releaseMarker = ".release"
@@ -25,9 +24,9 @@ var databases = []struct {
 }
 
 func main() {
-	release := pflag.String("release", time.Now().UTC().Format("2006-01"), "DB-IP release in YYYY-MM format")
-	output := pflag.String("output", ".local/geoip", "directory for decompressed MMDB files")
-	pflag.Parse()
+	release := flag.String("release", time.Now().UTC().Format("2006-01"), "DB-IP release in YYYY-MM format")
+	output := flag.String("output", ".local/geoip", "directory for decompressed MMDB files")
+	flag.Parse()
 
 	if err := run(context.Background(), *release, *output); err != nil {
 		fmt.Fprintln(os.Stderr, err)
