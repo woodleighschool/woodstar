@@ -61,13 +61,11 @@ export function ClientResourcesArchiveField({
               const description = error
                 ? error.message
                 : uploading
-                  ? `Uploading${progress ? ` · ${progress.percent}%` : ""}`
+                  ? `Uploading${progress ? ` ${progress.percent}%` : ""}`
                   : file
                     ? `${filesize(file.size)} selected`
                     : metadata?.size_bytes !== null && metadata?.size_bytes !== undefined
-                      ? editable
-                        ? `${filesize(metadata.size_bytes)} · select to replace`
-                        : filesize(metadata.size_bytes)
+                      ? filesize(metadata.size_bytes)
                       : editable
                         ? "Select a ZIP archive."
                         : "No archive deployed.";

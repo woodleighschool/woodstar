@@ -18,8 +18,7 @@ func Struct(value any) error {
 		return nil
 	}
 
-	var validationErrors playground.ValidationErrors
-	ok := errors.As(err, &validationErrors)
+	validationErrors, ok := errors.AsType[playground.ValidationErrors](err)
 	if !ok || len(validationErrors) == 0 {
 		return err
 	}

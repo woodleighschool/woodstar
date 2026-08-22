@@ -1,6 +1,8 @@
 package logging
 
 import (
+	"bytes"
+	"encoding/json"
 	"log/slog"
 	"testing"
 )
@@ -34,5 +36,28 @@ func TestParseLevel(t *testing.T) {
 				t.Fatalf("ParseLevel(%q) returned nil error", value)
 			}
 		})
+	}
+}
+
+func TestNewWritesStructuredRecordsAtConfiguredLevel(t *testing.T) {
+	t.Parallel()
+
+	var output bytes.Buffer
+	logger := New(&output, slog.LevelInfo)
+	logger.Debug("hidden")
+	logger.Info("ready", "component", "api")
+
+	var record map[string]any
+	if err := json.Unmarshal(output.Bytes(), &record); err != nil {
+		t.Fatalf("decode log record: %v", err)
+	}
+	if got := record["level"]; got != "INFO" {
+		t.Errorf("level = %v, want INFO", got)
+	}
+	if got := record["msg"]; got != "ready" {
+		t.Errorf("msg = %v, want ready", got)
+	}
+	if got := record["component"]; got != "api" {
+		t.Errorf("component = %v, want api", got)
 	}
 }

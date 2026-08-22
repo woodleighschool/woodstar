@@ -18,7 +18,7 @@ import { labelDerivedAttributeSelectorLabel, labelMembershipLabel } from "@featu
 import type { Label } from "@lib/api";
 import { MAX_PAGE_SIZE } from "@lib/pagination";
 import { parseRouteID } from "@lib/route-params";
-import { countLabel, formatRelative } from "@lib/utils";
+import { countLabel } from "@lib/utils";
 
 import { LabelDeleteDialog } from "./delete-dialog";
 import { useLabel } from "./queries";
@@ -57,7 +57,6 @@ export function LabelDetailPage() {
     <PageShell className="gap-6">
       <PageHeader
         title="Label Details"
-        meta={`Edited ${formatRelative(label.updated_at)}`}
         actions={
           isAdmin && mutable ? (
             <>

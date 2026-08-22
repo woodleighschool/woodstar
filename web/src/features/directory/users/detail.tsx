@@ -15,7 +15,7 @@ import { UserDeleteDialog } from "@features/directory/users/delete-dialog";
 import { USER_ACCESS_ROLES, userAccessRole } from "@features/directory/users/metadata";
 import { useUser } from "@features/directory/users/queries";
 import { parseRouteID } from "@lib/route-params";
-import { formatRelative, nonEmpty } from "@lib/utils";
+import { nonEmpty } from "@lib/utils";
 
 export function UserDetailPage() {
   const { id: userID } = useParams({
@@ -55,7 +55,6 @@ export function UserDetailPage() {
       <PageShell>
         <PageHeader
           title="User Details"
-          meta={`Edited ${formatRelative(user.updated_at)}`}
           actions={
             isSelf || isAdmin ? (
               <>

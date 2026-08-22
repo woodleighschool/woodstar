@@ -36,7 +36,7 @@ func runMDP(parent context.Context) error {
 	if err != nil {
 		return fmt.Errorf("parse mdp log level: %w", err)
 	}
-	logger := logging.New(os.Stderr, logLevel)
+	logger := logging.New(os.Stdout, logLevel)
 	mdp, err := worker.New(cfg, buildinfo.Version, logger)
 	if err != nil {
 		return fmt.Errorf("init mdp worker: %w", err)

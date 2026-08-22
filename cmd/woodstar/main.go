@@ -127,7 +127,7 @@ func run(parent context.Context, cfg config.Config) error {
 	if err != nil {
 		return fmt.Errorf("parse log level: %w", err)
 	}
-	logger := logging.New(os.Stderr, logLevel)
+	logger := logging.New(os.Stdout, logLevel)
 	var geoLookup func(netip.Addr) (*geoip.Result, error)
 	if cfg.GeoIPEnabled() {
 		geoReader, geoErr := geoip.Open(cfg.GeoIPCityFile, cfg.GeoIPASNFile)

@@ -54,8 +54,8 @@ func TestApplyEnvironmentReturnsAggregateParseErrors(t *testing.T) {
 	t.Setenv("WOODSTAR_SANTA_EVENT_RETENTION_DAYS", "not-a-day-count")
 
 	err := ApplyEnvironment(&Config{})
-	var aggregate env.AggregateError
-	if !errors.As(err, &aggregate) {
+	aggregate, ok := errors.AsType[env.AggregateError](err)
+	if !ok {
 		t.Fatalf("ApplyEnvironment error = %T, want env.AggregateError", err)
 	}
 	if len(aggregate.Errors) != 2 {

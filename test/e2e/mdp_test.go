@@ -555,8 +555,8 @@ func requireMDPRedirect(
 }
 
 func redactedRequestError(err error) error {
-	var requestErr *url.Error
-	if !errors.As(err, &requestErr) {
+	requestErr, ok := errors.AsType[*url.Error](err)
+	if !ok {
 		return err
 	}
 	redacted := *requestErr

@@ -26,7 +26,6 @@ import { Separator } from "@components/ui/separator";
 import { Skeleton } from "@components/ui/skeleton";
 import { TabsContent, TabsTrigger } from "@components/ui/tabs";
 import { useAuth } from "@features/auth/queries";
-import { creatorMeta } from "@features/osquery/creator-meta";
 import { PolicyStatusChart } from "@features/osquery/history/policy-status-chart";
 import { LiveRunButton } from "@features/osquery/live/query-actions";
 import {
@@ -209,7 +208,6 @@ export function PolicyDetailPage() {
     <PageShell>
       <PageHeader
         title="Policy Details"
-        meta={creatorMeta(policy.data.created_by, policy.data.updated_at)}
         actions={
           <>
             {isAdmin ? (

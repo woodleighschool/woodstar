@@ -12,7 +12,6 @@ import { useAuth } from "@features/auth/queries";
 import { useLabelNameMap } from "@features/labels/components/label-ref-list";
 import type { SantaRule } from "@lib/api";
 import { parseRouteID } from "@lib/route-params";
-import { formatRelative } from "@lib/utils";
 
 import { RuleDeleteDialog } from "./delete-dialog";
 import { POLICIES, ruleTypeLabel } from "./metadata";
@@ -49,7 +48,6 @@ export function RuleDetailPage() {
     <PageShell className="gap-6">
       <PageHeader
         title="Rule Details"
-        meta={`Edited ${formatRelative(rule.updated_at)}`}
         actions={
           isAdmin ? (
             <>

@@ -95,7 +95,6 @@ export function MunkiSoftwareDetailPage() {
             loading="eager"
           />
         }
-        meta={`Edited ${formatRelative(software.updated_at)}`}
         actions={
           isAdmin ? (
             <>

@@ -49,8 +49,8 @@ func TestLoadConfigReturnsEnvironmentInputErrors(t *testing.T) {
 	t.Setenv("WOODSTAR_MDP_DATA_DIR", "")
 
 	_, err := LoadConfig()
-	var aggregate env.AggregateError
-	if !errors.As(err, &aggregate) {
+	aggregate, ok := errors.AsType[env.AggregateError](err)
+	if !ok {
 		t.Fatalf("LoadConfig error = %T, want env.AggregateError", err)
 	}
 	if len(aggregate.Errors) != 3 {

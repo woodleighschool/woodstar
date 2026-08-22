@@ -386,8 +386,8 @@ func (s *s3Store) expires(ttl time.Duration) func(*s3.PresignOptions) {
 }
 
 func s3NotFound(err error) bool {
-	var apiErr smithy.APIError
-	if !errors.As(err, &apiErr) {
+	apiErr, ok := errors.AsType[smithy.APIError](err)
+	if !ok {
 		return false
 	}
 	switch apiErr.ErrorCode() {
@@ -399,8 +399,8 @@ func s3NotFound(err error) bool {
 }
 
 func s3NoSuchUpload(err error) bool {
-	var apiErr smithy.APIError
-	return errors.As(err, &apiErr) && apiErr.ErrorCode() == "NoSuchUpload"
+	apiErr, ok := errors.AsType[smithy.APIError](err)
+	return ok && apiErr.ErrorCode() == "NoSuchUpload"
 }
 
 func singleValueHeaders(headers http.Header) map[string]string {

@@ -76,7 +76,7 @@ run = "go build -o woodstar ./cmd/woodstar"
 
 [tasks.geoip]
 description = "Download the current DB-IP Lite databases"
-run = "go run ./tools/geoipdb -output .local/geoip"
+run = "go run ./tools/geoipdb --output .local/geoip"
 
 [tasks.tidy]
 description = "Tidy the Go module"

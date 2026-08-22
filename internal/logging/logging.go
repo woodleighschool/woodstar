@@ -22,7 +22,7 @@ func ParseLevel(value string) (slog.Level, error) {
 	}
 }
 
-// New builds a logger that writes human-readable lines to w at the given level.
+// New builds a structured logger that writes JSON records to w at the given level.
 func New(w io.Writer, level slog.Level) *slog.Logger {
-	return slog.New(slog.NewTextHandler(w, &slog.HandlerOptions{Level: level}))
+	return slog.New(slog.NewJSONHandler(w, &slog.HandlerOptions{Level: level}))
 }

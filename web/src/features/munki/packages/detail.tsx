@@ -14,7 +14,6 @@ import { useAuth } from "@features/auth/queries";
 import { SoftwareArtwork } from "@features/software/software-icon";
 import type { MunkiPackageReference } from "@lib/api";
 import { parseRouteID } from "@lib/route-params";
-import { formatRelative } from "@lib/utils";
 
 import { MunkiPackageDeleteDialog } from "./delete-dialog";
 import { useMunkiPackage } from "./queries";
@@ -56,7 +55,6 @@ export function MunkiPackageDetailPage() {
             loading="eager"
           />
         }
-        meta={`Edited ${formatRelative(pkg.updated_at)}`}
         actions={
           isAdmin ? (
             <>
@@ -101,9 +99,16 @@ export function MunkiPackageDetailPage() {
         <KeyValueRow
           label="Installer File"
           value={
-            pkg.installer_file
-              ? `${pkg.installer_file.filename} · ${filesize(pkg.installer_file.size_bytes)}`
-              : "-"
+            pkg.installer_file ? (
+              <span className="flex flex-col gap-0.5">
+                <span>{pkg.installer_file.filename}</span>
+                <span className="text-muted-foreground">
+                  {filesize(pkg.installer_file.size_bytes)}
+                </span>
+              </span>
+            ) : (
+              "-"
+            )
           }
         />
         <KeyValueRow label="Minimum macOS" value={pkg.minimum_os_version || "Any"} />

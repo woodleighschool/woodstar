@@ -14,7 +14,7 @@ import { Button } from "@components/ui/button";
 import { useAuth } from "@features/auth/queries";
 import type { SantaRemovableMediaPolicy } from "@lib/api";
 import { parseRouteID } from "@lib/route-params";
-import { formatInterval, formatRelative } from "@lib/utils";
+import { formatInterval } from "@lib/utils";
 
 import { ConfigurationDeleteDialog } from "./delete-dialog";
 import {
@@ -61,7 +61,6 @@ export function ConfigurationDetailPage() {
     <PageShell className="gap-6">
       <PageHeader
         title="Configuration Details"
-        meta={`Edited ${formatRelative(configuration.updated_at)}`}
         actions={
           isAdmin ? (
             <>

@@ -88,7 +88,7 @@ export function InstallerFileField({
             const description = file
               ? `${filesize(file.size)} selected`
               : metadata
-                ? `${filesize(metadata.size_bytes)} · select to replace`
+                ? filesize(metadata.size_bytes)
                 : "Select an installer file.";
             return (
               <div className="relative w-full">

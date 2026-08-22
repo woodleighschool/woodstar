@@ -12,8 +12,8 @@ func TestSyncWorkerSnoozesWhileAnotherReplicaIsSyncing(t *testing.T) {
 	worker := NewSyncWorker(nil, busySyncLocker{})
 
 	_, err := worker.run(t.Context())
-	var snoozeErr *river.JobSnoozeError
-	if !errors.As(err, &snoozeErr) {
+	snoozeErr, ok := errors.AsType[*river.JobSnoozeError](err)
+	if !ok {
 		t.Fatalf("run error = %v, want River snooze", err)
 	}
 	if snoozeErr.Duration <= 0 {

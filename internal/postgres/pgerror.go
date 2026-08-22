@@ -11,8 +11,8 @@ import (
 )
 
 func sqlState(err error) string {
-	var pgErr *pgconn.PgError
-	if !errors.As(err, &pgErr) {
+	pgErr, ok := errors.AsType[*pgconn.PgError](err)
+	if !ok {
 		return ""
 	}
 	return pgErr.Code
