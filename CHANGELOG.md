@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.9.2](https://github.com/woodleighschool/woodstar/compare/0.9.1...0.9.2) (2026-08-22)
+
+
+### Features
+
+* **npm:** update dependency @vitejs/plugin-react (6.0.5 → 6.1.0) ([#241](https://github.com/woodleighschool/woodstar/issues/241)) ([a4b96cf](https://github.com/woodleighschool/woodstar/commit/a4b96cf61561c58cdda99bafe5dde74201099ac2))
+* **npm:** update dependency recharts (3.8.0 → 3.10.1) ([#235](https://github.com/woodleighschool/woodstar/issues/235)) ([698c058](https://github.com/woodleighschool/woodstar/commit/698c058b15564a362ead18bc84f09924efa9d06f))
+* **npm:** update dependency sass (1.102.0 → 1.103.0) ([#242](https://github.com/woodleighschool/woodstar/issues/242)) ([8d6591e](https://github.com/woodleighschool/woodstar/commit/8d6591e5f140ebc259eaf2be62ffbc428ea75685))
+* **web:** refine activity and history views ([603a9f1](https://github.com/woodleighschool/woodstar/commit/603a9f1579716f52febf1b26d774b460e2839d27))
+
+
+### Bug Fixes
+
+* **go:** update aws-sdk-go-v2 monorepo ([#236](https://github.com/woodleighschool/woodstar/issues/236)) ([b0ad271](https://github.com/woodleighschool/woodstar/commit/b0ad2719df6704fa2891d7726992689fc9c59a67))
+* **go:** update module buf.build/gen/go/northpolesec/protos/protocolbuffers/go (v1.36.12-20260810190416-9daa40cd8b43.1 → v1.36.12-20260821163146-78fba3cee493.1) ([#246](https://github.com/woodleighschool/woodstar/issues/246)) ([5c470a7](https://github.com/woodleighschool/woodstar/commit/5c470a73482bd0c588c748c9070d7e8a2ce17be3))
+* **go:** update module github.com/aws/smithy-go (v1.27.8 → v1.27.9) ([#195](https://github.com/woodleighschool/woodstar/issues/195)) ([c3081f2](https://github.com/woodleighschool/woodstar/commit/c3081f28ae82d35172bf9e7332ad1c208050df4b))
+* **go:** update river monorepo (v0.44.0 → v0.44.1) ([#247](https://github.com/woodleighschool/woodstar/issues/247)) ([bf16226](https://github.com/woodleighschool/woodstar/commit/bf16226d16afa70a868993c4ad0dd9403d144330))
+* **npm:** update dependency sass (1.103.0 → 1.103.1) ([#244](https://github.com/woodleighschool/woodstar/issues/244)) ([abda400](https://github.com/woodleighschool/woodstar/commit/abda400b6331d7058406999145bb4611484305e5))
+* **npm:** update dependency vite (8.2.1 → 8.2.2) ([#239](https://github.com/woodleighschool/woodstar/issues/239)) ([c2904bf](https://github.com/woodleighschool/woodstar/commit/c2904bf413f863617b878d56ee8e9b3ed6af0afa))
+
+
+### Code Refactoring
+
+* **deps:** replace stale direct dependencies ([4cb2206](https://github.com/woodleighschool/woodstar/commit/4cb2206c2da05b62d3f157bcb86e7cda89cf23a2))
+
 ## [0.9.1](https://github.com/woodleighschool/woodstar/compare/0.9.0...0.9.1) (2026-08-20)
 
 
