@@ -82,8 +82,6 @@ func main() {
 }
 
 func rootCommand() *cobra.Command {
-	var cfg config.Config
-
 	root := &cobra.Command{
 		Use:           "woodstar",
 		Short:         "macOS observability and admin server",
@@ -92,7 +90,7 @@ func rootCommand() *cobra.Command {
 		SilenceErrors: true,
 		Args:          cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return run(cmd.Context(), cfg)
+			return run(cmd.Context())
 		},
 	}
 
@@ -100,27 +98,16 @@ func rootCommand() *cobra.Command {
 	root.AddCommand(mdpCommand())
 	root.AddCommand(openAPICommand())
 
-	root.Flags().StringVar(&cfg.Host, "host", "", "Listen host")
-	root.Flags().IntVar(&cfg.Port, "port", 0, "Listen port")
-	root.Flags().StringVar(&cfg.ServerURL, "url", "", "Canonical HTTPS server origin")
-	root.Flags().StringVar(&cfg.TLSCertFile, "tls-cert-file", "", "TLS certificate file")
-	root.Flags().StringVar(&cfg.TLSKeyFile, "tls-key-file", "", "TLS private key file")
-	root.Flags().StringVar(&cfg.DatabaseURL, "database-url", "", "Postgres connection URL")
-	root.Flags().StringVar(&cfg.LogLevel, "log-level", "", "Log level")
-
 	return root
 }
 
-func run(parent context.Context, cfg config.Config) error {
+func run(parent context.Context) error {
 	ctx, stop := signal.NotifyContext(parent, os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	if err := config.ApplyEnvironment(&cfg); err != nil {
-		return fmt.Errorf("parse environment: %w", err)
-	}
-	cfg.Normalize()
-	if err := cfg.Validate(); err != nil {
-		return fmt.Errorf("validate config: %w", err)
+	cfg, err := config.Load()
+	if err != nil {
+		return err
 	}
 
 	logLevel, err := logging.ParseLevel(cfg.LogLevel)

@@ -112,8 +112,20 @@ func (cfg *Config) GeoIPEnabled() bool {
 	return cfg.GeoIPCityFile != "" && cfg.GeoIPASNFile != ""
 }
 
-// ApplyEnvironment fills unset config fields from environment variables and defaults.
-func ApplyEnvironment(cfg *Config) error {
+// Load resolves, normalizes, and validates the server's environment configuration.
+func Load() (Config, error) {
+	var cfg Config
+	if err := parseEnvironment(&cfg); err != nil {
+		return Config{}, fmt.Errorf("parse environment: %w", err)
+	}
+	cfg.Normalize()
+	if err := cfg.Validate(); err != nil {
+		return Config{}, fmt.Errorf("validate config: %w", err)
+	}
+	return cfg, nil
+}
+
+func parseEnvironment(cfg *Config) error {
 	return env.ParseWithOptions(cfg, env.Options{
 		Prefix:                       "WOODSTAR_",
 		SetDefaultsForZeroValuesOnly: true,

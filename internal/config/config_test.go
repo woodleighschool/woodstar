@@ -19,44 +19,21 @@ func setValidEnvironment(t *testing.T) {
 }
 
 func resolveConfig(cfg *Config) error {
-	if err := ApplyEnvironment(cfg); err != nil {
+	if err := parseEnvironment(cfg); err != nil {
 		return err
 	}
 	cfg.Normalize()
 	return cfg.Validate()
 }
 
-func TestApplyEnvironmentPreservesResolvedValues(t *testing.T) {
-	setValidEnvironment(t)
-	t.Setenv("WOODSTAR_HOST", "0.0.0.0")
-	t.Setenv("WOODSTAR_PORT", "8080")
-	t.Setenv("WOODSTAR_URL", "https://environment.example")
-	t.Setenv("WOODSTAR_DATABASE_URL", "postgres://environment")
-
-	cfg := Config{
-		Host:                 "127.0.0.1",
-		Port:                 9443,
-		ServerURL:            "https://cli.example",
-		DatabaseURL:          "postgres://cli",
-		StorageCapabilityKey: strings.Repeat("c", storageCapabilityKeyHexLength),
-	}
-	if err := ApplyEnvironment(&cfg); err != nil {
-		t.Fatalf("ApplyEnvironment: %v", err)
-	}
-	if cfg.Host != "127.0.0.1" || cfg.Port != 9443 || cfg.ServerURL != "https://cli.example" ||
-		cfg.DatabaseURL != "postgres://cli" {
-		t.Fatalf("environment replaced resolved values: %#v", cfg)
-	}
-}
-
-func TestApplyEnvironmentReturnsAggregateParseErrors(t *testing.T) {
+func TestLoadReturnsAggregateParseErrors(t *testing.T) {
 	t.Setenv("WOODSTAR_PORT", "not-a-port")
 	t.Setenv("WOODSTAR_SANTA_EVENT_RETENTION_DAYS", "not-a-day-count")
 
-	err := ApplyEnvironment(&Config{})
+	_, err := Load()
 	aggregate, ok := errors.AsType[env.AggregateError](err)
 	if !ok {
-		t.Fatalf("ApplyEnvironment error = %T, want env.AggregateError", err)
+		t.Fatalf("Load error = %T, want env.AggregateError", err)
 	}
 	if len(aggregate.Errors) != 2 {
 		t.Fatalf("aggregate errors = %d, want 2", len(aggregate.Errors))
@@ -196,11 +173,9 @@ func TestConfigReadsAndNormalizesEnvironment(t *testing.T) {
 	t.Setenv("WOODSTAR_TLS_CERT_FILE", "/etc/woodstar/tls.crt")
 	t.Setenv("WOODSTAR_TLS_KEY_FILE", "/etc/woodstar/tls.key")
 
-	cfg := Config{}
-
-	err := resolveConfig(&cfg)
+	cfg, err := Load()
 	if err != nil {
-		t.Fatalf("resolveConfig returned error: %v", err)
+		t.Fatalf("Load returned error: %v", err)
 	}
 
 	if cfg.Host != "127.0.0.1" {

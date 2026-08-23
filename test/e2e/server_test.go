@@ -401,18 +401,16 @@ func woodstarCommand(
 	tlsMaterial testTLS,
 	logFile *os.File,
 ) *exec.Cmd {
-	command := exec.Command( //nolint:gosec,noctx // E2E harness selects the binary; stopProcess owns shutdown and forced kill.
-		binaryPath,
-		"--host", "127.0.0.1",
-		"--port", strconv.Itoa(port),
-		"--url", baseURL,
-		"--tls-cert-file", tlsMaterial.certificatePath,
-		"--tls-key-file", tlsMaterial.privateKeyPath,
-		"--log-level", "info",
-	)
+	command := exec.Command(binaryPath) //nolint:noctx // E2E harness owns shutdown and forced kill.
 	command.Env = append(
 		withoutWoodstarEnvironment(os.Environ()),
+		"WOODSTAR_HOST=127.0.0.1",
+		"WOODSTAR_PORT="+strconv.Itoa(port),
+		"WOODSTAR_URL="+baseURL,
+		"WOODSTAR_TLS_CERT_FILE="+tlsMaterial.certificatePath,
+		"WOODSTAR_TLS_KEY_FILE="+tlsMaterial.privateKeyPath,
 		"WOODSTAR_DATABASE_URL="+databaseURL,
+		"WOODSTAR_LOG_LEVEL=info",
 		"WOODSTAR_STORAGE_CAPABILITY_KEY="+storageCapabilityKey,
 		"WOODSTAR_STORAGE_KIND=file",
 		"WOODSTAR_STORAGE_FILE_ROOT="+storageRoot,
