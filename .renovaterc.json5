@@ -4,11 +4,6 @@
   postUpdateOptions: ["gomodTidy", "gomodUpdateImportPaths", "pnpmDedupe"],
   packageRules: [
     {
-      // Fetching AWS SDK changelogs cause some major renovate constipation.
-      matchSourceUrls: ["https://github.com/aws/aws-sdk-go-v2{/**,}"],
-      fetchChangeLogs: "off",
-    },
-    {
       matchManagers: ["gomod"],
       matchPackageNames: ["buf.build/gen/go/northpolesec/protos/protocolbuffers/go"],
       automerge: true,
