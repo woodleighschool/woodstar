@@ -10,13 +10,13 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
-      WOODSTAR_PORT: 8080
+      WOODSTAR_LISTEN: :8080
       WOODSTAR_DATABASE_URL: postgres://woodstar:woodstar@postgres:5432/woodstar?sslmode=disable
       WOODSTAR_TLS_CERT_FILE: /tls/woodstar.pem
       WOODSTAR_TLS_KEY_FILE: /tls/woodstar-key.pem
       WOODSTAR_STORAGE_FILE_ROOT: /data
     ports:
-      - "${WOODSTAR_PORT:-8443}:8080"
+      - "8443:8080"
     volumes:
       - ${WOODSTAR_TLS_CERT_FILE:-.local/tls/woodstar.pem}:/tls/woodstar.pem:ro
       - ${WOODSTAR_TLS_KEY_FILE:-.local/tls/woodstar-key.pem}:/tls/woodstar-key.pem:ro

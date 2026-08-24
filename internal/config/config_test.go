@@ -27,7 +27,7 @@ func resolveConfig(cfg *Config) error {
 }
 
 func TestLoadReturnsAggregateParseErrors(t *testing.T) {
-	t.Setenv("WOODSTAR_PORT", "not-a-port")
+	t.Setenv("WOODSTAR_ACTIVITY_RETENTION_DAYS", "not-a-day-count")
 	t.Setenv("WOODSTAR_SANTA_EVENT_RETENTION_DAYS", "not-a-day-count")
 
 	_, err := Load()
@@ -52,8 +52,6 @@ func TestConfigValidateUsesGoFieldNames(t *testing.T) {
 
 func TestConfigRequiresStorageCapabilityKey(t *testing.T) {
 	setValidEnvironment(t)
-	t.Setenv("WOODSTAR_HOST", "")
-	t.Setenv("WOODSTAR_PORT", "")
 	t.Setenv("WOODSTAR_URL", "https://localhost:8080")
 	t.Setenv("WOODSTAR_STORAGE_CAPABILITY_KEY", "")
 	t.Setenv("WOODSTAR_DATABASE_URL", "")
@@ -80,8 +78,6 @@ func TestConfigRequiresServerURL(t *testing.T) {
 
 func TestConfigDefaults(t *testing.T) {
 	setValidEnvironment(t)
-	t.Setenv("WOODSTAR_HOST", "")
-	t.Setenv("WOODSTAR_PORT", "")
 	t.Setenv("WOODSTAR_URL", "https://localhost:8080")
 	t.Setenv("WOODSTAR_STORAGE_CAPABILITY_KEY", strings.Repeat("a", storageCapabilityKeyHexLength))
 	t.Setenv("WOODSTAR_LOG_LEVEL", "")
@@ -92,11 +88,8 @@ func TestConfigDefaults(t *testing.T) {
 		t.Fatalf("resolveConfig returned error: %v", err)
 	}
 
-	if cfg.Host != "0.0.0.0" {
-		t.Fatalf("Host = %q, want 0.0.0.0", cfg.Host)
-	}
-	if cfg.Port != 8080 {
-		t.Fatalf("Port = %d, want 8080", cfg.Port)
+	if cfg.Listen != ":8080" {
+		t.Fatalf("Listen = %q, want :8080", cfg.Listen)
 	}
 	if cfg.TLSConfigured() {
 		t.Fatal("TLSConfigured = true without certificate and key files")
@@ -164,8 +157,7 @@ func TestConfigRejectsInvalidOrbitScriptExecutionTimeout(t *testing.T) {
 
 func TestConfigReadsAndNormalizesEnvironment(t *testing.T) {
 	setValidEnvironment(t)
-	t.Setenv("WOODSTAR_HOST", "127.0.0.1")
-	t.Setenv("WOODSTAR_PORT", "9090")
+	t.Setenv("WOODSTAR_LISTEN", " 127.0.0.1:9090 ")
 	t.Setenv("WOODSTAR_URL", "https://example.com/")
 	t.Setenv("WOODSTAR_STORAGE_CAPABILITY_KEY", strings.Repeat("a", storageCapabilityKeyHexLength))
 	t.Setenv("WOODSTAR_DATABASE_URL", "postgres://example")
@@ -178,11 +170,8 @@ func TestConfigReadsAndNormalizesEnvironment(t *testing.T) {
 		t.Fatalf("Load returned error: %v", err)
 	}
 
-	if cfg.Host != "127.0.0.1" {
-		t.Fatalf("Host = %q", cfg.Host)
-	}
-	if cfg.Port != 9090 {
-		t.Fatalf("Port = %d", cfg.Port)
+	if cfg.Listen != "127.0.0.1:9090" {
+		t.Fatalf("Listen = %q", cfg.Listen)
 	}
 	if cfg.ServerURL != "https://example.com" {
 		t.Fatalf("ServerURL = %q, want https://example.com", cfg.ServerURL)

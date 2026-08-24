@@ -404,8 +404,7 @@ func woodstarCommand(
 	command := exec.Command(binaryPath) //nolint:noctx // E2E harness owns shutdown and forced kill.
 	command.Env = append(
 		withoutWoodstarEnvironment(os.Environ()),
-		"WOODSTAR_HOST=127.0.0.1",
-		"WOODSTAR_PORT="+strconv.Itoa(port),
+		"WOODSTAR_LISTEN=127.0.0.1:"+strconv.Itoa(port),
 		"WOODSTAR_URL="+baseURL,
 		"WOODSTAR_TLS_CERT_FILE="+tlsMaterial.certificatePath,
 		"WOODSTAR_TLS_KEY_FILE="+tlsMaterial.privateKeyPath,

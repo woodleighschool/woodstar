@@ -23,6 +23,7 @@ func TestServerMountsComposedRoutes(t *testing.T) {
 
 	server := NewServer(ServerOptions{
 		Config: config.Config{
+			Listen:         "127.0.0.1:9090",
 			ClientIPSource: config.ClientIPSourceRemoteAddr,
 		},
 		Ready:          func(context.Context) error { return nil },
@@ -43,6 +44,9 @@ func TestServerMountsComposedRoutes(t *testing.T) {
 			})
 		},
 	})
+	if got, want := server.Addr(), "127.0.0.1:9090"; got != want {
+		t.Fatalf("Addr() = %q, want %q", got, want)
+	}
 
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/composed", nil)

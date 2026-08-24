@@ -88,7 +88,7 @@ func NewServer(options ServerOptions) *Server {
 		logger:  options.Logger,
 		version: options.Version,
 		httpServer: &http.Server{
-			Addr:              fmt.Sprintf("%s:%d", options.Config.Host, options.Config.Port),
+			Addr:              options.Config.Listen,
 			Handler:           handler,
 			ReadHeaderTimeout: 15 * time.Second,
 			IdleTimeout:       180 * time.Second,

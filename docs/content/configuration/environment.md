@@ -12,17 +12,16 @@ OIDC and Entra sync remain disabled when their settings are empty. Supplying onl
 
 ## Server
 
-| Variable                         | Default   | Description                                                           |
-| -------------------------------- | --------- | --------------------------------------------------------------------- |
-| `WOODSTAR_HOST`                  | `0.0.0.0` | Listen address                                                        |
-| `WOODSTAR_PORT`                  | `8080`    | Listen port                                                           |
-| `WOODSTAR_URL`                   | required  | Public HTTPS origin used by the app and clients                       |
-| `WOODSTAR_TLS_CERT_FILE`         | empty     | Certificate chain for direct TLS; set with `WOODSTAR_TLS_KEY_FILE`    |
-| `WOODSTAR_TLS_KEY_FILE`          | empty     | Private key for direct TLS; set with `WOODSTAR_TLS_CERT_FILE`         |
-| `WOODSTAR_SESSION_COOKIE_SECURE` | `true`    | Add the `Secure` attribute to session cookies                         |
-| `WOODSTAR_DATABASE_URL`          | required  | PostgreSQL connection URL                                             |
-| `WOODSTAR_LOG_LEVEL`             | `info`    | `debug`, `info`, `warn`, or `error`                                   |
-| `WOODSTAR_CORS_ALLOWED_ORIGINS`  | empty     | Comma-separated web origins allowed to make credentialed API requests |
+| Variable                         | Default  | Description                                                           |
+| -------------------------------- | -------- | --------------------------------------------------------------------- |
+| `WOODSTAR_LISTEN`                | `:8080`  | HTTP listen address                                                   |
+| `WOODSTAR_URL`                   | required | Public HTTPS origin used by the app and clients                       |
+| `WOODSTAR_TLS_CERT_FILE`         | empty    | Certificate chain for direct TLS; set with `WOODSTAR_TLS_KEY_FILE`    |
+| `WOODSTAR_TLS_KEY_FILE`          | empty    | Private key for direct TLS; set with `WOODSTAR_TLS_CERT_FILE`         |
+| `WOODSTAR_SESSION_COOKIE_SECURE` | `true`   | Add the `Secure` attribute to session cookies                         |
+| `WOODSTAR_DATABASE_URL`          | required | PostgreSQL connection URL                                             |
+| `WOODSTAR_LOG_LEVEL`             | `info`   | `debug`, `info`, `warn`, or `error`                                   |
+| `WOODSTAR_CORS_ALLOWED_ORIGINS`  | empty    | Comma-separated web origins allowed to make credentialed API requests |
 
 `WOODSTAR_URL` must be an HTTPS origin without credentials, a query, a fragment, or a sub-path. Set both TLS files when the server terminates HTTPS. Leave both empty when a reverse proxy handles TLS.
 

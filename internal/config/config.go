@@ -28,8 +28,7 @@ var ErrInvalidOIDCRedirectURL = errors.New("invalid OIDC redirect URL")
 
 // Config contains runtime settings.
 type Config struct {
-	Host                string   `env:"HOST"                  envDefault:"0.0.0.0" validate:"required"`
-	Port                int      `env:"PORT"                  envDefault:"8080"    validate:"gte=1,lte=65535"`
+	Listen              string   `env:"LISTEN"                envDefault:":8080" validate:"required"`
 	ServerURL           string   `env:"URL"                                        validate:"required"`
 	TLSCertFile         string   `env:"TLS_CERT_FILE"                              validate:"required_with=TLSKeyFile"`
 	TLSKeyFile          string   `env:"TLS_KEY_FILE"                               validate:"required_with=TLSCertFile"`
@@ -134,7 +133,7 @@ func parseEnvironment(cfg *Config) error {
 
 // Normalize canonicalizes the resolved configuration without validating it.
 func (cfg *Config) Normalize() {
-	cfg.Host = strings.TrimSpace(cfg.Host)
+	cfg.Listen = strings.TrimSpace(cfg.Listen)
 	cfg.ServerURL = normalizeOrigin(cfg.ServerURL)
 	cfg.OIDCRedirectURL = strings.TrimSpace(cfg.OIDCRedirectURL)
 	if cfg.OIDCRedirectURL == "" && cfg.ServerURL != "" {
