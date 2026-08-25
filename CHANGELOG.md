@@ -1,5 +1,35 @@
 # Changelog
 
+## [0.9.4](https://github.com/woodleighschool/woodstar/compare/0.9.3...0.9.4) (2026-08-25)
+
+
+### Features
+
+* **npm:** update dependency pnpm (11.22.0 → 11.23.0) ([#258](https://github.com/woodleighschool/woodstar/issues/258)) ([266428b](https://github.com/woodleighschool/woodstar/commit/266428bc2df2915726e952bad458a1f79d1b092f))
+
+
+### Bug Fixes
+
+* **npm:** update dependency @types/react-dom (19.2.4 → 19.2.5) ([#260](https://github.com/woodleighschool/woodstar/issues/260)) ([9ffd8ed](https://github.com/woodleighschool/woodstar/commit/9ffd8ed248dfa3442376b5ba073871f5a3a5280d))
+* **npm:** update tanstack-query monorepo (5.102.0 → 5.102.1) ([#256](https://github.com/woodleighschool/woodstar/issues/256)) ([21933a4](https://github.com/woodleighschool/woodstar/commit/21933a4ea42aa4edadbf5154c4872089d51788d0))
+* **npm:** update tanstack-query monorepo (5.102.1 → 5.102.2) ([#259](https://github.com/woodleighschool/woodstar/issues/259)) ([ce05966](https://github.com/woodleighschool/woodstar/commit/ce0596683aa09e825a6c200d92d68557608d0de2))
+
+
+### Code Refactoring
+
+* use one listen address ([d1d3ff4](https://github.com/woodleighschool/woodstar/commit/d1d3ff4b8c083f2667a7aa3cde2c7af9479c5de4))
+
+
+### Continuous Integration
+
+* **github-action:** update action docker/github-builder (v1.16.0 → v1.17.0) ([#255](https://github.com/woodleighschool/woodstar/issues/255)) ([4132e54](https://github.com/woodleighschool/woodstar/commit/4132e546d840f4279a3c26c3e1b00e4ed03ee54d))
+
+
+### Miscellaneous Chores
+
+* **mise:** update tool oxfmt (0.64.0 → 0.65.0) ([#257](https://github.com/woodleighschool/woodstar/issues/257)) ([9ae0736](https://github.com/woodleighschool/woodstar/commit/9ae0736c8474a13828337da803dc54e0cf670c0a))
+* **renovate:** inherit AWS changelog policy ([98a3a8a](https://github.com/woodleighschool/woodstar/commit/98a3a8a5868c736f6274f1805ab7e0f2540f3cbd))
+
 ## [0.9.3](https://github.com/woodleighschool/woodstar/compare/0.9.2...0.9.3) (2026-08-24)
 
 
