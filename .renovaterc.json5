@@ -4,11 +4,6 @@
   postUpdateOptions: ["gomodTidy", "gomodUpdateImportPaths", "pnpmDedupe"],
   packageRules: [
     {
-      matchManagers: ["gomod"],
-      matchPackageNames: ["buf.build/gen/go/northpolesec/protos/protocolbuffers/go"],
-      automerge: true,
-    },
-    {
       matchManagers: ["npm"],
       matchPackageNames: ["docusaurus-plugin-openapi-docs", "docusaurus-theme-openapi-docs"],
       matchFileNames: ["docs/package.json"],
