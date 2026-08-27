@@ -1,5 +1,11 @@
 # woodstar ⭐️
 
+[![Release](https://img.shields.io/github/v/release/woodleighschool/woodstar?display_name=tag&sort=semver)](https://github.com/woodleighschool/woodstar/releases/latest)
+[![CI](https://github.com/woodleighschool/woodstar/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/woodleighschool/woodstar/actions/workflows/ci.yaml)
+[![Go](https://img.shields.io/github/go-mod/go-version/woodleighschool/woodstar?logo=go)](https://github.com/woodleighschool/woodstar/blob/main/go.mod)
+[![Container](https://img.shields.io/badge/container-ghcr.io-2496ED?logo=github&logoColor=white)](https://github.com/orgs/woodleighschool/packages/container/package/woodstar)
+[![License](https://img.shields.io/github/license/woodleighschool/woodstar)](https://github.com/woodleighschool/woodstar/blob/main/LICENSE)
+
 Manages macOS devices with Munki, Santa, and Orbit/osquery.
 
 > [!WARNING]
@@ -17,11 +23,27 @@ Manages macOS devices with Munki, Santa, and Orbit/osquery.
 
 ## 🚀 Usage
 
-Start with the example environment and a storage capability key:
+Download server archives for macOS or Linux from the [latest release](https://github.com/woodleighschool/woodstar/releases/latest), or use the container `ghcr.io/woodleighschool/woodstar:rolling`.
+
+### Docker Compose
+
+Start from the example environment:
 
 ```bash
 cp .env.example .env
 openssl rand -hex 32
+```
+
+Before starting, set these values in `.env`:
+
+| Variable                          | Value                                              |
+| --------------------------------- | -------------------------------------------------- |
+| `WOODSTAR_URL`                    | HTTPS address used by browsers and managed clients |
+| `WOODSTAR_TLS_CERT_FILE`          | Certificate for that address                       |
+| `WOODSTAR_TLS_KEY_FILE`           | Matching private key                               |
+| `WOODSTAR_STORAGE_CAPABILITY_KEY` | Output from `openssl rand -hex 32`                 |
+
+```bash
 docker compose up -d
 docker compose exec woodstar /woodstar user create \
   --email you@example.com \
@@ -29,13 +51,11 @@ docker compose exec woodstar /woodstar user create \
   --role admin
 ```
 
-Compose uses the published `rolling` image. The [Docker Compose guide](https://woodleighschool.github.io/woodstar/docs/getting-started/docker-compose) covers certificates, hostnames, storage, and first sign-in.
+The [getting started guide](https://woodleighschool.github.io/woodstar/docs/getting-started/docker-compose) covers certificates, first sign-in, and the optional distribution point worker.
 
 ## ⚙️ Configuration
 
-The [documentation](https://woodleighschool.github.io/woodstar/) covers configuration, client protocols, AutoPkg, and the API.
-
-Use the [environment reference](https://woodleighschool.github.io/woodstar/docs/configuration/environment) and [storage guide](https://woodleighschool.github.io/woodstar/docs/configuration/storage) for deployment settings.
+The [documentation](https://woodleighschool.github.io/woodstar/) covers configuration, storage, client protocols, AutoPkg, and the API.
 
 ## 🧑‍💻 Development
 
