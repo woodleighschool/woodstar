@@ -15,7 +15,7 @@ RUN go run /geoipdb.go -release "${DBIP_RELEASE}" -output /geoip
 # ---- Web build ------------------------------------------------------------
 # Build the frontend bundle so the Go stage can embed it. The runtime image
 # does not include Node.
-FROM --platform=$BUILDPLATFORM node:26.7.0-alpine AS web
+FROM --platform=$BUILDPLATFORM node:26.8.1-alpine AS web
 WORKDIR /workspace/web
 
 # Install dependencies against the lockfile first for layer caching.
