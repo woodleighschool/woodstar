@@ -181,6 +181,15 @@ func TestEnrollmentServiceRecordsAuthenticatedHostContact(t *testing.T) {
 
 			tt.call(t, service)
 
+			if tt.name == "enroll" {
+				if len(recorder.calls) != 0 {
+					t.Fatalf("Record calls = %d, want 0", len(recorder.calls))
+				}
+				if hostStore.contact != contact {
+					t.Fatalf("enrollment contact = %#v, want %#v", hostStore.contact, contact)
+				}
+				return
+			}
 			if len(recorder.calls) != 1 {
 				t.Fatalf("Record calls = %d, want 1", len(recorder.calls))
 			}
@@ -275,11 +284,17 @@ func TestEnrollmentServicePropagatesHeartbeatError(t *testing.T) {
 
 type fakeOrbitHostStore struct {
 	host        *hosts.Host
+	contact     heartbeats.Contact
 	getErr      error
 	validateErr error
 }
 
-func (s *fakeOrbitHostStore) UpsertOnOrbitEnroll(context.Context, hosts.InventoryUpdate) (*hosts.Host, error) {
+func (s *fakeOrbitHostStore) UpsertOnOrbitEnroll(
+	_ context.Context,
+	_ hosts.InventoryUpdate,
+	contact heartbeats.Contact,
+) (*hosts.Host, error) {
+	s.contact = contact
 	return s.host, nil
 }
 

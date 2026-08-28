@@ -177,6 +177,15 @@ func TestAgentServiceRecordsAuthenticatedHostContact(t *testing.T) {
 
 			tt.call(t, service)
 
+			if tt.name == "enroll" {
+				if len(recorder.calls) != 0 {
+					t.Fatalf("Record calls = %d, want 0", len(recorder.calls))
+				}
+				if hostStore.contact != contact {
+					t.Fatalf("enrollment contact = %#v, want %#v", hostStore.contact, contact)
+				}
+				return
+			}
 			if len(recorder.calls) != 1 {
 				t.Fatalf("Record calls = %d, want 1", len(recorder.calls))
 			}
@@ -271,6 +280,7 @@ func TestDistributedReadQueuesFreshInventoryWhenRefreshRequested(t *testing.T) {
 type fakeHostStore struct {
 	host         *hosts.Host
 	update       hosts.InventoryUpdate
+	contact      heartbeats.Contact
 	upsertCalled bool
 	getErr       error
 }
@@ -278,8 +288,10 @@ type fakeHostStore struct {
 func (s *fakeHostStore) UpsertOnOsqueryEnroll(
 	_ context.Context,
 	update hosts.InventoryUpdate,
+	contact heartbeats.Contact,
 ) (*hosts.Host, error) {
 	s.update = update
+	s.contact = contact
 	s.upsertCalled = true
 	return s.host, nil
 }
@@ -353,14 +365,10 @@ func (fakePolicyStore) IssueEvaluationsForHost(context.Context, *hosts.Host) ([]
 	return nil, nil
 }
 
-func (fakePolicyStore) RecordEvaluation(
+func (fakePolicyStore) RecordEvaluations(
 	context.Context,
 	int64,
-	string,
-	int64,
-	int64,
-	int64,
-	policies.EvaluationResult,
+	[]policies.EvaluationResult,
 ) error {
 	return nil
 }

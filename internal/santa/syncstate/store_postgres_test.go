@@ -10,6 +10,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/woodleighschool/woodstar/internal/fault"
+	"github.com/woodleighschool/woodstar/internal/heartbeats"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/santa/syncstate"
@@ -712,7 +713,8 @@ func createHost(t *testing.T, ctx context.Context, db *pgxpool.Pool, suffix stri
 	host, err := hosts.NewStore(db, labels.NewStore(db)).UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
 		Hardware:     hosts.HostHardware{UUID: "syncstate-" + suffix + "-host"},
 		OrbitNodeKey: "syncstate-" + suffix + "-orbit",
-	})
+	}, heartbeats.Contact{})
+
 	if err != nil {
 		t.Fatalf("create host: %v", err)
 	}

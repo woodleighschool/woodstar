@@ -15,6 +15,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/woodleighschool/woodstar/internal/fault"
+	"github.com/woodleighschool/woodstar/internal/heartbeats"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/listing"
@@ -186,7 +187,8 @@ func TestMunkiSoftwareExclusionOverridesAllHostsInclude(t *testing.T) {
 	excludedHost, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
 		Hardware:     hosts.HostHardware{UUID: "munki-desired-excluded-uuid", Serial: "C02MUNKIOUT"},
 		OrbitNodeKey: "munki-desired-excluded-orbit",
-	})
+	}, heartbeats.Contact{})
+
 	if err != nil {
 		t.Fatalf("enroll excluded host: %v", err)
 	}
@@ -383,7 +385,8 @@ func TestEffectivePackagesForHostKeepsLatestCandidates(t *testing.T) {
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
 		Hardware:     hosts.HostHardware{UUID: "munki-latest-host-uuid", Serial: "C02MUNKILATEST"},
 		OrbitNodeKey: "munki-latest-orbit",
-	})
+	}, heartbeats.Contact{})
+
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
 	}
@@ -510,7 +513,8 @@ func createRepositoryScopeHost(
 			Serial: "C02REPOSITORY" + serialSuffix,
 		},
 		OrbitNodeKey: "repository-" + name + "-orbit",
-	})
+	}, heartbeats.Contact{})
+
 	if err != nil {
 		t.Fatalf("enroll %s host: %v", name, err)
 	}
@@ -679,7 +683,8 @@ func TestEffectivePackagesForHostUsesPriorityForSchoolTargets(t *testing.T) {
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
 		Hardware:     hosts.HostHardware{UUID: "munki-sac-student-uuid", Serial: "C02MUNKISAC"},
 		OrbitNodeKey: "munki-sac-student-orbit",
-	})
+	}, heartbeats.Contact{})
+
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
 	}
@@ -735,7 +740,8 @@ func TestEffectivePackagesForHostUsesRowOrderNotActionRank(t *testing.T) {
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
 		Hardware:     hosts.HostHardware{UUID: "munki-row-order-uuid", Serial: "C02MUNKIRO"},
 		OrbitNodeKey: "munki-row-order-orbit",
-	})
+	}, heartbeats.Contact{})
+
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
 	}
@@ -792,7 +798,8 @@ func TestPackagePreservesBlockingApplicationStates(t *testing.T) {
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
 		Hardware:     hosts.HostHardware{UUID: "munki-blocking-apps-uuid", Serial: "C02BLOCKING"},
 		OrbitNodeKey: "munki-blocking-apps-orbit",
-	})
+	}, heartbeats.Contact{})
+
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
 	}
@@ -1250,7 +1257,8 @@ func TestHostMunkiStateKeepsDesiredSoftwareSeparateFromExactObservations(t *test
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
 		Hardware:     hosts.HostHardware{UUID: "munki-host-observation-uuid", Serial: "C02MUNKI"},
 		OrbitNodeKey: "munki-host-observation-orbit",
-	})
+	}, heartbeats.Contact{})
+
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
 	}

@@ -25,7 +25,7 @@ func TestRecordInsertsHeartbeat(t *testing.T) {
 		t.Fatalf("record heartbeat: %v", err)
 	}
 
-	heartbeat := loadHeartbeat(t, ctx, db, hostID, SourceOrbit)
+	heartbeat := loadHeartbeat(t, ctx, db, hostID)
 	if heartbeat.LastSeenAt.IsZero() {
 		t.Fatal("LastSeenAt is zero")
 	}
@@ -60,7 +60,7 @@ func TestRecordUpdatesCurrentHeartbeat(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("record second heartbeat: %v", err)
 	}
-	second := loadHeartbeat(t, ctx, db, hostID, SourceOrbit)
+	second := loadHeartbeat(t, ctx, db, hostID)
 
 	if !second.LastSeenAt.After(stale) {
 		t.Fatalf("LastSeenAt = %v, want after %v", second.LastSeenAt, stale)
@@ -83,6 +83,81 @@ func TestRecordUpdatesCurrentHeartbeat(t *testing.T) {
 	}
 }
 
+func TestRecordSkipsFreshUnchangedHeartbeatWithoutAssigningXID(t *testing.T) {
+	store, db, ctx := newPostgresHeartbeatStore(t)
+	hostID := insertHeartbeatHost(t, ctx, db, "skip-fresh")
+	contact := Contact{RemoteIP: "192.0.2.1", UserAgent: "Orbit/1.0"}
+	if err := store.Record(ctx, hostID, SourceOrbit, contact); err != nil {
+		t.Fatalf("record first heartbeat: %v", err)
+	}
+	first := loadHeartbeat(t, ctx, db, hostID)
+
+	tx, err := db.Begin(ctx)
+	if err != nil {
+		t.Fatalf("begin transaction: %v", err)
+	}
+	t.Cleanup(func() { _ = tx.Rollback(ctx) })
+	if err := RecordTx(ctx, tx, hostID, SourceOrbit, contact); err != nil {
+		t.Fatalf("record fresh heartbeat: %v", err)
+	}
+	var xidUnassigned bool
+	if err := tx.QueryRow(ctx, `SELECT pg_current_xact_id_if_assigned() IS NULL`).Scan(&xidUnassigned); err != nil {
+		t.Fatalf("inspect transaction ID: %v", err)
+	}
+	if !xidUnassigned {
+		t.Fatal("fresh unchanged heartbeat assigned a transaction ID")
+	}
+	if err := tx.Commit(ctx); err != nil {
+		t.Fatalf("commit transaction: %v", err)
+	}
+
+	second := loadHeartbeat(t, ctx, db, hostID)
+	if !second.LastSeenAt.Equal(first.LastSeenAt) {
+		t.Fatalf("LastSeenAt = %v, want unchanged %v", second.LastSeenAt, first.LastSeenAt)
+	}
+}
+
+func TestRecordRefreshesChangedContactImmediately(t *testing.T) {
+	store, db, ctx := newPostgresHeartbeatStore(t)
+	hostID := insertHeartbeatHost(t, ctx, db, "changed-contact")
+	if err := store.Record(ctx, hostID, SourceOrbit, Contact{
+		RemoteIP:  "192.0.2.1",
+		UserAgent: "Orbit/1.0",
+	}); err != nil {
+		t.Fatalf("record first heartbeat: %v", err)
+	}
+
+	tx, err := db.Begin(ctx)
+	if err != nil {
+		t.Fatalf("begin transaction: %v", err)
+	}
+	t.Cleanup(func() { _ = tx.Rollback(ctx) })
+	if err := RecordTx(ctx, tx, hostID, SourceOrbit, Contact{
+		RemoteIP:  "2001:db8::1",
+		UserAgent: "Orbit/2.0",
+	}); err != nil {
+		t.Fatalf("record changed contact: %v", err)
+	}
+	var xidUnassigned bool
+	if err := tx.QueryRow(ctx, `SELECT pg_current_xact_id_if_assigned() IS NULL`).Scan(&xidUnassigned); err != nil {
+		t.Fatalf("inspect transaction ID: %v", err)
+	}
+	if xidUnassigned {
+		t.Fatal("changed heartbeat contact did not assign a transaction ID")
+	}
+	if err := tx.Commit(ctx); err != nil {
+		t.Fatalf("commit transaction: %v", err)
+	}
+
+	heartbeat := loadHeartbeat(t, ctx, db, hostID)
+	if heartbeat.RemoteIP == nil || *heartbeat.RemoteIP != netip.MustParseAddr("2001:db8::1") {
+		t.Fatalf("RemoteIP = %v, want 2001:db8::1", heartbeat.RemoteIP)
+	}
+	if heartbeat.UserAgent != "Orbit/2.0" {
+		t.Fatalf("UserAgent = %q, want Orbit/2.0", heartbeat.UserAgent)
+	}
+}
+
 func TestRecordStoresSourcesSeparately(t *testing.T) {
 	store, db, ctx := newPostgresHeartbeatStore(t)
 	hostID := insertHeartbeatHost(t, ctx, db, "separate-sources")
@@ -102,7 +177,7 @@ func TestRecordStoresSourcesSeparately(t *testing.T) {
 	if count != 2 {
 		t.Fatalf("heartbeat count = %d, want 2", count)
 	}
-	if heartbeat := loadHeartbeat(t, ctx, db, hostID, SourceOrbit); heartbeat.RemoteIP != nil {
+	if heartbeat := loadHeartbeat(t, ctx, db, hostID); heartbeat.RemoteIP != nil {
 		t.Fatalf("RemoteIP = %v, want nil", heartbeat.RemoteIP)
 	}
 }
@@ -168,13 +243,13 @@ func insertHeartbeatHost(t *testing.T, ctx context.Context, db *pgxpool.Pool, ha
 	return hostID
 }
 
-func loadHeartbeat(t *testing.T, ctx context.Context, db *pgxpool.Pool, hostID int64, source Source) Heartbeat {
+func loadHeartbeat(t *testing.T, ctx context.Context, db *pgxpool.Pool, hostID int64) Heartbeat {
 	t.Helper()
 	var heartbeat Heartbeat
 	if err := db.QueryRow(ctx, `
 		SELECT source, last_seen_at, remote_ip, user_agent
 		FROM host_heartbeats
-		WHERE host_id = $1 AND source = $2`, hostID, source).Scan(
+		WHERE host_id = $1 AND source = $2`, hostID, SourceOrbit).Scan(
 		&heartbeat.Source,
 		&heartbeat.LastSeenAt,
 		&heartbeat.RemoteIP,

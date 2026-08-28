@@ -57,7 +57,8 @@ func newUploadedEventFixture(t *testing.T) uploadedEventFixture {
 			Serial: "SANTAEVENTS",
 		},
 		OrbitNodeKey: "santa-events-orbit",
-	})
+	}, heartbeats.Contact{})
+
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
 	}
@@ -280,7 +281,8 @@ func TestEventUploadRequestsAndCollectsBundleBinaries(t *testing.T) {
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
 		Hardware:     hosts.HostHardware{UUID: "santa-bundle-events-host"},
 		OrbitNodeKey: "santa-bundle-events-orbit",
-	})
+	}, heartbeats.Contact{})
+
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
 	}
@@ -375,7 +377,7 @@ func TestEventUploadDerivesBundleCompletionFromFinalBatchState(t *testing.T) {
 	if _, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
 		Hardware:     hosts.HostHardware{UUID: "santa-final-bundle-state-host"},
 		OrbitNodeKey: "santa-final-bundle-state-orbit",
-	}); err != nil {
+	}, heartbeats.Contact{}); err != nil {
 		t.Fatalf("enroll host: %v", err)
 	}
 
@@ -442,7 +444,7 @@ func TestEventUploadReopensBundleWhenExpectedCountIncreases(t *testing.T) {
 	if _, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
 		Hardware:     hosts.HostHardware{UUID: "santa-reopened-bundle-host"},
 		OrbitNodeKey: "santa-reopened-bundle-orbit",
-	}); err != nil {
+	}, heartbeats.Contact{}); err != nil {
 		t.Fatalf("enroll host: %v", err)
 	}
 
@@ -504,7 +506,8 @@ func TestEventUploadIngestsFileAccessEvents(t *testing.T) {
 		Hardware:     hosts.HostHardware{UUID: "santa-file-access-host"},
 		Hostname:     "file-access.example.test",
 		OrbitNodeKey: "santa-file-access-orbit",
-	})
+	}, heartbeats.Contact{})
+
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
 	}
@@ -624,7 +627,8 @@ func TestEventListCursorFiltersAndRetention(t *testing.T) {
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
 		Hardware:     hosts.HostHardware{UUID: "santa-event-list-host"},
 		OrbitNodeKey: "santa-event-list-orbit",
-	})
+	}, heartbeats.Contact{})
+
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
 	}
@@ -736,7 +740,7 @@ func TestEventUploadDeduplicatesSigningChainsAcrossConcurrentUploads(t *testing.
 	if _, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
 		Hardware:     hosts.HostHardware{UUID: "santa-concurrent-chain-host"},
 		OrbitNodeKey: "santa-concurrent-chain-orbit",
-	}); err != nil {
+	}, heartbeats.Contact{}); err != nil {
 		t.Fatalf("enroll host: %v", err)
 	}
 
@@ -855,7 +859,8 @@ func assertConcurrentEventUploads(
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
 		Hardware:     hosts.HostHardware{UUID: "santa-reversed-batches-" + pauseTable},
 		OrbitNodeKey: "santa-reversed-batches-orbit-" + pauseTable,
-	})
+	}, heartbeats.Contact{})
+
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
 	}

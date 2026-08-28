@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/woodleighschool/woodstar/internal/heartbeats"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
@@ -18,7 +19,8 @@ func TestReplaceHostSoftwareReconcilesSnapshotAsSet(t *testing.T) {
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
 		Hardware:     hosts.HostHardware{UUID: "software-snapshot-set"},
 		OrbitNodeKey: "software-snapshot-set-orbit",
-	})
+	}, heartbeats.Contact{})
+
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
 	}
@@ -123,7 +125,8 @@ func TestReplaceHostSoftwareRejectsUnsupportedSourceWithoutReplacingSnapshot(t *
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
 		Hardware:     hosts.HostHardware{UUID: "inventory-source-host"},
 		OrbitNodeKey: "inventory-source-host-orbit",
-	})
+	}, heartbeats.Contact{})
+
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
 	}

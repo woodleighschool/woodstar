@@ -225,7 +225,7 @@ RETURNING id`,
 	client.postFixture("preflight", "preflight_clean.json", nil, &syncv1.PreflightRequest{}, &firstPreflight)
 	preflightFinishedAt := time.Now()
 	requireSantaPreflightConfiguration(t, &firstPreflight)
-	preflightHeartbeat := requireSantaHeartbeatRefresh(
+	preflightHeartbeat := requireSantaHeartbeat(
 		t,
 		"preflight",
 		requireSantaHostDetail(t, server, hostID),
@@ -242,7 +242,7 @@ RETURNING id`,
 	if len(eventUpload.GetEventUploadBundleBinaries()) != 0 {
 		t.Fatalf("bundle requests = %v, want none", eventUpload.GetEventUploadBundleBinaries())
 	}
-	eventUploadHeartbeat := requireSantaHeartbeatRefresh(
+	eventUploadHeartbeat := requireSantaHeartbeat(
 		t,
 		"event upload",
 		requireSantaHostDetail(t, server, hostID),
@@ -265,7 +265,7 @@ RETURNING id`,
 		firstRule.GetCustomUrl() != ruleURL {
 		t.Fatalf("first downloaded rule = %+v, want public blocklist rule", firstRule)
 	}
-	ruleDownloadHeartbeat := requireSantaHeartbeatRefresh(
+	ruleDownloadHeartbeat := requireSantaHeartbeat(
 		t,
 		"rule download",
 		requireSantaHostDetail(t, server, hostID),
@@ -283,7 +283,7 @@ RETURNING id`,
 		&syncv1.PostflightResponse{},
 	)
 	postflightFinishedAt := time.Now()
-	requireSantaHeartbeatRefresh(
+	requireSantaHeartbeat(
 		t,
 		"postflight",
 		requireSantaHostDetail(t, server, hostID),
@@ -904,7 +904,7 @@ func requireSantaHostDetail(t *testing.T, server *testServer, hostID int64) admi
 	return *response.JSON200
 }
 
-func requireSantaHeartbeatRefresh(
+func requireSantaHeartbeat(
 	t *testing.T,
 	stage string,
 	host adminapi.HostDetail,
@@ -915,13 +915,14 @@ func requireSantaHeartbeatRefresh(
 	t.Helper()
 
 	heartbeat := requireHeartbeat(t, host.Heartbeats, "santa")
-	if len(host.Heartbeats) != 1 || (!previous.IsZero() && !heartbeat.LastSeenAt.After(previous)) ||
-		heartbeat.LastSeenAt.Before(startedAt.Add(-heartbeatTimeTolerance)) ||
-		heartbeat.LastSeenAt.After(finishedAt.Add(heartbeatTimeTolerance)) ||
+	outsideInitialBounds := previous.IsZero() && (heartbeat.LastSeenAt.Before(startedAt.Add(-heartbeatTimeTolerance)) ||
+		heartbeat.LastSeenAt.After(finishedAt.Add(heartbeatTimeTolerance)))
+	if len(host.Heartbeats) != 1 || (!previous.IsZero() && heartbeat.LastSeenAt.Before(previous)) ||
+		outsideInitialBounds ||
 		host.LastContact == nil || !host.LastContact.Equal(heartbeat.LastSeenAt) ||
 		host.Status != "offline" || host.PublicIp != nil {
 		t.Fatalf(
-			"host after Santa %s = %+v, heartbeat = %+v, want one refreshed bounded Santa contact without osquery state",
+			"host after Santa %s = %+v, heartbeat = %+v, want one current Santa contact without osquery state",
 			stage,
 			host,
 			heartbeat,

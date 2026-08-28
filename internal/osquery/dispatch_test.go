@@ -39,12 +39,10 @@ func TestQueryFailureLogLevels(t *testing.T) {
 			invoke: func(t *testing.T, service *AgentService) {
 				t.Helper()
 				suffix := "10_" + queryHash("SELECT 1") + "_1_1"
-				if err := service.handlePolicyResult(
+				service.handlePolicyResult(
 					t.Context(), 42, suffix, nil, json.RawMessage(`1`), true,
-					"distributed query is denylisted",
-				); err != nil {
-					t.Fatalf("handle policy result: %v", err)
-				}
+					"distributed query is denylisted", &policyDispatchPass{},
+				)
 			},
 			wantLevel: "DEBUG",
 		},
@@ -171,7 +169,7 @@ func TestPolicyEvaluationNameRoundTrip(t *testing.T) {
 		Revision: 3,
 		Sequence: 8,
 	}
-	name := queryNameForEvaluation(kindPolicy, evaluation)
+	name := queryNameForEvaluation(evaluation)
 	kind, suffix, ok := parseQueryName(name)
 	if !ok || kind != kindPolicy {
 		t.Fatalf("parseQueryName(%q) = %q, %q, %t", name, kind, suffix, ok)
@@ -188,6 +186,68 @@ func TestPolicyEvaluationNameRoundTrip(t *testing.T) {
 			ok,
 		)
 	}
+}
+
+func TestDispatchWriteResultsBatchesPolicyPayload(t *testing.T) {
+	store := &recordingPolicyStore{}
+	service := &AgentService{deps: Dependencies{
+		PolicyStore:    store,
+		LabelEvaluator: fakeLabelEvaluator{},
+		Logger:         slog.New(slog.DiscardHandler),
+	}}
+	first := policies.Evaluation{PolicyID: 10, Query: "select 1;", Revision: 2, Sequence: 4}
+	second := policies.Evaluation{PolicyID: 11, Query: "select 2;", Revision: 3, Sequence: 5}
+	firstName := queryNameForEvaluation(first)
+	secondName := queryNameForEvaluation(second)
+	req := DistributedWriteRequest{
+		Queries: map[string][]map[string]string{
+			firstName:  {{"present": "1"}},
+			secondName: nil,
+		},
+		Statuses: map[string]json.RawMessage{
+			firstName:  json.RawMessage(`0`),
+			secondName: json.RawMessage(`0`),
+		},
+	}
+
+	if err := service.dispatchWriteResults(t.Context(), &hosts.Host{ID: 42}, req); err != nil {
+		t.Fatalf("dispatch write results: %v", err)
+	}
+	if store.calls != 1 || store.hostID != 42 {
+		t.Fatalf("RecordEvaluations calls = %d for host %d, want 1 for host 42", store.calls, store.hostID)
+	}
+	if len(store.results) != 2 {
+		t.Fatalf("evaluation results = %+v, want 2", store.results)
+	}
+	statuses := map[int64]policies.PolicyStatus{}
+	for _, result := range store.results {
+		statuses[result.PolicyID] = result.Status
+	}
+	if statuses[first.PolicyID] != policies.PolicyStatusPass ||
+		statuses[second.PolicyID] != policies.PolicyStatusFail {
+		t.Fatalf("evaluation statuses = %+v, want pass and fail", statuses)
+	}
+}
+
+type recordingPolicyStore struct {
+	calls   int
+	hostID  int64
+	results []policies.EvaluationResult
+}
+
+func (*recordingPolicyStore) IssueEvaluationsForHost(context.Context, *hosts.Host) ([]policies.Evaluation, error) {
+	return nil, nil
+}
+
+func (s *recordingPolicyStore) RecordEvaluations(
+	_ context.Context,
+	hostID int64,
+	results []policies.EvaluationResult,
+) error {
+	s.calls++
+	s.hostID = hostID
+	s.results = append([]policies.EvaluationResult(nil), results...)
+	return nil
 }
 
 func TestSawEveryRequiredDetailQueryRequiresPresenceAndStatus(t *testing.T) {

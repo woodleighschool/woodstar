@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/woodleighschool/woodstar/internal/fault"
+	"github.com/woodleighschool/woodstar/internal/heartbeats"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
@@ -214,7 +215,8 @@ func enrollCleanupTestHost(
 	host, err := store.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
 		Hardware:     hosts.HostHardware{UUID: name},
 		OrbitNodeKey: name + "-orbit",
-	})
+	}, heartbeats.Contact{})
+
 	if err != nil {
 		t.Fatalf("enroll host %q: %v", name, err)
 	}

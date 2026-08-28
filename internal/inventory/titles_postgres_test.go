@@ -5,6 +5,7 @@ package inventory
 import (
 	"testing"
 
+	"github.com/woodleighschool/woodstar/internal/heartbeats"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
@@ -58,7 +59,8 @@ func TestGetTitleLoadsSigningIdentities(t *testing.T) {
 		host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
 			Hardware:     hosts.HostHardware{UUID: hostName},
 			OrbitNodeKey: hostName + "-orbit",
-		})
+		}, heartbeats.Contact{})
+
 		if err != nil {
 			t.Fatalf("enroll %s: %v", hostName, err)
 		}
@@ -156,7 +158,8 @@ func TestGetTitleSeparatesAuthoritiesAndExcludesUnsignedSignatures(t *testing.T)
 		host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
 			Hardware:     hosts.HostHardware{UUID: observation.host},
 			OrbitNodeKey: observation.host + "-orbit",
-		})
+		}, heartbeats.Contact{})
+
 		if err != nil {
 			t.Fatalf("enroll %s: %v", observation.host, err)
 		}
@@ -210,7 +213,8 @@ func TestGetTitleLoadsTeamIdentityWithoutIdentifier(t *testing.T) {
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
 		Hardware:     hosts.HostHardware{UUID: "team-only-host"},
 		OrbitNodeKey: "team-only-host-orbit",
-	})
+	}, heartbeats.Contact{})
+
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
 	}

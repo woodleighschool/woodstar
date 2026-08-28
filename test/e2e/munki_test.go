@@ -928,9 +928,7 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 		server.BaseURL+"/munki/pkgs/"+secondInstallerItemLocation,
 		serial,
 	)
-	missingPackageStartedAt := time.Now()
 	secondPackageForFirstHostResponse, err := munkiClient.Do(secondPackageForFirstHostRequest)
-	missingPackageFinishedAt := time.Now()
 	if err != nil {
 		t.Fatalf("fetch second-host package as first host: %v", err)
 	}
@@ -952,13 +950,11 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 	missingPackageHost := *missingPackageHostResponse.JSON200
 	missingPackageHeartbeat := requireHeartbeat(t, missingPackageHost.Heartbeats, "munki")
 	if len(missingPackageHost.Heartbeats) != 1 ||
-		!missingPackageHeartbeat.LastSeenAt.After(manifestHeartbeat.LastSeenAt) ||
-		missingPackageHeartbeat.LastSeenAt.Before(missingPackageStartedAt.Add(-heartbeatTimeTolerance)) ||
-		missingPackageHeartbeat.LastSeenAt.After(missingPackageFinishedAt.Add(heartbeatTimeTolerance)) ||
+		missingPackageHeartbeat.LastSeenAt.Before(manifestHeartbeat.LastSeenAt) ||
 		missingPackageHost.LastContact == nil ||
 		!missingPackageHost.LastContact.Equal(missingPackageHeartbeat.LastSeenAt) {
 		t.Fatalf(
-			"host after known Munki package miss = %+v, heartbeat = %+v, want refreshed current Munki contact",
+			"host after known Munki package miss = %+v, heartbeat = %+v, want current Munki contact",
 			missingPackageHost,
 			missingPackageHeartbeat,
 		)

@@ -9,6 +9,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/woodleighschool/woodstar/internal/fault"
+	"github.com/woodleighschool/woodstar/internal/heartbeats"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/santa/rules"
@@ -140,7 +141,8 @@ func TestRuleResolverUsesExcludeAndIncludePriority(t *testing.T) {
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
 		Hardware:     hosts.HostHardware{UUID: "santa-rule-resolver-host"},
 		OrbitNodeKey: "santa-rule-resolver-orbit",
-	})
+	}, heartbeats.Contact{})
+
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
 	}
@@ -203,7 +205,8 @@ func TestRuleResolverAllowsAllHostsInclude(t *testing.T) {
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
 		Hardware:     hosts.HostHardware{UUID: "santa-rule-all-hosts"},
 		OrbitNodeKey: "santa-rule-all-hosts-orbit",
-	})
+	}, heartbeats.Contact{})
+
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
 	}
@@ -246,7 +249,8 @@ func TestListRuleStatusesForHostEmptyHost(t *testing.T) {
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
 		Hardware:     hosts.HostHardware{UUID: "santa-rule-status-empty-host"},
 		OrbitNodeKey: "santa-rule-status-empty-host-orbit",
-	})
+	}, heartbeats.Contact{})
+
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
 	}
@@ -269,7 +273,8 @@ func TestBundleRuleExpandsToBinaryHostRules(t *testing.T) {
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
 		Hardware:     hosts.HostHardware{UUID: "santa-bundle-rule-host"},
 		OrbitNodeKey: "santa-bundle-rule-orbit",
-	})
+	}, heartbeats.Contact{})
+
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
 	}

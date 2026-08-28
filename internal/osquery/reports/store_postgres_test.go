@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/woodleighschool/woodstar/internal/fault"
+	"github.com/woodleighschool/woodstar/internal/heartbeats"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/listing"
@@ -1053,7 +1054,8 @@ func enrollTestHost(t *testing.T, ctx context.Context, store *hosts.Store, hardw
 	host, err := store.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
 		Hardware:     hosts.HostHardware{UUID: hardwareUUID},
 		OrbitNodeKey: hardwareUUID + "-node-key",
-	})
+	}, heartbeats.Contact{})
+
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
 	}
@@ -1071,7 +1073,8 @@ func enrollTestHostDetail(
 		Hardware:       hosts.HostHardware{UUID: hardwareUUID},
 		OsqueryNodeKey: hardwareUUID + "-node-key",
 		Agents:         hosts.HostAgents{Osquery: hosts.HostOsqueryAgent{Version: "5.22.1"}},
-	})
+	}, heartbeats.Contact{})
+
 	if err != nil {
 		t.Fatalf("enroll osquery host: %v", err)
 	}

@@ -42,7 +42,8 @@ func TestSyncServiceRuleDownloadUsesPreflightSnapshot(t *testing.T) {
 			Serial: "SANTASYNC",
 		},
 		OrbitNodeKey: "santa-sync-orbit",
-	})
+	}, heartbeats.Contact{})
+
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
 	}

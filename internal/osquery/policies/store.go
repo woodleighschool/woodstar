@@ -2,7 +2,6 @@ package policies
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -265,119 +264,153 @@ func (s *Store) IssueEvaluationsForHost(ctx context.Context, host *hosts.Host) (
 	return evaluations, nil
 }
 
-// RecordEvaluation records an ordered policy result when its query revision and
-// host assignment are still current.
-func (s *Store) RecordEvaluation(
+// RecordEvaluations records the current policy results from one distributed-write payload.
+func (s *Store) RecordEvaluations(
 	ctx context.Context,
-	policyID int64,
-	queryHash string,
-	revision int64,
-	sequence int64,
 	hostID int64,
-	result EvaluationResult,
+	results []EvaluationResult,
 ) error {
-	if revision <= 0 || sequence <= 0 {
-		return nil
+	results, err := normalizeEvaluationResults(results)
+	if err != nil || len(results) == 0 {
+		return err
 	}
-	switch result.Status {
-	case PolicyStatusPass, PolicyStatusFail:
-		result.Error = ""
-	case PolicyStatusError:
-		result.Error = truncateRunes(result.Error, maxPolicyErrorRunes)
-	case PolicyStatusPending:
-		return fault.ErrInvalidInput
-	default:
-		return fault.ErrInvalidInput
+
+	policyIDs := make([]int64, len(results))
+	queryHashes := make([]string, len(results))
+	revisions := make([]int64, len(results))
+	sequences := make([]int64, len(results))
+	statuses := make([]string, len(results))
+	errorMessages := make([]string, len(results))
+	for i, result := range results {
+		policyIDs[i] = result.PolicyID
+		queryHashes[i] = result.QueryHash
+		revisions[i] = result.Revision
+		sequences[i] = result.Sequence
+		statuses[i] = string(result.Status)
+		errorMessages[i] = result.Error
 	}
 
 	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
-		var lastConclusivePasses *bool
-		var remediationScript string
-		var remediationRevision int64
-		var automaticRemediationEnabled, orbitScriptExecutionAvailable bool
-		err := tx.QueryRow(ctx, `
-			SELECT
-				membership.last_conclusive_passes,
-				policy_row.remediation_script,
-				policy_row.remediation_revision,
-				policy_row.automatic_remediation_enabled,
-				COALESCE(host.orbit_scripts_enabled, false)
-					AND host.orbit_node_key <> ''
-			FROM osquery_policy_membership membership
-			JOIN osquery_policies policy_row ON policy_row.id = membership.policy_id
-			JOIN osquery_policy_assignments assignment
-				ON assignment.policy_id = policy_row.id
-			   AND assignment.host_id = membership.host_id
-			JOIN hosts host ON host.id = membership.host_id
-			WHERE policy_row.id = $1
-			  AND encode(sha256(convert_to(policy_row.query, 'UTF8')), 'hex') = $2
-			  AND policy_row.evaluation_revision = $3
-			  AND membership.host_id = $4
-			  AND $5 = membership.last_issued_sequence
-			  AND $5 > membership.last_completed_sequence
-			FOR UPDATE OF policy_row, membership`,
-			policyID,
-			queryHash,
-			revision,
+		rows, err := tx.Query(ctx, `
+			WITH input AS MATERIALIZED (
+				SELECT policy_id, query_hash, revision, sequence, status, error
+				FROM unnest(
+					$2::bigint[],
+					$3::text[],
+					$4::bigint[],
+					$5::bigint[],
+					$6::text[],
+					$7::text[]
+				) AS result(policy_id, query_hash, revision, sequence, status, error)
+			), eligible AS MATERIALIZED (
+				SELECT
+					result.policy_id,
+					result.sequence,
+					result.status,
+					result.error,
+					result.status = 'fail'
+						AND (
+							membership.last_conclusive_passes IS NULL
+							OR membership.last_conclusive_passes
+						) AS newly_failing,
+					policy.remediation_script,
+					policy.remediation_revision,
+					policy.automatic_remediation_enabled,
+					COALESCE(host.orbit_scripts_enabled, false)
+						AND host.orbit_node_key <> '' AS orbit_script_execution_available
+				FROM input result
+				JOIN osquery_policy_membership membership
+					ON membership.policy_id = result.policy_id
+				   AND membership.host_id = $1
+				JOIN osquery_policies policy ON policy.id = result.policy_id
+				JOIN osquery_policy_assignments assignment
+					ON assignment.policy_id = result.policy_id
+				   AND assignment.host_id = $1
+				JOIN hosts host ON host.id = $1
+				WHERE encode(sha256(convert_to(policy.query, 'UTF8')), 'hex') = result.query_hash
+				  AND policy.evaluation_revision = result.revision
+				  AND membership.last_issued_sequence = result.sequence
+				  AND result.sequence > membership.last_completed_sequence
+				FOR UPDATE OF policy, membership
+			), updated AS (
+				UPDATE osquery_policy_membership membership
+				SET
+					status = eligible.status::osquery_policy_status,
+					error = eligible.error,
+					last_conclusive_passes = CASE
+						WHEN eligible.status = 'pass' THEN true
+						WHEN eligible.status = 'fail' THEN false
+						ELSE membership.last_conclusive_passes
+					END,
+					remediation_failure_sequence = CASE
+						WHEN eligible.newly_failing THEN eligible.sequence
+						ELSE membership.remediation_failure_sequence
+					END,
+					last_completed_sequence = eligible.sequence,
+					updated_at = now()
+				FROM eligible
+				WHERE membership.policy_id = eligible.policy_id
+				  AND membership.host_id = $1
+				RETURNING
+					membership.policy_id,
+					eligible.sequence AS failure_sequence,
+					eligible.remediation_revision,
+					eligible.remediation_script,
+					eligible.newly_failing,
+					eligible.automatic_remediation_enabled,
+					eligible.orbit_script_execution_available
+			)
+			SELECT policy_id, failure_sequence, remediation_revision, remediation_script
+			FROM updated
+			WHERE newly_failing
+			  AND automatic_remediation_enabled
+			  AND orbit_script_execution_available
+			ORDER BY policy_id`,
 			hostID,
-			sequence,
-		).Scan(
-			&lastConclusivePasses,
-			&remediationScript,
-			&remediationRevision,
-			&automaticRemediationEnabled,
-			&orbitScriptExecutionAvailable,
+			policyIDs,
+			queryHashes,
+			revisions,
+			sequences,
+			statuses,
+			errorMessages,
 		)
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil
-		}
 		if err != nil {
 			return err
 		}
-		newlyFailing := result.Status == PolicyStatusFail &&
-			(lastConclusivePasses == nil || *lastConclusivePasses)
-		_, err = tx.Exec(ctx, `
-			UPDATE osquery_policy_membership
-			SET
-				status = $3::osquery_policy_status,
-				error = $4,
-				last_conclusive_passes = CASE
-					WHEN $3 = 'pass' THEN true
-					WHEN $3 = 'fail' THEN false
-					ELSE last_conclusive_passes
-				END,
-				remediation_failure_sequence = CASE
-					WHEN $6 THEN $5
-					ELSE remediation_failure_sequence
-				END,
-				last_completed_sequence = $5,
-				updated_at = now()
-			WHERE policy_id = $1 AND host_id = $2`,
-			policyID,
-			hostID,
-			result.Status,
-			result.Error,
-			sequence,
-			newlyFailing,
-		)
+		candidates, err := pgx.CollectRows(rows, pgx.RowToStructByPos[automaticRemediationCandidate])
 		if err != nil {
 			return err
 		}
-		if !newlyFailing || !automaticRemediationEnabled || !orbitScriptExecutionAvailable {
-			return nil
-		}
-		_, err = s.enqueueRemediationTx(
-			ctx,
-			tx,
-			policyID,
-			hostID,
-			remediationRevision,
-			sequence,
-			remediationScript,
-			true,
-		)
-		return err
+		return s.enqueueAutomaticRemediationsTx(ctx, tx, hostID, candidates)
 	})
+}
+
+type automaticRemediationCandidate struct {
+	PolicyID            int64
+	FailureSequence     int64
+	RemediationRevision int64
+	Script              string
+}
+
+func normalizeEvaluationResults(results []EvaluationResult) ([]EvaluationResult, error) {
+	normalized := make([]EvaluationResult, 0, len(results))
+	for _, result := range results {
+		if result.PolicyID <= 0 || result.Revision <= 0 || result.Sequence <= 0 {
+			continue
+		}
+		switch result.Status {
+		case PolicyStatusPass, PolicyStatusFail:
+			result.Error = ""
+		case PolicyStatusError:
+			result.Error = truncateRunes(result.Error, maxPolicyErrorRunes)
+		case PolicyStatusPending:
+			return nil, fault.ErrInvalidInput
+		default:
+			return nil, fault.ErrInvalidInput
+		}
+		normalized = append(normalized, result)
+	}
+	return normalized, nil
 }
 
 func truncateRunes(value string, limit int) string {

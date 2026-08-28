@@ -46,7 +46,11 @@ type munkiCollector interface {
 }
 
 type hostStore interface {
-	UpsertOnOsqueryEnroll(ctx context.Context, update hosts.InventoryUpdate) (*hosts.Host, error)
+	UpsertOnOsqueryEnroll(
+		ctx context.Context,
+		update hosts.InventoryUpdate,
+		contact heartbeats.Contact,
+	) (*hosts.Host, error)
 	GetByOsqueryNodeKey(ctx context.Context, nodeKey string) (*hosts.Host, error)
 }
 
@@ -93,14 +97,10 @@ type reportStore interface {
 
 type policyStore interface {
 	IssueEvaluationsForHost(ctx context.Context, host *hosts.Host) ([]policies.Evaluation, error)
-	RecordEvaluation(
+	RecordEvaluations(
 		ctx context.Context,
-		policyID int64,
-		queryHash string,
-		revision int64,
-		sequence int64,
 		hostID int64,
-		result policies.EvaluationResult,
+		results []policies.EvaluationResult,
 	) error
 }
 
@@ -130,12 +130,9 @@ func (s *AgentService) Enroll(ctx context.Context, req EnrollRequest, contact he
 	}
 	update.OsqueryNodeKey = nodeKey
 
-	host, err := s.deps.HostStore.UpsertOnOsqueryEnroll(ctx, update)
+	host, err := s.deps.HostStore.UpsertOnOsqueryEnroll(ctx, update, contact)
 	if err != nil {
 		return "", fmt.Errorf("upsert host: %w", err)
-	}
-	if err := s.deps.Heartbeats.Record(ctx, host.ID, heartbeats.SourceOsquery, contact); err != nil {
-		return "", fmt.Errorf("record heartbeat: %w", err)
 	}
 	activity.RecordSystem(
 		ctx,
@@ -267,7 +264,7 @@ func (s *AgentService) queuePolicyQueries(
 		return 0, err
 	}
 	for _, evaluation := range evaluations {
-		queryMap[queryNameForEvaluation(kindPolicy, evaluation)] = evaluation.Query
+		queryMap[queryNameForEvaluation(evaluation)] = evaluation.Query
 	}
 	return len(evaluations), nil
 }

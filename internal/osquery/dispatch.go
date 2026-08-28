@@ -45,9 +45,9 @@ func queryNameForSQL(kind queryKind, id int64, sql string) string {
 	return queryName(kind, strconv.FormatInt(id, 10)+"_"+queryHash(sql))
 }
 
-func queryNameForEvaluation(kind queryKind, evaluation policies.Evaluation) string {
+func queryNameForEvaluation(evaluation policies.Evaluation) string {
 	return queryName(
-		kind,
+		kindPolicy,
 		strconv.FormatInt(evaluation.PolicyID, 10)+"_"+
 			queryHash(evaluation.Query)+"_"+
 			strconv.FormatInt(evaluation.Revision, 10)+"_"+
@@ -158,8 +158,12 @@ type labelDispatchPass struct {
 	results []ingest.LabelResult
 }
 
+type policyDispatchPass struct {
+	results []policies.EvaluationResult
+}
+
 // dispatchWriteResults runs a single pass over req.Queries, routing each
-// result to its kind handler, then finalizes detail and label state.
+// result to its kind handler, then finalizes policy, detail, and label state.
 func (s *AgentService) dispatchWriteResults(
 	ctx context.Context,
 	host *hosts.Host,
@@ -167,6 +171,7 @@ func (s *AgentService) dispatchWriteResults(
 ) error {
 	details := newDetailDispatchPass()
 	labels := &labelDispatchPass{}
+	policyResults := &policyDispatchPass{}
 
 	for name, rows := range req.Queries {
 		kind, suffix, ok := parseQueryName(name)
@@ -183,7 +188,7 @@ func (s *AgentService) dispatchWriteResults(
 		case kindLabel:
 			s.handleLabelResult(ctx, host.ID, suffix, rows, status, hasStatus, message, labels)
 		case kindPolicy:
-			err = s.handlePolicyResult(ctx, host.ID, suffix, rows, status, hasStatus, message)
+			s.handlePolicyResult(ctx, host.ID, suffix, rows, status, hasStatus, message, policyResults)
 		case kindLive:
 			err = s.handleLiveResult(ctx, host, suffix, rows, status, hasStatus, message)
 		}
@@ -192,6 +197,9 @@ func (s *AgentService) dispatchWriteResults(
 		}
 	}
 
+	if err := s.finalizePolicyPass(ctx, host.ID, policyResults); err != nil {
+		return err
+	}
 	if err := s.finalizeDetailPass(ctx, host, details); err != nil {
 		return err
 	}
@@ -394,13 +402,21 @@ func (s *AgentService) handlePolicyResult(
 	status json.RawMessage,
 	hasStatus bool,
 	message string,
-) error {
+	pass *policyDispatchPass,
+) {
 	policyID, queryHash, revision, sequence, ok := parsePolicyEvaluationIdentity(suffix)
 	if !ok {
-		return nil
+		return
 	}
 	matched, ok := rowPresenceResult(status, hasStatus, rows)
-	result := policies.EvaluationResult{Status: policies.PolicyStatusError, Error: message}
+	result := policies.EvaluationResult{
+		PolicyID:  policyID,
+		QueryHash: queryHash,
+		Revision:  revision,
+		Sequence:  sequence,
+		Status:    policies.PolicyStatusError,
+		Error:     message,
+	}
 	if ok {
 		if matched {
 			result.Status = policies.PolicyStatusPass
@@ -417,15 +433,15 @@ func (s *AgentService) handlePolicyResult(
 			"message", message,
 		)
 	}
-	return s.deps.PolicyStore.RecordEvaluation(
-		ctx,
-		policyID,
-		queryHash,
-		revision,
-		sequence,
-		hostID,
-		result,
-	)
+	pass.results = append(pass.results, result)
+}
+
+func (s *AgentService) finalizePolicyPass(
+	ctx context.Context,
+	hostID int64,
+	pass *policyDispatchPass,
+) error {
+	return s.deps.PolicyStore.RecordEvaluations(ctx, hostID, pass.results)
 }
 
 func rowPresenceResult(status json.RawMessage, hasStatus bool, rows []map[string]string) (bool, bool) {

@@ -250,38 +250,6 @@ type remediationCandidate struct {
 	Eligible        bool
 }
 
-func (s *Store) enqueueRemediationTx(
-	ctx context.Context,
-	tx pgx.Tx,
-	policyID, hostID int64,
-	remediationRevision, failureSequence int64,
-	script string,
-	automatic bool,
-) (*PolicyRemediationRunSummary, error) {
-	executionID, err := randtoken.Generate(remediationExecutionIDBytes)
-	if err != nil {
-		return nil, fmt.Errorf("generate remediation execution ID: %w", err)
-	}
-	rows, err := s.enqueueRemediationsTx(
-		ctx,
-		tx,
-		policyID,
-		[]int64{hostID},
-		[]string{executionID},
-		[]int64{failureSequence},
-		remediationRevision,
-		script,
-		automatic,
-	)
-	if err != nil {
-		return nil, err
-	}
-	if len(rows) == 0 {
-		return nil, nil
-	}
-	return remediationRunSummary(rows[0]), nil
-}
-
 func (s *Store) enqueueRemediationsTx(
 	ctx context.Context,
 	tx pgx.Tx,
@@ -296,6 +264,81 @@ func (s *Store) enqueueRemediationsTx(
 	if len(hostIDs) == 0 {
 		return nil, nil
 	}
+	policyIDs := make([]int64, len(hostIDs))
+	remediationRevisions := make([]int64, len(hostIDs))
+	scripts := make([]string, len(hostIDs))
+	automaticValues := make([]bool, len(hostIDs))
+	for i := range hostIDs {
+		policyIDs[i] = policyID
+		remediationRevisions[i] = remediationRevision
+		scripts[i] = script
+		automaticValues[i] = automatic
+	}
+	return s.enqueueRemediationBatchTx(
+		ctx,
+		tx,
+		policyIDs,
+		hostIDs,
+		executionIDs,
+		failureSequences,
+		remediationRevisions,
+		scripts,
+		automaticValues,
+	)
+}
+
+func (s *Store) enqueueAutomaticRemediationsTx(
+	ctx context.Context,
+	tx pgx.Tx,
+	hostID int64,
+	candidates []automaticRemediationCandidate,
+) error {
+	if len(candidates) == 0 {
+		return nil
+	}
+	policyIDs := make([]int64, len(candidates))
+	hostIDs := make([]int64, len(candidates))
+	executionIDs := make([]string, len(candidates))
+	failureSequences := make([]int64, len(candidates))
+	remediationRevisions := make([]int64, len(candidates))
+	scripts := make([]string, len(candidates))
+	automaticValues := make([]bool, len(candidates))
+	for i, candidate := range candidates {
+		executionID, err := randtoken.Generate(remediationExecutionIDBytes)
+		if err != nil {
+			return fmt.Errorf("generate remediation execution ID: %w", err)
+		}
+		policyIDs[i] = candidate.PolicyID
+		hostIDs[i] = hostID
+		executionIDs[i] = executionID
+		failureSequences[i] = candidate.FailureSequence
+		remediationRevisions[i] = candidate.RemediationRevision
+		scripts[i] = candidate.Script
+		automaticValues[i] = true
+	}
+	_, err := s.enqueueRemediationBatchTx(
+		ctx,
+		tx,
+		policyIDs,
+		hostIDs,
+		executionIDs,
+		failureSequences,
+		remediationRevisions,
+		scripts,
+		automaticValues,
+	)
+	return err
+}
+
+func (s *Store) enqueueRemediationBatchTx(
+	ctx context.Context,
+	tx pgx.Tx,
+	policyIDs, hostIDs []int64,
+	executionIDs []string,
+	failureSequences, remediationRevisions []int64,
+	scripts []string,
+	automaticValues []bool,
+) ([]remediationRunRow, error) {
 	rows, err := tx.Query(ctx, `
 		INSERT INTO osquery_policy_remediation_runs (
 			policy_id,
@@ -307,15 +350,30 @@ func (s *Store) enqueueRemediationsTx(
 			automatic
 		)
 		SELECT
-			$1,
+			batch.policy_id,
 			batch.host_id,
 			batch.execution_id,
-			$5,
-			$6,
+			batch.script,
+			batch.remediation_revision,
 			batch.failure_sequence,
-			$7
-		FROM unnest($2::bigint[], $3::text[], $4::bigint[])
-			AS batch(host_id, execution_id, failure_sequence)
+			batch.automatic
+		FROM unnest(
+			$1::bigint[],
+			$2::bigint[],
+			$3::text[],
+			$4::bigint[],
+			$5::bigint[],
+			$6::text[],
+			$7::boolean[]
+		) AS batch(
+			policy_id,
+			host_id,
+			execution_id,
+			failure_sequence,
+			remediation_revision,
+			script,
+			automatic
+		)
 		ON CONFLICT (policy_id, host_id) DO UPDATE SET
 			execution_id = EXCLUDED.execution_id,
 			script_contents = EXCLUDED.script_contents,
@@ -344,13 +402,13 @@ func (s *Store) enqueueRemediationsTx(
 			output,
 			runtime_seconds,
 			exit_code`,
-		policyID,
+		policyIDs,
 		hostIDs,
 		executionIDs,
 		failureSequences,
-		script,
-		remediationRevision,
-		automatic,
+		remediationRevisions,
+		scripts,
+		automaticValues,
 	)
 	if err != nil {
 		return nil, err

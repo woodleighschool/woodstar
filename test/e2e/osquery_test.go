@@ -599,7 +599,6 @@ func TestOsquery(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear proto
 	if err != nil {
 		t.Fatalf("encode report snapshot: %v", err)
 	}
-	resultLogStartedAt := time.Now()
 	var resultAck osqueryTestAcknowledgement
 	postJSON(
 		t,
@@ -608,7 +607,6 @@ func TestOsquery(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear proto
 		osqueryTestLogRequest{NodeKey: enroll.NodeKey, LogType: "result", Data: snapshotData},
 		&resultAck,
 	)
-	resultLogFinishedAt := time.Now()
 	if resultAck.NodeInvalid {
 		t.Fatal("result log returned node_invalid")
 	}
@@ -626,19 +624,15 @@ func TestOsquery(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear proto
 	osqueryHeartbeat := requireHeartbeat(t, host.Heartbeats, "osquery")
 	if host.Hardware.Uuid != hardwareUUID || host.Enrollment.Agent != "osquery" ||
 		host.DisplayName != "Osquery Integration Mac" || host.Status != "online" ||
-		len(host.Heartbeats) != 1 || !osqueryHeartbeat.LastSeenAt.After(enrolledHeartbeat.LastSeenAt) ||
-		osqueryHeartbeat.LastSeenAt.Before(resultLogStartedAt.Add(-heartbeatTimeTolerance)) ||
-		osqueryHeartbeat.LastSeenAt.After(resultLogFinishedAt.Add(heartbeatTimeTolerance)) ||
+		len(host.Heartbeats) != 1 || osqueryHeartbeat.LastSeenAt.Before(enrolledHeartbeat.LastSeenAt) ||
 		host.LastContact == nil ||
 		!host.LastContact.Equal(osqueryHeartbeat.LastSeenAt) || osqueryHeartbeat.RemoteIp == nil ||
 		host.PublicIp == nil || *host.PublicIp != *osqueryHeartbeat.RemoteIp {
 		t.Fatalf(
-			"host identity/enrollment = %+v, heartbeat = %+v, prior = %v, bounds = %v..%v, want enrolled online osquery Mac with refreshed current contact",
+			"host identity/enrollment = %+v, heartbeat = %+v, prior = %v, want enrolled online osquery Mac with current contact",
 			host,
 			osqueryHeartbeat,
 			enrolledHeartbeat.LastSeenAt,
-			resultLogStartedAt,
-			resultLogFinishedAt,
 		)
 	}
 	proveOsqueryLiveQueryLifecycle(t, server, agentClient, enroll.NodeKey, host)

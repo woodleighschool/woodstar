@@ -8,6 +8,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/woodleighschool/woodstar/internal/fault"
+	"github.com/woodleighschool/woodstar/internal/heartbeats"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
@@ -243,7 +244,8 @@ func TestConfigurationResolverUsesFirstMatchingPosition(t *testing.T) {
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
 		Hardware:     hosts.HostHardware{UUID: "santa-configuration-resolver-host"},
 		OrbitNodeKey: "santa-configuration-resolver-orbit",
-	})
+	}, heartbeats.Contact{})
+
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
 	}
@@ -326,14 +328,16 @@ func TestConfigurationResolverUsesExclusions(t *testing.T) {
 	studentHost, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
 		Hardware:     hosts.HostHardware{UUID: "santa-configuration-student-host"},
 		OrbitNodeKey: "santa-configuration-student-orbit",
-	})
+	}, heartbeats.Contact{})
+
 	if err != nil {
 		t.Fatalf("enroll student host: %v", err)
 	}
 	sacHost, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
 		Hardware:     hosts.HostHardware{UUID: "santa-configuration-sac-host"},
 		OrbitNodeKey: "santa-configuration-sac-orbit",
-	})
+	}, heartbeats.Contact{})
+
 	if err != nil {
 		t.Fatalf("enroll sac host: %v", err)
 	}
@@ -389,7 +393,8 @@ func TestConfigurationResolverRequiresIncludeTarget(t *testing.T) {
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
 		Hardware:     hosts.HostHardware{UUID: "santa-configuration-requires-include-host"},
 		OrbitNodeKey: "santa-configuration-requires-include-orbit",
-	})
+	}, heartbeats.Contact{})
+
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
 	}

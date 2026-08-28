@@ -8,12 +8,17 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/woodleighschool/woodstar/internal/heartbeats"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/postgres"
 )
 
 // UpsertOnOrbitEnroll creates a host or refreshes its Orbit enrollment without replacing its identity.
-func (s *Store) UpsertOnOrbitEnroll(ctx context.Context, update InventoryUpdate) (*Host, error) {
+func (s *Store) UpsertOnOrbitEnroll(
+	ctx context.Context,
+	update InventoryUpdate,
+	contact heartbeats.Contact,
+) (*Host, error) {
 	write := orbitEnrollWrite{
 		HardwareUUID:            update.Hardware.UUID,
 		DisplayName:             inventoryDisplayName(update.Hardware.UUID, update.Hostname, update.ComputerName),
@@ -57,11 +62,15 @@ ON CONFLICT (hardware_uuid) DO UPDATE SET
 	enrollment_agent = EXCLUDED.enrollment_agent,
 	enrolled_at = now(),
 	updated_at = now()
-RETURNING id`, write)
+RETURNING id`, write, heartbeats.SourceOrbit, contact)
 }
 
 // UpsertOnOsqueryEnroll creates a host or refreshes its osquery enrollment without replacing its identity.
-func (s *Store) UpsertOnOsqueryEnroll(ctx context.Context, update InventoryUpdate) (*Host, error) {
+func (s *Store) UpsertOnOsqueryEnroll(
+	ctx context.Context,
+	update InventoryUpdate,
+	contact heartbeats.Contact,
+) (*Host, error) {
 	write := osqueryEnrollWrite{
 		HardwareUUID:            update.Hardware.UUID,
 		DisplayName:             inventoryDisplayName(update.Hardware.UUID, update.Hostname, update.ComputerName),
@@ -165,7 +174,7 @@ ON CONFLICT (hardware_uuid) DO UPDATE SET
 	inventory_updated_at = NULL,
 	inventory_query_hash = '',
 	updated_at = now()
-RETURNING id`, write)
+RETURNING id`, write, heartbeats.SourceOsquery, contact)
 }
 
 func upsertOnEnroll[W any](
@@ -173,6 +182,8 @@ func upsertOnEnroll[W any](
 	pool *pgxpool.Pool,
 	sql string,
 	write W,
+	heartbeatSource heartbeats.Source,
+	contact heartbeats.Contact,
 ) (*Host, error) {
 	now := time.Now()
 	var host Host
@@ -181,11 +192,6 @@ func upsertOnEnroll[W any](
 		if err := tx.QueryRow(ctx, sql, pgx.StructArgs(write)).Scan(&hostID); err != nil {
 			return err
 		}
-		row, err := postgres.GetOne[hostRow](ctx, tx, hostSelectSQL()+"\nWHERE hosts.id = $1", hostID)
-		if err != nil {
-			return err
-		}
-		host = hostFromRow(row, now)
 		if _, err := tx.Exec(ctx, `
 INSERT INTO label_membership (label_id, host_id)
 SELECT id, @host_id
@@ -193,11 +199,19 @@ FROM labels
 WHERE builtin_key = @builtin_key::text AND label_type = 'builtin' AND label_membership_type = 'manual'
 ON CONFLICT (label_id, host_id) DO NOTHING`,
 			pgx.NamedArgs{
-				"host_id":     host.ID,
+				"host_id":     hostID,
 				"builtin_key": string(labels.BuiltinKeyAllHosts),
 			}); err != nil {
 			return fmt.Errorf("restore All Hosts membership: %w", err)
 		}
+		if err := heartbeats.RecordTx(ctx, tx, hostID, heartbeatSource, contact); err != nil {
+			return fmt.Errorf("record heartbeat: %w", err)
+		}
+		row, err := postgres.GetOne[hostRow](ctx, tx, hostSelectSQL()+"\nWHERE hosts.id = $1", hostID)
+		if err != nil {
+			return err
+		}
+		host = hostFromRow(row, now)
 		return nil
 	})
 	if err != nil {

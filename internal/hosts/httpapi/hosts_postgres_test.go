@@ -27,6 +27,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/directory"
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/geoip"
+	"github.com/woodleighschool/woodstar/internal/heartbeats"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/munki/mdp"
@@ -43,7 +44,8 @@ func TestDeleteHostsDecodesCollectionIDs(t *testing.T) {
 		host, err := store.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
 			Hardware:     hosts.HostHardware{UUID: name},
 			OrbitNodeKey: name + "-node-key",
-		})
+		}, heartbeats.Contact{})
+
 		if err != nil {
 			t.Fatalf("enroll %s: %v", name, err)
 		}
@@ -101,7 +103,8 @@ func TestHostPrimaryUserMutationsRefreshDerivedLabels(t *testing.T) {
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
 		Hardware:     hosts.HostHardware{UUID: "host-manual-user-map"},
 		OrbitNodeKey: "host-manual-user-map-orbit",
-	})
+	}, heartbeats.Contact{})
+
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
 	}
@@ -192,7 +195,8 @@ func TestHostResponsesBatchEnrichFlatAgentContract(t *testing.T) {
 	host, err := hostStore.UpsertOnOsqueryEnroll(ctx, hosts.InventoryUpdate{
 		Hardware:       hosts.HostHardware{UUID: "host-agent-contract"},
 		OsqueryNodeKey: "host-agent-contract-osquery",
-	})
+	}, heartbeats.Contact{})
+
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
 	}
@@ -203,9 +207,10 @@ func TestHostResponsesBatchEnrichFlatAgentContract(t *testing.T) {
 		t.Fatalf("mark inventory fresh: %v", err)
 	}
 	if _, err := db.Exec(ctx, `
-INSERT INTO host_heartbeats (host_id, source, last_seen_at, remote_ip, user_agent)
-VALUES ($1, 'osquery', $2, '198.51.100.40', 'osquery/5.14')`, host.ID, now); err != nil {
-		t.Fatalf("insert heartbeat: %v", err)
+UPDATE host_heartbeats
+SET last_seen_at = $2, remote_ip = '198.51.100.40', user_agent = 'osquery/5.14'
+WHERE host_id = $1 AND source = 'osquery'`, host.ID, now); err != nil {
+		t.Fatalf("update heartbeat: %v", err)
 	}
 
 	munkiVersions := &testAgentVersionLoader{versions: map[int64]string{host.ID: "6.6.0"}}
@@ -275,14 +280,16 @@ func TestHostResponsesEnrichPublicIP(t *testing.T) {
 	host, err := hostStore.UpsertOnOsqueryEnroll(ctx, hosts.InventoryUpdate{
 		Hardware:       hosts.HostHardware{UUID: "host-public-ip-enrichment"},
 		OsqueryNodeKey: "host-public-ip-enrichment-osquery",
-	})
+	}, heartbeats.Contact{})
+
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
 	}
 	if _, err := db.Exec(ctx, `
-INSERT INTO host_heartbeats (host_id, source, last_seen_at, remote_ip, user_agent)
-VALUES ($1, 'osquery', now(), '198.51.100.40', 'osquery/5.14')`, host.ID); err != nil {
-		t.Fatalf("insert heartbeat: %v", err)
+UPDATE host_heartbeats
+SET last_seen_at = now(), remote_ip = '198.51.100.40', user_agent = 'osquery/5.14'
+WHERE host_id = $1 AND source = 'osquery'`, host.ID); err != nil {
+		t.Fatalf("update heartbeat: %v", err)
 	}
 	distribution := mdp.NewStore(
 		db,

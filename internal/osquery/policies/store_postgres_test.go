@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/woodleighschool/woodstar/internal/fault"
+	"github.com/woodleighschool/woodstar/internal/heartbeats"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/listing"
@@ -1174,9 +1175,10 @@ func TestEvaluationRejectsSupersededResultBeforeLatestCompletes(t *testing.T) {
 
 	older := issuePolicyEvaluation(t, ctx, store, host, policy.ID)
 	newer := issuePolicyEvaluation(t, ctx, store, host, policy.ID)
-	if err := store.RecordEvaluation(
-		ctx, policy.ID, testQueryHash(policy.Query), older.Revision, older.Sequence, host.ID,
-		EvaluationResult{Status: PolicyStatusFail},
+	if err := store.RecordEvaluations(ctx, host.ID, []EvaluationResult{{
+		PolicyID: policy.ID, QueryHash: testQueryHash(policy.Query),
+		Revision: older.Revision, Sequence: older.Sequence, Status: PolicyStatusFail,
+	}},
 	); err != nil {
 		t.Fatalf("record superseded failure: %v", err)
 	}
@@ -1191,9 +1193,10 @@ func TestEvaluationRejectsSupersededResultBeforeLatestCompletes(t *testing.T) {
 		t.Fatalf("result after superseded failure = %+v, want pending", results)
 	}
 
-	if err := store.RecordEvaluation(
-		ctx, policy.ID, testQueryHash(policy.Query), newer.Revision, newer.Sequence, host.ID,
-		EvaluationResult{Status: PolicyStatusPass},
+	if err := store.RecordEvaluations(ctx, host.ID, []EvaluationResult{{
+		PolicyID: policy.ID, QueryHash: testQueryHash(policy.Query),
+		Revision: newer.Revision, Sequence: newer.Sequence, Status: PolicyStatusPass,
+	}},
 	); err != nil {
 		t.Fatalf("record latest pass: %v", err)
 	}
@@ -1203,6 +1206,93 @@ func TestEvaluationRejectsSupersededResultBeforeLatestCompletes(t *testing.T) {
 	}
 	if len(results) != 1 || results[0].Status != PolicyStatusPass {
 		t.Fatalf("result after latest pass = %+v, want pass", results)
+	}
+}
+
+func TestRecordEvaluationsPersistsPayloadInOneTransaction(t *testing.T) {
+	store, labelStore, hostStore, ctx := newPostgresPolicyStore(t)
+	host := enrollTestHostDetail(t, ctx, hostStore, "policy-batch-result-host")
+	makeOrbitScriptEligible(t, ctx, store, host.ID)
+	targets := policyTargets([]int64{allHostsLabelID(t, ctx, labelStore)}, nil)
+	policies := make([]*Policy, 0, 2)
+	for _, name := range []string{"Batch policy one", "Batch policy two"} {
+		policy, err := store.Create(ctx, makePolicy(PolicyMutation{
+			Name:    name,
+			Query:   "select 1;",
+			Targets: targets,
+			Remediation: &PolicyRemediationMutation{
+				Script:    "#!/bin/zsh\nexit 0\n",
+				Automatic: true,
+			},
+		}))
+		if err != nil {
+			t.Fatalf("create %s: %v", name, err)
+		}
+		policies = append(policies, policy)
+	}
+
+	evaluations, err := store.IssueEvaluationsForHost(ctx, host)
+	if err != nil {
+		t.Fatalf("issue evaluations: %v", err)
+	}
+	byPolicyID := make(map[int64]Evaluation, len(evaluations))
+	for _, evaluation := range evaluations {
+		byPolicyID[evaluation.PolicyID] = evaluation
+	}
+	results := make([]EvaluationResult, 0, len(policies))
+	policyIDs := make([]int64, 0, len(policies))
+	for _, policy := range policies {
+		evaluation, ok := byPolicyID[policy.ID]
+		if !ok {
+			t.Fatalf("policy %d evaluation not issued: %+v", policy.ID, evaluations)
+		}
+		policyIDs = append(policyIDs, policy.ID)
+		results = append(results, EvaluationResult{
+			PolicyID: policy.ID, QueryHash: testQueryHash(policy.Query),
+			Revision: evaluation.Revision, Sequence: evaluation.Sequence,
+			Status: PolicyStatusFail,
+		})
+	}
+	if err := store.RecordEvaluations(ctx, host.ID, results); err != nil {
+		t.Fatalf("record evaluation payload: %v", err)
+	}
+
+	var membershipCount, remediationCount, transactionCount int
+	if err := store.pool.QueryRow(ctx, `
+		SELECT count(*)::integer
+		FROM osquery_policy_membership
+		WHERE host_id = $1
+		  AND policy_id = ANY($2)
+		  AND status = 'fail'`, host.ID, policyIDs).Scan(&membershipCount); err != nil {
+		t.Fatalf("count failed memberships: %v", err)
+	}
+	if membershipCount != len(policyIDs) {
+		t.Fatalf("failed membership count = %d, want %d", membershipCount, len(policyIDs))
+	}
+	if err := store.pool.QueryRow(ctx, `
+		SELECT count(*)::integer
+		FROM osquery_policy_remediation_runs
+		WHERE host_id = $1 AND policy_id = ANY($2)`, host.ID, policyIDs).Scan(&remediationCount); err != nil {
+		t.Fatalf("count remediation runs: %v", err)
+	}
+	if remediationCount != len(policyIDs) {
+		t.Fatalf("remediation count = %d, want %d", remediationCount, len(policyIDs))
+	}
+	if err := store.pool.QueryRow(ctx, `
+		SELECT count(DISTINCT transaction_id)::integer
+		FROM (
+			SELECT xmin::text AS transaction_id
+			FROM osquery_policy_membership
+			WHERE host_id = $1 AND policy_id = ANY($2)
+			UNION ALL
+			SELECT xmin::text AS transaction_id
+			FROM osquery_policy_remediation_runs
+			WHERE host_id = $1 AND policy_id = ANY($2)
+		) mutations`, host.ID, policyIDs).Scan(&transactionCount); err != nil {
+		t.Fatalf("count mutation transaction IDs: %v", err)
+	}
+	if transactionCount != 1 {
+		t.Fatalf("mutation transaction count = %d, want 1", transactionCount)
 	}
 }
 
@@ -1226,16 +1316,18 @@ func TestEvaluationOrderingAndRemediationCurrentIntent(t *testing.T) { //nolint:
 
 	older := issuePolicyEvaluation(t, ctx, store, host, policy.ID)
 	newer := issuePolicyEvaluation(t, ctx, store, host, policy.ID)
-	if err := store.RecordEvaluation(
-		ctx, policy.ID, testQueryHash(policy.Query), newer.Revision, newer.Sequence, host.ID,
-		EvaluationResult{Status: PolicyStatusFail},
+	if err := store.RecordEvaluations(ctx, host.ID, []EvaluationResult{{
+		PolicyID: policy.ID, QueryHash: testQueryHash(policy.Query),
+		Revision: newer.Revision, Sequence: newer.Sequence, Status: PolicyStatusFail,
+	}},
 	); err != nil {
 		t.Fatalf("record newer failure: %v", err)
 	}
 	first := remediationRunForTest(t, ctx, store, policy.ID, host.ID)
-	if err := store.RecordEvaluation(
-		ctx, policy.ID, testQueryHash(policy.Query), older.Revision, older.Sequence, host.ID,
-		EvaluationResult{Status: PolicyStatusPass},
+	if err := store.RecordEvaluations(ctx, host.ID, []EvaluationResult{{
+		PolicyID: policy.ID, QueryHash: testQueryHash(policy.Query),
+		Revision: older.Revision, Sequence: older.Sequence, Status: PolicyStatusPass,
+	}},
 	); err != nil {
 		t.Fatalf("record stale pass: %v", err)
 	}
@@ -1451,25 +1543,17 @@ func TestEvaluationRevisionRejectsResultAfterQueryReturnsToPriorSQL(t *testing.T
 		t.Fatalf("current revision = %d, want after stale %d", current.Revision, stale.Revision)
 	}
 
-	if err := store.RecordEvaluation(
-		ctx,
-		policy.ID,
-		testQueryHash("select 'a';"),
-		stale.Revision,
-		stale.Sequence,
-		host.ID,
-		EvaluationResult{Status: PolicyStatusFail},
+	if err := store.RecordEvaluations(ctx, host.ID, []EvaluationResult{{
+		PolicyID: policy.ID, QueryHash: testQueryHash("select 'a';"),
+		Revision: stale.Revision, Sequence: stale.Sequence, Status: PolicyStatusFail,
+	}},
 	); err != nil {
 		t.Fatalf("record stale A result: %v", err)
 	}
-	if err := store.RecordEvaluation(
-		ctx,
-		policy.ID,
-		testQueryHash(policy.Query),
-		current.Revision,
-		current.Sequence,
-		host.ID,
-		EvaluationResult{Status: PolicyStatusPass},
+	if err := store.RecordEvaluations(ctx, host.ID, []EvaluationResult{{
+		PolicyID: policy.ID, QueryHash: testQueryHash(policy.Query),
+		Revision: current.Revision, Sequence: current.Sequence, Status: PolicyStatusPass,
+	}},
 	); err != nil {
 		t.Fatalf("record current A result: %v", err)
 	}
@@ -1514,14 +1598,11 @@ func recordIssuedStatus(
 ) {
 	t.Helper()
 	evaluation := issuePolicyEvaluation(t, ctx, store, host, policy.ID)
-	if err := store.RecordEvaluation(
-		ctx,
-		policy.ID,
-		testQueryHash(policy.Query),
-		evaluation.Revision,
-		evaluation.Sequence,
-		host.ID,
-		EvaluationResult{Status: status, Error: errorMessage},
+	if err := store.RecordEvaluations(ctx, host.ID, []EvaluationResult{{
+		PolicyID: policy.ID, QueryHash: testQueryHash(policy.Query),
+		Revision: evaluation.Revision, Sequence: evaluation.Sequence,
+		Status: status, Error: errorMessage,
+	}},
 	); err != nil {
 		t.Fatalf("record %s evaluation: %v", status, err)
 	}
@@ -1573,15 +1654,10 @@ func (s *Store) recordEvaluation(
 		if *passes {
 			status = PolicyStatusPass
 		}
-		return s.RecordEvaluation(
-			ctx,
-			policyID,
-			queryHash,
-			evaluation.Revision,
-			evaluation.Sequence,
-			hostID,
-			EvaluationResult{Status: status},
-		)
+		return s.RecordEvaluations(ctx, hostID, []EvaluationResult{{
+			PolicyID: policyID, QueryHash: queryHash,
+			Revision: evaluation.Revision, Sequence: evaluation.Sequence, Status: status,
+		}})
 	}
 	return nil
 }
@@ -1616,7 +1692,8 @@ func enrollTestHostDetail(
 		Hardware:       hosts.HostHardware{UUID: hardwareUUID},
 		OsqueryNodeKey: hardwareUUID + "-node-key",
 		Agents:         hosts.HostAgents{Osquery: hosts.HostOsqueryAgent{Version: "5.22.1"}},
-	})
+	}, heartbeats.Contact{})
+
 	if err != nil {
 		t.Fatalf("enroll osquery host: %v", err)
 	}

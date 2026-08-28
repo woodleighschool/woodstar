@@ -112,8 +112,12 @@ type Evaluation struct {
 
 // EvaluationResult is one conclusive or errored osquery response.
 type EvaluationResult struct {
-	Status PolicyStatus
-	Error  string
+	PolicyID  int64
+	QueryHash string
+	Revision  int64
+	Sequence  int64
+	Status    PolicyStatus
+	Error     string
 }
 
 // PolicyStatus is the latest policy result.

@@ -53,7 +53,11 @@ type Dependencies struct {
 }
 
 type hostStore interface {
-	UpsertOnOrbitEnroll(context.Context, hosts.InventoryUpdate) (*hosts.Host, error)
+	UpsertOnOrbitEnroll(
+		context.Context,
+		hosts.InventoryUpdate,
+		heartbeats.Contact,
+	) (*hosts.Host, error)
 	GetByOrbitNodeKey(context.Context, string) (*hosts.Host, error)
 	SetOrbitDeviceAuthToken(context.Context, string, string) error
 	ValidateOrbitDeviceAuthToken(context.Context, string) (*hosts.Host, error)
@@ -103,12 +107,9 @@ func (s *EnrollmentService) Enroll(ctx context.Context, req EnrollRequest, conta
 		Hostname:     req.Hostname,
 		ComputerName: req.ComputerName,
 		OrbitNodeKey: nodeKey,
-	})
+	}, contact)
 	if err != nil {
 		return nil, "", fmt.Errorf("upsert host: %w", err)
-	}
-	if err := s.heartbeats.Record(ctx, host.ID, heartbeats.SourceOrbit, contact); err != nil {
-		return nil, "", fmt.Errorf("record heartbeat: %w", err)
 	}
 	activity.RecordSystem(
 		ctx,

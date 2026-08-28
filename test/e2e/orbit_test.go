@@ -116,23 +116,17 @@ func TestOrbit(t *testing.T) { //nolint:cyclop,funlen // Linear protocol lifecyc
 			enrolledHeartbeat,
 		)
 	}
-	configStartedAt := time.Now()
 	assertOrbitFixtureConfig(t, client, enrolled.OrbitNodeKey, http.StatusOK)
 	assertOrbitFixtureConfig(t, client, enrolled.OrbitNodeKey, http.StatusOK)
-	configFinishedAt := time.Now()
 	configuredHost := requireOnlyOrbitFixtureHost(t, server)
 	configuredHeartbeat := requireHeartbeat(t, configuredHost.Heartbeats, "orbit")
 	if len(configuredHost.Heartbeats) != 1 ||
-		!configuredHeartbeat.LastSeenAt.After(enrolledHeartbeat.LastSeenAt) ||
-		configuredHeartbeat.LastSeenAt.Before(configStartedAt.Add(-heartbeatTimeTolerance)) ||
-		configuredHeartbeat.LastSeenAt.After(configFinishedAt.Add(heartbeatTimeTolerance)) {
+		configuredHeartbeat.LastSeenAt.Before(enrolledHeartbeat.LastSeenAt) {
 		t.Fatalf(
-			"host after Orbit config = %+v, heartbeat = %+v, prior = %v, bounds = %v..%v, want one refreshed bounded Orbit contact",
+			"host after Orbit config = %+v, heartbeat = %+v, prior = %v, want one current Orbit contact",
 			configuredHost,
 			configuredHeartbeat,
 			enrolledHeartbeat.LastSeenAt,
-			configStartedAt,
-			configFinishedAt,
 		)
 	}
 

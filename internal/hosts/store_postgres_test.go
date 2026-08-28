@@ -22,7 +22,8 @@ func TestApplyInventoryAcceptsBigMemory(t *testing.T) {
 	host, err := store.UpsertOnOsqueryEnroll(ctx, InventoryUpdate{
 		Hardware:       HostHardware{UUID: "test-apply-detail-big-memory"},
 		OsqueryNodeKey: "node-key",
-	})
+	}, heartbeats.Contact{})
+
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
 	}
@@ -49,7 +50,8 @@ func TestInventoryRefreshRequestLifecycle(t *testing.T) {
 	host, err := store.UpsertOnOsqueryEnroll(ctx, InventoryUpdate{
 		Hardware:       HostHardware{UUID: "test-inventory-refresh-request"},
 		OsqueryNodeKey: "test-inventory-refresh-request-node-key",
-	})
+	}, heartbeats.Contact{})
+
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
 	}
@@ -112,7 +114,8 @@ func TestLoadDetailResolvesPrimaryUserFromSourceEmail(t *testing.T) {
 	host, err := store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
 		Hardware:     HostHardware{UUID: "test-primary-user-direct-user"},
 		OrbitNodeKey: "test-primary-user-direct-user-orbit",
-	})
+	}, heartbeats.Contact{})
+
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
 	}
@@ -172,7 +175,8 @@ func TestPrimaryUserManualSourceOverridesReportedSource(t *testing.T) {
 	host, err := store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
 		Hardware:     HostHardware{UUID: "test-primary-user-manual-override"},
 		OrbitNodeKey: "test-primary-user-manual-override-orbit",
-	})
+	}, heartbeats.Contact{})
+
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
 	}
@@ -281,7 +285,8 @@ func TestPrimaryUserStoreRollsBackWhenDerivedLabelsCannotRefresh(t *testing.T) {
 	host, err := store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
 		Hardware:     HostHardware{UUID: "test-primary-user-refresh-rollback"},
 		OrbitNodeKey: "test-primary-user-refresh-rollback-orbit",
-	})
+	}, heartbeats.Contact{})
+
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
 	}
@@ -320,7 +325,8 @@ func TestPrimaryUserStoreRefreshesOnlyTheAffectedHost(t *testing.T) {
 		host, err := store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
 			Hardware:     HostHardware{UUID: hardwareUUID},
 			OrbitNodeKey: hardwareUUID + "-orbit",
-		})
+		}, heartbeats.Contact{})
+
 		if err != nil {
 			t.Fatalf("enroll host %q: %v", hardwareUUID, err)
 		}
@@ -398,7 +404,8 @@ func TestEnrollAddsHostToAllHosts(t *testing.T) {
 	host, err := store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
 		Hardware:     HostHardware{UUID: "test-enroll-all-hosts"},
 		OrbitNodeKey: "orbit-key",
-	})
+	}, heartbeats.Contact{})
+
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
 	}
@@ -430,14 +437,16 @@ func TestReenrollPreservesHostIdentity(t *testing.T) {
 	host, err := store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
 		Hardware:     HostHardware{UUID: hardwareUUID},
 		OrbitNodeKey: "orbit-key-initial",
-	})
+	}, heartbeats.Contact{})
+
 	if err != nil {
 		t.Fatalf("enroll host with Orbit: %v", err)
 	}
 	attached, err := store.UpsertOnOsqueryEnroll(ctx, InventoryUpdate{
 		Hardware:       HostHardware{UUID: hardwareUUID},
 		OsqueryNodeKey: "osquery-key-initial",
-	})
+	}, heartbeats.Contact{})
+
 	if err != nil {
 		t.Fatalf("enroll host with osquery: %v", err)
 	}
@@ -448,7 +457,8 @@ func TestReenrollPreservesHostIdentity(t *testing.T) {
 	orbitReenrolled, err := store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
 		Hardware:     HostHardware{UUID: hardwareUUID},
 		OrbitNodeKey: "orbit-key-reenrolled",
-	})
+	}, heartbeats.Contact{})
+
 	if err != nil {
 		t.Fatalf("re-enroll host with Orbit: %v", err)
 	}
@@ -468,7 +478,8 @@ func TestReenrollPreservesHostIdentity(t *testing.T) {
 	osqueryReenrolled, err := store.UpsertOnOsqueryEnroll(ctx, InventoryUpdate{
 		Hardware:       HostHardware{UUID: hardwareUUID},
 		OsqueryNodeKey: "osquery-key-reenrolled",
-	})
+	}, heartbeats.Contact{})
+
 	if err != nil {
 		t.Fatalf("re-enroll host with osquery: %v", err)
 	}
@@ -486,13 +497,49 @@ func TestReenrollPreservesHostIdentity(t *testing.T) {
 	}
 }
 
+func TestReenrollRollsBackHostMutationWhenContactIsInvalid(t *testing.T) {
+	store, ctx := newPostgresHostStore(t)
+
+	const hardwareUUID = "test-reenroll-contact-rollback"
+	host, err := store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
+		Hardware:     HostHardware{UUID: hardwareUUID},
+		OrbitNodeKey: "orbit-key-before-invalid-contact",
+	}, heartbeats.Contact{RemoteIP: "192.0.2.1", UserAgent: "Orbit/1.0"})
+	if err != nil {
+		t.Fatalf("enroll host: %v", err)
+	}
+
+	_, err = store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
+		Hardware:     HostHardware{UUID: hardwareUUID},
+		OrbitNodeKey: "orbit-key-after-invalid-contact",
+	}, heartbeats.Contact{RemoteIP: "not-an-ip", UserAgent: "Orbit/2.0"})
+	if !errors.Is(err, fault.ErrInvalidInput) {
+		t.Fatalf("re-enroll error = %v, want ErrInvalidInput", err)
+	}
+	if got, err := store.GetByOrbitNodeKey(ctx, "orbit-key-before-invalid-contact"); err != nil || got.ID != host.ID {
+		t.Fatalf("get original Orbit node key = host %+v, error %v, want host %d", got, err, host.ID)
+	}
+	if _, err := store.GetByOrbitNodeKey(ctx, "orbit-key-after-invalid-contact"); !errors.Is(err, fault.ErrNotFound) {
+		t.Fatalf("get rolled-back Orbit node key error = %v, want ErrNotFound", err)
+	}
+
+	got, err := store.GetByID(ctx, host.ID)
+	if err != nil {
+		t.Fatalf("get host after rollback: %v", err)
+	}
+	if len(got.Heartbeats) != 1 || got.Heartbeats[0].UserAgent != "Orbit/1.0" {
+		t.Fatalf("heartbeats after rollback = %+v, want original Orbit contact", got.Heartbeats)
+	}
+}
+
 func TestGetByHardwareSerialRequiresUniqueRealSerial(t *testing.T) {
 	store, ctx := newPostgresHostStore(t)
 
 	host, err := store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
 		Hardware:     HostHardware{UUID: "test-serial-identity-1", Serial: "C02SERIAL"},
 		OrbitNodeKey: "orbit-key-serial-1",
-	})
+	}, heartbeats.Contact{})
+
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
 	}
@@ -507,7 +554,7 @@ func TestGetByHardwareSerialRequiresUniqueRealSerial(t *testing.T) {
 	if _, err := store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
 		Hardware:     HostHardware{UUID: "test-serial-identity-2", Serial: "C02SERIAL"},
 		OrbitNodeKey: "orbit-key-serial-2",
-	}); err == nil {
+	}, heartbeats.Contact{}); err == nil {
 		t.Fatal("duplicate hardware serial insert succeeded")
 	}
 }
@@ -520,7 +567,8 @@ func TestHostProjectionUsesSourceSpecificHeartbeats(t *testing.T) {
 		OsqueryNodeKey:  "test-heartbeat-projection-osquery",
 		OrbitNodeKey:    "test-heartbeat-projection-orbit",
 		LastRestartedAt: new(now.Add(-time.Hour)),
-	})
+	}, heartbeats.Contact{})
+
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
 	}
@@ -551,15 +599,16 @@ func TestHostProjectionUsesSourceSpecificHeartbeats(t *testing.T) {
 		}
 	}
 
-	empty, err := store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
-		Hardware:     HostHardware{UUID: "test-empty-heartbeats"},
-		OrbitNodeKey: "test-empty-heartbeats-orbit",
-	})
+	enrolled, err := store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
+		Hardware:     HostHardware{UUID: "test-enrollment-heartbeat"},
+		OrbitNodeKey: "test-enrollment-heartbeat-orbit",
+	}, heartbeats.Contact{})
+
 	if err != nil {
-		t.Fatalf("enroll empty-heartbeat host: %v", err)
+		t.Fatalf("enroll heartbeat host: %v", err)
 	}
-	if empty.Heartbeats == nil || len(empty.Heartbeats) != 0 {
-		t.Fatalf("heartbeats = %#v, want non-nil empty slice", empty.Heartbeats)
+	if len(enrolled.Heartbeats) != 1 || enrolled.Heartbeats[0].Source != heartbeats.SourceOrbit {
+		t.Fatalf("heartbeats = %#v, want Orbit enrollment heartbeat", enrolled.Heartbeats)
 	}
 }
 
@@ -568,13 +617,14 @@ func TestNodeKeyAndTokenLookupsAreIdentityReads(t *testing.T) {
 	if _, err := store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
 		Hardware:     HostHardware{UUID: "test-identity-only-lookups"},
 		OrbitNodeKey: "test-identity-only-orbit",
-	}); err != nil {
+	}, heartbeats.Contact{}); err != nil {
 		t.Fatalf("enroll host with Orbit: %v", err)
 	}
 	host, err := store.UpsertOnOsqueryEnroll(ctx, InventoryUpdate{
 		Hardware:       HostHardware{UUID: "test-identity-only-lookups"},
 		OsqueryNodeKey: "test-identity-only-osquery",
-	})
+	}, heartbeats.Contact{})
+
 	if err != nil {
 		t.Fatalf("enroll host with osquery: %v", err)
 	}
@@ -606,8 +656,17 @@ func TestNodeKeyAndTokenLookupsAreIdentityReads(t *testing.T) {
 	if !after.UpdatedAt.Equal(before.UpdatedAt) {
 		t.Fatalf("identity lookups changed updated_at from %v to %v", before.UpdatedAt, after.UpdatedAt)
 	}
-	if after.LastContact != nil || len(after.Heartbeats) != 0 {
-		t.Fatalf("identity lookups recorded contact: last_contact=%v heartbeats=%+v", after.LastContact, after.Heartbeats)
+	if before.LastContact == nil || after.LastContact == nil || !after.LastContact.Equal(*before.LastContact) {
+		t.Fatalf("identity lookups changed last contact from %v to %v", before.LastContact, after.LastContact)
+	}
+	if len(after.Heartbeats) != len(before.Heartbeats) {
+		t.Fatalf("identity lookups changed heartbeats from %+v to %+v", before.Heartbeats, after.Heartbeats)
+	}
+	for i := range before.Heartbeats {
+		if after.Heartbeats[i].Source != before.Heartbeats[i].Source ||
+			!after.Heartbeats[i].LastSeenAt.Equal(before.Heartbeats[i].LastSeenAt) {
+			t.Fatalf("identity lookups changed heartbeats from %+v to %+v", before.Heartbeats, after.Heartbeats)
+		}
 	}
 }
 
@@ -617,6 +676,13 @@ func TestHostListFiltersAndSortsByFlattenedContactFields(t *testing.T) {
 	online := enrollTestHost(t, ctx, store, "test-list-online", new(now.Add(-2*time.Hour)))
 	offline := enrollTestHost(t, ctx, store, "test-list-offline", new(now.Add(-time.Hour)))
 	missing := enrollTestHost(t, ctx, store, "test-list-missing-osquery", nil)
+	if _, err := store.pool.Exec(ctx, `DELETE FROM host_heartbeats WHERE host_id = ANY($1)`, []int64{
+		online.ID,
+		offline.ID,
+		missing.ID,
+	}); err != nil {
+		t.Fatalf("clear enrollment heartbeats: %v", err)
+	}
 	recordTestHeartbeat(t, ctx, store, online.ID, heartbeats.SourceOsquery, now.Add(-time.Minute), "198.51.100.20", "")
 	recordTestHeartbeat(t, ctx, store, offline.ID, heartbeats.SourceOsquery, now.Add(-10*time.Minute), "198.51.100.10", "")
 	recordTestHeartbeat(t, ctx, store, offline.ID, heartbeats.SourceSanta, now, "203.0.113.50", "")
@@ -668,7 +734,8 @@ func TestHostListSearchesPersistedIdentityNetworkAndPrimaryUserFields(t *testing
 		ComputerName:   "Searchable Mac",
 		Hardware:       HostHardware{UUID: "test-search-host", Serial: "C02SEARCH123"},
 		OsqueryNodeKey: "test-search-node-key",
-	})
+	}, heartbeats.Contact{})
+
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
 	}
@@ -776,14 +843,16 @@ func TestResolveSelectedTargetsMergesDirectHostsAndLabels(t *testing.T) {
 	directHost, err := store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
 		Hardware:     HostHardware{UUID: "test-live-target-direct"},
 		OrbitNodeKey: "orbit-key-direct",
-	})
+	}, heartbeats.Contact{})
+
 	if err != nil {
 		t.Fatalf("enroll direct host: %v", err)
 	}
 	labelHost, err := store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
 		Hardware:     HostHardware{UUID: "test-live-target-label"},
 		OrbitNodeKey: "orbit-key-label",
-	})
+	}, heartbeats.Contact{})
+
 	if err != nil {
 		t.Fatalf("enroll label host: %v", err)
 	}
@@ -818,14 +887,16 @@ func TestCountSelectedTargetsSplitsOnlineAndOffline(t *testing.T) {
 	onlineHost, err := store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
 		Hardware:     HostHardware{UUID: "test-live-count-online"},
 		OrbitNodeKey: "orbit-key-count-online",
-	})
+	}, heartbeats.Contact{})
+
 	if err != nil {
 		t.Fatalf("enroll online host: %v", err)
 	}
 	offlineHost, err := store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
 		Hardware:     HostHardware{UUID: "test-live-count-offline"},
 		OrbitNodeKey: "orbit-key-count-offline",
-	})
+	}, heartbeats.Contact{})
+
 	if err != nil {
 		t.Fatalf("enroll offline host: %v", err)
 	}
@@ -864,14 +935,16 @@ func TestResolveOnlineSelectedTargetsReturnsOnlyCurrentlyOnlineHosts(t *testing.
 	onlineHost, err := store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
 		Hardware:     HostHardware{UUID: "test-live-online-target-online"},
 		OrbitNodeKey: "orbit-key-live-online",
-	})
+	}, heartbeats.Contact{})
+
 	if err != nil {
 		t.Fatalf("enroll online host: %v", err)
 	}
 	offlineHost, err := store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
 		Hardware:     HostHardware{UUID: "test-live-online-target-offline"},
 		OrbitNodeKey: "orbit-key-live-offline",
-	})
+	}, heartbeats.Contact{})
+
 	if err != nil {
 		t.Fatalf("enroll offline host: %v", err)
 	}
@@ -963,7 +1036,8 @@ func enrollTestHost(
 		Hardware:        HostHardware{UUID: hardwareUUID},
 		OrbitNodeKey:    hardwareUUID + "-orbit",
 		LastRestartedAt: lastRestartedAt,
-	})
+	}, heartbeats.Contact{})
+
 	if err != nil {
 		t.Fatalf("enroll %s: %v", hardwareUUID, err)
 	}
