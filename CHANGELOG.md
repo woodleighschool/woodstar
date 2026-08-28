@@ -1,5 +1,48 @@
 # Changelog
 
+## [0.9.5](https://github.com/woodleighschool/woodstar/compare/0.9.4...0.9.5) (2026-08-28)
+
+
+### Features
+
+* **container:** update image node (26.7.0 → 26.8.1) ([#280](https://github.com/woodleighschool/woodstar/issues/280)) ([327c5e9](https://github.com/woodleighschool/woodstar/commit/327c5e95508de71456ed2388e509748df9904396))
+* **go:** update aws-sdk-go-v2 monorepo ([#276](https://github.com/woodleighschool/woodstar/issues/276)) ([c2e09dc](https://github.com/woodleighschool/woodstar/commit/c2e09dcb6129acf262da997087bf40b8a408955d))
+* **go:** update module github.com/aws/aws-sdk-go-v2 (v1.43.8 → v1.44.0) ([#275](https://github.com/woodleighschool/woodstar/issues/275)) ([4f9e745](https://github.com/woodleighschool/woodstar/commit/4f9e745b5fceb2fea7d51c64e8ade0919ffad9f8))
+* **go:** update module github.com/aws/smithy-go (v1.27.10 → v1.28.0) ([#269](https://github.com/woodleighschool/woodstar/issues/269)) ([3f7c94a](https://github.com/woodleighschool/woodstar/commit/3f7c94adaab398db7c0fb85b7449702351a3e47e))
+* **go:** update river monorepo (v0.44.1 → v0.45.0) ([#264](https://github.com/woodleighschool/woodstar/issues/264)) ([a34e7c7](https://github.com/woodleighschool/woodstar/commit/a34e7c75e1132487287ea0cc436627e20015bf38))
+* **npm:** update dependency @types/node (26.2.0 → 26.3.0) ([#271](https://github.com/woodleighschool/woodstar/issues/271)) ([c8642d7](https://github.com/woodleighschool/woodstar/commit/c8642d7bd46ab4bfc011f8bda0a4bce5201ac3aa))
+* **npm:** update dependency lucide-react (1.33.0 → 1.34.0) ([#261](https://github.com/woodleighschool/woodstar/issues/261)) ([ca56f0a](https://github.com/woodleighschool/woodstar/commit/ca56f0a06f90a4c3428a84cb14cb48ff00bf777d))
+* **npm:** update dependency papaparse (5.6.0 → 5.7.0) ([#266](https://github.com/woodleighschool/woodstar/issues/266)) ([8990f94](https://github.com/woodleighschool/woodstar/commit/8990f94313e3e13a9ee8c111503d7ae3a98cb0a4))
+* **npm:** update dependency pnpm (11.23.0 → 11.24.0) ([#267](https://github.com/woodleighschool/woodstar/issues/267)) ([6c6d289](https://github.com/woodleighschool/woodstar/commit/6c6d2895219171e85421cdb44204459c6caa534b))
+
+
+### Bug Fixes
+
+* **go:** update aws-sdk-go-v2 monorepo ([#270](https://github.com/woodleighschool/woodstar/issues/270)) ([61baf80](https://github.com/woodleighschool/woodstar/commit/61baf80c9a69fe27caef48f4956c7d2c6a4ac886))
+* **go:** update module buf.build/gen/go/northpolesec/protos/protocolbuffers/go (v1.36.12-20260821163146-78fba3cee493.1 → v1.36.12-20260826173735-eb9d9b217b64.1) ([#274](https://github.com/woodleighschool/woodstar/issues/274)) ([bbf3f51](https://github.com/woodleighschool/woodstar/commit/bbf3f513b1623d4cf9a9abbb340a6c4b974e1b6f))
+* **go:** update module github.com/aws/smithy-go (v1.27.9 → v1.27.10) ([#263](https://github.com/woodleighschool/woodstar/issues/263)) ([59fc45c](https://github.com/woodleighschool/woodstar/commit/59fc45c299d705e23f4066de0e98749692572376))
+* **go:** update module github.com/aws/smithy-go (v1.28.0 → v1.28.1) ([#273](https://github.com/woodleighschool/woodstar/issues/273)) ([b79eadc](https://github.com/woodleighschool/woodstar/commit/b79eadca6339dd3ccfb86d8890b6caaac7f0d0a6))
+* **npm:** update tanstack-query monorepo (5.102.2 → 5.102.3) ([#268](https://github.com/woodleighschool/woodstar/issues/268)) ([3f8ebb4](https://github.com/woodleighschool/woodstar/commit/3f8ebb450621eb3014483772a19ec380b8006e4d))
+* **npm:** update tanstack-query monorepo (5.102.3 → 5.102.4) ([#277](https://github.com/woodleighschool/woodstar/issues/277)) ([4f0adb9](https://github.com/woodleighschool/woodstar/commit/4f0adb94f05fe707ecf936e4761d1d66e0951ac5))
+* **npm:** update tanstack-query monorepo (5.102.4 → 5.102.5) ([#278](https://github.com/woodleighschool/woodstar/issues/278)) ([1d84a6f](https://github.com/woodleighschool/woodstar/commit/1d84a6f454cff227bd3e1a50fd9ee5a324295b47))
+
+
+### Performance Improvements
+
+* reduce agent transaction churn ([acd8640](https://github.com/woodleighschool/woodstar/commit/acd86407cc3ab73a37f48ac50423b8a71b4bcf14))
+
+
+### Documentation
+
+* clarify usage and releases ([d690cd7](https://github.com/woodleighschool/woodstar/commit/d690cd74a745c910f3251d57a2cd25cadeb8dbfa))
+
+
+### Miscellaneous Chores
+
+* **mise:** update tool node (26.7.0 → v26.8.1) ([#272](https://github.com/woodleighschool/woodstar/issues/272)) ([a8c12fc](https://github.com/woodleighschool/woodstar/commit/a8c12fc7826c63bb98d5bab596819885be51f2da))
+* **mise:** update tool pnpm (11.23.0 → 11.24.0) ([#265](https://github.com/woodleighschool/woodstar/issues/265)) ([27ee6b6](https://github.com/woodleighschool/woodstar/commit/27ee6b611d5c47aec677a08af78eb816522d83c7))
+* **renovate:** drop redundant protobuf rule ([3704b29](https://github.com/woodleighschool/woodstar/commit/3704b29b025a93b4281af0a984548e0336b1823a))
+
 ## [0.9.4](https://github.com/woodleighschool/woodstar/compare/0.9.3...0.9.4) (2026-08-25)
 
 
