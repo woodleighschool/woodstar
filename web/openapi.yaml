@@ -1074,6 +1074,14 @@ components:
         - url
         - method
       type: object
+    MunkiDirectUploadRequest:
+      additionalProperties: false
+      properties:
+        filename:
+          type: string
+      required:
+        - filename
+      type: object
     MunkiDirectUploadTarget:
       additionalProperties: false
       properties:
@@ -1437,22 +1445,11 @@ components:
           enum:
             - PUT
           type: string
-        upload_url:
+        url:
           type: string
       required:
-        - upload_url
+        - url
         - method
-      type: object
-    MunkiMultipartUpload:
-      additionalProperties: false
-      properties:
-        key:
-          type: string
-        upload_id:
-          type: string
-      required:
-        - upload_id
-        - key
       type: object
     MunkiMultipartUploadAction:
       additionalProperties: false
@@ -1888,6 +1885,19 @@ components:
       required:
         - name
         - value
+      type: object
+    MunkiPackageInstallerUploadRequest:
+      additionalProperties: false
+      properties:
+        filename:
+          type: string
+        size_bytes:
+          format: int64
+          minimum: 0
+          type: integer
+      required:
+        - filename
+        - size_bytes
       type: object
     MunkiPackageInstallerUploadTarget:
       additionalProperties: false
@@ -2339,14 +2349,6 @@ components:
           $ref: "#/components/schemas/MunkiTargets"
       required:
         - targets
-      type: object
-    MunkiUploadRequest:
-      additionalProperties: false
-      properties:
-        filename:
-          type: string
-      required:
-        - filename
       type: object
     OsqueryHandle:
       additionalProperties: false
@@ -6364,7 +6366,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/MunkiUploadRequest"
+              $ref: "#/components/schemas/MunkiDirectUploadRequest"
         required: true
       responses:
         "201":
@@ -6477,7 +6479,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/MunkiUploadRequest"
+              $ref: "#/components/schemas/MunkiDirectUploadRequest"
         required: true
       responses:
         "201":
@@ -7185,7 +7187,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/MunkiUploadRequest"
+              $ref: "#/components/schemas/MunkiDirectUploadRequest"
         required: true
       responses:
         "201":
@@ -7237,7 +7239,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/MunkiUploadRequest"
+              $ref: "#/components/schemas/MunkiPackageInstallerUploadRequest"
         required: true
       responses:
         "201":
@@ -7402,64 +7404,6 @@ paths:
       tags:
         - Munki package installers
   /api/munki/package-installers/{id}/multipart:
-    post:
-      operationId: create-munki-package-installer-multipart
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            format: int64
-            type: integer
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/MunkiMultipartUpload"
-          description: OK
-        "400":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Bad Request
-        "401":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unauthorized
-        "403":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Forbidden
-        "404":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Not Found
-        "422":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unprocessable Entity
-        "500":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Internal Server Error
-      security:
-        - cookieAuth: []
-        - bearerAuth: []
-      summary: Create a multipart upload
-      tags:
-        - Munki package installers
     put:
       operationId: complete-munki-package-installer-multipart
       parameters:

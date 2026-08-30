@@ -1,41 +1,34 @@
-import AwsS3, {
-  type AwsS3Options,
-  type AwsS3UploadParameters,
-  type MultipartUploadResultWithSignal,
-  type UploadResult,
-} from "@uppy/aws-s3";
-import Uppy, { type Body, type Meta } from "@uppy/core";
-
 export interface UploadProgress {
   loaded: number;
   total: number;
   percent: number;
 }
 
+interface UploadTarget {
+  url: string;
+  method: "PUT";
+  headers: Record<string, string>;
+}
+
 export interface MultipartUploadRequest {
-  createMultipartUpload: () => Promise<UploadResult>;
-  signPart: (part: {
-    uploadId: string;
-    key: string;
-    partNumber: number;
-    body: Blob;
-    signal?: AbortSignal;
-  }) => Promise<AwsS3UploadParameters>;
-  completeMultipartUpload: (upload: MultipartUploadResultWithSignal) => Promise<void>;
-  abortMultipartUpload: () => Promise<void>;
+  signPart: (partNumber: number, signal?: AbortSignal) => Promise<UploadTarget>;
 }
 
 export type UploadRequest =
-  | {
-      strategy: "direct-put";
-      url: string;
-      method: "PUT";
-      headers: Record<string, string>;
-    }
+  | ({ strategy: "direct-put" } & UploadTarget)
   | {
       strategy: "multipart";
       multipart: MultipartUploadRequest;
     };
+
+export interface CompletedUploadPart {
+  partNumber: number;
+  etag: string;
+}
+
+export type UploadResult =
+  | { strategy: "direct-put" }
+  | { strategy: "multipart"; parts: CompletedUploadPart[] };
 
 type UploadContext = {
   file: File;
@@ -45,146 +38,147 @@ type UploadContext = {
 
 export type UploadExecution = UploadRequest & UploadContext;
 
-export function uploadWithProgress(request: UploadExecution) {
+const multipartPartSize = 64 * 1024 * 1024;
+const maximumMultipartParts = 10_000;
+
+export async function uploadWithProgress(request: UploadExecution): Promise<UploadResult> {
   if (request.strategy === "direct-put") {
-    return uploadWithXHRProgress(request);
+    await uploadTarget(
+      request,
+      request.file,
+      request.file.size,
+      0,
+      request.onProgress,
+      request.signal,
+    );
+    return { strategy: "direct-put" };
   }
   return uploadWithMultipartProgress(request);
 }
 
-function uploadWithXHRProgress({
-  url,
-  file,
-  method,
-  headers,
-  signal,
-  onProgress,
-}: Extract<UploadExecution, { strategy: "direct-put" }>) {
-  return new Promise<void>((resolve, reject) => {
+async function uploadWithMultipartProgress(
+  request: Extract<UploadExecution, { strategy: "multipart" }>,
+): Promise<UploadResult> {
+  const { file, signal, onProgress } = request;
+  throwIfCancelled(signal);
+
+  const partSize = Math.max(multipartPartSize, Math.ceil(file.size / maximumMultipartParts));
+  const parts: CompletedUploadPart[] = [];
+  let completedBytes = 0;
+
+  for (let offset = 0, partNumber = 1; offset < file.size; offset += partSize, partNumber++) {
+    const chunk = file.slice(offset, Math.min(offset + partSize, file.size));
+    const etag = await uploadPart(
+      request.multipart,
+      partNumber,
+      chunk,
+      file.size,
+      completedBytes,
+      onProgress,
+      signal,
+    );
+    parts.push({ partNumber, etag });
+    completedBytes += chunk.size;
+    onProgress?.(uploadProgress(completedBytes, file.size));
+  }
+
+  return { strategy: "multipart", parts };
+}
+
+async function uploadPart(
+  multipart: MultipartUploadRequest,
+  partNumber: number,
+  chunk: Blob,
+  totalBytes: number,
+  completedBytes: number,
+  onProgress?: (progress: UploadProgress) => void,
+  signal?: AbortSignal,
+) {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    throwIfCancelled(signal);
+    const target = await multipart.signPart(partNumber, signal);
+    try {
+      const etag = await uploadTarget(
+        target,
+        chunk,
+        totalBytes,
+        completedBytes,
+        onProgress,
+        signal,
+      );
+      if (!etag) {
+        throw new Error(`Multipart part ${partNumber} did not return an ETag.`);
+      }
+      return etag;
+    } catch (error) {
+      if (signal?.aborted) throw cancelledError();
+      lastError = error;
+      onProgress?.(uploadProgress(completedBytes, totalBytes));
+    }
+  }
+  throw lastError;
+}
+
+function uploadTarget(
+  target: UploadTarget,
+  body: Blob,
+  totalBytes: number,
+  completedBytes: number,
+  onProgress?: (progress: UploadProgress) => void,
+  signal?: AbortSignal,
+) {
+  return new Promise<string | null>((resolve, reject) => {
     if (signal?.aborted) {
-      reject(new Error("Upload cancelled."));
+      reject(cancelledError());
       return;
     }
 
     const xhr = new XMLHttpRequest();
-    const finish = () => {
-      signal?.removeEventListener("abort", abort);
-    };
+    const finish = () => signal?.removeEventListener("abort", abort);
     const abort = () => xhr.abort();
 
     xhr.upload.addEventListener("progress", (event) => {
-      const total = event.lengthComputable ? event.total : file.size;
-      const percent =
-        event.lengthComputable && total > 0 ? Math.round((event.loaded / total) * 100) : 0;
-      onProgress?.({ loaded: event.loaded, total, percent });
+      onProgress?.(uploadProgress(completedBytes + event.loaded, totalBytes));
     });
-
     xhr.addEventListener("load", () => {
       finish();
       if (xhr.status >= 200 && xhr.status < 300) {
-        resolve();
+        resolve(xhr.getResponseHeader("ETag"));
         return;
       }
       reject(new Error(`Upload failed with HTTP ${xhr.status}.`));
     });
-
     xhr.addEventListener("error", () => {
       finish();
       reject(new Error("Upload failed before the storage service accepted the request."));
     });
-
     xhr.addEventListener("abort", () => {
       finish();
-      reject(new Error("Upload cancelled."));
+      reject(cancelledError());
     });
 
     signal?.addEventListener("abort", abort, { once: true });
-    xhr.open(method, url);
-    for (const [key, value] of Object.entries(headers)) {
+    xhr.open(target.method, target.url);
+    for (const [key, value] of Object.entries(target.headers)) {
       xhr.setRequestHeader(key, value);
     }
-    xhr.send(file);
+    xhr.send(body);
   });
 }
 
-async function uploadWithMultipartProgress(
-  request: Extract<UploadExecution, { strategy: "multipart" }>,
-) {
-  const { file, signal, onProgress } = request;
-
-  if (signal?.aborted) {
-    throw cancelledError();
-  }
-
-  const uppy = new Uppy<Meta, Body>({
-    autoProceed: false,
-    allowMultipleUploadBatches: false,
-    restrictions: { maxNumberOfFiles: 1 },
-  });
-  const abort = () => uppy.cancelAll();
-
-  try {
-    signal?.addEventListener("abort", abort, { once: true });
-    uppy.use(AwsS3, awsS3Options(request));
-    uppy.on("upload-progress", (_uppyFile, progress) => {
-      onProgress?.(uploadProgress(file, progress.bytesUploaded, progress.bytesTotal));
-    });
-    uppy.addFile({ name: file.name, type: file.type, data: file, source: "woodstar" });
-
-    const result = await uppy.upload();
-    if (signal?.aborted) {
-      throw cancelledError();
-    }
-    if (!result) {
-      throw new Error("Upload did not start.");
-    }
-    if (result.failed?.length) {
-      throw new Error(result.failed[0]?.error ?? "Upload failed.");
-    }
-    if (!result.successful?.length) {
-      throw new Error("Upload did not finish.");
-    }
-  } catch (error) {
-    if (signal?.aborted || isAbortError(error)) {
-      throw cancelledError();
-    }
-    throw error;
-  } finally {
-    signal?.removeEventListener("abort", abort);
-    uppy.destroy();
-  }
-}
-
-function awsS3Options({
-  multipart,
-}: Extract<UploadExecution, { strategy: "multipart" }>): AwsS3Options<Meta, Body> {
-  return {
-    allowedMetaFields: false,
-    shouldUseMultipart: true,
-    createMultipartUpload: () => multipart.createMultipartUpload(),
-    listParts: () => [],
-    signPart: (_uppyFile, part) => multipart.signPart(part),
-    completeMultipartUpload: async (_uppyFile, upload) => {
-      await multipart.completeMultipartUpload(upload);
-      return {};
-    },
-    abortMultipartUpload: () => multipart.abortMultipartUpload(),
-  };
-}
-
-function uploadProgress(file: File, loaded: number, total: number | null): UploadProgress {
-  const safeTotal = total ?? file.size;
+function uploadProgress(loaded: number, total: number): UploadProgress {
   return {
     loaded,
-    total: safeTotal,
-    percent: safeTotal > 0 ? Math.round((loaded / safeTotal) * 100) : 0,
+    total,
+    percent: total > 0 ? Math.round((loaded / total) * 100) : 0,
   };
+}
+
+function throwIfCancelled(signal?: AbortSignal) {
+  if (signal?.aborted) throw cancelledError();
 }
 
 function cancelledError() {
   return new Error("Upload cancelled.");
-}
-
-function isAbortError(error: unknown) {
-  return error instanceof Error && error.name === "AbortError";
 }

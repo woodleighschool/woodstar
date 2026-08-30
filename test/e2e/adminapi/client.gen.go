@@ -1907,6 +1907,11 @@ type MunkiDirectUploadActionMethod string
 // MunkiDirectUploadActionStrategy defines model for MunkiDirectUploadAction.Strategy.
 type MunkiDirectUploadActionStrategy string
 
+// MunkiDirectUploadRequest defines model for MunkiDirectUploadRequest.
+type MunkiDirectUploadRequest struct {
+	Filename string `json:"filename"`
+}
+
 // MunkiDirectUploadTarget defines model for MunkiDirectUploadTarget.
 type MunkiDirectUploadTarget struct {
 	ObjectId int64                   `json:"object_id"`
@@ -2202,6 +2207,12 @@ type MunkiPackageInstallerEnvironmentVariable struct {
 	Value string `json:"value"`
 }
 
+// MunkiPackageInstallerUploadRequest defines model for MunkiPackageInstallerUploadRequest.
+type MunkiPackageInstallerUploadRequest struct {
+	Filename  string `json:"filename"`
+	SizeBytes int64  `json:"size_bytes"`
+}
+
 // MunkiPackageInstallerUploadTarget defines model for MunkiPackageInstallerUploadTarget.
 type MunkiPackageInstallerUploadTarget struct {
 	ObjectId int64                                    `json:"object_id"`
@@ -2315,11 +2326,6 @@ type MunkiSoftwareDetail struct {
 type MunkiTargets struct {
 	Exclude []LabelRef     `json:"exclude"`
 	Include []MunkiInclude `json:"include"`
-}
-
-// MunkiUploadRequest defines model for MunkiUploadRequest.
-type MunkiUploadRequest struct {
-	Filename string `json:"filename"`
 }
 
 // OsqueryReport defines model for OsqueryReport.
@@ -2956,10 +2962,10 @@ type CreateLabelJSONRequestBody = LabelMutation
 type CreateMunkiClientResourcesJSONRequestBody = MunkiClientResourcesMutation
 
 // CreateMunkiClientResourcesArchiveUploadJSONRequestBody defines body for CreateMunkiClientResourcesArchiveUpload for application/json ContentType.
-type CreateMunkiClientResourcesArchiveUploadJSONRequestBody = MunkiUploadRequest
+type CreateMunkiClientResourcesArchiveUploadJSONRequestBody = MunkiDirectUploadRequest
 
 // CreateMunkiClientResourcesBannerUploadJSONRequestBody defines body for CreateMunkiClientResourcesBannerUpload for application/json ContentType.
-type CreateMunkiClientResourcesBannerUploadJSONRequestBody = MunkiUploadRequest
+type CreateMunkiClientResourcesBannerUploadJSONRequestBody = MunkiDirectUploadRequest
 
 // UpdateMunkiClientResourcesJSONRequestBody defines body for UpdateMunkiClientResources for application/json ContentType.
 type UpdateMunkiClientResourcesJSONRequestBody = MunkiClientResourcesMutation
@@ -2968,7 +2974,7 @@ type UpdateMunkiClientResourcesJSONRequestBody = MunkiClientResourcesMutation
 type CreateMunkiDistributionPointJSONRequestBody = MunkiDistributionPointMutation
 
 // CreateMunkiPackageInstallerUploadJSONRequestBody defines body for CreateMunkiPackageInstallerUpload for application/json ContentType.
-type CreateMunkiPackageInstallerUploadJSONRequestBody = MunkiUploadRequest
+type CreateMunkiPackageInstallerUploadJSONRequestBody = MunkiPackageInstallerUploadRequest
 
 // CreateMunkiPackageJSONRequestBody defines body for CreateMunkiPackage for application/json ContentType.
 type CreateMunkiPackageJSONRequestBody = MunkiPackageCreateMutation

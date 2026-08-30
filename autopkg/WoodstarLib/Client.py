@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import subprocess
+from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
 import requests
@@ -71,7 +72,10 @@ class WoodstarClient:
         if not os.path.isfile(file_path):
             raise ProcessorError(f"upload file does not exist: {file_path}")
         filename = display_name or os.path.basename(file_path)
-        target = self.post(create_path, {"filename": filename})
+        target = require_json_response(
+            self.post(create_path, {"filename": filename}),
+            f"POST {create_path}",
+        )
         self.upload_direct_file(target, file_path)
         return self.request(
             "PUT",
@@ -86,8 +90,16 @@ class WoodstarClient:
         if not os.path.isfile(file_path):
             raise ProcessorError(f"upload file does not exist: {file_path}")
         filename = display_name or os.path.basename(file_path)
-        target = self.post("/api/munki/package-installers", {"filename": filename})
+        target = require_json_response(
+            self.post(
+                "/api/munki/package-installers",
+                {"filename": filename, "size_bytes": os.path.getsize(file_path)},
+            ),
+            "POST /api/munki/package-installers",
+        )
         object_id = target["object_id"]
+        finalize_path = f"/api/munki/package-installers/{object_id}"
+        transfer_complete = False
         try:
             action = target["upload"]
             strategy = action["strategy"]
@@ -97,14 +109,17 @@ class WoodstarClient:
                 self.upload_package_installer_parts(object_id, file_path)
             else:
                 raise ProcessorError(f"unsupported upload strategy: {strategy}")
+            transfer_complete = True
             return self.request(
                 "PUT",
-                f"/api/munki/package-installers/{object_id}",
+                finalize_path,
                 timeout=UPLOAD_TIMEOUT,
             )
         except ProcessorError:
+            if transfer_complete:
+                return self.request("PUT", finalize_path, timeout=UPLOAD_TIMEOUT)
             try:
-                self.delete(f"/api/munki/package-installers/{object_id}")
+                self.delete(finalize_path)
             except ProcessorError:
                 pass
             raise
@@ -119,23 +134,13 @@ class WoodstarClient:
             self.upload_to_target(action, handle, size)
 
     def upload_package_installer_parts(self, object_id, file_path):
-        self.post(f"/api/munki/package-installers/{object_id}/multipart")
         parts = []
         with open(file_path, "rb") as handle:
             for part_number, chunk in enumerate(
                 iter(lambda: handle.read(MULTIPART_PART_SIZE), b""), start=1
             ):
-                target = self.post(
-                    f"/api/munki/package-installers/{object_id}/multipart/parts/{part_number}"
-                )
-                response_headers = self.upload_to_target(
-                    {
-                        "url": target["upload_url"],
-                        "method": target["method"],
-                        "headers": target.get("headers"),
-                    },
-                    chunk,
-                    len(chunk),
+                response_headers = self.upload_package_installer_part(
+                    object_id, part_number, chunk
                 )
                 etag = response_headers.get("etag")
                 if not etag:
@@ -143,11 +148,31 @@ class WoodstarClient:
                         f"multipart part {part_number} did not return an ETag"
                     )
                 parts.append({"part_number": part_number, "etag": etag})
-        self.request(
-            "PUT",
-            f"/api/munki/package-installers/{object_id}/multipart",
-            {"parts": parts},
-            timeout=UPLOAD_TIMEOUT,
+        complete_path = f"/api/munki/package-installers/{object_id}/multipart"
+        try:
+            self.put(complete_path, {"parts": parts})
+        except ProcessorError:
+            self.put(complete_path, {"parts": parts})
+
+    def upload_package_installer_part(self, object_id, part_number, chunk):
+        last_error = None
+        for _attempt in range(2):
+            target = self.sign_package_installer_part(object_id, part_number)
+            try:
+                return self.upload_to_target(target, chunk, len(chunk))
+            except ProcessorError as err:
+                last_error = err
+        if last_error is None:
+            raise ProcessorError(f"multipart part {part_number} did not start")
+        raise last_error
+
+    def sign_package_installer_part(self, object_id, part_number):
+        path = (
+            f"/api/munki/package-installers/{object_id}/multipart/parts/{part_number}"
+        )
+        return require_json_response(
+            self.post(path),
+            f"POST {path}",
         )
 
     def upload_to_target(self, target, body, size):
@@ -230,6 +255,12 @@ def safe_url(value):
         return urlunsplit((parsed.scheme, hostname, parsed.path, "", ""))
     except ValueError:
         return "<invalid URL>"
+
+
+def require_json_response(response, operation) -> dict[str, Any]:
+    if not isinstance(response, dict):
+        raise ProcessorError(f"{operation} returned an empty or invalid JSON response")
+    return response
 
 
 def same_origin(left, right):
@@ -347,7 +378,7 @@ def list_items(client, path, query=None, per_page=1000):
     items = []
     while True:
         query["page"] = page_number
-        page = client.get(path, query)
+        page = require_json_response(client.get(path, query), f"GET {path}")
         page_items = page.get("items") or []
         items.extend(page_items)
         count = page.get("count")

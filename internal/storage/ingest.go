@@ -20,12 +20,6 @@ type Ingestor struct {
 	backend Backend
 }
 
-// MultipartUpload is the provider state a client needs to start uploading parts.
-type MultipartUpload struct {
-	UploadID string
-	Key      string
-}
-
 // UploadAction is the backend-selected action for uploading an object's bytes.
 type UploadAction interface {
 	isUploadAction()
@@ -53,15 +47,24 @@ func (s *Ingestor) Begin(
 	ctx context.Context,
 	prefix string,
 	filename string,
+	sizeBytes int64,
 ) (*Object, UploadAction, error) {
+	if sizeBytes < 0 {
+		return nil, nil, fmt.Errorf("%w: size_bytes must not be negative", fault.ErrInvalidInput)
+	}
 	object, err := s.objects.CreatePending(ctx, prefix, filename)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	action, err := s.backend.beginUpload(ctx, object.Key())
+	action, err := s.backend.beginUpload(ctx, object.Key(), sizeBytes)
 	if err != nil {
 		return nil, nil, errors.Join(err, s.Delete(ctx, object.ID, prefix))
+	}
+	if _, ok := action.(MultipartUploadAction); ok {
+		if err := s.createMultipart(ctx, object.ID, prefix); err != nil {
+			return nil, nil, errors.Join(err, s.Delete(ctx, object.ID, prefix))
+		}
 	}
 	return object, action, nil
 }
@@ -140,7 +143,6 @@ func (s *Ingestor) Finalize(
 	if object.MultipartUploadID != nil {
 		return nil, fmt.Errorf("%w: multipart upload must be completed before finalization", fault.ErrInvalidInput)
 	}
-
 	metadata, err := s.inspect(ctx, object.Key())
 	if err != nil {
 		return nil, err
@@ -154,44 +156,43 @@ func (s *Ingestor) Finalize(
 	)
 }
 
-// CreateMultipart creates or resumes the provider upload recorded for a pending object.
-func (s *Ingestor) CreateMultipart(
+func (s *Ingestor) createMultipart(
 	ctx context.Context,
 	objectID int64,
 	prefix string,
-) (MultipartUpload, error) {
+) error {
 	object, backend, err := s.multipartObject(ctx, objectID, prefix)
 	if err != nil {
-		return MultipartUpload{}, err
+		return err
 	}
 	if object.MultipartUploadID != nil {
-		return MultipartUpload{UploadID: *object.MultipartUploadID, Key: object.Key()}, nil
+		return nil
 	}
 	objectExists, err := s.objectExists(ctx, object.Key())
 	if err != nil {
-		return MultipartUpload{}, err
+		return err
 	}
 	if objectExists {
-		return MultipartUpload{}, fmt.Errorf(
+		return fmt.Errorf(
 			"%w: multipart upload is already completed and ready to finalize",
 			fault.ErrInvalidInput,
 		)
 	}
 	uploadID, err := backend.CreateMultipartUpload(ctx, object.Key())
 	if err != nil {
-		return MultipartUpload{}, err
+		return err
 	}
-	recordedID, created, err := s.objects.RecordMultipartUploadID(ctx, object.ID, uploadID)
+	_, created, err := s.objects.RecordMultipartUploadID(ctx, object.ID, uploadID)
 	if err != nil {
-		return MultipartUpload{}, errors.Join(err, backend.AbortMultipartUpload(ctx, object.Key(), uploadID))
+		return errors.Join(err, backend.AbortMultipartUpload(ctx, object.Key(), uploadID))
 	}
 	if !created {
 		abortErr := backend.AbortMultipartUpload(ctx, object.Key(), uploadID)
 		if abortErr != nil && !errors.Is(abortErr, ErrMultipartUploadNotFound) {
-			return MultipartUpload{}, abortErr
+			return abortErr
 		}
 	}
-	return MultipartUpload{UploadID: recordedID, Key: object.Key()}, nil
+	return nil
 }
 
 // PresignMultipartPart returns an S3 PUT target for a recorded multipart upload.

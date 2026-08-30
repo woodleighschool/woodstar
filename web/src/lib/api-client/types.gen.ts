@@ -398,6 +398,10 @@ export type MunkiDirectUploadAction = {
     url: string;
 };
 
+export type MunkiDirectUploadRequest = {
+    filename: string;
+};
+
 export type MunkiDirectUploadTarget = {
     object_id: number;
     upload: MunkiDirectUploadAction;
@@ -525,12 +529,7 @@ export type MunkiMultipartPartTarget = {
         [key: string]: string;
     };
     method: 'PUT';
-    upload_url: string;
-};
-
-export type MunkiMultipartUpload = {
-    key: string;
-    upload_id: string;
+    url: string;
 };
 
 export type MunkiMultipartUploadAction = {
@@ -679,6 +678,11 @@ export type MunkiPackageInstallerChoice = {
 export type MunkiPackageInstallerEnvironmentVariable = {
     name: string;
     value: string;
+};
+
+export type MunkiPackageInstallerUploadRequest = {
+    filename: string;
+    size_bytes: number;
 };
 
 export type MunkiPackageInstallerUploadTarget = {
@@ -845,10 +849,6 @@ export type MunkiUpdateMutation = {
     display_name?: string;
     icon_object_id?: number;
     targets: MunkiTargets;
-};
-
-export type MunkiUploadRequest = {
-    filename: string;
 };
 
 export type OsqueryHandle = {
@@ -2979,7 +2979,7 @@ export type CreateMunkiClientResourcesResponses = {
 export type CreateMunkiClientResourcesResponse = CreateMunkiClientResourcesResponses[keyof CreateMunkiClientResourcesResponses];
 
 export type CreateMunkiClientResourcesArchiveUploadData = {
-    body: MunkiUploadRequest;
+    body: MunkiDirectUploadRequest;
     path?: never;
     query?: never;
     url: '/api/munki/client-resources/archive-uploads';
@@ -3071,7 +3071,7 @@ export type DeleteMunkiClientResourcesArchiveUploadResponses = {
 export type DeleteMunkiClientResourcesArchiveUploadResponse = DeleteMunkiClientResourcesArchiveUploadResponses[keyof DeleteMunkiClientResourcesArchiveUploadResponses];
 
 export type CreateMunkiClientResourcesBannerUploadData = {
-    body: MunkiUploadRequest;
+    body: MunkiDirectUploadRequest;
     path?: never;
     query?: never;
     url: '/api/munki/client-resources/banner-uploads';
@@ -3626,7 +3626,7 @@ export type ListMunkiIconsResponses = {
 export type ListMunkiIconsResponse = ListMunkiIconsResponses[keyof ListMunkiIconsResponses];
 
 export type CreateMunkiIconUploadData = {
-    body: MunkiUploadRequest;
+    body: MunkiDirectUploadRequest;
     path?: never;
     query?: never;
     url: '/api/munki/icons';
@@ -3667,7 +3667,7 @@ export type CreateMunkiIconUploadResponses = {
 export type CreateMunkiIconUploadResponse = CreateMunkiIconUploadResponses[keyof CreateMunkiIconUploadResponses];
 
 export type CreateMunkiPackageInstallerUploadData = {
-    body: MunkiUploadRequest;
+    body: MunkiPackageInstallerUploadRequest;
     path?: never;
     query?: never;
     url: '/api/munki/package-installers';
@@ -3804,53 +3804,6 @@ export type CompleteMunkiPackageInstallerUploadResponses = {
 };
 
 export type CompleteMunkiPackageInstallerUploadResponse = CompleteMunkiPackageInstallerUploadResponses[keyof CompleteMunkiPackageInstallerUploadResponses];
-
-export type CreateMunkiPackageInstallerMultipartData = {
-    body?: never;
-    path: {
-        id: number;
-    };
-    query?: never;
-    url: '/api/munki/package-installers/{id}/multipart';
-};
-
-export type CreateMunkiPackageInstallerMultipartErrors = {
-    /**
-     * Bad Request
-     */
-    400: ErrorModel;
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Forbidden
-     */
-    403: ErrorModel;
-    /**
-     * Not Found
-     */
-    404: ErrorModel;
-    /**
-     * Unprocessable Entity
-     */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type CreateMunkiPackageInstallerMultipartError = CreateMunkiPackageInstallerMultipartErrors[keyof CreateMunkiPackageInstallerMultipartErrors];
-
-export type CreateMunkiPackageInstallerMultipartResponses = {
-    /**
-     * OK
-     */
-    200: MunkiMultipartUpload;
-};
-
-export type CreateMunkiPackageInstallerMultipartResponse = CreateMunkiPackageInstallerMultipartResponses[keyof CreateMunkiPackageInstallerMultipartResponses];
 
 export type CompleteMunkiPackageInstallerMultipartData = {
     body: MunkiMultipartCompleteRequest;

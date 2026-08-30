@@ -31,7 +31,11 @@ import type { ListMunkiPackagesData } from "@lib/api-client/types.gen";
 import { baseListParams } from "@lib/pagination";
 import { detailPath } from "@lib/route-params";
 
-import { deleteUnclaimedMunkiInstaller, uploadRequestFromTarget } from "../upload";
+import {
+  completeMunkiInstallerTransfer,
+  deleteUnclaimedMunkiInstaller,
+  uploadRequestFromTarget,
+} from "../upload";
 
 type MunkiPackageListParams = NonNullable<ListMunkiPackagesData["query"]>;
 type PackageUploadVariables = { file: File };
@@ -126,10 +130,23 @@ export function useUploadMunkiInstaller() {
     loadingText: "Uploading Installer",
     successText: "Installer Uploaded",
     createIntent: ({ file }) =>
-      unwrap(createMunkiPackageInstallerUpload({ body: { filename: file.name } })),
+      unwrap(
+        createMunkiPackageInstallerUpload({
+          body: { filename: file.name, size_bytes: file.size },
+        }),
+      ),
     uploadRequest: uploadRequestFromTarget,
-    completeUpload: (intent, _variables, signal) =>
-      unwrap(completeMunkiPackageInstallerUpload({ path: { id: intent.object_id }, signal })),
+    completeUpload: async (intent, _variables, transfer, signal) => {
+      await completeMunkiInstallerTransfer(intent.object_id, transfer, signal);
+      const finalize = () =>
+        unwrap(completeMunkiPackageInstallerUpload({ path: { id: intent.object_id }, signal }));
+      try {
+        return await finalize();
+      } catch (error) {
+        if (signal.aborted) throw error;
+        return finalize();
+      }
+    },
     cleanupIntent: (intent) => deleteUnclaimedMunkiInstaller(intent.object_id),
   });
 }

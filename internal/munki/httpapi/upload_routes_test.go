@@ -34,6 +34,12 @@ func TestPackageInstallerRoutesSelectLongRunningSurface(t *testing.T) {
 		{name: "finalize", method: http.MethodPut, path: munkiPackageInstallerPath + "/1", wantSurface: "long-running"},
 		{name: "delete", method: http.MethodDelete, path: munkiPackageInstallerPath + "/1", wantSurface: "ordinary"},
 		{
+			name:        "sign multipart part",
+			method:      http.MethodPost,
+			path:        munkiPackageInstallerPath + "/1/multipart/parts/1",
+			wantSurface: "ordinary",
+		},
+		{
 			name:        "complete multipart",
 			method:      http.MethodPut,
 			path:        munkiPackageInstallerPath + "/1/multipart",

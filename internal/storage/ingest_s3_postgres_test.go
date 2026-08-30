@@ -82,24 +82,17 @@ func TestS3MultipartRetryUsesRecordedUploadAndCompletedObject(t *testing.T) {
 	}
 	objects := storage.NewObjectStore(db, backend, slog.New(slog.DiscardHandler))
 	uploads := storage.NewIngestor(objects, backend)
-	object, action, err := uploads.Begin(ctx, packages.ObjectPrefix, "Installer.pkg")
+	object, action, err := uploads.Begin(
+		ctx,
+		packages.ObjectPrefix,
+		"Installer.pkg",
+		100*1024*1024+1,
+	)
 	if err != nil {
 		t.Fatalf("begin S3 upload: %v", err)
 	}
 	if _, ok := action.(storage.MultipartUploadAction); !ok {
 		t.Fatalf("S3 upload action = %T, want storage.MultipartUploadAction", action)
-	}
-
-	first, err := uploads.CreateMultipart(ctx, object.ID, packages.ObjectPrefix)
-	if err != nil {
-		t.Fatalf("create multipart: %v", err)
-	}
-	second, err := uploads.CreateMultipart(ctx, object.ID, packages.ObjectPrefix)
-	if err != nil {
-		t.Fatalf("retry create multipart: %v", err)
-	}
-	if first.UploadID != "upload-1" || second != first {
-		t.Fatalf("multipart uploads = %+v and %+v, want recorded upload-1", first, second)
 	}
 	mu.Lock()
 	gotCreateRequests := createRequests
@@ -108,9 +101,8 @@ func TestS3MultipartRetryUsesRecordedUploadAndCompletedObject(t *testing.T) {
 		t.Fatalf("create requests = %d, want 1", gotCreateRequests)
 	}
 
-	if err := uploads.CompleteMultipart(ctx, object.ID, packages.ObjectPrefix, []storage.CompletedPart{
-		{PartNumber: 1, ETag: `"etag-1"`},
-	}); err != nil {
+	parts := []storage.CompletedPart{{PartNumber: 1, ETag: `"etag-1"`}}
+	if err := uploads.CompleteMultipart(ctx, object.ID, packages.ObjectPrefix, parts); err != nil {
 		t.Fatalf("complete multipart upload: %v", err)
 	}
 	mu.Lock()
@@ -119,9 +111,7 @@ func TestS3MultipartRetryUsesRecordedUploadAndCompletedObject(t *testing.T) {
 	if gotCompleteRequests != 1 {
 		t.Fatalf("complete requests = %d, want 1", gotCompleteRequests)
 	}
-	if err := uploads.CompleteMultipart(ctx, object.ID, packages.ObjectPrefix, []storage.CompletedPart{
-		{PartNumber: 1, ETag: `"etag-1"`},
-	}); err != nil {
+	if err := uploads.CompleteMultipart(ctx, object.ID, packages.ObjectPrefix, parts); err != nil {
 		t.Fatalf("retry completed multipart: %v", err)
 	}
 
@@ -135,5 +125,8 @@ func TestS3MultipartRetryUsesRecordedUploadAndCompletedObject(t *testing.T) {
 	}
 	if finalized.MultipartUploadID != nil {
 		t.Fatalf("multipart upload ID = %v, want closed", finalized.MultipartUploadID)
+	}
+	if _, err := uploads.Finalize(ctx, object.ID, packages.ObjectPrefix); err != nil {
+		t.Fatalf("retry finalization: %v", err)
 	}
 }
