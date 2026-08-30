@@ -38,7 +38,7 @@ type Backend interface {
 	PresignPut(ctx context.Context, key string, ttl time.Duration) (UploadTarget, error)
 	TransferOrigin() string
 	deliveryMode() deliveryMode
-	beginUpload(ctx context.Context, key string) (UploadAction, error)
+	beginUpload(ctx context.Context, key string, sizeBytes int64) (UploadAction, error)
 }
 
 // MultipartBackend is the multipart transfer contract implemented by S3 storage.
@@ -82,16 +82,16 @@ type UploadTarget struct {
 	Headers map[string]string
 }
 
+// CompletedPart identifies one uploaded S3 multipart part.
+type CompletedPart struct {
+	PartNumber int32
+	ETag       string
+}
+
 func transferOrigin(rawURL string) (string, error) {
 	parsed, err := url.Parse(rawURL)
 	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
 		return "", fmt.Errorf("invalid storage transfer URL %q", rawURL)
 	}
 	return parsed.Scheme + "://" + parsed.Host, nil
-}
-
-// CompletedPart identifies one uploaded S3 multipart part.
-type CompletedPart struct {
-	PartNumber int32
-	ETag       string
 }

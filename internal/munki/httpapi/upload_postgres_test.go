@@ -87,12 +87,12 @@ func TestMunkiPackageInstallerFileLifecycle(t *testing.T) {
 
 	t.Run("multipart is rejected by file storage", func(t *testing.T) {
 		target := fixture.beginUpload(t, munkiPackageInstallerPath, "multipart.pkg")
-		path := fmt.Sprintf("%s/%d/multipart", munkiPackageInstallerPath, target.ObjectID)
+		path := fmt.Sprintf("%s/%d/multipart/parts/1", munkiPackageInstallerPath, target.ObjectID)
 		assertStatus(
 			t,
 			fixture.request(t, http.MethodPost, path),
 			http.StatusBadRequest,
-			"create multipart upload",
+			"sign multipart part",
 		)
 	})
 }
@@ -263,7 +263,11 @@ func newMunkiUploadFixture(t *testing.T) munkiUploadFixture {
 
 func (f munkiUploadFixture) beginUpload(t *testing.T, path, filename string) MunkiDirectUploadTarget {
 	t.Helper()
-	rec := f.requestJSON(t, http.MethodPost, path, MunkiUploadRequest{Filename: filename})
+	var request any = MunkiDirectUploadRequest{Filename: filename}
+	if path == munkiPackageInstallerPath {
+		request = MunkiPackageInstallerUploadRequest{Filename: filename, SizeBytes: 0}
+	}
+	rec := f.requestJSON(t, http.MethodPost, path, request)
 	assertStatus(t, rec, http.StatusCreated, "begin upload")
 	var target MunkiDirectUploadTarget
 	decodeJSON(t, rec, &target)

@@ -24,7 +24,7 @@ const (
 )
 
 type clientResourcesUploadInput struct {
-	Body MunkiUploadRequest
+	Body MunkiDirectUploadRequest
 }
 
 type clientResourcesCreateInput struct {

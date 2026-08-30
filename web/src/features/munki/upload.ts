@@ -1,12 +1,11 @@
 import type { MunkiDirectUploadTarget, MunkiPackageInstallerUploadTarget } from "@lib/api";
 import {
   completeMunkiPackageInstallerMultipart,
-  createMunkiPackageInstallerMultipart,
   deleteMunkiPackageInstallerUpload,
   signMunkiPackageInstallerPart,
   unwrap,
 } from "@lib/api";
-import type { MultipartUploadRequest, UploadRequest } from "@lib/upload";
+import type { MultipartUploadRequest, UploadRequest, UploadResult } from "@lib/upload";
 import { assertNever } from "@lib/utils";
 
 export function uploadRequestFromTarget(
@@ -30,46 +29,53 @@ export function uploadRequestFromTarget(
   return assertNever(upload);
 }
 
+export async function completeMunkiInstallerTransfer(
+  objectID: number,
+  transfer: UploadResult,
+  signal?: AbortSignal,
+) {
+  if (transfer.strategy === "direct-put") return;
+
+  const request = () =>
+    unwrap(
+      completeMunkiPackageInstallerMultipart({
+        path: { id: objectID },
+        body: {
+          parts: transfer.parts.map((part) => ({
+            part_number: part.partNumber,
+            etag: part.etag,
+          })),
+        },
+        signal,
+      }),
+    );
+
+  try {
+    await request();
+  } catch (error) {
+    if (signal?.aborted) throw error;
+    await request();
+  }
+}
+
 export async function deleteUnclaimedMunkiInstaller(objectID: number) {
   await unwrap(deleteMunkiPackageInstallerUpload({ path: { id: objectID } }));
 }
 
 function packageInstallerMultipartRequest(objectID: number): MultipartUploadRequest {
   return {
-    createMultipartUpload: async () => {
-      const upload = await unwrap(createMunkiPackageInstallerMultipart({ path: { id: objectID } }));
-      return { uploadId: upload.upload_id, key: upload.key };
-    },
-    signPart: async (part) => {
+    signPart: async (partNumber, signal) => {
       const target = await unwrap(
         signMunkiPackageInstallerPart({
-          path: { id: objectID, part_number: part.partNumber },
-          signal: part.signal,
+          path: { id: objectID, part_number: partNumber },
+          signal,
         }),
       );
       return {
         method: target.method,
-        url: target.upload_url,
+        url: target.url,
         headers: target.headers ?? {},
       };
     },
-    completeMultipartUpload: async (upload) => {
-      const parts = upload.parts
-        .map((part) => {
-          if (part.PartNumber === undefined || part.ETag === undefined) {
-            throw new Error("Storage did not return a completed multipart part.");
-          }
-          return { part_number: part.PartNumber, etag: part.ETag };
-        })
-        .toSorted((left, right) => left.part_number - right.part_number);
-      await unwrap(
-        completeMunkiPackageInstallerMultipart({
-          path: { id: objectID },
-          body: { parts },
-          signal: upload.signal,
-        }),
-      );
-    },
-    abortMultipartUpload: async () => deleteUnclaimedMunkiInstaller(objectID),
   };
 }

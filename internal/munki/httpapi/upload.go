@@ -14,23 +14,23 @@ import (
 
 const munkiUploadLabel = "Munki upload"
 
-type MunkiUploadRequest struct {
+type MunkiDirectUploadRequest struct {
 	Filename string `json:"filename"`
+}
+
+type MunkiPackageInstallerUploadRequest struct {
+	Filename  string `json:"filename"`
+	SizeBytes int64  `json:"size_bytes" minimum:"0"`
 }
 
 type MunkiObjectMutation struct {
 	ObjectID int64 `json:"object_id" minimum:"1"`
 }
 
-type MunkiMultipartUpload struct {
-	UploadID string `json:"upload_id"`
-	Key      string `json:"key"`
-}
-
 type MunkiMultipartPartTarget struct {
-	UploadURL string            `json:"upload_url"`
-	Method    string            `json:"method"     enum:"PUT"`
-	Headers   map[string]string `json:"headers,omitempty"`
+	URL     string            `json:"url"`
+	Method  string            `json:"method" enum:"PUT"`
+	Headers map[string]string `json:"headers,omitempty"`
 }
 
 type MunkiMultipartCompletedPart struct {

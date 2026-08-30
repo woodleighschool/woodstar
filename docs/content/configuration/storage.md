@@ -24,7 +24,7 @@ The server writes files below the configured root and serves them through short-
 
 Set `WOODSTAR_STORAGE_KIND=s3` with a bucket, region, access key, and secret key. An endpoint can be supplied for services such as Garage, MinIO, or Cloudflare R2. The server uses that endpoint for its own S3 requests and presigned transfer URLs.
 
-The server uses multipart upload with presigned part URLs for S3 uploads. Downloads use presigned URLs.
+Installer uploads up to 100 MiB use a presigned `PUT`. Larger installers use S3 multipart upload: the server owns the upload lifecycle and presigns each part `PUT`, while the client returns the uploaded part ETags for server-side completion. Downloads use presigned URLs.
 
 ### Bucket CORS
 

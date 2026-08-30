@@ -27,8 +27,17 @@ type s3Store struct {
 
 var _ MultipartBackend = (*s3Store)(nil)
 
-func (*s3Store) beginUpload(context.Context, string) (UploadAction, error) {
-	return MultipartUploadAction{}, nil
+const s3MultipartThreshold = 100 * 1024 * 1024
+
+func (s *s3Store) beginUpload(ctx context.Context, key string, sizeBytes int64) (UploadAction, error) {
+	if sizeBytes > s3MultipartThreshold {
+		return MultipartUploadAction{}, nil
+	}
+	target, err := s.PresignPut(ctx, key, 0)
+	if err != nil {
+		return nil, err
+	}
+	return DirectUploadAction{Target: target}, nil
 }
 
 func newS3Store(ctx context.Context, cfg S3Config, transferTTL time.Duration) (*s3Store, error) {

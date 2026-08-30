@@ -16,7 +16,7 @@ import (
 const munkiPackageInstallerPath = "/api/munki/package-installers"
 
 type munkiPackageInstallerCreateInput struct {
-	Body MunkiUploadRequest
+	Body MunkiPackageInstallerUploadRequest
 }
 
 type munkiPackageInstallerInput struct {
@@ -33,10 +33,6 @@ type munkiPackageInstallerCompleteInput struct {
 	Body MunkiMultipartCompleteRequest
 }
 
-type munkiMultipartUploadOutput struct {
-	Body MunkiMultipartUpload
-}
-
 type munkiMultipartPartOutput struct {
 	Body MunkiMultipartPartTarget
 }
@@ -50,7 +46,6 @@ func registerPackageInstallerRoutes(
 	registerCreatePackageInstallerUploadRoute(humaAPI, ingestor, logger)
 	registerCompletePackageInstallerUploadRoute(longRunningAPI, ingestor, logger)
 	registerDeletePackageInstallerUploadRoute(humaAPI, ingestor, logger)
-	registerCreatePackageInstallerMultipartRoute(humaAPI, ingestor, logger)
 	registerSignPackageInstallerPartRoute(humaAPI, ingestor, logger)
 	registerCompletePackageInstallerMultipartRoute(longRunningAPI, ingestor, logger)
 }
@@ -76,6 +71,7 @@ func registerCreatePackageInstallerUploadRoute(
 			ctx,
 			packages.ObjectPrefix,
 			input.Body.Filename,
+			input.Body.SizeBytes,
 		)
 		if err != nil {
 			return nil, api.ResourceError(
@@ -145,33 +141,6 @@ func registerDeletePackageInstallerUploadRoute(
 	})
 }
 
-func registerCreatePackageInstallerMultipartRoute(
-	humaAPI huma.API,
-	ingestor *storage.Ingestor,
-	logger *slog.Logger,
-) {
-	huma.Register(humaAPI, huma.Operation{
-		OperationID: "create-munki-package-installer-multipart",
-		Method:      http.MethodPost,
-		Path:        munkiPackageInstallerPath + "/{id}/multipart",
-		Tags:        []string{api.TagMunkiPackageInstallers},
-		Summary:     "Create a multipart upload",
-		Errors:      []int{http.StatusBadRequest, http.StatusNotFound},
-	}, func(ctx context.Context, input *munkiPackageInstallerInput) (*munkiMultipartUploadOutput, error) {
-		upload, err := ingestor.CreateMultipart(ctx, input.ID, packages.ObjectPrefix)
-		if err != nil {
-			return nil, api.ResourceError(
-				ctx, logger, "create-munki-package-installer-multipart", munkiUploadLabel, err,
-				"object_id", input.ID,
-			)
-		}
-		return &munkiMultipartUploadOutput{Body: MunkiMultipartUpload{
-			UploadID: upload.UploadID,
-			Key:      upload.Key,
-		}}, nil
-	})
-}
-
 func registerSignPackageInstallerPartRoute(
 	humaAPI huma.API,
 	ingestor *storage.Ingestor,
@@ -195,9 +164,9 @@ func registerSignPackageInstallerPartRoute(
 			)
 		}
 		return &munkiMultipartPartOutput{Body: MunkiMultipartPartTarget{
-			UploadURL: target.URL,
-			Method:    target.Method,
-			Headers:   target.Headers,
+			URL:     target.URL,
+			Method:  target.Method,
+			Headers: target.Headers,
 		}}, nil
 	})
 }

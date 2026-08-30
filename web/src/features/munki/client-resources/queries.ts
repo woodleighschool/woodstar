@@ -72,7 +72,7 @@ export function useUploadAndSaveMunkiClientResourcesBanner() {
     createIntent: ({ file }) =>
       unwrap(createMunkiClientResourcesBannerUpload({ body: { filename: file.name } })),
     uploadRequest: uploadRequestFromTarget,
-    completeUpload: (intent, { body, clientResourcesID }, signal) =>
+    completeUpload: (intent, { body, clientResourcesID }, _transfer, signal) =>
       saveClientResources({
         clientResourcesID,
         body: { builder: { ...body, banner_object_id: intent.object_id } },
@@ -94,7 +94,7 @@ export function useUploadAndSaveMunkiClientResourcesArchive() {
     createIntent: ({ file }) =>
       unwrap(createMunkiClientResourcesArchiveUpload({ body: { filename: file.name } })),
     uploadRequest: uploadRequestFromTarget,
-    completeUpload: (intent, { clientResourcesID }, signal) =>
+    completeUpload: (intent, { clientResourcesID }, _transfer, signal) =>
       saveClientResources({
         clientResourcesID,
         body: { archive_object_id: intent.object_id },

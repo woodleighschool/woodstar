@@ -135,7 +135,10 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 	capabilityIssuedAfter := time.Now()
 	createdInstaller, err := server.Admin.CreateMunkiPackageInstallerUploadWithResponse(
 		t.Context(),
-		adminapi.MunkiUploadRequest{Filename: "WoodstarIntegration.pkg"},
+		adminapi.MunkiPackageInstallerUploadRequest{
+			Filename:  "WoodstarIntegration.pkg",
+			SizeBytes: int64(len(installerBytes)),
+		},
 	)
 	capabilityIssuedBefore := time.Now()
 	createdInstaller = requireAPIResponse(
@@ -305,7 +308,10 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 	secondInstallerBytes := bytes.Repeat([]byte{0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01, 0x00}, 200)
 	createdSecondInstaller, err := server.Admin.CreateMunkiPackageInstallerUploadWithResponse(
 		t.Context(),
-		adminapi.MunkiUploadRequest{Filename: "WoodstarSecondIntegration.pkg"},
+		adminapi.MunkiPackageInstallerUploadRequest{
+			Filename:  "WoodstarSecondIntegration.pkg",
+			SizeBytes: int64(len(secondInstallerBytes)),
+		},
 	)
 	createdSecondInstaller = requireAPIResponse(
 		t,
@@ -443,7 +449,9 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 	}
 	createdBanner, err := server.Admin.CreateMunkiClientResourcesBannerUploadWithResponse(
 		t.Context(),
-		adminapi.MunkiUploadRequest{Filename: "banner.png"},
+		adminapi.MunkiDirectUploadRequest{
+			Filename: "banner.png",
+		},
 	)
 	createdBanner = requireAPIResponse(t, "create banner upload", http.StatusCreated, createdBanner, err)
 	bannerTarget := createdBanner.JSON201
@@ -1105,7 +1113,9 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 	uploadedArchiveBytes := []byte("trusted administrator archive bytes")
 	createdArchive, err := server.Admin.CreateMunkiClientResourcesArchiveUploadWithResponse(
 		t.Context(),
-		adminapi.MunkiUploadRequest{Filename: "school-resources.zip"},
+		adminapi.MunkiDirectUploadRequest{
+			Filename: "school-resources.zip",
+		},
 	)
 	createdArchive = requireAPIResponse(
 		t,
@@ -1316,7 +1326,9 @@ func attachMunkiIcon(
 	contents []byte,
 ) adminapi.MunkiObjectView {
 	t.Helper()
-	payload, err := json.Marshal(adminapi.MunkiUploadRequest{Filename: filename})
+	payload, err := json.Marshal(adminapi.MunkiDirectUploadRequest{
+		Filename: filename,
+	})
 	if err != nil {
 		t.Fatalf("encode icon upload request: %v", err)
 	}

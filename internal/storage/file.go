@@ -27,7 +27,7 @@ type fileStore struct {
 	ttl            time.Duration
 }
 
-func (s *fileStore) beginUpload(ctx context.Context, key string) (UploadAction, error) {
+func (s *fileStore) beginUpload(ctx context.Context, key string, _ int64) (UploadAction, error) {
 	target, err := s.PresignPut(ctx, key, 0)
 	if err != nil {
 		return nil, err

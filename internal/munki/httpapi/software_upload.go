@@ -14,7 +14,7 @@ import (
 )
 
 type munkiIconUploadInput struct {
-	Body MunkiUploadRequest
+	Body MunkiDirectUploadRequest
 }
 
 const munkiIconPath = "/api/munki/icons"

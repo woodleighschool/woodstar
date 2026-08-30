@@ -131,7 +131,7 @@ export function useUploadMunkiIcon() {
     errorSurface: "inline",
     createIntent: ({ file }) => unwrap(createMunkiIconUpload({ body: { filename: file.name } })),
     uploadRequest: uploadRequestFromTarget,
-    completeUpload: (intent, { softwareId }, signal) =>
+    completeUpload: (intent, { softwareId }, _transfer, signal) =>
       unwrap(
         setMunkiSoftwareIcon({
           path: { id: softwareId },

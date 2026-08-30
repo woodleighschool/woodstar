@@ -274,7 +274,10 @@ func createMDPInstaller(
 
 	created, err := server.Admin.CreateMunkiPackageInstallerUploadWithResponse(
 		t.Context(),
-		adminapi.MunkiUploadRequest{Filename: filename},
+		adminapi.MunkiPackageInstallerUploadRequest{
+			Filename:  filename,
+			SizeBytes: int64(len(contents)),
+		},
 	)
 	created = requireAPIResponse(t, "create package installer", http.StatusCreated, created, err)
 	upload := directPackageInstallerUpload(t, created.JSON201)

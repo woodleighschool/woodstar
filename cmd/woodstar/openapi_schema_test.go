@@ -250,8 +250,12 @@ func TestMunkiUploadStrategySchema(t *testing.T) {
 		t.Fatal("package installer finalization is missing")
 	}
 	multipartComplete := doc.Paths["/api/munki/package-installers/{id}/multipart"]
-	if multipartComplete == nil || multipartComplete.Put == nil {
-		t.Fatal("multipart completion is missing")
+	if multipartComplete == nil || multipartComplete.Put == nil || multipartComplete.Post != nil {
+		t.Fatal("multipart route must expose only server-side completion")
+	}
+	multipartPartPath := doc.Paths["/api/munki/package-installers/{id}/multipart/parts/{part_number}"]
+	if multipartPartPath == nil || multipartPartPath.Post == nil {
+		t.Fatal("multipart part signing is missing")
 	}
 
 	packageTarget := doc.Components.Schemas.Map()["MunkiPackageInstallerUploadTarget"]
@@ -280,11 +284,14 @@ func TestMunkiUploadStrategySchema(t *testing.T) {
 		t.Fatalf("multipart upload action = %#v, want only the multipart strategy", multipart)
 	}
 	multipartPart := doc.Components.Schemas.Map()["MunkiMultipartPartTarget"]
-	if multipartPart == nil || multipartPart.Properties["upload_url"] == nil ||
+	if multipartPart == nil || multipartPart.Properties["url"] == nil ||
 		!reflect.DeepEqual(multipartPart.Properties["method"].Enum, []any{"PUT"}) {
 		t.Fatalf("multipart part target = %#v, want upload URL and PUT method", multipartPart)
 	}
-
+	multipartRequest := doc.Components.Schemas.Map()["MunkiMultipartCompleteRequest"]
+	if multipartRequest == nil || multipartRequest.Properties["parts"] == nil {
+		t.Fatalf("multipart completion request = %#v, want completed parts", multipartRequest)
+	}
 	for path, wantRef := range map[string]string{
 		"/api/munki/package-installers":              "#/components/schemas/MunkiPackageInstallerUploadTarget",
 		"/api/munki/client-resources/banner-uploads": "#/components/schemas/MunkiDirectUploadTarget",
@@ -295,5 +302,23 @@ func TestMunkiUploadStrategySchema(t *testing.T) {
 		if got != wantRef {
 			t.Errorf("POST %s response schema = %q, want %q", path, got, wantRef)
 		}
+	}
+}
+
+func TestMunkiUploadRequestSchemas(t *testing.T) {
+	t.Parallel()
+	doc := buildOpenAPI("test").OpenAPI()
+
+	directRequest := doc.Components.Schemas.Map()["MunkiDirectUploadRequest"]
+	if directRequest == nil || directRequest.Properties["filename"] == nil ||
+		directRequest.Properties["size_bytes"] != nil ||
+		!reflect.DeepEqual(directRequest.Required, []string{"filename"}) {
+		t.Fatalf("direct upload request = %#v, want filename only", directRequest)
+	}
+	installerRequest := doc.Components.Schemas.Map()["MunkiPackageInstallerUploadRequest"]
+	if installerRequest == nil || installerRequest.Properties["filename"] == nil ||
+		installerRequest.Properties["size_bytes"] == nil ||
+		!reflect.DeepEqual(installerRequest.Required, []string{"filename", "size_bytes"}) {
+		t.Fatalf("package installer upload request = %#v, want filename and size", installerRequest)
 	}
 }
