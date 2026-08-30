@@ -57,7 +57,7 @@ const distributionPointFormSchema = z
     client_cidrs: z
       .array(z.object({ rowID: z.string(), value: z.string() }))
       .refine(
-        (rows) => rows.every((row) => cidrSchema.safeParse(row.value.trim()).success),
+        (rows) => rows.every((row) => z.validate(cidrSchema, row.value.trim())),
         "Enter a valid IPv4 or IPv6 CIDR.",
       ),
   })
@@ -324,8 +324,8 @@ function isClientDomain(value: string): boolean {
   const [hostname, port, extra] = value.split(":");
   return (
     extra === undefined &&
-    hostnameSchema.safeParse(hostname).success &&
-    (port === undefined || portSchema.safeParse(port).success)
+    z.validate(hostnameSchema, hostname) &&
+    (port === undefined || z.validate(portSchema, port))
   );
 }
 function httpsOriginFromDomain(value: string): string {
