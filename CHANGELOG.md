@@ -1,5 +1,47 @@
 # Changelog
 
+## [0.9.6](https://github.com/woodleighschool/woodstar/compare/0.9.5...0.9.6) (2026-08-31)
+
+
+### Features
+
+* **go:** update aws-sdk-go-v2 monorepo ([#291](https://github.com/woodleighschool/woodstar/issues/291)) ([fd97fde](https://github.com/woodleighschool/woodstar/commit/fd97fdebd3d10f394ba9d41366c11780cff0b472))
+* **go:** update module github.com/microsoft/kiota-abstractions-go (v1.9.4 → v1.10.0) ([#292](https://github.com/woodleighschool/woodstar/issues/292)) ([e0c784a](https://github.com/woodleighschool/woodstar/commit/e0c784adac774366cf06baec4b7e7f4b752c16ca))
+* **go:** update river monorepo (v0.45.0 → v0.46.0) ([#293](https://github.com/woodleighschool/woodstar/issues/293)) ([644f8a7](https://github.com/woodleighschool/woodstar/commit/644f8a7f44100b15f52e3233a2d321fcf00c412d))
+* **npm:** update dependency @tanstack/react-table (9.1.2 → 9.2.3) ([#284](https://github.com/woodleighschool/woodstar/issues/284)) ([1b79776](https://github.com/woodleighschool/woodstar/commit/1b79776087c24b02344e2355740637b5ea73d06e))
+* **npm:** update dependency @types/node (26.3.0 → 26.4.0) ([#285](https://github.com/woodleighschool/woodstar/issues/285)) ([37c2de7](https://github.com/woodleighschool/woodstar/commit/37c2de783789fedb5d54b9328b394d681b1c2e8a))
+* **npm:** update dependency lucide-react (1.34.0 → 1.37.0) ([#294](https://github.com/woodleighschool/woodstar/issues/294)) ([c3991d1](https://github.com/woodleighschool/woodstar/commit/c3991d1aade8025135134a3097e11590ae5a90b1))
+* **npm:** update dependency simple-icons (16.28.0 → 16.29.0) ([#295](https://github.com/woodleighschool/woodstar/issues/295)) ([7af3043](https://github.com/woodleighschool/woodstar/commit/7af30433e951340f2e9ff20d2ce32f32b701fc5f))
+* **npm:** update dependency zod (4.4.3 → 4.5.2) ([#296](https://github.com/woodleighschool/woodstar/issues/296)) ([79cdc47](https://github.com/woodleighschool/woodstar/commit/79cdc47bdd3f1b613eef4200cd601aeb84162a82))
+* **web:** simplify osquery history charts ([2d78d92](https://github.com/woodleighschool/woodstar/commit/2d78d9219b34b9669b59773428e5435c1393733e))
+
+
+### Bug Fixes
+
+* **go:** update module github.com/azure/azure-sdk-for-go/sdk/azidentity (v1.14.0 → v1.14.1) ([#287](https://github.com/woodleighschool/woodstar/issues/287)) ([d83b63d](https://github.com/woodleighschool/woodstar/commit/d83b63d65ac26908add52f73697cb0266ae77baa))
+* **npm:** update dependency @tanstack/react-table (9.2.4 → 9.2.4) ([#288](https://github.com/woodleighschool/woodstar/issues/288)) ([8cc6966](https://github.com/woodleighschool/woodstar/commit/8cc69668323e9130d779a2e11eecb90bc2d27407))
+* **npm:** update dependency @vitejs/plugin-react (6.1.0 → 6.1.1) ([#289](https://github.com/woodleighschool/woodstar/issues/289)) ([7ff2c35](https://github.com/woodleighschool/woodstar/commit/7ff2c35e59bf78e04da82d06ac31f51b33b1b0dc))
+* **npm:** update dependency zod (4.5.2 → 4.5.4) ([#297](https://github.com/woodleighschool/woodstar/issues/297)) ([386c13e](https://github.com/woodleighschool/woodstar/commit/386c13e01ab12126ba3d73c1ce19ef33bc8dd32f))
+* **npm:** update tanstack-query monorepo (5.102.5 → 5.102.6) ([#283](https://github.com/woodleighschool/woodstar/issues/283)) ([10d10f8](https://github.com/woodleighschool/woodstar/commit/10d10f86a65c5cb3d30492565e489433403dcc2d))
+* **npm:** update tanstack-query monorepo (5.102.8 → 5.102.8) ([#290](https://github.com/woodleighschool/woodstar/issues/290)) ([eceb38f](https://github.com/woodleighschool/woodstar/commit/eceb38f71d0265a2d5fd211a1fc62ce846e22873))
+* **web:** remove email input placeholder ([7c0e073](https://github.com/woodleighschool/woodstar/commit/7c0e073e9b57fba87a5f9f1615e8e2ce6deb5ac8))
+
+
+### Code Refactoring
+
+* **munki:** remove Uppy upload coupling ([#286](https://github.com/woodleighschool/woodstar/issues/286)) ([0bfaa09](https://github.com/woodleighschool/woodstar/commit/0bfaa092f8e4d25daebd104dc02e86a2a837b93d))
+
+
+### Continuous Integration
+
+* **github-action:** update action jdx/mise-action (v4.2.5 → v4.3.0) ([#281](https://github.com/woodleighschool/woodstar/issues/281)) ([1d65af4](https://github.com/woodleighschool/woodstar/commit/1d65af47ca52b3b0b6f8694e841c46c6694475b2))
+
+
+### Miscellaneous Chores
+
+* **mise:** update tool golangci-lint (2.13.1 → 2.13.2) ([#298](https://github.com/woodleighschool/woodstar/issues/298)) ([152ed1d](https://github.com/woodleighschool/woodstar/commit/152ed1dfbc72858f0f685394f40968bd726b8e91))
+* **mise:** update tool lefthook (2.1.11 → 2.1.12) ([#299](https://github.com/woodleighschool/woodstar/issues/299)) ([2fcce2c](https://github.com/woodleighschool/woodstar/commit/2fcce2ceacece14832b2e9496c7f94c26a39e7fd))
+
 ## [0.9.5](https://github.com/woodleighschool/woodstar/compare/0.9.4...0.9.5) (2026-08-28)
 
 
