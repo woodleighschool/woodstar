@@ -41,7 +41,7 @@ func TestLoginRateLimitPrecedesRequestValidation(t *testing.T) {
 		t.Fatalf("admitted malformed status = %d, want %d", malformed.Code, http.StatusUnprocessableEntity)
 	}
 
-	rec := authTestLogin(router, "different@example.test", "wrong-password")
+	rec := authTestLogin(router, "different@example.invalid", "wrong-password")
 	if rec.Code != http.StatusTooManyRequests {
 		t.Fatalf("limited status = %d, want %d; body = %q", rec.Code, http.StatusTooManyRequests, rec.Body.String())
 	}

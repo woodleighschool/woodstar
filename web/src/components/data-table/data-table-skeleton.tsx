@@ -30,20 +30,16 @@ export function DataTableSkeleton({
   className,
   ...props
 }: DataTableSkeletonProps) {
-  const [show, setShow] = React.useState(delayMs <= 0);
+  const [delayElapsed, setDelayElapsed] = React.useState(false);
 
   React.useEffect(() => {
-    if (delayMs <= 0) {
-      setShow(true);
-      return undefined;
-    }
+    if (delayMs <= 0) return undefined;
 
-    setShow(false);
-    const timer = window.setTimeout(() => setShow(true), delayMs);
+    const timer = window.setTimeout(() => setDelayElapsed(true), delayMs);
     return () => window.clearTimeout(timer);
   }, [delayMs]);
 
-  if (!show) return null;
+  if (delayMs > 0 && !delayElapsed) return null;
 
   return (
     <TableSurface

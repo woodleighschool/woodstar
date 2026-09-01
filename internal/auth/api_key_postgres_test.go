@@ -14,13 +14,13 @@ import (
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
 )
 
-func TestRotateAPIKeyReplacesPreviousCredential(t *testing.T) {
+func TestRotateAPIKeyReplacesAndRevokesBearerCredential(t *testing.T) {
 	database, ctx := testdb.Open(t)
 	userService := directory.NewUserService(directory.NewStore(database, labels.NewStore(database)))
 	user, err := userService.Create(ctx, directory.UserCreate{
-		Email:    "api@example.test",
+		Email:    "api-user@example.invalid",
 		Name:     "API User",
-		Password: "correct-password",
+		Password: "correct horse battery staple",
 		Role:     directory.RoleAdmin,
 	})
 	if err != nil {
@@ -32,31 +32,39 @@ func TestRotateAPIKeyReplacesPreviousCredential(t *testing.T) {
 
 	first, err := service.RotateAPIKey(ctx, user.ID)
 	if err != nil {
-		t.Fatalf("rotate first api key: %v", err)
+		t.Fatalf("rotate first API key: %v", err)
 	}
-	if first.APIKey == "" {
-		t.Fatal("first rotated api key is empty")
+	if first.APIKey == "" || first.APIKeyCreatedAt == nil {
+		t.Fatalf("first API key = %q created at = %v", first.APIKey, first.APIKeyCreatedAt)
 	}
 
 	second, err := service.RotateAPIKey(ctx, user.ID)
 	if err != nil {
-		t.Fatalf("rotate second api key: %v", err)
+		t.Fatalf("rotate second API key: %v", err)
 	}
-	if second.APIKey == "" {
-		t.Fatal("second rotated api key is empty")
-	}
-	if second.APIKey == first.APIKey {
-		t.Fatal("second rotated api key did not replace the first")
+	if second.APIKey == "" || second.APIKey == first.APIKey {
+		t.Fatalf("second API key = %q, first = %q", second.APIKey, first.APIKey)
 	}
 
-	got, err := service.userByAPIKey(ctx, second.APIKey)
+	got, err := service.Authenticate(ctx, "Bearer "+second.APIKey)
 	if err != nil {
-		t.Fatalf("authenticate with second api key: %v", err)
+		t.Fatalf("authenticate with second API key: %v", err)
 	}
 	if got.ID != user.ID {
-		t.Fatalf("api key user = %+v, want user %d", got, user.ID)
+		t.Fatalf("authenticated user = %+v", got)
 	}
-	if _, err := service.userByAPIKey(ctx, first.APIKey); !errors.Is(err, ErrNotAuthenticated) {
-		t.Fatalf("authenticate with first api key error = %v, want %v", err, ErrNotAuthenticated)
+	if _, err := service.Authenticate(ctx, "Bearer "+first.APIKey); !errors.Is(err, ErrNotAuthenticated) {
+		t.Fatalf("authenticate with first API key error = %v, want %v", err, ErrNotAuthenticated)
+	}
+
+	revoked, err := service.RevokeAPIKey(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("revoke API key: %v", err)
+	}
+	if revoked.APIKey != "" || revoked.APIKeyCreatedAt != nil {
+		t.Fatalf("revoked API key = %q created at = %v", revoked.APIKey, revoked.APIKeyCreatedAt)
+	}
+	if _, err := service.Authenticate(ctx, "Bearer "+second.APIKey); !errors.Is(err, ErrNotAuthenticated) {
+		t.Fatalf("authenticate with revoked API key error = %v, want %v", err, ErrNotAuthenticated)
 	}
 }

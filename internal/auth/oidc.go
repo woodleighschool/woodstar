@@ -17,6 +17,7 @@ import (
 const (
 	ssoStateSessionKey = "sso_state"
 	ssoNonceSessionKey = "sso_nonce"
+	oidcTokenByteLen   = 24
 )
 
 // SSO errors describe expected callback failures.
@@ -24,7 +25,7 @@ var (
 	ErrSSOStateMismatch   = errors.New("sso state mismatch")
 	ErrSSONonceMismatch   = errors.New("sso nonce mismatch")
 	ErrSSONotConfigured   = errors.New("sso is not configured")
-	ErrSSOUnknownUser     = errors.New("no woodstar account for this identity")
+	ErrSSOUnknownUser     = errors.New("no account for this identity")
 	ErrSSOEmailClaimEmpty = errors.New("identity provider returned no email claim")
 )
 
@@ -86,11 +87,11 @@ func (s *Service) BeginSSO(ctx context.Context) (string, error) {
 	if s.oidc == nil {
 		return "", ErrSSONotConfigured
 	}
-	state, err := randtoken.Generate(apiKeyByteLen)
+	state, err := randtoken.Generate(oidcTokenByteLen)
 	if err != nil {
 		return "", err
 	}
-	nonce, err := randtoken.Generate(apiKeyByteLen)
+	nonce, err := randtoken.Generate(oidcTokenByteLen)
 	if err != nil {
 		return "", err
 	}

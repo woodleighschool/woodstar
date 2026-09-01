@@ -1,5 +1,5 @@
 import { ExternalLink, PanelRightClose, PanelRightOpen } from "lucide-react";
-import { isValidElement, useEffect, useState } from "react";
+import { isValidElement, useState } from "react";
 
 import { Badge } from "@components/ui/badge";
 import {
@@ -124,7 +124,12 @@ function SchemaPanel({
         </div>
 
         <div className="p-4">
-          <TableSelector tables={tables} value={table?.name ?? null} onChange={selectTable} />
+          <TableSelector
+            key={table?.name ?? "none"}
+            tables={tables}
+            value={table?.name ?? null}
+            onChange={selectTable}
+          />
         </div>
 
         <div className="flex-1 overflow-y-auto">
@@ -152,10 +157,6 @@ function TableSelector({
 }) {
   const tableNames = tables.map((table) => table.name);
   const [inputValue, setInputValue] = useState(value ?? "");
-
-  useEffect(() => {
-    setInputValue(value ?? "");
-  }, [value]);
 
   return (
     <Combobox

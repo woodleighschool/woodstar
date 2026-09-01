@@ -17,11 +17,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/directory"
 )
 
-// Admin posture is decided from the user already in the request context, so
-// these tests inject the user directly and assert how the group modifiers gate
-// each method. No auth service, session, or database is involved: those resolve
-// the user (and are tested in auth), while this pins what api does with it.
-
 type postureProbeInput struct{}
 
 type postureProbeOutput struct {
@@ -34,9 +29,6 @@ func roleUser(role directory.Role) *directory.User {
 	return &directory.User{ID: 1, Role: &role}
 }
 
-// postureHandler mounts an ordinary (admin-for-mutations) and a sensitive
-// (admin-for-all) group carrying the real modifiers, with a middleware that
-// stands in for RequireAuth by injecting user into the context.
 func postureHandler(user *directory.User) http.Handler {
 	router := chi.NewRouter()
 	api := humachi.New(router, huma.DefaultConfig("test", "test"))
@@ -121,8 +113,7 @@ func (f *fakeAuthenticator) Authenticate(_ context.Context, authHeader string) (
 }
 
 func TestRequireHTTPAuthAttachesUser(t *testing.T) {
-	role := directory.RoleAdmin
-	authenticator := &fakeAuthenticator{user: &directory.User{ID: 42, Role: &role}}
+	authenticator := &fakeAuthenticator{user: &directory.User{ID: 42}}
 	handler := RequireHTTPAuth(authenticator)(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		user, ok := ctxkeys.User(req.Context())
 		if !ok {
@@ -161,6 +152,17 @@ func TestRequireHTTPAuthRejectsMissingCredentials(t *testing.T) {
 	}
 }
 
+func TestRequireHTTPAuthTreatsLookupFailureAsServerError(t *testing.T) {
+	handler := RequireHTTPAuth(&fakeAuthenticator{err: errors.New("database unavailable")})(
+		http.HandlerFunc(func(http.ResponseWriter, *http.Request) { t.Fatal("handler ran") }),
+	)
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/protected", nil))
+	if recorder.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d", recorder.Code)
+	}
+}
+
 func TestOptionalHumaAuthAllowsAnonymousAndRejectsBrokenLookup(t *testing.T) {
 	type output struct {
 		Body struct {
@@ -169,8 +171,8 @@ func TestOptionalHumaAuthAllowsAnonymousAndRejectsBrokenLookup(t *testing.T) {
 	}
 
 	register := func(authenticator *fakeAuthenticator) http.Handler {
-		r := chi.NewRouter()
-		humaAPI := humachi.New(r, huma.DefaultConfig("test", "test"))
+		router := chi.NewRouter()
+		humaAPI := humachi.New(router, huma.DefaultConfig("test", "test"))
 		group := huma.NewGroup(humaAPI)
 		group.UseMiddleware(OptionalHumaAuth(humaAPI, authenticator))
 		huma.Register(group, huma.Operation{
@@ -182,7 +184,7 @@ func TestOptionalHumaAuthAllowsAnonymousAndRejectsBrokenLookup(t *testing.T) {
 			}
 			return out, nil
 		})
-		return r
+		return router
 	}
 
 	for _, tc := range []struct {
@@ -197,13 +199,10 @@ func TestOptionalHumaAuthAllowsAnonymousAndRejectsBrokenLookup(t *testing.T) {
 			wantStatus:    http.StatusOK,
 		},
 		{
-			name: "user attached",
-			authenticator: func() *fakeAuthenticator {
-				userID := int64(7)
-				return &fakeAuthenticator{user: &directory.User{ID: userID}}
-			}(),
-			wantStatus: http.StatusOK,
-			wantUserID: 7,
+			name:          "user attached",
+			authenticator: &fakeAuthenticator{user: &directory.User{ID: 7}},
+			wantStatus:    http.StatusOK,
+			wantUserID:    7,
 		},
 		{
 			name:          "broken auth lookup fails",

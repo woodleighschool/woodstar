@@ -46,6 +46,7 @@ export function ReportListPage() {
   });
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
+  const bulkDelete = useBulkDeleteReports();
   const [deleting, setDeleting] = useState<OsqueryReport | null>(null);
   const query = useReports({
     q: tableSearch.q,
@@ -96,11 +97,7 @@ export function ReportListPage() {
           pending={query.isPlaceholderData}
           actionBar={
             isAdmin ? (
-              <BulkDeleteActionBar
-                table={table}
-                useBulkDelete={useBulkDeleteReports}
-                noun="report"
-              />
+              <BulkDeleteActionBar table={table} bulkDelete={bulkDelete} noun="report" />
             ) : undefined
           }
           empty={

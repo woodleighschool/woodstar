@@ -14,6 +14,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@compo
 import { useRevokeAPIKey, useRotateAPIKey } from "@features/account/queries";
 import type { Account } from "@lib/api";
 import { formatRelative } from "@lib/utils";
+
 export function APIKeySection({ account }: { account: Account }) {
   const rotate = useRotateAPIKey();
   const revoke = useRevokeAPIKey();
@@ -22,6 +23,7 @@ export function APIKeySection({ account }: { account: Account }) {
   const apiKey = account.api_key ?? "";
   const createdAt = account.api_key_created_at;
   const pending = rotate.isPending || revoke.isPending;
+
   async function handleCopy() {
     if (!apiKey) return;
     try {
@@ -31,16 +33,19 @@ export function APIKeySection({ account }: { account: Account }) {
       toast.add({ title: "Copy Failed", type: "error" });
     }
   }
+
   async function handleRotate() {
     await rotate.mutateAsync();
     setConfirmRotate(false);
     toast.add({ title: "API Key Rotated", type: "success" });
   }
+
   async function handleRevoke() {
     await revoke.mutateAsync();
     setConfirmRevoke(false);
     toast.add({ title: "API Key Revoked", type: "success" });
   }
+
   return (
     <section className="flex max-w-3xl flex-col gap-4 border-t pt-6">
       <div className="flex flex-wrap items-start justify-between gap-4">

@@ -4,9 +4,11 @@ package directory
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
 )
@@ -36,6 +38,15 @@ func TestListAndGetGroups(t *testing.T) {
 	}
 }
 
+func TestGetGroupByIDMapsMissingGroup(t *testing.T) {
+	database, ctx := testdb.Open(t)
+	store := NewStore(database, labels.NewStore(database))
+
+	if _, err := store.GetGroupByID(ctx, 404); !errors.Is(err, fault.ErrNotFound) {
+		t.Fatalf("GetGroupByID() error = %v, want %v", err, fault.ErrNotFound)
+	}
+}
+
 func seedGroups(t *testing.T, ctx context.Context, store *Store) {
 	t.Helper()
 	if err := store.ApplyProviderSnapshot(ctx, SourceEntra, ProviderSnapshot{
@@ -47,7 +58,7 @@ func seedGroups(t *testing.T, ctx context.Context, store *Store) {
 		Users: []ProviderUser{
 			{
 				ExternalID:        "u-alice",
-				UserPrincipalName: "alice@example.edu",
+				UserPrincipalName: "alice@example.invalid",
 				DisplayName:       "Alice Engineering",
 				Department:        "Engineering",
 				Enabled:           true,
@@ -55,7 +66,7 @@ func seedGroups(t *testing.T, ctx context.Context, store *Store) {
 			},
 			{
 				ExternalID:        "u-bob",
-				UserPrincipalName: "bob@example.edu",
+				UserPrincipalName: "bob@example.invalid",
 				DisplayName:       "Bob Operations",
 				Department:        "Operations",
 				Enabled:           true,

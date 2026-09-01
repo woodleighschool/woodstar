@@ -35,8 +35,8 @@ func TestClientFetchUsesGraphPagingAndBatchMembership(t *testing.T) {
 	wantUsers := []directory.ProviderUser{
 		{
 			ExternalID:        "u-1",
-			UserPrincipalName: "one@example.com",
-			Mail:              "one@example.com",
+			UserPrincipalName: "one@example.invalid",
+			Mail:              "one@example.invalid",
 			MailNickname:      "one",
 			DisplayName:       "One",
 			GivenName:         "User",
@@ -47,7 +47,7 @@ func TestClientFetchUsesGraphPagingAndBatchMembership(t *testing.T) {
 		},
 		{
 			ExternalID:        "u-2",
-			UserPrincipalName: "two@example.com",
+			UserPrincipalName: "two@example.invalid",
 			DisplayName:       "Two",
 			Enabled:           false,
 			GroupExternalIDs:  []string{"g-2"},
@@ -90,7 +90,7 @@ func (f *graphFetchTransport) users(req *http.Request) *http.Response {
 		return jsonResponse(map[string]any{
 			"value": []map[string]any{{
 				"id":                "u-2",
-				"userPrincipalName": "two@example.com",
+				"userPrincipalName": "two@example.invalid",
 				"displayName":       "Two",
 				"accountEnabled":    false,
 			}},
@@ -111,8 +111,8 @@ func (f *graphFetchTransport) users(req *http.Request) *http.Response {
 		"@odata.nextLink": f.baseURL + "/users?$select=id,userPrincipalName,mail,mailNickname,displayName,givenName,surname,department,accountEnabled&$top=999&$skiptoken=users-2",
 		"value": []map[string]any{{
 			"id":                "u-1",
-			"userPrincipalName": "one@example.com",
-			"mail":              "one@example.com",
+			"userPrincipalName": "one@example.invalid",
+			"mail":              "one@example.invalid",
 			"mailNickname":      "one",
 			"displayName":       "One",
 			"givenName":         "User",
@@ -191,7 +191,7 @@ func TestClientFetchUsesTransitiveGroupRelationship(t *testing.T) {
 			return jsonResponse(map[string]any{
 				"value": []map[string]any{{
 					"id":                "u-1",
-					"userPrincipalName": "one@example.com",
+					"userPrincipalName": "one@example.invalid",
 					"displayName":       "One",
 				}},
 			}), nil

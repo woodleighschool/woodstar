@@ -8,7 +8,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/fault"
 )
 
-// UserService owns user management and app-access policy.
+// UserService owns user management and application access.
 type UserService struct {
 	store *Store
 }
@@ -28,6 +28,10 @@ func (s *UserService) GetSSOByEmail(ctx context.Context, email string) (*User, e
 
 func (s *UserService) Get(ctx context.Context, id int64) (*User, error) {
 	return s.store.GetUserByID(ctx, id)
+}
+
+func (s *UserService) GetByAPIKey(ctx context.Context, key string) (*User, error) {
+	return s.store.GetUserByAPIKey(ctx, key)
 }
 
 func (s *UserService) List(ctx context.Context, params UserListParams) ([]User, int, error) {
@@ -107,10 +111,6 @@ func (s *UserService) SetRoleByEmail(ctx context.Context, email string, role Rol
 		return nil, fmt.Errorf("%w: role must be one of admin viewer", fault.ErrInvalidInput)
 	}
 	return s.store.setUserRoleByEmail(ctx, email, role)
-}
-
-func (s *UserService) GetByAPIKey(ctx context.Context, key string) (*User, error) {
-	return s.store.GetUserByAPIKey(ctx, key)
 }
 
 // SetAccountAPIKey writes a generated API key to the user's account record.

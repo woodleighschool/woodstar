@@ -18,7 +18,7 @@ func (s *Store) GetGroupByID(ctx context.Context, id int64) (*Group, error) {
 	group, err := postgres.GetOne[Group](ctx, s.pool, groupSelectSQL()+`WHERE g.id = $1
 GROUP BY g.id`, id)
 	if err != nil {
-		return nil, err
+		return nil, postgres.GetError(err)
 	}
 	return &group, nil
 }

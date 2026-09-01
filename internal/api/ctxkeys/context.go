@@ -23,7 +23,7 @@ func User(ctx context.Context) (*directory.User, bool) {
 	return user, ok && user != nil
 }
 
-// RequireUser returns the authenticated user regardless of role.
+// RequireUser returns the authenticated user regardless of authorization grants.
 func RequireUser(ctx context.Context) (*directory.User, error) {
 	user, ok := User(ctx)
 	if !ok {

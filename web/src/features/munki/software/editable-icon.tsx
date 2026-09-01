@@ -31,7 +31,7 @@ const MUNKI_ICON_ACCEPT = "image/png,image/jpeg,image/webp,image/x-icns,.icns";
 export type MunkiSoftwareIconValue =
   | { kind: "none" }
   | { kind: "stored"; objectID: number; filename: string; url: string }
-  | { kind: "upload"; file: File };
+  | { kind: "upload"; file: File; url: string };
 
 interface EditableMunkiIconProps {
   value: MunkiSoftwareIconValue;
@@ -40,20 +40,17 @@ interface EditableMunkiIconProps {
 
 export function EditableMunkiIcon({ value, onChange }: EditableMunkiIconProps) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [previewURL, setPreviewURL] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
-  const displayURL = value.kind === "stored" ? value.url : previewURL;
+  const displayURL = value.kind === "stored" || value.kind === "upload" ? value.url : "";
+  const uploadPreviewURL = value.kind === "upload" ? value.url : null;
   const hasIcon = value.kind !== "none";
 
-  useEffect(() => {
-    if (value.kind !== "upload") {
-      setPreviewURL("");
-      return undefined;
-    }
-    const url = URL.createObjectURL(value.file);
-    setPreviewURL(url);
-    return () => URL.revokeObjectURL(url);
-  }, [value]);
+  useEffect(
+    () => () => {
+      if (uploadPreviewURL) URL.revokeObjectURL(uploadPreviewURL);
+    },
+    [uploadPreviewURL],
+  );
 
   function resetInput() {
     if (inputRef.current) {
@@ -73,7 +70,7 @@ export function EditableMunkiIcon({ value, onChange }: EditableMunkiIconProps) {
             const next = event.target.files?.[0] ?? null;
             resetInput();
             if (next) {
-              onChange({ kind: "upload", file: next });
+              onChange({ kind: "upload", file: next, url: URL.createObjectURL(next) });
               setPickerOpen(false);
             }
           }}

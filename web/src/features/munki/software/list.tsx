@@ -118,6 +118,7 @@ export function MunkiSoftwareListPage() {
   });
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
+  const bulkDelete = useBulkDeleteMunkiSoftware();
   const [deleting, setDeleting] = React.useState<MunkiSoftware | null>(null);
   const query = useMunkiSoftware({
     q: tableSearch.q,
@@ -169,7 +170,7 @@ export function MunkiSoftwareListPage() {
             isAdmin ? (
               <BulkDeleteActionBar
                 table={table}
-                useBulkDelete={useBulkDeleteMunkiSoftware}
+                bulkDelete={bulkDelete}
                 noun="software"
                 pluralNoun="software"
                 description="Packages and targeting for the selected software will also be removed."

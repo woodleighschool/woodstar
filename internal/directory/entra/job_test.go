@@ -21,6 +21,22 @@ func TestSyncWorkerSnoozesWhileAnotherReplicaIsSyncing(t *testing.T) {
 	}
 }
 
+func TestDisabledSyncReportsIdleAndRejectsTrigger(t *testing.T) {
+	jobs := NewSyncJobs(false, nil)
+
+	status, err := jobs.Status(t.Context())
+	if err != nil {
+		t.Fatalf("Status() error = %v", err)
+	}
+	if status.Enabled || status.Activity != "idle" {
+		t.Fatalf("Status() = %+v, want disabled and idle", status)
+	}
+
+	if _, err := jobs.Trigger(t.Context()); !errors.Is(err, ErrSyncDisabled) {
+		t.Fatalf("Trigger() error = %v, want ErrSyncDisabled", err)
+	}
+}
+
 type busySyncLocker struct{}
 
 func (busySyncLocker) Try(context.Context, func(context.Context) error) (bool, error) {

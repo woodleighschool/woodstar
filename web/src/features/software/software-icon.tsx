@@ -1,6 +1,6 @@
 import { Package, Puzzle } from "lucide-react";
 import type { ElementType } from "react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { siApple, siGooglechrome, type SimpleIcon as SimpleIconData } from "simple-icons";
 
 import { cn } from "@lib/utils";
@@ -97,10 +97,6 @@ export function SoftwareArtwork({
   loading = "lazy",
 }: SoftwareArtworkProps) {
   const [failedSrc, setFailedSrc] = useState<string>();
-
-  useEffect(() => {
-    setFailedSrc(undefined);
-  }, [src]);
 
   if (!src || failedSrc === src) {
     return <SoftwareIcon icon={fallbackIcon} size={size} className={className} />;

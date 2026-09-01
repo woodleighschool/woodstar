@@ -74,7 +74,7 @@ const policyStatusTooltipLabelFormatter: NonNullable<
 export function PolicyStatusChart({ policyID }: { policyID: number }) {
   const [range, setRange] = useState<HistoryRange>("24h");
   const history = usePolicyStatusHistory(policyID, range);
-  const bounds = historyBounds(range, history.dataUpdatedAt || Date.now());
+  const bounds = historyBounds(range, history.dataUpdatedAt);
   const points = history.data?.map(toPolicyStatusChartPoint);
   const latest = points?.at(-1);
 

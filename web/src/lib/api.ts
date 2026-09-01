@@ -8,6 +8,7 @@ client.setConfig({
   credentials: "same-origin",
   querySerializer: { array: { style: "form", explode: false } },
 });
+
 client.interceptors.request.use((request) => {
   if (!request.headers.has("Accept")) {
     request.headers.set("Accept", "application/json");

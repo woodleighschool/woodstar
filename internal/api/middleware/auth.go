@@ -20,8 +20,8 @@ type Authenticator interface {
 }
 
 // OptionalHumaAuth attaches a user to the Huma context when credentials are
-// present and valid. Missing credentials are allowed; invalid or broken
-// credentials keep their normal auth failure semantics.
+// present and valid. Missing credentials are allowed; other failures reject
+// the request.
 func OptionalHumaAuth(api huma.API, authenticator Authenticator) func(huma.Context, func(huma.Context)) {
 	return func(ctx huma.Context, next func(huma.Context)) {
 		user, err := authenticator.Authenticate(ctx.Context(), ctx.Header("Authorization"))

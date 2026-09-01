@@ -70,7 +70,7 @@ const hostStatusTooltipLabelFormatter: NonNullable<
 export function HostStatusChart() {
   const [range, setRange] = useState<HistoryRange>("24h");
   const history = useHostStatusHistory(range);
-  const bounds = historyBounds(range, history.dataUpdatedAt || Date.now());
+  const bounds = historyBounds(range, history.dataUpdatedAt);
   const points = history.data?.map(toHostStatusChartPoint);
   const latest = points?.at(-1);
 

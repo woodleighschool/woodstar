@@ -32,7 +32,7 @@ export function DataTableSearchInput({
     setDraft(value);
   }
 
-  const write = useDebouncedCallback((nextValue: string) => {
+  const { run: write } = useDebouncedCallback((nextValue: string) => {
     const trimmed = nextValue.trim();
     onValueChange(trimmed === "" ? undefined : trimmed);
   }, debounceMs);

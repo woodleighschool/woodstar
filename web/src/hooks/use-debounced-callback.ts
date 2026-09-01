@@ -19,5 +19,5 @@ export function useDebouncedCallback<T extends (...args: never[]) => unknown>(
     [cancel, handleCallback, delay],
   );
 
-  return React.useMemo(() => Object.assign(setValue, { cancel }), [cancel, setValue]);
+  return React.useMemo(() => ({ run: setValue, cancel }), [cancel, setValue]);
 }

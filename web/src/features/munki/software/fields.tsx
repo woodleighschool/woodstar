@@ -266,6 +266,7 @@ function munkiSoftwareFormSchema() {
       z.object({
         kind: z.literal("upload"),
         file: z.custom<File>((value) => value instanceof File),
+        url: z.string().min(1),
       }),
     ]),
     targets: z.object({

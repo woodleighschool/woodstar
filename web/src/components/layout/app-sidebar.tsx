@@ -1,6 +1,6 @@
 import { useRouterState } from "@tanstack/react-router";
 import { ChevronRight, ChevronsUpDown, History, LogOut, User as UserIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { type NavItem, type NavMenu, navSections } from "@components/layout/nav-config";
 import { Link } from "@components/link";
@@ -57,6 +57,7 @@ export function AppSidebar() {
     </Sidebar>
   );
 }
+
 function SidebarBrand() {
   return (
     <SidebarMenu>
@@ -92,11 +93,7 @@ function SidebarNavItem({ item, pathname }: { item: NavItem; pathname: string })
   const active = isActivePath(pathname, item);
   const collapsedOverviewTarget =
     state === "collapsed" && !isMobile && !item.disabled ? item.to : undefined;
-  const [open, setOpen] = useState(active);
-
-  useEffect(() => {
-    if (active) setOpen(true);
-  }, [active]);
+  const [manuallyOpen, setManuallyOpen] = useState(false);
 
   if (item.items?.length) {
     if (collapsedOverviewTarget) {
@@ -116,8 +113,8 @@ function SidebarNavItem({ item, pathname }: { item: NavItem; pathname: string })
 
     return (
       <Collapsible
-        open={open}
-        onOpenChange={setOpen}
+        open={active || manuallyOpen}
+        onOpenChange={setManuallyOpen}
         className="group/collapsible"
         render={<SidebarMenuItem />}
       >

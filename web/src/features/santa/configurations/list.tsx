@@ -64,6 +64,7 @@ export function ConfigurationListPage() {
   });
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
+  const bulkDelete = useBulkDeleteSantaConfigurations();
   const [reorderEnabled, setReorderEnabled] = React.useState(false);
   const [reorderWarningOpen, setReorderWarningOpen] = React.useState(false);
   const [deleting, setDeleting] = React.useState<SantaConfiguration | null>(null);
@@ -166,7 +167,7 @@ export function ConfigurationListPage() {
             isAdmin ? (
               <BulkDeleteActionBar
                 table={table}
-                useBulkDelete={useBulkDeleteSantaConfigurations}
+                bulkDelete={bulkDelete}
                 noun="configuration"
                 description="Deleted configurations stop applying."
               />

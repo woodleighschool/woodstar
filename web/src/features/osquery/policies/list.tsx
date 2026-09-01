@@ -56,6 +56,7 @@ export function PolicyListPage() {
   });
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
+  const bulkDelete = useBulkDeletePolicies();
   const [deleting, setDeleting] = useState<OsqueryPolicy | null>(null);
   const query = usePolicies({
     q: tableSearch.q,
@@ -106,11 +107,7 @@ export function PolicyListPage() {
           pending={query.isPlaceholderData}
           actionBar={
             isAdmin ? (
-              <BulkDeleteActionBar
-                table={table}
-                useBulkDelete={useBulkDeletePolicies}
-                noun="policy"
-              />
+              <BulkDeleteActionBar table={table} bulkDelete={bulkDelete} noun="policy" />
             ) : undefined
           }
           empty={

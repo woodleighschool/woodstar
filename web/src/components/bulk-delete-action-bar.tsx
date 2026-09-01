@@ -21,13 +21,13 @@ interface BulkDeleteMutation {
 
 export function BulkDeleteActionBar<TRow extends { id: number }>({
   table,
-  useBulkDelete,
+  bulkDelete,
   noun,
   pluralNoun,
   description,
 }: {
   table: DataTableInstance<TRow>;
-  useBulkDelete: () => BulkDeleteMutation;
+  bulkDelete: BulkDeleteMutation;
   noun: string;
   pluralNoun?: string;
   description?: string;
@@ -35,7 +35,6 @@ export function BulkDeleteActionBar<TRow extends { id: number }>({
   const rows = table.getFilteredSelectedRowModel().rows;
   const ids = useMemo(() => rows.map((row) => row.original.id), [rows]);
   const [open, setOpen] = useState(false);
-  const bulkDelete = useBulkDelete();
   const onConfirm = () => {
     const count = ids.length;
     bulkDelete.mutate(ids, {

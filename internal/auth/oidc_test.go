@@ -3,11 +3,46 @@ package auth
 import (
 	"context"
 	"errors"
+	"net/url"
 	"testing"
 
 	"github.com/alexedwards/scs/v2"
 	"github.com/alexedwards/scs/v2/memstore"
+	"golang.org/x/oauth2"
 )
+
+func TestBeginSSOBindsStateAndNonceToSession(t *testing.T) {
+	sessions := scs.New()
+	sessions.Store = memstore.New()
+	ctx, err := sessions.Load(t.Context(), "")
+	if err != nil {
+		t.Fatalf("load session: %v", err)
+	}
+	service := &Service{
+		sessions: sessions,
+		oidc: &oidcProvider{oauth2: &oauth2.Config{
+			ClientID: "client-id",
+			Endpoint: oauth2.Endpoint{AuthURL: "https://identity.example.invalid/authorize"},
+		}},
+	}
+
+	authURL, err := service.BeginSSO(ctx)
+	if err != nil {
+		t.Fatalf("BeginSSO() error = %v", err)
+	}
+	parsed, err := url.Parse(authURL)
+	if err != nil {
+		t.Fatalf("parse authorization URL: %v", err)
+	}
+	state := sessions.GetString(ctx, ssoStateSessionKey)
+	nonce := sessions.GetString(ctx, ssoNonceSessionKey)
+	if state == "" || parsed.Query().Get("state") != state {
+		t.Fatalf("authorization state = %q, session state = %q", parsed.Query().Get("state"), state)
+	}
+	if nonce == "" || parsed.Query().Get("nonce") != nonce {
+		t.Fatalf("authorization nonce = %q, session nonce = %q", parsed.Query().Get("nonce"), nonce)
+	}
+}
 
 func TestCompleteSSORejectsMissingSessionNonce(t *testing.T) {
 	sessions := scs.New()

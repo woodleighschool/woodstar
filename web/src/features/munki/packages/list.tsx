@@ -129,6 +129,7 @@ export function MunkiPackageListPage() {
   });
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
+  const bulkDelete = useBulkDeleteMunkiPackages();
   const [deleting, setDeleting] = React.useState<MunkiPackage | null>(null);
   const packageTypes = search.type ?? [];
   const query = useMunkiPackages({
@@ -181,7 +182,7 @@ export function MunkiPackageListPage() {
             isAdmin ? (
               <BulkDeleteActionBar
                 table={table}
-                useBulkDelete={useBulkDeleteMunkiPackages}
+                bulkDelete={bulkDelete}
                 noun="package"
                 description="Packages still referenced by targeting or other packages cannot be deleted."
               />

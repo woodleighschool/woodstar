@@ -51,6 +51,7 @@ export function HostListPage() {
   });
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
+  const bulkDelete = useBulkDeleteHosts();
   const [enrollmentOpen, setEnrollmentOpen] = React.useState(false);
   const softwareID = search.software_title_id === undefined ? undefined : search.software_id;
 
@@ -164,7 +165,7 @@ export function HostListPage() {
             isAdmin ? (
               <BulkDeleteActionBar
                 table={table}
-                useBulkDelete={useBulkDeleteHosts}
+                bulkDelete={bulkDelete}
                 noun="host"
                 description="Agents can re-enroll with a valid host enrollment secret."
               />

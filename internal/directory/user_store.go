@@ -22,6 +22,7 @@ type derivedLabelRefresher interface {
 	RefreshDerivedTx(ctx context.Context, tx pgx.Tx) error
 }
 
+// NewStore returns a directory store backed by pool.
 func NewStore(pool *pgxpool.Pool, labelRefresher derivedLabelRefresher) *Store {
 	return &Store{pool: pool, labels: labelRefresher}
 }

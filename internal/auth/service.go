@@ -22,14 +22,25 @@ var (
 
 // Service owns login and authenticated-user lookup.
 type Service struct {
-	users     *directory.UserService
+	users     UserDirectory
 	sessions  *scs.SessionManager
 	dummyHash string
 	oidc      *oidcProvider
 }
 
+// UserDirectory is the user data authentication consumes.
+type UserDirectory interface {
+	Get(context.Context, int64) (*directory.User, error)
+	GetAccount(context.Context, int64) (*directory.Account, error)
+	GetByAPIKey(context.Context, string) (*directory.User, error)
+	GetLoginByEmail(context.Context, string) (*directory.User, error)
+	GetSSOByEmail(context.Context, string) (*directory.User, error)
+	SetAccountAPIKey(context.Context, int64, string) (*directory.Account, error)
+	ClearAccountAPIKey(context.Context, int64) (*directory.Account, error)
+}
+
 // NewService wires authentication to users and sessions.
-func NewService(users *directory.UserService, sessions *scs.SessionManager) (*Service, error) {
+func NewService(users UserDirectory, sessions *scs.SessionManager) (*Service, error) {
 	dummyHash, err := directory.HashPassword("woodstar-dummy-password")
 	if err != nil {
 		return nil, fmt.Errorf("hash dummy password: %w", err)
@@ -77,10 +88,9 @@ func (s *Service) CurrentUser(ctx context.Context) (*directory.User, error) {
 	return user, nil
 }
 
-// Authenticate resolves the caller from either a Bearer API key in
-// authHeader or, when authHeader is empty or malformed, the session cookie
-// already loaded into ctx by SCS middleware. Returns ErrNotAuthenticated for
-// both missing and bad credentials.
+// Authenticate resolves the caller from either a Bearer API key in authHeader
+// or the session loaded into ctx. It returns ErrNotAuthenticated for missing or
+// invalid credentials.
 func (s *Service) Authenticate(ctx context.Context, authHeader string) (*directory.User, error) {
 	if token, ok := httpx.BearerToken(authHeader); ok {
 		return s.userByAPIKey(ctx, token)

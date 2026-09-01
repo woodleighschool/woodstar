@@ -130,6 +130,7 @@ export function RuleListPage() {
   });
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
+  const bulkDelete = useBulkDeleteSantaRules();
   const [deleting, setDeleting] = useState<SantaRule | null>(null);
   const ruleType = search.rule_type;
   const query = useSantaRules({
@@ -191,7 +192,7 @@ export function RuleListPage() {
             isAdmin ? (
               <BulkDeleteActionBar
                 table={table}
-                useBulkDelete={useBulkDeleteSantaRules}
+                bulkDelete={bulkDelete}
                 noun="rule"
                 description="Deleted rules stop syncing."
               />

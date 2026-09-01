@@ -38,13 +38,8 @@ export function RuleNameCombobox({
   const input = value.trim();
   const [q, setQ] = useState(input);
   const [selectedName, setSelectedName] = useState<string | null>(null);
-  const updateQuery = useDebouncedCallback((next: string) => setQ(next), 200);
+  const { run: updateQuery } = useDebouncedCallback((next: string) => setQ(next), 200);
   useEffect(() => {
-    if (input === "") {
-      updateQuery.cancel();
-      setQ("");
-      return;
-    }
     updateQuery(input);
   }, [input, updateQuery]);
 

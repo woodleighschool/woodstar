@@ -81,7 +81,7 @@ func oidcUserMessage(err error) string {
 	case errors.Is(err, auth.ErrSSONonceMismatch):
 		return "sso nonce mismatch; try again"
 	case errors.Is(err, auth.ErrSSOUnknownUser):
-		return "no woodstar account for this identity"
+		return "no account for this identity"
 	case errors.Is(err, auth.ErrSSOEmailClaimEmpty):
 		return "identity provider returned no email"
 	default:
