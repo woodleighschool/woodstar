@@ -4,7 +4,7 @@
 ARG DBIP_RELEASE=2026-08
 
 # ---- Go base --------------------------------------------------------------
-FROM --platform=$BUILDPLATFORM golang:1.27.0-alpine AS go-base
+FROM --platform=$BUILDPLATFORM golang:1.27.1-alpine AS go-base
 
 # ---- GeoIP databases -----------------------------------------------------
 FROM go-base AS geoip
