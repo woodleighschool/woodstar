@@ -3,7 +3,6 @@
 package mdp_test
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/woodleighschool/woodstar/internal/munki/mdp"
@@ -12,9 +11,8 @@ import (
 
 func TestSelectRedirectFallsBackWithoutEligiblePoint(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	store := newStore(db)
-	sha := strings.Repeat("a", 64)
-	pkg := seedAvailablePackage(t, ctx, db, "Chrome", sha, 4096)
+	store := newStore(t, db)
+	pkg, sha := seedAvailablePackage(t, ctx, db, "Chrome", 4096)
 	point, err := store.Create(ctx, pointMutation("Melbourne", []string{"10.0.0.0/8"}), "sel-key")
 	if err != nil {
 		t.Fatalf("Create: %v", err)

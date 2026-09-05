@@ -1,5 +1,6 @@
 import { revalidateLogic, useForm } from "@tanstack/react-form";
 import { useSelector } from "@tanstack/react-store";
+import type { UploadProgress } from "@woodleighschool/bloby-client";
 import { Brush, Trash2, Upload } from "lucide-react";
 import { useState } from "react";
 
@@ -12,7 +13,6 @@ import { Button } from "@components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@components/ui/tooltip";
 import { usePageFormExitGuard } from "@hooks/use-page-form-exit-guard";
 import type { MunkiObjectView } from "@lib/api";
-import type { UploadProgress } from "@lib/upload";
 
 import { ClientResourcesArchiveField } from "./archive-field";
 import { ClientResourcesEditor } from "./editor";

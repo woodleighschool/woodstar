@@ -7,12 +7,10 @@ import (
 	"strings"
 	"testing"
 	"testing/fstest"
-	"time"
 
 	"github.com/go-chi/chi/v5"
 
 	apimiddleware "github.com/woodleighschool/woodstar/internal/api/middleware"
-	"github.com/woodleighschool/woodstar/internal/storage"
 	"github.com/woodleighschool/woodstar/internal/webui"
 )
 
@@ -21,50 +19,18 @@ func TestSecurityHeadersProtectRenderedSPAForStorageBackend(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		storage    storage.Config
 		wantOrigin string
 	}{
-		{
-			name: "same-origin file transfers",
-			storage: storage.Config{
-				Kind:        storage.KindFile,
-				TransferTTL: time.Minute,
-				File: storage.FileConfig{
-					Root:             t.TempDir(),
-					BaseURL:          "https://woodstar.example",
-					CapabilityKeyHex: strings.Repeat("42", 32),
-				},
-			},
-			wantOrigin: "https://woodstar.example",
-		},
-		{
-			name: "cross-origin S3 transfers",
-			storage: storage.Config{
-				Kind:        storage.KindS3,
-				TransferTTL: time.Minute,
-				S3: storage.S3Config{
-					Bucket:    "woodstar",
-					Region:    "ap-southeast-2",
-					Endpoint:  "https://uploads.example",
-					AccessKey: "test-access-key",
-					SecretKey: "test-secret-key",
-					PathStyle: true,
-				},
-			},
-			wantOrigin: "https://uploads.example",
-		},
+		{name: "same-origin file transfers", wantOrigin: "https://woodstar.example"},
+		{name: "cross-origin S3 transfers", wantOrigin: "https://uploads.example"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			backend, err := storage.New(t.Context(), tt.storage)
-			if err != nil {
-				t.Fatalf("storage.New: %v", err)
-			}
 
 			router := chi.NewRouter()
-			router.Use(apimiddleware.SecurityHeaders(backend.TransferOrigin()))
+			router.Use(apimiddleware.SecurityHeaders(tt.wantOrigin))
 			webui.NewHandler(webui.HandlerOptions{
 				FS: fstest.MapFS{
 					"index.html": {Data: []byte("<!doctype html><html><head></head><body></body></html>")},

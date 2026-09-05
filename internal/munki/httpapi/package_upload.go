@@ -2,15 +2,14 @@ package httpapi
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
 
+	"github.com/woodleighschool/goodies/bloby"
 	"github.com/woodleighschool/woodstar/internal/api"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
-	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
 const munkiPackageInstallerPath = "/api/munki/package-installers"
@@ -34,25 +33,25 @@ type munkiPackageInstallerCompleteInput struct {
 }
 
 type munkiMultipartPartOutput struct {
-	Body MunkiMultipartPartTarget
+	Body bloby.UploadTarget
 }
 
 func registerPackageInstallerRoutes(
 	humaAPI huma.API,
 	longRunningAPI huma.API,
-	ingestor *storage.Ingestor,
+	objects *bloby.Service,
 	logger *slog.Logger,
 ) {
-	registerCreatePackageInstallerUploadRoute(humaAPI, ingestor, logger)
-	registerCompletePackageInstallerUploadRoute(longRunningAPI, ingestor, logger)
-	registerDeletePackageInstallerUploadRoute(humaAPI, ingestor, logger)
-	registerSignPackageInstallerPartRoute(humaAPI, ingestor, logger)
-	registerCompletePackageInstallerMultipartRoute(longRunningAPI, ingestor, logger)
+	registerCreatePackageInstallerUploadRoute(humaAPI, objects, logger)
+	registerCompletePackageInstallerUploadRoute(longRunningAPI, objects, logger)
+	registerDeletePackageInstallerUploadRoute(humaAPI, objects, logger)
+	registerSignPackageInstallerPartRoute(humaAPI, objects, logger)
+	registerCompletePackageInstallerMultipartRoute(longRunningAPI, objects, logger)
 }
 
 func registerCreatePackageInstallerUploadRoute(
 	humaAPI huma.API,
-	ingestor *storage.Ingestor,
+	objects *bloby.Service,
 	logger *slog.Logger,
 ) {
 	huma.Register(humaAPI, huma.Operation{
@@ -66,8 +65,8 @@ func registerCreatePackageInstallerUploadRoute(
 	}, func(
 		ctx context.Context,
 		input *munkiPackageInstallerCreateInput,
-	) (*munkiPackageInstallerUploadOutput, error) {
-		object, action, err := ingestor.Begin(
+	) (*munkiUploadOutput, error) {
+		object, action, err := objects.Begin(
 			ctx,
 			packages.ObjectPrefix,
 			input.Body.Filename,
@@ -78,23 +77,13 @@ func registerCreatePackageInstallerUploadRoute(
 				ctx, logger, "create-munki-package-installer-upload", munkiUploadLabel, err,
 			)
 		}
-		switch action := action.(type) {
-		case storage.DirectUploadAction:
-			return newMunkiPackageInstallerDirectUploadOutput(object, action.Target), nil
-		case storage.MultipartUploadAction:
-			return newMunkiPackageInstallerMultipartUploadOutput(object), nil
-		default:
-			return nil, api.ResourceError(
-				ctx, logger, "create-munki-package-installer-upload", munkiUploadLabel,
-				fmt.Errorf("storage returned unsupported upload action %T", action),
-			)
-		}
+		return newMunkiUploadOutput(object, action), nil
 	})
 }
 
 func registerCompletePackageInstallerUploadRoute(
 	humaAPI huma.API,
-	ingestor *storage.Ingestor,
+	objects *bloby.Service,
 	logger *slog.Logger,
 ) {
 	huma.Register(humaAPI, huma.Operation{
@@ -105,7 +94,7 @@ func registerCompletePackageInstallerUploadRoute(
 		Summary:     "Complete a package installer upload",
 		Errors:      []int{http.StatusBadRequest, http.StatusNotFound},
 	}, func(ctx context.Context, input *munkiPackageInstallerInput) (*munkiObjectOutput, error) {
-		object, err := finalizeMunkiUpload(ctx, ingestor, packages.ObjectPrefix, input.ID)
+		object, err := finalizeMunkiUpload(ctx, objects, packages.ObjectPrefix, input.ID)
 		if err != nil {
 			return nil, api.ResourceError(
 				ctx, logger, "complete-munki-package-installer-upload", munkiUploadLabel, err,
@@ -119,7 +108,7 @@ func registerCompletePackageInstallerUploadRoute(
 
 func registerDeletePackageInstallerUploadRoute(
 	humaAPI huma.API,
-	ingestor *storage.Ingestor,
+	objects *bloby.Service,
 	logger *slog.Logger,
 ) {
 	huma.Register(humaAPI, huma.Operation{
@@ -131,7 +120,7 @@ func registerDeletePackageInstallerUploadRoute(
 		DefaultStatus: http.StatusNoContent,
 		Errors:        []int{http.StatusBadRequest, http.StatusNotFound, http.StatusConflict},
 	}, func(ctx context.Context, input *munkiPackageInstallerInput) (*struct{}, error) {
-		if err := ingestor.Delete(ctx, input.ID, packages.ObjectPrefix); err != nil {
+		if err := objects.Delete(ctx, input.ID, packages.ObjectPrefix); err != nil {
 			return nil, api.ResourceError(
 				ctx, logger, "delete-munki-package-installer-upload", munkiUploadLabel, err,
 				"object_id", input.ID,
@@ -143,7 +132,7 @@ func registerDeletePackageInstallerUploadRoute(
 
 func registerSignPackageInstallerPartRoute(
 	humaAPI huma.API,
-	ingestor *storage.Ingestor,
+	objects *bloby.Service,
 	logger *slog.Logger,
 ) {
 	huma.Register(humaAPI, huma.Operation{
@@ -154,7 +143,7 @@ func registerSignPackageInstallerPartRoute(
 		Summary:     "Sign a multipart upload part",
 		Errors:      []int{http.StatusBadRequest, http.StatusNotFound},
 	}, func(ctx context.Context, input *munkiPackageInstallerPartInput) (*munkiMultipartPartOutput, error) {
-		target, err := ingestor.PresignMultipartPart(
+		target, err := objects.PresignMultipartPart(
 			ctx, input.ID, packages.ObjectPrefix, input.PartNumber,
 		)
 		if err != nil {
@@ -163,17 +152,13 @@ func registerSignPackageInstallerPartRoute(
 				"object_id", input.ID, "part_number", input.PartNumber,
 			)
 		}
-		return &munkiMultipartPartOutput{Body: MunkiMultipartPartTarget{
-			URL:     target.URL,
-			Method:  target.Method,
-			Headers: target.Headers,
-		}}, nil
+		return &munkiMultipartPartOutput{Body: target}, nil
 	})
 }
 
 func registerCompletePackageInstallerMultipartRoute(
 	humaAPI huma.API,
-	ingestor *storage.Ingestor,
+	objects *bloby.Service,
 	logger *slog.Logger,
 ) {
 	huma.Register(humaAPI, huma.Operation{
@@ -185,11 +170,7 @@ func registerCompletePackageInstallerMultipartRoute(
 		DefaultStatus: http.StatusNoContent,
 		Errors:        []int{http.StatusBadRequest, http.StatusNotFound},
 	}, func(ctx context.Context, input *munkiPackageInstallerCompleteInput) (*struct{}, error) {
-		parts := make([]storage.CompletedPart, len(input.Body.Parts))
-		for i, part := range input.Body.Parts {
-			parts[i] = storage.CompletedPart{PartNumber: part.PartNumber, ETag: part.ETag}
-		}
-		if err := ingestor.CompleteMultipart(ctx, input.ID, packages.ObjectPrefix, parts); err != nil {
+		if err := objects.CompleteMultipart(ctx, input.ID, packages.ObjectPrefix, input.Body.Parts); err != nil {
 			return nil, api.ResourceError(
 				ctx, logger, "complete-munki-package-installer-multipart", munkiUploadLabel, err,
 				"object_id", input.ID,

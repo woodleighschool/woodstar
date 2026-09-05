@@ -155,6 +155,21 @@ components:
         - organizational_unit
         - common_name
       type: object
+    CompletedPart:
+      additionalProperties: false
+      properties:
+        etag:
+          minLength: 1
+          type: string
+        part_number:
+          format: int32
+          maximum: 10000
+          minimum: 1
+          type: integer
+      required:
+        - part_number
+        - etag
+      type: object
     Criteria:
       additionalProperties: false
       properties:
@@ -1052,28 +1067,6 @@ components:
         - name
         - targets
       type: object
-    MunkiDirectUploadAction:
-      additionalProperties: false
-      properties:
-        headers:
-          additionalProperties:
-            type: string
-          type: object
-        method:
-          enum:
-            - PUT
-          type: string
-        strategy:
-          enum:
-            - direct-put
-          type: string
-        url:
-          type: string
-      required:
-        - strategy
-        - url
-        - method
-      type: object
     MunkiDirectUploadRequest:
       additionalProperties: false
       properties:
@@ -1081,18 +1074,6 @@ components:
           type: string
       required:
         - filename
-      type: object
-    MunkiDirectUploadTarget:
-      additionalProperties: false
-      properties:
-        object_id:
-          format: int64
-          type: integer
-        upload:
-          $ref: "#/components/schemas/MunkiDirectUploadAction"
-      required:
-        - object_id
-        - upload
       type: object
     MunkiDistributionPoint:
       additionalProperties: false
@@ -1413,53 +1394,11 @@ components:
       properties:
         parts:
           items:
-            $ref: "#/components/schemas/MunkiMultipartCompletedPart"
+            $ref: "#/components/schemas/CompletedPart"
           minItems: 1
           type: array
       required:
         - parts
-      type: object
-    MunkiMultipartCompletedPart:
-      additionalProperties: false
-      properties:
-        etag:
-          minLength: 1
-          type: string
-        part_number:
-          format: int32
-          maximum: 10000
-          minimum: 1
-          type: integer
-      required:
-        - part_number
-        - etag
-      type: object
-    MunkiMultipartPartTarget:
-      additionalProperties: false
-      properties:
-        headers:
-          additionalProperties:
-            type: string
-          type: object
-        method:
-          enum:
-            - PUT
-          type: string
-        url:
-          type: string
-      required:
-        - url
-        - method
-      type: object
-    MunkiMultipartUploadAction:
-      additionalProperties: false
-      properties:
-        strategy:
-          enum:
-            - multipart
-          type: string
-      required:
-        - strategy
       type: object
     MunkiObjectMutation:
       additionalProperties: false
@@ -1899,25 +1838,6 @@ components:
         - filename
         - size_bytes
       type: object
-    MunkiPackageInstallerUploadTarget:
-      additionalProperties: false
-      properties:
-        object_id:
-          format: int64
-          type: integer
-        upload:
-          discriminator:
-            mapping:
-              direct-put: "#/components/schemas/MunkiDirectUploadAction"
-              multipart: "#/components/schemas/MunkiMultipartUploadAction"
-            propertyName: strategy
-          oneOf:
-            - $ref: "#/components/schemas/MunkiDirectUploadAction"
-            - $ref: "#/components/schemas/MunkiMultipartUploadAction"
-      required:
-        - object_id
-        - upload
-      type: object
     MunkiPackageItemToCopy:
       additionalProperties: false
       properties:
@@ -2349,6 +2269,39 @@ components:
           $ref: "#/components/schemas/MunkiTargets"
       required:
         - targets
+      type: object
+    MunkiUploadTarget:
+      additionalProperties: false
+      properties:
+        object_id:
+          format: int64
+          type: integer
+        upload:
+          oneOf:
+            - additionalProperties: false
+              properties:
+                strategy:
+                  enum:
+                    - direct-put
+                  type: string
+                target:
+                  $ref: "#/components/schemas/UploadTarget"
+              required:
+                - strategy
+                - target
+              type: object
+            - additionalProperties: false
+              properties:
+                strategy:
+                  enum:
+                    - multipart
+                  type: string
+              required:
+                - strategy
+              type: object
+      required:
+        - object_id
+        - upload
       type: object
     OsqueryHandle:
       additionalProperties: false
@@ -4261,6 +4214,23 @@ components:
       required:
         - enabled
         - activity
+      type: object
+    UploadTarget:
+      additionalProperties: false
+      properties:
+        headers:
+          additionalProperties:
+            type: string
+          type: object
+        method:
+          enum:
+            - PUT
+          type: string
+        url:
+          type: string
+      required:
+        - url
+        - method
       type: object
     User:
       additionalProperties: false
@@ -6373,7 +6343,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/MunkiDirectUploadTarget"
+                $ref: "#/components/schemas/MunkiUploadTarget"
           description: Created
         "400":
           content:
@@ -6486,7 +6456,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/MunkiDirectUploadTarget"
+                $ref: "#/components/schemas/MunkiUploadTarget"
           description: Created
         "400":
           content:
@@ -7194,7 +7164,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/MunkiDirectUploadTarget"
+                $ref: "#/components/schemas/MunkiUploadTarget"
           description: Created
         "400":
           content:
@@ -7246,7 +7216,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/MunkiPackageInstallerUploadTarget"
+                $ref: "#/components/schemas/MunkiUploadTarget"
           description: Created
         "400":
           content:
@@ -7487,7 +7457,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/MunkiMultipartPartTarget"
+                $ref: "#/components/schemas/UploadTarget"
           description: OK
         "400":
           content:

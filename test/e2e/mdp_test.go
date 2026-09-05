@@ -280,29 +280,29 @@ func createMDPInstaller(
 		},
 	)
 	created = requireAPIResponse(t, "create package installer", http.StatusCreated, created, err)
-	upload := directPackageInstallerUpload(t, created.JSON201)
-	if created.JSON201.ObjectId <= 0 || upload.Url == "" || upload.Method != http.MethodPut ||
+	upload := directUpload(t, created.JSON201)
+	if created.JSON201.ObjectId <= 0 || upload.Target.Url == "" || upload.Target.Method != http.MethodPut ||
 		upload.Strategy != "direct-put" {
 		t.Fatalf(
 			"installer upload target object/method/strategy/has URL = %d/%q/%q/%t, want positive object, PUT, direct-put, and URL",
 			created.JSON201.ObjectId,
-			upload.Method,
+			upload.Target.Method,
 			upload.Strategy,
-			upload.Url != "",
+			upload.Target.Url != "",
 		)
 	}
 
 	uploadRequest, err := http.NewRequestWithContext(
 		t.Context(),
-		string(upload.Method),
-		upload.Url,
+		string(upload.Target.Method),
+		upload.Target.Url,
 		bytes.NewReader(contents),
 	)
 	if err != nil {
 		t.Fatalf("create installer upload request: %v", redactedRequestError(err))
 	}
-	if upload.Headers != nil {
-		for name, value := range *upload.Headers {
+	if upload.Target.Headers != nil {
+		for name, value := range *upload.Target.Headers {
 			uploadRequest.Header.Set(name, value)
 		}
 	}

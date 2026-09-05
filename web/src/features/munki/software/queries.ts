@@ -12,7 +12,7 @@ import { useUpload } from "@hooks/use-upload";
 import type {
   ApiError,
   MunkiCreateMutation,
-  MunkiDirectUploadTarget,
+  MunkiUploadTarget,
   MunkiObjectView,
   MunkiSoftwareDetail,
   MunkiUpdateMutation,
@@ -124,14 +124,15 @@ export function useMunkiIcons(enabled = true) {
 
 export function useUploadMunkiIcon() {
   const queryClient = useQueryClient();
-  return useUpload<MunkiDirectUploadTarget, MunkiObjectView, IconUploadVariables>({
+  return useUpload<MunkiUploadTarget, MunkiObjectView, IconUploadVariables>({
     mutationKey: ["munki-icon-upload"],
     loadingText: "Uploading Icon",
     successText: "Icon Uploaded",
     errorSurface: "inline",
-    createIntent: ({ file }) => unwrap(createMunkiIconUpload({ body: { filename: file.name } })),
+    createIntent: ({ file }, signal) =>
+      unwrap(createMunkiIconUpload({ body: { filename: file.name }, signal })),
     uploadRequest: uploadRequestFromTarget,
-    completeUpload: (intent, { softwareId }, _transfer, signal) =>
+    completeUpload: (intent, { softwareId }, signal) =>
       unwrap(
         setMunkiSoftwareIcon({
           path: { id: softwareId },

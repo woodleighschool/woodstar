@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/woodleighschool/woodstar/internal/fault"
+	"github.com/woodleighschool/goodies/bloby"
 )
 
 const uploadCleanupTimeout = 15 * time.Second
@@ -19,8 +19,8 @@ func cleanupUploads(ctx context.Context, uploads uploadCleaner, prefix string, i
 	defer cancel()
 	for _, id := range ids {
 		if err := uploads.Delete(cleanupCtx, id, prefix); err != nil &&
-			!errors.Is(err, fault.ErrConflict) &&
-			!errors.Is(err, fault.ErrNotFound) {
+			!errors.Is(err, bloby.ErrConflict) &&
+			!errors.Is(err, bloby.ErrNotFound) {
 			return err
 		}
 	}

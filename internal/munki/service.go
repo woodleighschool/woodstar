@@ -8,11 +8,11 @@ import (
 
 	"howett.net/plist"
 
+	"github.com/woodleighschool/goodies/bloby"
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/munki/clientresources"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
-	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
 const catalogName = "woodstar"
@@ -30,7 +30,7 @@ type packageResolver interface {
 }
 
 type objectResolver interface {
-	ListByIDs(ctx context.Context, objectIDs []int64) (map[int64]storage.Object, error)
+	ListByIDs(ctx context.Context, objectIDs []int64) (map[int64]bloby.Object, error)
 }
 
 type clientResourcesResolver interface {
@@ -122,7 +122,7 @@ func (s *RepositoryService) IconHashes(ctx context.Context, hostID int64) ([]byt
 type PackageInstaller struct {
 	PackageID             int64
 	InstallerItemLocation string
-	Object                storage.Object
+	Object                bloby.Object
 }
 
 // ResolvePackageFile resolves a package installer Munki path to the package
@@ -182,28 +182,28 @@ func (s *RepositoryService) ResolveIconFile(
 	ctx context.Context,
 	hostID int64,
 	key string,
-) (storage.Object, error) {
+) (bloby.Object, error) {
 	if key == "" {
-		return storage.Object{}, ErrNotFound
+		return bloby.Object{}, ErrNotFound
 	}
 	iconObjectID, ok := packages.ParseIconName(key)
 	if !ok {
-		return storage.Object{}, ErrNotFound
+		return bloby.Object{}, ErrNotFound
 	}
 	projection, err := s.projection(ctx, hostID)
 	if err != nil {
-		return storage.Object{}, err
+		return bloby.Object{}, err
 	}
 	if _, allowed := projection.iconObjectIDs[iconObjectID]; !allowed {
-		return storage.Object{}, ErrNotFound
+		return bloby.Object{}, ErrNotFound
 	}
 	objects, err := s.deps.Objects.ListByIDs(ctx, []int64{iconObjectID})
 	if err != nil {
-		return storage.Object{}, err
+		return bloby.Object{}, err
 	}
 	obj, ok := objects[iconObjectID]
 	if !ok || !obj.Available() || packages.IconName(obj) != key {
-		return storage.Object{}, ErrNotFound
+		return bloby.Object{}, ErrNotFound
 	}
 	return obj, nil
 }
@@ -213,22 +213,22 @@ func (s *RepositoryService) ResolveClientResources(
 	ctx context.Context,
 	_ int64,
 	_ string,
-) (storage.Object, error) {
+) (bloby.Object, error) {
 	const effectiveClientResourcesID int64 = 1
 	resource, err := s.deps.ClientResources.GetByID(ctx, effectiveClientResourcesID)
 	if errors.Is(err, fault.ErrNotFound) {
-		return storage.Object{}, ErrNotFound
+		return bloby.Object{}, ErrNotFound
 	}
 	if err != nil {
-		return storage.Object{}, err
+		return bloby.Object{}, err
 	}
 	objects, err := s.deps.Objects.ListByIDs(ctx, []int64{resource.ArchiveObjectID})
 	if err != nil {
-		return storage.Object{}, err
+		return bloby.Object{}, err
 	}
 	archive, ok := objects[resource.ArchiveObjectID]
 	if !ok || archive.Prefix != clientresources.ArchiveObjectPrefix || !archive.Available() {
-		return storage.Object{}, ErrNotFound
+		return bloby.Object{}, ErrNotFound
 	}
 	return archive, nil
 }
@@ -301,21 +301,21 @@ func (s *RepositoryService) catalogItems(
 func (s *RepositoryService) objectsForPackages(
 	ctx context.Context,
 	pkgs []packages.Package,
-) (map[int64]storage.Object, error) {
+) (map[int64]bloby.Object, error) {
 	ids := make([]int64, 0, len(pkgs)*2)
 	for _, pkg := range pkgs {
 		ids = appendObjectID(ids, pkg.InstallerObjectID)
 		ids = appendObjectID(ids, pkg.Software.IconObjectID)
 	}
 	if len(ids) == 0 {
-		return map[int64]storage.Object{}, nil
+		return map[int64]bloby.Object{}, nil
 	}
 	return s.deps.Objects.ListByIDs(ctx, ids)
 }
 
 func packageObjects(
 	pkg packages.Package,
-	objects map[int64]storage.Object,
+	objects map[int64]bloby.Object,
 ) packages.PkginfoObjects {
 	return packages.PkginfoObjects{
 		Installer: objectByID(objects, pkg.InstallerObjectID),
@@ -323,7 +323,7 @@ func packageObjects(
 	}
 }
 
-func objectByID(objects map[int64]storage.Object, id *int64) *storage.Object {
+func objectByID(objects map[int64]bloby.Object, id *int64) *bloby.Object {
 	if id == nil {
 		return nil
 	}

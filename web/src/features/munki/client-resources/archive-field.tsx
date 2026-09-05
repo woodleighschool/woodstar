@@ -1,3 +1,4 @@
+import type { UploadProgress } from "@woodleighschool/bloby-client";
 import { filesize } from "filesize";
 import { FileArchive, Trash2 } from "lucide-react";
 import { useRef } from "react";
@@ -15,7 +16,6 @@ import {
 import { Input } from "@components/ui/input";
 import { ValidatedFormField } from "@components/validated-form-field";
 import type { MunkiObjectView } from "@lib/api";
-import type { UploadProgress } from "@lib/upload";
 
 import type { ClientResourcesForm } from "./fields";
 

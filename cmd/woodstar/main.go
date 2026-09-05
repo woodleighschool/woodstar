@@ -18,6 +18,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/riverqueue/river"
 	"github.com/spf13/cobra"
+	"github.com/woodleighschool/goodies/bloby"
+	blobydb "github.com/woodleighschool/goodies/bloby/pgxstore"
 	"github.com/woodleighschool/goodies/pglock"
 
 	"github.com/woodleighschool/woodstar/internal/activity"
@@ -68,7 +70,6 @@ import (
 	santaprotocol "github.com/woodleighschool/woodstar/internal/santa/protocol"
 	"github.com/woodleighschool/woodstar/internal/santa/rules"
 	"github.com/woodleighschool/woodstar/internal/santa/syncstate"
-	"github.com/woodleighschool/woodstar/internal/storage"
 	"github.com/woodleighschool/woodstar/internal/webui"
 	webdist "github.com/woodleighschool/woodstar/web"
 )
@@ -142,7 +143,8 @@ func run(parent context.Context) error {
 	// StopCleanup must run while the DB pool still exists.
 	defer sessionStore.StopCleanup()
 
-	storageBackend, err := storage.New(ctx, storageConfig(cfg))
+	storageLogger := logger.With("component", "storage")
+	storage, err := bloby.New(ctx, blobydb.New(pool), storageConfig(cfg), storageLogger)
 	if err != nil {
 		return fmt.Errorf("init storage: %w", err)
 	}
@@ -153,7 +155,7 @@ func run(parent context.Context) error {
 		pool,
 		sessions,
 		logger,
-		storageBackend,
+		storage,
 		geoLookup,
 	)
 	if err != nil {
@@ -224,18 +226,15 @@ func (app *application) shutdown(ctx context.Context) error {
 	return app.server.Shutdown(ctx)
 }
 
-//nolint:funlen // Keep the complete application graph visible in the composition root.
 func buildApplication(
 	ctx context.Context,
 	cfg config.Config,
 	pool *pgxpool.Pool,
 	sessions *scs.SessionManager,
 	logger *slog.Logger,
-	storageBackend storage.Backend,
+	storage *bloby.Service,
 	geoLookup func(netip.Addr) (*geoip.Result, error),
 ) (*application, error) {
-	storageDelivery := storage.NewDelivery(storageBackend)
-
 	// Core stores.
 	labelStore := labels.NewStore(pool)
 	directoryStore := directory.NewStore(pool, labelStore)
@@ -253,21 +252,10 @@ func buildApplication(
 	historyStore := history.NewStore(pool)
 
 	// Munki stores.
-	storageLogger := logger.With("component", "storage")
-	objectStore := storage.NewObjectStore(pool, storageBackend, storageLogger)
-	storageIngestor := storage.NewIngestor(objectStore, storageBackend)
-	clientResourceStore := clientresources.NewStore(pool, objectStore)
-	clientResourceService := clientresources.NewService(
-		clientResourceStore,
-		objectStore,
-		storageIngestor,
-		storageBackend,
-	)
-	packageStore := packages.NewStore(
-		pool,
-		objectStore,
-	)
-	munkiSoftwareStore := munkisoftware.NewStore(pool, objectStore, packageStore)
+	clientResourceStore := clientresources.NewStore(pool, storage)
+	clientResourceService := clientresources.NewService(clientResourceStore, storage)
+	packageStore := packages.NewStore(pool, storage)
+	munkiSoftwareStore := munkisoftware.NewStore(pool, storage, packageStore)
 	munkiHostState := munki.NewStore(pool)
 
 	// Santa stores.
@@ -317,15 +305,15 @@ func buildApplication(
 	munkiRepository := munki.NewRepositoryService(munki.Dependencies{
 		Software:        munkiSoftwareStore,
 		Packages:        packageStore,
-		Objects:         objectStore,
+		Objects:         storage,
 		ClientResources: clientResourceStore,
 	})
 	munkiDistributionLogger := logger.With("component", "munki_distribution")
-	munkiDistribution := mdp.NewStore(pool, objectStore, munkiDistributionLogger)
+	munkiDistribution := mdp.NewStore(pool, storage, munkiDistributionLogger)
 	munkiDistributionProtocol, err := mdpprotocol.NewServer(
 		ctx,
 		munkiDistribution,
-		storageDelivery,
+		storage,
 		buildinfo.Version,
 		munkiDistributionLogger,
 	)
@@ -374,7 +362,7 @@ func buildApplication(
 		Logger:         logger,
 		SessionManager: sessions,
 		AuthService:    authService,
-		TransferOrigin: storageBackend.TransferOrigin(),
+		TransferOrigin: storage.TransferOrigin(),
 		WebHandler: webui.NewHandler(webui.HandlerOptions{
 			FS:        webdist.DistDirFS,
 			Version:   buildinfo.Version,
@@ -382,7 +370,7 @@ func buildApplication(
 			Logger:    logger.With("component", "web"),
 		}),
 		RegisterRoutes: func(routes api.Routes) {
-			storage.RegisterTransferRoutes(routes.StorageTransfers, storageBackend, storageLogger)
+			routes.StorageTransfers.Handle("/storage/*", storage.TransferHandler())
 
 			activityapi.RegisterAPI(routes.App, activityStore, apiLogger)
 			authapi.RegisterAPI(routes.App, authapi.Dependencies{
@@ -421,9 +409,7 @@ func buildApplication(
 				DeleteSoftware:  munkiSoftwareDeletions,
 				Packages:        munkiPackageService,
 				ClientResources: clientResourceService,
-				Objects:         objectStore,
-				Ingestor:        storageIngestor,
-				Delivery:        storageDelivery,
+				Objects:         storage,
 				Distribution:    munkiDistribution,
 				Connections:     munkiDistributionProtocol,
 				Logger:          apiLogger,
@@ -451,7 +437,7 @@ func buildApplication(
 				munkiRepository,
 				heartbeatStore,
 				munkiDistribution,
-				storageDelivery,
+				storage,
 				logger.With("component", "munki"),
 			).RegisterRoutes(routes.Protocols.Ordinary, routes.Protocols.Transfers)
 			munkiDistributionProtocol.RegisterRoutes(
@@ -466,7 +452,7 @@ func buildApplication(
 		},
 	})
 	starters := []starter{
-		storageUploadCleanupStarter(storageIngestor, cfg.StorageTransferTTL, storageLogger),
+		storageUploadCleanupStarter(storage),
 		backgroundJobsStarter(jobs, logger.With("component", "background_jobs")),
 	}
 
@@ -598,14 +584,18 @@ func newBackgroundJobs(
 	return jobs, directorySync, nil
 }
 
-func storageUploadCleanupStarter(
-	ingestor *storage.Ingestor,
-	transferTTL time.Duration,
-	logger *slog.Logger,
-) starter {
+func storageUploadCleanupStarter(storage *bloby.Service) starter {
 	return func(ctx context.Context) (func(), error) {
-		cleanup := storage.StartUploadCleanup(ctx, ingestor, transferTTL, logger)
-		return cleanup.Stop, nil
+		cleanupCtx, cancel := context.WithCancel(ctx)
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			storage.RunCleanup(cleanupCtx)
+		}()
+		return func() {
+			cancel()
+			<-done
+		}, nil
 	}
 }
 
@@ -637,16 +627,16 @@ func newAuth(
 	return service, nil
 }
 
-func storageConfig(cfg config.Config) storage.Config {
-	return storage.Config{
-		Kind:        storage.Kind(cfg.StorageKind),
+func storageConfig(cfg config.Config) bloby.Config {
+	return bloby.Config{
+		Kind:        bloby.Kind(cfg.StorageKind),
 		TransferTTL: cfg.StorageTransferTTL,
-		File: storage.FileConfig{
+		File: bloby.FileConfig{
 			Root:             cfg.StorageFileRoot,
 			BaseURL:          cfg.ServerURL,
 			CapabilityKeyHex: cfg.StorageCapabilityKey,
 		},
-		S3: storage.S3Config{
+		S3: bloby.S3Config{
 			Bucket:    cfg.StorageS3Bucket,
 			Region:    cfg.StorageS3Region,
 			Endpoint:  cfg.StorageS3Endpoint,

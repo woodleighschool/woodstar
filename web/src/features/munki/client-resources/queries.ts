@@ -7,7 +7,7 @@ import type {
   MunkiBuilder,
   MunkiClientResources,
   MunkiClientResourcesMutation,
-  MunkiDirectUploadTarget,
+  MunkiUploadTarget,
   PageMunkiClientResources,
 } from "@lib/api";
 import {
@@ -65,14 +65,14 @@ export function useSaveMunkiClientResources() {
 
 export function useUploadAndSaveMunkiClientResourcesBanner() {
   const queryClient = useQueryClient();
-  return useUpload<MunkiDirectUploadTarget, MunkiClientResources, BannerUploadVariables>({
+  return useUpload<MunkiUploadTarget, MunkiClientResources, BannerUploadVariables>({
     mutationKey: ["munki-client-resources-banner-upload"],
     loadingText: "Saving Client Resources",
     successText: "Client Resources Saved",
-    createIntent: ({ file }) =>
-      unwrap(createMunkiClientResourcesBannerUpload({ body: { filename: file.name } })),
+    createIntent: ({ file }, signal) =>
+      unwrap(createMunkiClientResourcesBannerUpload({ body: { filename: file.name }, signal })),
     uploadRequest: uploadRequestFromTarget,
-    completeUpload: (intent, { body, clientResourcesID }, _transfer, signal) =>
+    completeUpload: (intent, { body, clientResourcesID }, signal) =>
       saveClientResources({
         clientResourcesID,
         body: { builder: { ...body, banner_object_id: intent.object_id } },
@@ -87,14 +87,14 @@ export function useUploadAndSaveMunkiClientResourcesBanner() {
 
 export function useUploadAndSaveMunkiClientResourcesArchive() {
   const queryClient = useQueryClient();
-  return useUpload<MunkiDirectUploadTarget, MunkiClientResources, ArchiveUploadVariables>({
+  return useUpload<MunkiUploadTarget, MunkiClientResources, ArchiveUploadVariables>({
     mutationKey: ["munki-client-resources-archive-upload"],
     loadingText: "Saving Client Resources",
     successText: "Client Resources Saved",
-    createIntent: ({ file }) =>
-      unwrap(createMunkiClientResourcesArchiveUpload({ body: { filename: file.name } })),
+    createIntent: ({ file }, signal) =>
+      unwrap(createMunkiClientResourcesArchiveUpload({ body: { filename: file.name }, signal })),
     uploadRequest: uploadRequestFromTarget,
-    completeUpload: (intent, { clientResourcesID }, _transfer, signal) =>
+    completeUpload: (intent, { clientResourcesID }, signal) =>
       saveClientResources({
         clientResourcesID,
         body: { archive_object_id: intent.object_id },

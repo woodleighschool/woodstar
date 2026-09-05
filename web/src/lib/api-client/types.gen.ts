@@ -54,6 +54,11 @@ export type CertificateName = {
     organizational_unit: string;
 };
 
+export type CompletedPart = {
+    etag: string;
+    part_number: number;
+};
+
 export type Criteria = {
     attribute: 'user_department' | 'directory_group' | 'user';
     values: Array<string>;
@@ -389,22 +394,8 @@ export type MunkiCreateMutation = {
     targets: MunkiTargets;
 };
 
-export type MunkiDirectUploadAction = {
-    headers?: {
-        [key: string]: string;
-    };
-    method: 'PUT';
-    strategy: 'direct-put';
-    url: string;
-};
-
 export type MunkiDirectUploadRequest = {
     filename: string;
-};
-
-export type MunkiDirectUploadTarget = {
-    object_id: number;
-    upload: MunkiDirectUploadAction;
 };
 
 export type MunkiDistributionPoint = {
@@ -516,24 +507,7 @@ export type MunkiLink = {
 };
 
 export type MunkiMultipartCompleteRequest = {
-    parts: Array<MunkiMultipartCompletedPart>;
-};
-
-export type MunkiMultipartCompletedPart = {
-    etag: string;
-    part_number: number;
-};
-
-export type MunkiMultipartPartTarget = {
-    headers?: {
-        [key: string]: string;
-    };
-    method: 'PUT';
-    url: string;
-};
-
-export type MunkiMultipartUploadAction = {
-    strategy: 'multipart';
+    parts: Array<CompletedPart>;
 };
 
 export type MunkiObjectMutation = {
@@ -683,15 +657,6 @@ export type MunkiPackageInstallerEnvironmentVariable = {
 export type MunkiPackageInstallerUploadRequest = {
     filename: string;
     size_bytes: number;
-};
-
-export type MunkiPackageInstallerUploadTarget = {
-    object_id: number;
-    upload: ({
-        strategy: 'direct-put';
-    } & MunkiDirectUploadAction) | ({
-        strategy: 'multipart';
-    } & MunkiMultipartUploadAction);
 };
 
 export type MunkiPackageItemToCopy = {
@@ -849,6 +814,16 @@ export type MunkiUpdateMutation = {
     display_name?: string;
     icon_object_id?: number;
     targets: MunkiTargets;
+};
+
+export type MunkiUploadTarget = {
+    object_id: number;
+    upload: {
+        strategy: 'direct-put';
+        target: UploadTarget;
+    } | {
+        strategy: 'multipart';
+    };
 };
 
 export type OsqueryHandle = {
@@ -1494,6 +1469,14 @@ export type SyncStatus = {
     current_run?: SyncRun;
     enabled: boolean;
     last_run?: SyncRun;
+};
+
+export type UploadTarget = {
+    headers?: {
+        [key: string]: string;
+    };
+    method: 'PUT';
+    url: string;
 };
 
 export type User = {
@@ -3014,7 +2997,7 @@ export type CreateMunkiClientResourcesArchiveUploadResponses = {
     /**
      * Created
      */
-    201: MunkiDirectUploadTarget;
+    201: MunkiUploadTarget;
 };
 
 export type CreateMunkiClientResourcesArchiveUploadResponse = CreateMunkiClientResourcesArchiveUploadResponses[keyof CreateMunkiClientResourcesArchiveUploadResponses];
@@ -3106,7 +3089,7 @@ export type CreateMunkiClientResourcesBannerUploadResponses = {
     /**
      * Created
      */
-    201: MunkiDirectUploadTarget;
+    201: MunkiUploadTarget;
 };
 
 export type CreateMunkiClientResourcesBannerUploadResponse = CreateMunkiClientResourcesBannerUploadResponses[keyof CreateMunkiClientResourcesBannerUploadResponses];
@@ -3661,7 +3644,7 @@ export type CreateMunkiIconUploadResponses = {
     /**
      * Created
      */
-    201: MunkiDirectUploadTarget;
+    201: MunkiUploadTarget;
 };
 
 export type CreateMunkiIconUploadResponse = CreateMunkiIconUploadResponses[keyof CreateMunkiIconUploadResponses];
@@ -3702,7 +3685,7 @@ export type CreateMunkiPackageInstallerUploadResponses = {
     /**
      * Created
      */
-    201: MunkiPackageInstallerUploadTarget;
+    201: MunkiUploadTarget;
 };
 
 export type CreateMunkiPackageInstallerUploadResponse = CreateMunkiPackageInstallerUploadResponses[keyof CreateMunkiPackageInstallerUploadResponses];
@@ -3895,7 +3878,7 @@ export type SignMunkiPackageInstallerPartResponses = {
     /**
      * OK
      */
-    200: MunkiMultipartPartTarget;
+    200: UploadTarget;
 };
 
 export type SignMunkiPackageInstallerPartResponse = SignMunkiPackageInstallerPartResponses[keyof SignMunkiPackageInstallerPartResponses];

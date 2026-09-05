@@ -38,12 +38,11 @@ mise run //web:build
 ```bash
 mise run test
 mise run test-postgres
-mise run test-integration
 mise run test-e2e
 mise run test-all
 ```
 
-`mise run test` runs the dependency-free Go suite. `test-postgres` and the E2E tasks use the local PostgreSQL service unless `WOODSTAR_TEST_DATABASE_URL` is set. The integration lane starts its own S3 test service through testcontainers.
+`mise run test` runs the dependency-free Go suite. `test-postgres` and the E2E tasks use the local PostgreSQL service unless `WOODSTAR_TEST_DATABASE_URL` is set.
 
 Run one E2E lifecycle with:
 

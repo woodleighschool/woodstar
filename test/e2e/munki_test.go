@@ -26,8 +26,6 @@ import (
 	"github.com/jackc/pgx/v5"
 	"howett.net/plist"
 
-	"github.com/woodleighschool/woodstar/internal/storage"
-	"github.com/woodleighschool/woodstar/internal/storage/capability"
 	"github.com/woodleighschool/woodstar/test/e2e/adminapi"
 )
 
@@ -132,7 +130,6 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 	installerBytes := bytes.Repeat([]byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07}, 200)
 	installerSum := sha256.Sum256(installerBytes)
 	installerSHA256 := hex.EncodeToString(installerSum[:])
-	capabilityIssuedAfter := time.Now()
 	createdInstaller, err := server.Admin.CreateMunkiPackageInstallerUploadWithResponse(
 		t.Context(),
 		adminapi.MunkiPackageInstallerUploadRequest{
@@ -140,7 +137,6 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 			SizeBytes: int64(len(installerBytes)),
 		},
 	)
-	capabilityIssuedBefore := time.Now()
 	createdInstaller = requireAPIResponse(
 		t,
 		"create package installer",
@@ -149,13 +145,13 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 		err,
 	)
 	installerTarget := createdInstaller.JSON201
-	installerUploadAction := directPackageInstallerUpload(t, installerTarget)
-	if installerTarget.ObjectId <= 0 || installerUploadAction.Method != http.MethodPut ||
+	installerUploadAction := directUpload(t, installerTarget)
+	if installerTarget.ObjectId <= 0 || installerUploadAction.Target.Method != http.MethodPut ||
 		installerUploadAction.Strategy != "direct-put" {
 		t.Fatalf(
 			"installer upload target id/method/strategy = %d/%q/%q, want positive/PUT/direct-put",
 			installerTarget.ObjectId,
-			installerUploadAction.Method,
+			installerUploadAction.Target.Method,
 			installerUploadAction.Strategy,
 		)
 	}
@@ -191,25 +187,18 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 		t.Fatal("create second-host Munki label returned no label")
 	}
 	secondHostLabelID := secondLabelResponse.JSON201.Id
-	assertStorageCapabilityTTL(
-		t,
-		installerUploadAction.Url,
-		server.StorageCapabilityKey,
-		capability.OpPut,
-		capabilityIssuedAfter,
-		capabilityIssuedBefore,
-	)
+
 	installerUpload, err := http.NewRequestWithContext(
 		t.Context(),
-		string(installerUploadAction.Method),
-		installerUploadAction.Url,
+		string(installerUploadAction.Target.Method),
+		installerUploadAction.Target.Url,
 		bytes.NewReader(installerBytes),
 	)
 	if err != nil {
 		t.Fatal("create installer upload capability request")
 	}
-	if installerUploadAction.Headers != nil {
-		for name, value := range *installerUploadAction.Headers {
+	if installerUploadAction.Target.Headers != nil {
+		for name, value := range *installerUploadAction.Target.Headers {
 			installerUpload.Header.Set(name, value)
 		}
 	}
@@ -321,18 +310,18 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 		err,
 	)
 	secondInstallerTarget := createdSecondInstaller.JSON201
-	secondInstallerUpload := directPackageInstallerUpload(t, secondInstallerTarget)
+	secondInstallerUpload := directUpload(t, secondInstallerTarget)
 	secondInstallerRequest, err := http.NewRequestWithContext(
 		t.Context(),
-		string(secondInstallerUpload.Method),
-		secondInstallerUpload.Url,
+		string(secondInstallerUpload.Target.Method),
+		secondInstallerUpload.Target.Url,
 		bytes.NewReader(secondInstallerBytes),
 	)
 	if err != nil {
 		t.Fatal("create second installer upload capability request")
 	}
-	if secondInstallerUpload.Headers != nil {
-		for name, value := range *secondInstallerUpload.Headers {
+	if secondInstallerUpload.Target.Headers != nil {
+		for name, value := range *secondInstallerUpload.Target.Headers {
 			secondInstallerRequest.Header.Set(name, value)
 		}
 	}
@@ -458,13 +447,13 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 	if bannerTarget == nil {
 		t.Fatal("create banner upload returned no JSON body")
 	}
-	bannerUploadAction := bannerTarget.Upload
-	if bannerTarget.ObjectId <= 0 || bannerUploadAction.Method != http.MethodPut ||
+	bannerUploadAction := directUpload(t, bannerTarget)
+	if bannerTarget.ObjectId <= 0 || bannerUploadAction.Target.Method != http.MethodPut ||
 		bannerUploadAction.Strategy != "direct-put" {
 		t.Fatalf(
 			"banner upload target id/method/strategy = %d/%q/%q, want positive/PUT/direct-put",
 			bannerTarget.ObjectId,
-			bannerUploadAction.Method,
+			bannerUploadAction.Target.Method,
 			bannerUploadAction.Strategy,
 		)
 	}
@@ -491,15 +480,15 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 	secondInstallerItemLocation := secondPackage.InstallerFile.InstallerItemLocation
 	bannerUpload, err := http.NewRequestWithContext(
 		t.Context(),
-		string(bannerUploadAction.Method),
-		bannerUploadAction.Url,
+		string(bannerUploadAction.Target.Method),
+		bannerUploadAction.Target.Url,
 		bytes.NewReader(bannerBytes),
 	)
 	if err != nil {
 		t.Fatal("create banner upload capability request")
 	}
-	if bannerUploadAction.Headers != nil {
-		for name, value := range *bannerUploadAction.Headers {
+	if bannerUploadAction.Target.Headers != nil {
+		for name, value := range *bannerUploadAction.Target.Headers {
 			bannerUpload.Header.Set(name, value)
 		}
 	}
@@ -1128,17 +1117,18 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 	if archiveTarget == nil {
 		t.Fatal("create client resources archive upload returned no JSON body")
 	}
+	archiveUpload := directUpload(t, archiveTarget)
 	archiveUploadRequest, err := http.NewRequestWithContext(
 		t.Context(),
-		string(archiveTarget.Upload.Method),
-		archiveTarget.Upload.Url,
+		string(archiveUpload.Target.Method),
+		archiveUpload.Target.Url,
 		bytes.NewReader(uploadedArchiveBytes),
 	)
 	if err != nil {
 		t.Fatal("create client resources archive capability request")
 	}
-	if archiveTarget.Upload.Headers != nil {
-		for name, value := range *archiveTarget.Upload.Headers {
+	if archiveUpload.Target.Headers != nil {
+		for name, value := range *archiveUpload.Target.Headers {
 			archiveUploadRequest.Header.Set(name, value)
 		}
 	}
@@ -1350,29 +1340,22 @@ func attachMunkiIcon(
 	if createResponse.StatusCode != http.StatusCreated {
 		t.Fatalf("create icon upload status = %d, want 201: %s", createResponse.StatusCode, createBody)
 	}
-	var target adminapi.MunkiDirectUploadTarget
+	var target adminapi.MunkiUploadTarget
 	if err := json.Unmarshal(createBody, &target); err != nil {
 		t.Fatalf("decode icon upload target: %v", err)
 	}
-	if target.ObjectId <= 0 || target.Upload.Method != http.MethodPut || target.Upload.Strategy != "direct-put" {
-		t.Fatalf(
-			"icon upload target id/method/strategy = %d/%q/%q, want positive/PUT/direct-put",
-			target.ObjectId,
-			target.Upload.Method,
-			target.Upload.Strategy,
-		)
-	}
+	uploadAction := directUpload(t, &target)
 	uploadRequest, err := http.NewRequestWithContext(
 		t.Context(),
-		string(target.Upload.Method),
-		target.Upload.Url,
+		string(uploadAction.Target.Method),
+		uploadAction.Target.Url,
 		bytes.NewReader(contents),
 	)
 	if err != nil {
 		t.Fatalf("create icon upload capability request: %v", err)
 	}
-	if target.Upload.Headers != nil {
-		for name, value := range *target.Upload.Headers {
+	if uploadAction.Target.Headers != nil {
+		for name, value := range *uploadAction.Target.Headers {
 			uploadRequest.Header.Set(name, value)
 		}
 	}
@@ -1417,37 +1400,4 @@ func attachMunkiIcon(
 		t.Fatalf("attached icon = %+v, want finalized %s", icon, filename)
 	}
 	return icon
-}
-
-func assertStorageCapabilityTTL(
-	t *testing.T,
-	rawURL string,
-	keyHex string,
-	op string,
-	issuedAfter time.Time,
-	issuedBefore time.Time,
-) {
-	t.Helper()
-	key, err := hex.DecodeString(keyHex)
-	if err != nil {
-		t.Fatalf("decode storage capability key: %v", err)
-	}
-	parsed, err := url.Parse(rawURL)
-	if err != nil {
-		t.Fatalf("parse storage capability URL: %v", err)
-	}
-	claims, err := capability.Verify[storage.BlobCapabilityClaims](
-		key,
-		parsed.Query().Get("cap"),
-		op,
-		issuedAfter,
-	)
-	if err != nil {
-		t.Fatalf("verify storage capability: %v", err)
-	}
-	minExpiry := issuedAfter.Add(testStorageTransferTTL).Unix()
-	maxExpiry := issuedBefore.Add(testStorageTransferTTL).Unix()
-	if claims.Exp < minExpiry || claims.Exp > maxExpiry {
-		t.Fatalf("storage capability expiry = %d, want between %d and %d", claims.Exp, minExpiry, maxExpiry)
-	}
 }

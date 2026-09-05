@@ -125,9 +125,6 @@ jobs:
       - name: Run PostgreSQL component tests
         run: mise run test-postgres
 
-      - name: Run storage integration
-        run: mise run test-integration-storage
-
   frontend:
     name: Frontend
     runs-on: ubuntu-24.04

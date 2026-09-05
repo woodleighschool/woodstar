@@ -7,18 +7,18 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/woodleighschool/goodies/bloby"
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/listing"
 	"github.com/woodleighschool/woodstar/internal/postgres"
-	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
 type Store struct {
 	pool    *pgxpool.Pool
-	objects *storage.ObjectStore
+	objects *bloby.Service
 }
 
-func NewStore(pool *pgxpool.Pool, objects *storage.ObjectStore) *Store {
+func NewStore(pool *pgxpool.Pool, objects *bloby.Service) *Store {
 	return &Store{pool: pool, objects: objects}
 }
 

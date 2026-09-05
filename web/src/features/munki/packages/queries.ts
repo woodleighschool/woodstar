@@ -13,7 +13,7 @@ import type {
   MunkiObjectView,
   MunkiPackage,
   MunkiPackageCreateMutation,
-  MunkiPackageInstallerUploadTarget,
+  MunkiUploadTarget,
   MunkiPackageMutation,
   PagePackage,
 } from "@lib/api";
@@ -31,11 +31,7 @@ import type { ListMunkiPackagesData } from "@lib/api-client/types.gen";
 import { baseListParams } from "@lib/pagination";
 import { detailPath } from "@lib/route-params";
 
-import {
-  completeMunkiInstallerTransfer,
-  deleteUnclaimedMunkiInstaller,
-  uploadRequestFromTarget,
-} from "../upload";
+import { deleteUnclaimedMunkiInstaller, uploadRequestFromTarget } from "../upload";
 
 type MunkiPackageListParams = NonNullable<ListMunkiPackagesData["query"]>;
 type PackageUploadVariables = { file: File };
@@ -125,19 +121,19 @@ export function useDeleteMunkiPackage() {
 }
 
 export function useUploadMunkiInstaller() {
-  return useUpload<MunkiPackageInstallerUploadTarget, MunkiObjectView, PackageUploadVariables>({
+  return useUpload<MunkiUploadTarget, MunkiObjectView, PackageUploadVariables>({
     mutationKey: ["munki-installer-upload"],
     loadingText: "Uploading Installer",
     successText: "Installer Uploaded",
-    createIntent: ({ file }) =>
+    createIntent: ({ file }, signal) =>
       unwrap(
         createMunkiPackageInstallerUpload({
           body: { filename: file.name, size_bytes: file.size },
+          signal,
         }),
       ),
     uploadRequest: uploadRequestFromTarget,
-    completeUpload: async (intent, _variables, transfer, signal) => {
-      await completeMunkiInstallerTransfer(intent.object_id, transfer, signal);
+    completeUpload: async (intent, _variables, signal) => {
       const finalize = () =>
         unwrap(completeMunkiPackageInstallerUpload({ path: { id: intent.object_id }, signal }));
       try {

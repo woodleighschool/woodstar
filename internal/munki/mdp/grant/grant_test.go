@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/woodleighschool/woodstar/internal/storage/capability"
+	"github.com/woodleighschool/woodstar/internal/munki/mdp/capability"
 )
 
 func TestVerifyRejectsWrongKeyExpiryAndTampering(t *testing.T) {

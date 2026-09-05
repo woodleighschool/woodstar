@@ -8,32 +8,28 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/woodleighschool/goodies/bloby"
 	"github.com/woodleighschool/woodstar/internal/api"
-	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/munki/clientresources"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
-	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
 const munkiAssetCacheControl = "private, max-age=86400"
 
 type munkiContentHandler struct {
-	objects  *storage.ObjectStore
-	delivery storage.Deliverer
-	logger   *slog.Logger
+	objects *bloby.Service
+	logger  *slog.Logger
 }
 
 func registerMunkiContentRoutes(
 	r chi.Router,
-	objects *storage.ObjectStore,
-	delivery storage.Deliverer,
+	objects *bloby.Service,
 	logger *slog.Logger,
 ) {
 	h := munkiContentHandler{
-		objects:  objects,
-		delivery: delivery,
-		logger:   logger,
+		objects: objects,
+		logger:  logger,
 	}
 	r.Get(munkiIconPath+"/{id}/content", h.object(munkisoftware.IconObjectPrefix, munkiAssetCacheControl))
 	r.Get(munkiPackageInstallerPath+"/{id}/content", h.object(packages.ObjectPrefix, ""))
@@ -65,7 +61,7 @@ func (h munkiContentHandler) deliver(
 	cacheControl string,
 ) {
 	object, err := h.objects.GetByID(r.Context(), objectID)
-	if errors.Is(err, fault.ErrNotFound) {
+	if errors.Is(err, bloby.ErrNotFound) {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
@@ -77,7 +73,7 @@ func (h munkiContentHandler) deliver(
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
-	if err := h.delivery.Deliver(w, r, *object, storage.DeliveryOptions{
+	if err := h.objects.Deliver(w, r, *object, bloby.DeliveryOptions{
 		CacheControl: cacheControl,
 	}); err != nil {
 		h.logger.ErrorContext(

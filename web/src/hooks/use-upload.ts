@@ -1,27 +1,17 @@
 import { type MutationKey, useMutation } from "@tanstack/react-query";
+import { type UploadProgress, type UploadRequest, upload } from "@woodleighschool/bloby-client";
 import { useRef, useState } from "react";
 
 import { toast } from "@components/ui/toast";
-import {
-  type UploadProgress,
-  type UploadRequest,
-  type UploadResult,
-  uploadWithProgress,
-} from "@lib/upload";
 
 type UploadText = string | ((file: File) => string);
 type UploadErrorSurface = "toast" | "inline";
 
 interface UploadOptions<TIntent, TResult, TVars extends { file: File }> {
   mutationKey: MutationKey;
-  createIntent: (vars: TVars) => Promise<TIntent>;
+  createIntent: (vars: TVars, signal: AbortSignal) => Promise<TIntent>;
   uploadRequest: (intent: TIntent, vars: TVars) => UploadRequest;
-  completeUpload: (
-    intent: TIntent,
-    vars: TVars,
-    transfer: UploadResult,
-    signal: AbortSignal,
-  ) => Promise<TResult>;
+  completeUpload: (intent: TIntent, vars: TVars, signal: AbortSignal) => Promise<TResult>;
   onSuccess?: (result: TResult, vars: TVars) => void | Promise<void>;
   cleanupIntent?: (intent: TIntent, vars: TVars) => Promise<void>;
   loadingText?: UploadText;
@@ -66,8 +56,8 @@ export function useUpload<TIntent, TResult, TVars extends { file: File } = { fil
       });
 
       let intent: TIntent | undefined;
-      let transfer: UploadResult | undefined;
-      const finalize = async (uploadIntent: TIntent, uploadResult: UploadResult) => {
+      let transferred = false;
+      const finalize = async (uploadIntent: TIntent) => {
         setProgress({ loaded: file.size, total: file.size, percent: 100 });
         toast.update(toastID, {
           title: loadingTitle,
@@ -75,12 +65,7 @@ export function useUpload<TIntent, TResult, TVars extends { file: File } = { fil
           type: "loading",
           timeout: 0,
         });
-        const result = await completeUpload(
-          uploadIntent,
-          vars,
-          uploadResult,
-          abortController.signal,
-        );
+        const result = await completeUpload(uploadIntent, vars, abortController.signal);
         toast.update(toastID, {
           title: uploadText(successText, file, "Upload Complete"),
           description: undefined,
@@ -90,7 +75,8 @@ export function useUpload<TIntent, TResult, TVars extends { file: File } = { fil
         return result;
       };
       try {
-        intent = await createIntent(vars);
+        intent = await createIntent(vars, abortController.signal);
+        abortController.signal.throwIfAborted();
         toast.update(toastID, {
           title: loadingTitle,
           description: "0%",
@@ -98,9 +84,9 @@ export function useUpload<TIntent, TResult, TVars extends { file: File } = { fil
           timeout: 0,
         });
         const request = uploadRequest(intent, vars);
-        transfer = await uploadWithProgress({
+        await upload({
           ...request,
-          file,
+          blob: file,
           signal: abortController.signal,
           onProgress: (next) => {
             setProgress(next);
@@ -114,9 +100,11 @@ export function useUpload<TIntent, TResult, TVars extends { file: File } = { fil
             });
           },
         });
-        return await finalize(intent, transfer);
+        transferred = true;
+        abortController.signal.throwIfAborted();
+        return await finalize(intent);
       } catch (error) {
-        if (intent !== undefined && transfer === undefined) {
+        if (intent !== undefined && !transferred) {
           await cleanupIntent?.(intent, vars).catch(() => undefined);
         }
         if (errorSurface === "toast") {

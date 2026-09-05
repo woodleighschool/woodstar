@@ -14,11 +14,11 @@ import (
 	"github.com/coder/websocket"
 	"github.com/go-chi/chi/v5"
 
+	"github.com/woodleighschool/goodies/bloby"
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/httpx"
 	"github.com/woodleighschool/woodstar/internal/munki/mdp"
 	"github.com/woodleighschool/woodstar/internal/munki/mdp/wire"
-	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
 // workerDownloadTTL bounds a mirror download URL. The worker fetches one as a
@@ -48,9 +48,9 @@ type workerHandler struct {
 type objectDelivery interface {
 	DownloadURL(
 		ctx context.Context,
-		object storage.Object,
+		object bloby.Object,
 		ttl time.Duration,
-		opts storage.DeliveryOptions,
+		opts bloby.DeliveryOptions,
 	) (string, error)
 }
 
@@ -211,7 +211,7 @@ func (h workerHandler) downloadURL(w http.ResponseWriter, r *http.Request) {
 		r.Context(),
 		object,
 		workerDownloadTTL,
-		storage.DeliveryOptions{},
+		bloby.DeliveryOptions{},
 	)
 	if err != nil {
 		h.log(r, "download-url", err)

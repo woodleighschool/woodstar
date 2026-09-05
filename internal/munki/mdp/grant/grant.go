@@ -3,7 +3,7 @@ package grant
 import (
 	"time"
 
-	"github.com/woodleighschool/woodstar/internal/storage/capability"
+	"github.com/woodleighschool/woodstar/internal/munki/mdp/capability"
 )
 
 // Claims authorizes one package download from one distribution point. SHA256
