@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.10.0](https://github.com/woodleighschool/woodstar/compare/0.9.7...0.10.0) (2026-09-05)
+
+
+### ⚠ BREAKING CHANGES
+
+* **auth:** replace role checks with resource permissions ([#313](https://github.com/woodleighschool/woodstar/issues/313))
+* **storage:** adopt Bloby ([#320](https://github.com/woodleighschool/woodstar/issues/320))
+
+### Features
+
+* **auth:** replace role checks with resource permissions ([#313](https://github.com/woodleighschool/woodstar/issues/313)) ([d3a7d50](https://github.com/woodleighschool/woodstar/commit/d3a7d50be24062a882f16746a5e209b0034060aa))
+* **npm:** update dependency shadcn (4.20.1 → 4.21.0) ([#335](https://github.com/woodleighschool/woodstar/issues/335)) ([16210b1](https://github.com/woodleighschool/woodstar/commit/16210b178fdedc9582d4410a3c63751614e079b6))
+
+
+### Bug Fixes
+
+* **npm:** update dependency cn (0.2.4 → 0.2.5) ([#334](https://github.com/woodleighschool/woodstar/issues/334)) ([23c63d1](https://github.com/woodleighschool/woodstar/commit/23c63d1777644169531ca93d0165949b14ba928c))
+
+
+### Code Refactoring
+
+* **postgres:** share session advisory locking ([#331](https://github.com/woodleighschool/woodstar/issues/331)) ([3d5abaa](https://github.com/woodleighschool/woodstar/commit/3d5abaa75aa51267297ac87702a6bbdf7ef81677))
+* **storage:** adopt Bloby ([#320](https://github.com/woodleighschool/woodstar/issues/320)) ([fa81764](https://github.com/woodleighschool/woodstar/commit/fa817643e76d157176fedb338868123c55578be1))
+
+
+### Miscellaneous Chores
+
+* fix cooked lockfile ([f8d63b2](https://github.com/woodleighschool/woodstar/commit/f8d63b2c8a402409fbffbd5a2eb84cb6b2277f99))
+
 ## [0.9.7](https://github.com/woodleighschool/woodstar/compare/0.9.6...0.9.7) (2026-09-05)
 
 
