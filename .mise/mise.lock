@@ -63,9 +63,9 @@ checksum = "sha256:ee215d57e0ec269c60cc9ceca68e6bda321ba9ee5afe24f4b0988703c2d87
 url = "https://dl.google.com/go/go1.27.1.darwin-arm64.tar.gz"
 
 [[tools."go:github.com/pressly/goose/v3/cmd/goose"]]
-version = "3.27.3"
+version = "3.28.0"
 backend = "go:github.com/pressly/goose/v3/cmd/goose"
-specifiers = ["3.27.3"]
+specifiers = ["v3.28.0"]
 
 [[tools."go:golang.org/x/vuln/cmd/govulncheck"]]
 version = "1.7.0"

@@ -13,7 +13,7 @@ zizmor = "1.30.0"
 oxfmt = "0.66.0"
 "npm:@commitlint/cli" = "21.2.2"
 mkcert = "1.4.4"
-"go:github.com/pressly/goose/v3/cmd/goose" = "3.27.3"
+"go:github.com/pressly/goose/v3/cmd/goose" = "v3.28.0"
 
 [settings]
 experimental = true
