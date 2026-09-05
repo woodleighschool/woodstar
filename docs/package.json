@@ -34,7 +34,7 @@
     "@docusaurus/tsconfig": "3.10.2",
     "@docusaurus/types": "3.10.2",
     "@types/react": "^19.2.18",
-    "oxlint": "1.80.0",
+    "oxlint": "1.81.0",
     "typescript": "~6.0.3"
   },
   "browserslist": {
