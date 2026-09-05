@@ -258,44 +258,21 @@ func TestMunkiUploadStrategySchema(t *testing.T) {
 		t.Fatal("multipart part signing is missing")
 	}
 
-	packageTarget := doc.Components.Schemas.Map()["MunkiPackageInstallerUploadTarget"]
+	packageTarget := doc.Components.Schemas.Map()["MunkiUploadTarget"]
 	if packageTarget == nil {
-		t.Fatal("MunkiPackageInstallerUploadTarget schema is missing")
+		t.Fatal("MunkiUploadTarget schema is missing")
 	}
-	upload := packageTarget.Properties["upload"]
-	if upload == nil || len(upload.OneOf) != 2 || upload.Discriminator == nil ||
-		upload.Discriminator.PropertyName != "strategy" ||
-		!reflect.DeepEqual(upload.Discriminator.Mapping, map[string]string{
-			"direct-put": "#/components/schemas/MunkiDirectUploadAction",
-			"multipart":  "#/components/schemas/MunkiMultipartUploadAction",
-		}) {
-		t.Fatalf("upload action = %#v, want a strategy-discriminated two-variant union", upload)
-	}
-
-	direct := doc.Components.Schemas.Map()["MunkiDirectUploadAction"]
-	if direct == nil || !reflect.DeepEqual(direct.Properties["strategy"].Enum, []any{"direct-put"}) ||
-		direct.Properties["url"] == nil ||
-		!reflect.DeepEqual(direct.Properties["method"].Enum, []any{"PUT"}) {
-		t.Fatalf("direct upload action = %#v, want strategy, URL, and method", direct)
-	}
-	multipart := doc.Components.Schemas.Map()["MunkiMultipartUploadAction"]
-	if multipart == nil || !reflect.DeepEqual(multipart.Properties["strategy"].Enum, []any{"multipart"}) ||
-		multipart.Properties["url"] != nil || multipart.Properties["method"] != nil {
-		t.Fatalf("multipart upload action = %#v, want only the multipart strategy", multipart)
-	}
-	multipartPart := doc.Components.Schemas.Map()["MunkiMultipartPartTarget"]
-	if multipartPart == nil || multipartPart.Properties["url"] == nil ||
-		!reflect.DeepEqual(multipartPart.Properties["method"].Enum, []any{"PUT"}) {
-		t.Fatalf("multipart part target = %#v, want upload URL and PUT method", multipartPart)
+	if packageTarget.Properties["upload"] == nil {
+		t.Fatal("package installer upload action is missing")
 	}
 	multipartRequest := doc.Components.Schemas.Map()["MunkiMultipartCompleteRequest"]
 	if multipartRequest == nil || multipartRequest.Properties["parts"] == nil {
 		t.Fatalf("multipart completion request = %#v, want completed parts", multipartRequest)
 	}
 	for path, wantRef := range map[string]string{
-		"/api/munki/package-installers":              "#/components/schemas/MunkiPackageInstallerUploadTarget",
-		"/api/munki/client-resources/banner-uploads": "#/components/schemas/MunkiDirectUploadTarget",
-		"/api/munki/icons":                           "#/components/schemas/MunkiDirectUploadTarget",
+		"/api/munki/package-installers":              "#/components/schemas/MunkiUploadTarget",
+		"/api/munki/client-resources/banner-uploads": "#/components/schemas/MunkiUploadTarget",
+		"/api/munki/icons":                           "#/components/schemas/MunkiUploadTarget",
 	} {
 		operation := doc.Paths[path].Post
 		got := operation.Responses["201"].Content["application/json"].Schema.Ref

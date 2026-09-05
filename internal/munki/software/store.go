@@ -9,14 +9,14 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/woodleighschool/goodies/bloby"
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/listing"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	"github.com/woodleighschool/woodstar/internal/postgres"
-	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
-// IconObjectPrefix namespaces software icon objects in storage.
+// IconObjectPrefix namespaces software icon objects in bloby.
 const IconObjectPrefix = "munki/icons"
 
 type packageStore interface {
@@ -26,11 +26,11 @@ type packageStore interface {
 
 type Store struct {
 	pool     *pgxpool.Pool
-	objects  *storage.ObjectStore
+	objects  *bloby.Service
 	packages packageStore
 }
 
-func NewStore(pool *pgxpool.Pool, objects *storage.ObjectStore, packages packageStore) *Store {
+func NewStore(pool *pgxpool.Pool, objects *bloby.Service, packages packageStore) *Store {
 	return &Store{pool: pool, objects: objects, packages: packages}
 }
 

@@ -31,7 +31,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/munki/mdp"
-	"github.com/woodleighschool/woodstar/internal/storage"
+	"github.com/woodleighschool/woodstar/internal/testutil/testbloby"
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
 )
 
@@ -293,7 +293,7 @@ WHERE host_id = $1 AND source = 'osquery'`, host.ID); err != nil {
 	}
 	distribution := mdp.NewStore(
 		db,
-		storage.NewObjectStore(db, nil, discardLogger()),
+		testbloby.New(t, db),
 		discardLogger(),
 	)
 	point, err := distribution.Create(ctx, mdp.DistributionPointMutation{

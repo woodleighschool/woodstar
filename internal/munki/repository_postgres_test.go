@@ -5,7 +5,6 @@ package munki_test
 import (
 	"context"
 	"errors"
-	"log/slog"
 	"slices"
 	"strings"
 	"testing"
@@ -14,6 +13,7 @@ import (
 	"howett.net/plist"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/woodleighschool/goodies/bloby"
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/heartbeats"
 	"github.com/woodleighschool/woodstar/internal/hosts"
@@ -23,21 +23,22 @@ import (
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
 	"github.com/woodleighschool/woodstar/internal/postgres"
-	"github.com/woodleighschool/woodstar/internal/storage"
 	"github.com/woodleighschool/woodstar/internal/targeting"
+	"github.com/woodleighschool/woodstar/internal/testutil/testbloby"
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
 )
 
 type munkiStores struct {
 	db        *pgxpool.Pool
-	objects   *storage.ObjectStore
+	objects   *bloby.Service
 	hoststate *munki.Store
 	packages  *packages.Store
 	software  *munkisoftware.Store
 }
 
-func newMunkiStores(db *pgxpool.Pool) munkiStores {
-	objectStore := storage.NewObjectStore(db, nil, slog.New(slog.DiscardHandler))
+func newMunkiStores(t *testing.T, db *pgxpool.Pool) munkiStores {
+	t.Helper()
+	objectStore := testbloby.New(t, db)
 	packageStore := packages.NewStore(db, objectStore)
 	softwareStore := munkisoftware.NewStore(db, objectStore, packageStore)
 	return munkiStores{
@@ -49,38 +50,27 @@ func newMunkiStores(db *pgxpool.Pool) munkiStores {
 	}
 }
 
-// createMunkiStorageObject inserts an available storage object under
-// prefix and returns it for use as an installer or icon in tests.
 func createMunkiStorageObject(
 	t *testing.T,
 	ctx context.Context,
 	stores munkiStores,
-	prefix, filename, hashChar string,
-) *storage.Object {
+	prefix, filename, contentSeed string,
+) *bloby.Object {
 	t.Helper()
 	contentType := "application/octet-stream"
 	if prefix == munkisoftware.IconObjectPrefix {
 		contentType = "image/png"
 	}
-	var objectID int64
-	err := stores.db.QueryRow(ctx, `
-INSERT INTO storage_objects (
-    prefix, filename, content_type, size_bytes, sha256, available_at
-) VALUES ($1, $2, $3, 512, $4, now())
-RETURNING id`, prefix, filename, contentType, strings.Repeat(hashChar, 64)).Scan(&objectID)
+	object, err := stores.objects.Write(ctx, prefix, filename, contentType, []byte(strings.Repeat(contentSeed, 512)))
 	if err != nil {
-		t.Fatalf("insert available object: %v", err)
-	}
-	object, err := stores.objects.GetByID(ctx, objectID)
-	if err != nil {
-		t.Fatalf("get available object: %v", err)
+		t.Fatalf("write object: %v", err)
 	}
 	return object
 }
 
 func TestMunkiSoftwareIdentityIsUniqueAndSeparateFromDisplayName(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	stores := newMunkiStores(db)
+	stores := newMunkiStores(t, db)
 
 	software, err := stores.software.Create(ctx, munkisoftware.CreateMutation{
 		Name:        "com.vendor.app",
@@ -135,7 +125,7 @@ func TestMunkiSoftwareIdentityIsUniqueAndSeparateFromDisplayName(t *testing.T) {
 
 func TestPackageUninstallPolicyRoundTripsIndependently(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	stores := newMunkiStores(db)
+	stores := newMunkiStores(t, db)
 
 	title, err := stores.software.Create(ctx, munkisoftware.CreateMutation{Name: "Removal Policy App"})
 	if err != nil {
@@ -182,7 +172,7 @@ func TestMunkiSoftwareExclusionOverridesAllHostsInclude(t *testing.T) {
 	db, ctx := testdb.Open(t)
 	labelStore := labels.NewStore(db)
 	hostStore := hosts.NewStore(db, labelStore)
-	stores := newMunkiStores(db)
+	stores := newMunkiStores(t, db)
 
 	excludedHost, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
 		Hardware:     hosts.HostHardware{UUID: "munki-desired-excluded-uuid", Serial: "C02MUNKIOUT"},
@@ -262,13 +252,13 @@ func TestMunkiSoftwareExclusionOverridesAllHostsInclude(t *testing.T) {
 
 func TestPackageInstallerObjectValidationOwnershipAndTransitions(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	stores := newMunkiStores(db)
+	stores := newMunkiStores(t, db)
 	software, err := stores.software.Create(ctx, munkisoftware.CreateMutation{Name: "InstallerLifecycle"})
 	if err != nil {
 		t.Fatalf("create software: %v", err)
 	}
 
-	pending, err := stores.objects.CreatePending(ctx, packages.ObjectPrefix, "pending.pkg")
+	pending, _, err := stores.objects.BeginDirect(ctx, packages.ObjectPrefix, "pending.pkg")
 	if err != nil {
 		t.Fatalf("create pending installer: %v", err)
 	}
@@ -380,7 +370,7 @@ func TestEffectivePackagesForHostKeepsLatestCandidates(t *testing.T) {
 	db, ctx := testdb.Open(t)
 	labelStore := labels.NewStore(db)
 	hostStore := hosts.NewStore(db, labelStore)
-	stores := newMunkiStores(db)
+	stores := newMunkiStores(t, db)
 
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
 		Hardware:     hosts.HostHardware{UUID: "munki-latest-host-uuid", Serial: "C02MUNKILATEST"},
@@ -414,7 +404,7 @@ func TestEffectivePackagesForHostKeepsLatestCandidates(t *testing.T) {
 
 func TestCreatePackageRejectsIconObjectAsInstaller(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	stores := newMunkiStores(db)
+	stores := newMunkiStores(t, db)
 
 	title, err := stores.software.Create(ctx, munkisoftware.CreateMutation{Name: "IconApp"})
 	if err != nil {
@@ -435,7 +425,7 @@ func TestCreatePackageRejectsIconObjectAsInstaller(t *testing.T) {
 
 func TestPackageProjectsSoftwareIcon(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	stores := newMunkiStores(db)
+	stores := newMunkiStores(t, db)
 
 	icon := createMunkiIconObject(t, ctx, stores, "SharedApp.png", "d")
 	title, err := stores.software.Create(ctx, munkisoftware.CreateMutation{
@@ -451,7 +441,7 @@ func TestPackageProjectsSoftwareIcon(t *testing.T) {
 	if title.IconFile == nil ||
 		title.IconFile.Filename != icon.Filename ||
 		title.IconFile.SizeBytes != 512 ||
-		title.IconFile.SHA256 != strings.Repeat("d", 64) {
+		title.IconFile.SHA256 != icon.SHA256Value() {
 		t.Fatalf("title icon file = %+v, want confirmed icon metadata", title.IconFile)
 	}
 
@@ -472,7 +462,7 @@ func TestPackageProjectsSoftwareIcon(t *testing.T) {
 
 func TestRepositoryServiceScopesCatalogAndFilesByHost(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	stores := newMunkiStores(db)
+	stores := newMunkiStores(t, db)
 	labelStore := labels.NewStore(db)
 	hostStore := hosts.NewStore(db, labelStore)
 	firstHostID, firstLabelID := createRepositoryScopeHost(t, ctx, hostStore, labelStore, "first", "1")
@@ -495,8 +485,8 @@ func TestRepositoryServiceScopesCatalogAndFilesByHost(t *testing.T) {
 
 type repositoryScopePackage struct {
 	pkg       *packages.Package
-	installer *storage.Object
-	icon      *storage.Object
+	installer *bloby.Object
+	icon      *bloby.Object
 }
 
 func createRepositoryScopeHost(
@@ -678,7 +668,7 @@ func TestEffectivePackagesForHostUsesPriorityForSchoolTargets(t *testing.T) {
 	db, ctx := testdb.Open(t)
 	labelStore := labels.NewStore(db)
 	hostStore := hosts.NewStore(db, labelStore)
-	stores := newMunkiStores(db)
+	stores := newMunkiStores(t, db)
 
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
 		Hardware:     hosts.HostHardware{UUID: "munki-sac-student-uuid", Serial: "C02MUNKISAC"},
@@ -735,7 +725,7 @@ func TestEffectivePackagesForHostUsesRowOrderNotActionRank(t *testing.T) {
 	db, ctx := testdb.Open(t)
 	labelStore := labels.NewStore(db)
 	hostStore := hosts.NewStore(db, labelStore)
-	stores := newMunkiStores(db)
+	stores := newMunkiStores(t, db)
 
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
 		Hardware:     hosts.HostHardware{UUID: "munki-row-order-uuid", Serial: "C02MUNKIRO"},
@@ -793,7 +783,7 @@ func TestPackagePreservesBlockingApplicationStates(t *testing.T) {
 	db, ctx := testdb.Open(t)
 	labelStore := labels.NewStore(db)
 	hostStore := hosts.NewStore(db, labelStore)
-	stores := newMunkiStores(db)
+	stores := newMunkiStores(t, db)
 
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
 		Hardware:     hosts.HostHardware{UUID: "munki-blocking-apps-uuid", Serial: "C02BLOCKING"},
@@ -878,7 +868,7 @@ func TestPackagePreservesBlockingApplicationStates(t *testing.T) {
 
 func TestCreatePackageMissingRelationTargetFallsThroughToNotFound(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	stores := newMunkiStores(db)
+	stores := newMunkiStores(t, db)
 
 	title, err := stores.software.Create(ctx, munkisoftware.CreateMutation{Name: "MissingRelationApp"})
 	if err != nil {
@@ -903,7 +893,7 @@ func TestCreatePackageMissingRelationTargetFallsThroughToNotFound(t *testing.T) 
 
 func TestBulkDeletePackagesIgnoresMissingIDsAndRemovesSelectedRelations(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	stores := newMunkiStores(db)
+	stores := newMunkiStores(t, db)
 
 	title, err := stores.software.Create(ctx, munkisoftware.CreateMutation{Name: "BulkDeletePackageApp"})
 	if err != nil {
@@ -944,7 +934,7 @@ func TestBulkDeletePackagesIgnoresMissingIDsAndRemovesSelectedRelations(t *testi
 
 func TestBulkDeletePackagesReportsConflictWhileReferenced(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	stores := newMunkiStores(db)
+	stores := newMunkiStores(t, db)
 
 	title, err := stores.software.Create(ctx, munkisoftware.CreateMutation{Name: "BulkDeleteConflictApp"})
 	if err != nil {
@@ -972,7 +962,7 @@ func TestBulkDeletePackagesReportsConflictWhileReferenced(t *testing.T) {
 
 func TestDeleteObjectReportsConflictWhileReferencedByPackage(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	stores := newMunkiStores(db)
+	stores := newMunkiStores(t, db)
 
 	title, err := stores.software.Create(ctx, munkisoftware.CreateMutation{Name: "DeleteObjectApp"})
 	if err != nil {
@@ -996,7 +986,7 @@ func TestDeleteObjectReportsConflictWhileReferencedByPackage(t *testing.T) {
 		{name: "installer", id: installerObject.ID},
 	}
 	for _, ref := range references {
-		if err := stores.objects.Delete(ctx, ref.id); !errors.Is(err, fault.ErrConflict) {
+		if err := stores.objects.Delete(ctx, ref.id, packages.ObjectPrefix); !errors.Is(err, bloby.ErrConflict) {
 			t.Fatalf("delete referenced %s object error = %v, want ErrConflict", ref.name, err)
 		}
 	}
@@ -1010,7 +1000,7 @@ func TestDeleteObjectReportsConflictWhileReferencedByPackage(t *testing.T) {
 
 func TestPackageStoresTypedScriptAndRelations(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	stores := newMunkiStores(db)
+	stores := newMunkiStores(t, db)
 
 	title, err := stores.software.Create(ctx, munkisoftware.CreateMutation{Name: "ExtraApp"})
 	if err != nil {
@@ -1060,7 +1050,7 @@ func TestPackageStoresTypedScriptAndRelations(t *testing.T) {
 
 func TestUpdatePackageReplacesEditableStateAndClearsUnusedObjects(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	stores := newMunkiStores(db)
+	stores := newMunkiStores(t, db)
 
 	title, err := stores.software.Create(ctx, munkisoftware.CreateMutation{Name: "Switchable App"})
 	if err != nil {
@@ -1106,7 +1096,7 @@ func TestUpdatePackageReplacesEditableStateAndClearsUnusedObjects(t *testing.T) 
 func TestSoftwareTargetsRejectPinnedPackageFromAnotherSoftware(t *testing.T) {
 	db, ctx := testdb.Open(t)
 	labelStore := labels.NewStore(db)
-	stores := newMunkiStores(db)
+	stores := newMunkiStores(t, db)
 
 	first, err := stores.software.Create(ctx, munkisoftware.CreateMutation{Name: "FirstAssignedApp"})
 	if err != nil {
@@ -1136,7 +1126,7 @@ func TestSoftwareTargetsRejectPinnedPackageFromAnotherSoftware(t *testing.T) {
 func TestSoftwareTargetsRejectBuiltinExclude(t *testing.T) {
 	db, ctx := testdb.Open(t)
 	labelStore := labels.NewStore(db)
-	stores := newMunkiStores(db)
+	stores := newMunkiStores(t, db)
 
 	title, err := stores.software.Create(
 		ctx,
@@ -1171,7 +1161,7 @@ func TestSoftwareTargetsRejectBuiltinExclude(t *testing.T) {
 func TestDeleteMunkiSoftwareCleansPackagesTargetsAndIgnoresMissingBulkIDs(t *testing.T) {
 	db, ctx := testdb.Open(t)
 	labelStore := labels.NewStore(db)
-	stores := newMunkiStores(db)
+	stores := newMunkiStores(t, db)
 	labelID := allHostsLabelID(t, ctx, labelStore)
 
 	firstIcon := createMunkiIconObject(t, ctx, stores, "DeletePinnedApp.png", "f")
@@ -1227,7 +1217,7 @@ func TestDeleteMunkiSoftwareCleansPackagesTargetsAndIgnoresMissingBulkIDs(t *tes
 
 func TestTargetMissingLabelFallsThroughToNotFound(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	stores := newMunkiStores(db)
+	stores := newMunkiStores(t, db)
 	title, err := stores.software.Create(
 		ctx,
 		munkisoftware.CreateMutation{Name: "MissingLabelTarget"},
@@ -1252,7 +1242,7 @@ func TestHostMunkiStateKeepsDesiredSoftwareSeparateFromExactObservations(t *test
 	db, ctx := testdb.Open(t)
 	labelStore := labels.NewStore(db)
 	hostStore := hosts.NewStore(db, labelStore)
-	stores := newMunkiStores(db)
+	stores := newMunkiStores(t, db)
 
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
 		Hardware:     hosts.HostHardware{UUID: "munki-host-observation-uuid", Serial: "C02MUNKI"},
@@ -1599,10 +1589,10 @@ func createMunkiPackageObject(
 	ctx context.Context,
 	stores munkiStores,
 	location string,
-	hashChar string,
-) *storage.Object {
+	contentSeed string,
+) *bloby.Object {
 	t.Helper()
-	return createMunkiStorageObject(t, ctx, stores, "munki/packages", location, hashChar)
+	return createMunkiStorageObject(t, ctx, stores, "munki/packages", location, contentSeed)
 }
 
 func assertBlockingApplications(t *testing.T, pkg packages.Package, wantNone bool, want []string) {
@@ -1646,11 +1636,11 @@ func assertNoMunkiChildren(t *testing.T, ctx context.Context, stores munkiStores
 func assertObjectDeleted(
 	t *testing.T,
 	ctx context.Context,
-	objects *storage.ObjectStore,
+	objects *bloby.Service,
 	objectID int64,
 ) {
 	t.Helper()
-	if _, err := objects.GetByID(ctx, objectID); !errors.Is(err, fault.ErrNotFound) {
+	if _, err := objects.GetByID(ctx, objectID); !errors.Is(err, bloby.ErrNotFound) {
 		t.Fatalf("get deleted object %d error = %v, want ErrNotFound", objectID, err)
 	}
 }
@@ -1660,8 +1650,8 @@ func createMunkiIconObject(
 	ctx context.Context,
 	stores munkiStores,
 	location string,
-	hashChar string,
-) *storage.Object {
+	contentSeed string,
+) *bloby.Object {
 	t.Helper()
-	return createMunkiStorageObject(t, ctx, stores, "munki/icons", location, hashChar)
+	return createMunkiStorageObject(t, ctx, stores, "munki/icons", location, contentSeed)
 }

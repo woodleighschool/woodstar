@@ -121,18 +121,18 @@ func createAgentSecret(
 	return response.JSON201
 }
 
-func directPackageInstallerUpload(
+func directUpload(
 	t *testing.T,
-	target *adminapi.MunkiPackageInstallerUploadTarget,
-) adminapi.MunkiDirectUploadAction {
+	target *adminapi.MunkiUploadTarget,
+) adminapi.MunkiUploadTargetUpload0 {
 	t.Helper()
 
 	if target == nil {
-		t.Fatal("create package installer upload target returned no JSON body")
+		t.Fatal("create upload target returned no JSON body")
 	}
-	upload, err := target.Upload.AsMunkiDirectUploadAction()
+	upload, err := target.Upload.AsMunkiUploadTargetUpload0()
 	if err != nil {
-		t.Fatalf("decode direct package installer upload action: %v", err)
+		t.Fatalf("decode direct upload action: %v", err)
 	}
 	return upload
 }

@@ -47,16 +47,14 @@ const (
 )
 
 type testServer struct {
-	BaseURL              string
-	Client               *http.Client
-	Admin                *adminapi.ClientWithResponses
-	AdminHTTP            *http.Client
-	BinaryPath           string
-	DatabaseURL          string
-	StorageRoot          string
-	StorageCapabilityKey string
-	CACertificate        []byte
-	CACertificatePath    string
+	BaseURL           string
+	Client            *http.Client
+	Admin             *adminapi.ClientWithResponses
+	AdminHTTP         *http.Client
+	BinaryPath        string
+	DatabaseURL       string
+	CACertificate     []byte
+	CACertificatePath string
 
 	logPath    string
 	redactions []string
@@ -124,15 +122,13 @@ func startTestServer(t *testing.T) *testServer {
 	t.Cleanup(func() { _ = logFile.Close() })
 
 	server := &testServer{
-		BaseURL:              baseURL,
-		Client:               client,
-		BinaryPath:           binaryPath,
-		DatabaseURL:          databaseURL,
-		StorageRoot:          storageRoot,
-		StorageCapabilityKey: storageCapabilityKey,
-		CACertificate:        append([]byte(nil), tlsMaterial.caCertificate...),
-		CACertificatePath:    tlsMaterial.caPath,
-		logPath:              logPath,
+		BaseURL:           baseURL,
+		Client:            client,
+		BinaryPath:        binaryPath,
+		DatabaseURL:       databaseURL,
+		CACertificate:     append([]byte(nil), tlsMaterial.caCertificate...),
+		CACertificatePath: tlsMaterial.caPath,
+		logPath:           logPath,
 	}
 	server.redact(storageCapabilityKey, databaseURL)
 	if parsedDatabaseURL, parseErr := url.Parse(databaseURL); parseErr == nil && parsedDatabaseURL.User != nil {

@@ -9,10 +9,10 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
+	"github.com/woodleighschool/goodies/bloby"
 	"github.com/woodleighschool/woodstar/internal/api"
 	"github.com/woodleighschool/woodstar/internal/listing"
 	"github.com/woodleighschool/woodstar/internal/munki/clientresources"
-	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
 const (
@@ -87,8 +87,7 @@ func (input clientResourcesListInput) params() listing.Params {
 func registerMunkiClientResources(
 	humaAPI huma.API,
 	service *clientresources.Service,
-	objects *storage.ObjectStore,
-	ingestor *storage.Ingestor,
+	objects *bloby.Service,
 	logger *slog.Logger,
 ) {
 	registerListMunkiClientResources(humaAPI, service, objects, logger)
@@ -98,7 +97,7 @@ func registerMunkiClientResources(
 	registerDeleteMunkiClientResources(humaAPI, service, logger)
 	registerCreateClientResourcesUpload(
 		humaAPI,
-		ingestor,
+		objects,
 		logger,
 		clientResourcesBannerUploadPath,
 		clientresources.BannerObjectPrefix,
@@ -107,7 +106,7 @@ func registerMunkiClientResources(
 	)
 	registerDeleteClientResourcesUpload(
 		humaAPI,
-		ingestor,
+		objects,
 		logger,
 		clientResourcesBannerUploadPath,
 		clientresources.BannerObjectPrefix,
@@ -116,7 +115,7 @@ func registerMunkiClientResources(
 	)
 	registerCreateClientResourcesUpload(
 		humaAPI,
-		ingestor,
+		objects,
 		logger,
 		clientResourcesArchiveUploadPath,
 		clientresources.ArchiveObjectPrefix,
@@ -125,7 +124,7 @@ func registerMunkiClientResources(
 	)
 	registerDeleteClientResourcesUpload(
 		humaAPI,
-		ingestor,
+		objects,
 		logger,
 		clientResourcesArchiveUploadPath,
 		clientresources.ArchiveObjectPrefix,
@@ -141,7 +140,7 @@ type clientResourcesUploadIDInput struct {
 func registerListMunkiClientResources(
 	humaAPI huma.API,
 	service *clientresources.Service,
-	objects *storage.ObjectStore,
+	objects *bloby.Service,
 	logger *slog.Logger,
 ) {
 	huma.Register(humaAPI, huma.Operation{
@@ -172,7 +171,7 @@ func registerListMunkiClientResources(
 func registerCreateMunkiClientResources(
 	humaAPI huma.API,
 	service *clientresources.Service,
-	objects *storage.ObjectStore,
+	objects *bloby.Service,
 	logger *slog.Logger,
 ) {
 	huma.Register(humaAPI, huma.Operation{
@@ -199,7 +198,7 @@ func registerCreateMunkiClientResources(
 func registerGetMunkiClientResources(
 	humaAPI huma.API,
 	service *clientresources.Service,
-	objects *storage.ObjectStore,
+	objects *bloby.Service,
 	logger *slog.Logger,
 ) {
 	huma.Register(humaAPI, huma.Operation{
@@ -225,7 +224,7 @@ func registerGetMunkiClientResources(
 func registerUpdateMunkiClientResources(
 	humaAPI huma.API,
 	service *clientresources.Service,
-	objects *storage.ObjectStore,
+	objects *bloby.Service,
 	logger *slog.Logger,
 ) {
 	huma.Register(humaAPI, huma.Operation{
@@ -271,7 +270,7 @@ func registerDeleteMunkiClientResources(
 
 func registerCreateClientResourcesUpload(
 	humaAPI huma.API,
-	ingestor *storage.Ingestor,
+	objects *bloby.Service,
 	logger *slog.Logger,
 	path string,
 	prefix string,
@@ -286,18 +285,18 @@ func registerCreateClientResourcesUpload(
 		Summary:       summary,
 		DefaultStatus: http.StatusCreated,
 		Errors:        []int{http.StatusBadRequest},
-	}, func(ctx context.Context, input *clientResourcesUploadInput) (*munkiDirectUploadOutput, error) {
-		object, target, err := ingestor.BeginDirect(ctx, prefix, input.Body.Filename)
+	}, func(ctx context.Context, input *clientResourcesUploadInput) (*munkiUploadOutput, error) {
+		object, target, err := objects.BeginDirect(ctx, prefix, input.Body.Filename)
 		if err != nil {
 			return nil, api.ResourceError(ctx, logger, operationID, clientResourcesLabel, err)
 		}
-		return newMunkiDirectUploadOutput(object, target), nil
+		return newMunkiUploadOutput(object, target), nil
 	})
 }
 
 func registerDeleteClientResourcesUpload(
 	humaAPI huma.API,
-	ingestor *storage.Ingestor,
+	objects *bloby.Service,
 	logger *slog.Logger,
 	path string,
 	prefix string,
@@ -313,7 +312,7 @@ func registerDeleteClientResourcesUpload(
 		DefaultStatus: http.StatusNoContent,
 		Errors:        []int{http.StatusBadRequest, http.StatusNotFound, http.StatusConflict},
 	}, func(ctx context.Context, input *clientResourcesUploadIDInput) (*struct{}, error) {
-		if err := ingestor.Delete(ctx, input.ID, prefix); err != nil {
+		if err := objects.Delete(ctx, input.ID, prefix); err != nil {
 			return nil, api.ResourceError(
 				ctx,
 				logger,
@@ -330,7 +329,7 @@ func registerDeleteClientResourcesUpload(
 
 func clientResourcesResponse(
 	ctx context.Context,
-	objects *storage.ObjectStore,
+	objects *bloby.Service,
 	resource clientresources.ClientResources,
 ) (*clientResourcesOutput, error) {
 	archiveObject, err := objects.GetByID(ctx, resource.ArchiveObjectID)

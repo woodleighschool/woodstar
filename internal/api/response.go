@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/woodleighschool/goodies/bloby"
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/listing"
 )
@@ -63,6 +64,18 @@ func ResourceMutationError(resource string, err error) error {
 	case errors.Is(err, fault.ErrInvalidInput):
 		return huma.Error400BadRequest(
 			strings.TrimPrefix(err.Error(), fault.ErrInvalidInput.Error()+": "),
+		)
+	case errors.Is(err, bloby.ErrNotFound):
+		return huma.Error404NotFound("")
+	case errors.Is(err, bloby.ErrAlreadyExists):
+		return huma.Error409Conflict(resource + " already exists")
+	case errors.Is(err, bloby.ErrConflict):
+		return huma.Error409Conflict(
+			strings.TrimPrefix(err.Error(), bloby.ErrConflict.Error()+": "),
+		)
+	case errors.Is(err, bloby.ErrInvalidInput):
+		return huma.Error400BadRequest(
+			strings.TrimPrefix(err.Error(), bloby.ErrInvalidInput.Error()+": "),
 		)
 	default:
 		return err

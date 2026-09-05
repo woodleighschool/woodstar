@@ -3,8 +3,8 @@ package packages
 import (
 	"time"
 
+	"github.com/woodleighschool/goodies/bloby"
 	"github.com/woodleighschool/woodstar/internal/postgres"
-	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
 func packagesFromRows(rows []packageRow) []Package {
@@ -175,7 +175,7 @@ func (row packageRow) InstallerFile() *InstallerFile {
 		return nil
 	}
 	pkg := Package{ID: row.ID}
-	obj := storage.Object{
+	obj := bloby.Object{
 		ID:        *row.InstallerObjectID,
 		Filename:  *row.InstallerFilename,
 		SizeBytes: row.InstallerSizeBytes,

@@ -373,6 +373,8 @@ github.com/tklauser/numcpus v0.12.0 h1:NR85qdvHA9pFse3x3weVZ0r0ST8R6l5RHbZrlRaqo
 github.com/tklauser/numcpus v0.12.0/go.mod h1:ABHeXzJnr/qqwguhClkZKT1/8VABcYrsyUiUGobwWJg=
 github.com/vmware-labs/yaml-jsonpath v0.3.2 h1:/5QKeCBGdsInyDCyVNLbXyilb61MXGi9NP674f9Hobk=
 github.com/vmware-labs/yaml-jsonpath v0.3.2/go.mod h1:U6whw1z03QyqgWdgXxvVnQ90zN1BWz5V+51Ewf8k+rQ=
+github.com/woodleighschool/goodies/bloby v1.0.0 h1:HjkDprwTL1DFh+kdSlMed8Lw2h2H5cVRDOrKZAUH3Y8=
+github.com/woodleighschool/goodies/bloby v1.0.0/go.mod h1:J3Dv5BQAZNfvU/K84Yz6eWPqovULoz9IqNX9JfhBjzc=
 github.com/woodleighschool/goodies/pglock v0.1.0 h1:mqADbVCB+1iDzM+maTX9IAjXAil7IH0Ij1odASLbjMs=
 github.com/woodleighschool/goodies/pglock v0.1.0/go.mod h1:zXbV7kcrrtxv7FeXm1vQHMlNF/RW9Lm+QOkkX5JhupA=
 github.com/x448/float16 v0.8.4 h1:qLwI1I70+NjRFUR3zs1JPUCgaCXSh3SW62uAKT1mSBM=

@@ -12,6 +12,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 
+	"github.com/woodleighschool/goodies/bloby"
 	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/heartbeats"
@@ -19,7 +20,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/httpx"
 	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/munki/mdp"
-	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
 const (
@@ -41,13 +41,17 @@ type Repository interface {
 	Catalog(context.Context, int64, string) ([]byte, error)
 	IconHashes(context.Context, int64) ([]byte, error)
 	ResolvePackageFile(context.Context, int64, string) (munki.PackageInstaller, error)
-	ResolveIconFile(context.Context, int64, string) (storage.Object, error)
-	ResolveClientResources(context.Context, int64, string) (storage.Object, error)
+	ResolveIconFile(context.Context, int64, string) (bloby.Object, error)
+	ResolveClientResources(context.Context, int64, string) (bloby.Object, error)
 }
 
 // Selector redirects a package download to a matching distribution point.
 type Selector interface {
 	SelectRedirect(ctx context.Context, req mdp.SelectionRequest) (string, bool)
+}
+
+type objectDeliverer interface {
+	Deliver(http.ResponseWriter, *http.Request, bloby.Object, bloby.DeliveryOptions) error
 }
 
 type handler struct {
@@ -56,7 +60,7 @@ type handler struct {
 	repository     Repository
 	heartbeats     heartbeatRecorder
 	selector       Selector
-	delivery       storage.Deliverer
+	delivery       objectDeliverer
 	logger         *slog.Logger
 }
 
@@ -67,7 +71,7 @@ type Server struct {
 	repository     Repository
 	heartbeats     heartbeatRecorder
 	selector       Selector
-	delivery       storage.Deliverer
+	delivery       objectDeliverer
 	logger         *slog.Logger
 }
 
@@ -78,7 +82,7 @@ func NewServer(
 	repository Repository,
 	heartbeats heartbeatRecorder,
 	selector Selector,
-	delivery storage.Deliverer,
+	delivery objectDeliverer,
 	logger *slog.Logger,
 ) *Server {
 	return &Server{
@@ -235,8 +239,8 @@ func (h handler) redirectToDistributionPoint(
 }
 
 // deliver hands the resolved object to storage for backend-appropriate delivery.
-func (h handler) deliver(w http.ResponseWriter, r *http.Request, object storage.Object) {
-	if err := h.delivery.Deliver(w, r, object, storage.DeliveryOptions{}); err != nil {
+func (h handler) deliver(w http.ResponseWriter, r *http.Request, object bloby.Object) {
+	if err := h.delivery.Deliver(w, r, object, bloby.DeliveryOptions{}); err != nil {
 		h.log(r, "file", err)
 	}
 }

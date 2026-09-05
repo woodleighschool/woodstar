@@ -19,10 +19,11 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/woodleighschool/goodies/bloby"
 	"github.com/woodleighschool/woodstar/internal/munki/mdp"
 	mdpprotocol "github.com/woodleighschool/woodstar/internal/munki/mdp/protocol"
 	"github.com/woodleighschool/woodstar/internal/munki/mdp/wire"
-	"github.com/woodleighschool/woodstar/internal/storage"
+	"github.com/woodleighschool/woodstar/internal/testutil/testbloby"
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
 )
 
@@ -35,9 +36,9 @@ type fakeDelivery struct{}
 
 func (fakeDelivery) DownloadURL(
 	_ context.Context,
-	_ storage.Object,
+	_ bloby.Object,
 	_ time.Duration,
-	_ storage.DeliveryOptions,
+	_ bloby.DeliveryOptions,
 ) (string, error) {
 	return "", nil
 }
@@ -85,8 +86,9 @@ func startProtocolServer(
 	return protocol, server
 }
 
-func newStore(db *pgxpool.Pool) *mdp.Store {
-	return mdp.NewStore(db, storage.NewObjectStore(db, nil, discardLogger()), discardLogger())
+func newStore(t *testing.T, db *pgxpool.Pool) *mdp.Store {
+	t.Helper()
+	return mdp.NewStore(db, testbloby.New(t, db), discardLogger())
 }
 
 func pointMutation(cidrs []string) mdp.DistributionPointMutation {
@@ -103,9 +105,8 @@ func seedAvailablePackage(
 	ctx context.Context,
 	db *pgxpool.Pool,
 	name string,
-	sha256 string,
 	size int64,
-) int64 {
+) (int64, string) {
 	t.Helper()
 	var softwareID int64
 	if err := db.QueryRow(ctx,
@@ -113,28 +114,26 @@ func seedAvailablePackage(
 	).Scan(&softwareID); err != nil {
 		t.Fatalf("insert software: %v", err)
 	}
-	var objectID int64
-	if err := db.QueryRow(ctx,
-		`INSERT INTO storage_objects (prefix, filename, content_type, size_bytes, sha256, available_at)
-		 VALUES ('packages', $1, 'application/octet-stream', $2, $3, now()) RETURNING id`,
-		name+".pkg", size, sha256,
-	).Scan(&objectID); err != nil {
-		t.Fatalf("insert object: %v", err)
+	body := make([]byte, size)
+	copy(body, name)
+	object, err := testbloby.New(t, db).Write(ctx, "munki/packages", name+".pkg", "application/octet-stream", body)
+	if err != nil {
+		t.Fatalf("write object: %v", err)
 	}
 	var packageID int64
 	if err := db.QueryRow(ctx,
 		`INSERT INTO munki_packages (software_id, version, installer_object_id)
 		 VALUES ($1, '1.0', $2) RETURNING id`,
-		softwareID, objectID,
+		softwareID, object.ID,
 	).Scan(&packageID); err != nil {
 		t.Fatalf("insert package: %v", err)
 	}
-	return packageID
+	return packageID, object.SHA256Value()
 }
 
 func TestConnectRejectsMissingAndUnknownKey(t *testing.T) {
 	db, _ := testdb.Open(t)
-	store := newStore(db)
+	store := newStore(t, db)
 	router := agentRouter(t, store)
 
 	cases := []struct {
@@ -161,7 +160,7 @@ func TestConnectRejectsMissingAndUnknownKey(t *testing.T) {
 
 func TestConnectRejectsIncompatibleProtocol(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	store := newStore(db)
+	store := newStore(t, db)
 	point, err := store.Create(ctx, pointMutation(nil), "worker-key")
 	if err != nil {
 		t.Fatalf("Create: %v", err)
@@ -256,7 +255,7 @@ func TestConnectRejectsIncompatibleProtocol(t *testing.T) {
 
 func TestConnectRejectsUnexpectedMessage(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	store := newStore(db)
+	store := newStore(t, db)
 	point, err := store.Create(ctx, pointMutation([]string{"10.0.0.0/8"}), "worker-key")
 	if err != nil {
 		t.Fatalf("Create: %v", err)
@@ -300,7 +299,7 @@ func TestConnectRejectsUnexpectedMessage(t *testing.T) {
 
 func TestDisconnectDropsCurrentWorkerSession(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	store := newStore(db)
+	store := newStore(t, db)
 	point, err := store.Create(ctx, pointMutation(nil), "worker-key")
 	if err != nil {
 		t.Fatalf("Create: %v", err)
@@ -341,8 +340,8 @@ func TestDisconnectDropsCurrentWorkerSession(t *testing.T) {
 
 func TestReplicasShareAndReplaceWorkerSession(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	storeA := newStore(db)
-	storeB := newStore(db)
+	storeA := newStore(t, db)
+	storeB := newStore(t, db)
 	point, err := storeA.Create(
 		ctx,
 		pointMutation([]string{"10.0.0.0/8"}),
@@ -366,8 +365,7 @@ func TestReplicasShareAndReplaceWorkerSession(t *testing.T) {
 	readJSON(t, ctx, workerA, new(struct{}))
 	eventually(t, func() bool { return connected(ctx, storeB, point.ID) })
 
-	sha := strings.Repeat("a", 64)
-	packageID := seedAvailablePackage(t, ctx, db, "Chrome", sha, 4096)
+	packageID, sha := seedAvailablePackage(t, ctx, db, "Chrome", 4096)
 	writePackageEvent(t, ctx, workerA, wire.PackageEvent{
 		Type: wire.EventPackageCurrent, PackageID: packageID, SHA256: sha,
 	})
@@ -411,8 +409,8 @@ func TestReplicasShareAndReplaceWorkerSession(t *testing.T) {
 
 func TestReplicaPollConvergesDesiredPackages(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	storeA := newStore(db)
-	storeB := newStore(db)
+	storeA := newStore(t, db)
+	storeB := newStore(t, db)
 	if _, err := storeA.Create(ctx, pointMutation(nil), "worker-key"); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -430,8 +428,7 @@ func TestReplicaPollConvergesDesiredPackages(t *testing.T) {
 	readJSON(t, ctx, worker, new(wire.ServerMessage))
 	readJSON(t, ctx, worker, new(wire.ServerMessage))
 
-	sha := strings.Repeat("a", 64)
-	packageID := seedAvailablePackage(t, ctx, db, "Chrome", sha, 4096)
+	packageID, sha := seedAvailablePackage(t, ctx, db, "Chrome", 4096)
 	protocolB.RefreshDesiredPackages()
 
 	readCtx, cancel := context.WithTimeout(ctx, 25*time.Second)
@@ -471,8 +468,8 @@ func TestReplicaMutationsInvalidateWorkerConnection(t *testing.T) {
 	for name, mutate := range tests {
 		t.Run(name, func(t *testing.T) {
 			db, ctx := testdb.Open(t)
-			storeA := newStore(db)
-			storeB := newStore(db)
+			storeA := newStore(t, db)
+			storeB := newStore(t, db)
 			point, err := storeA.Create(ctx, pointMutation(nil), "worker-key")
 			if err != nil {
 				t.Fatalf("Create: %v", err)
@@ -506,9 +503,8 @@ func TestReplicaMutationsInvalidateWorkerConnection(t *testing.T) {
 
 func TestDownloadURLRejectsMissingAndUnknownKey(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	store := newStore(db)
-	sha := strings.Repeat("a", 64)
-	pkg := seedAvailablePackage(t, ctx, db, "Chrome", sha, 4096)
+	store := newStore(t, db)
+	pkg, _ := seedAvailablePackage(t, ctx, db, "Chrome", 4096)
 	var nopkgID int64
 	if err := db.QueryRow(ctx, `
 WITH software AS (

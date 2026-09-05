@@ -131,7 +131,7 @@ class WoodstarClient:
             raise ProcessorError(f"unsupported upload strategy: {strategy}")
         size = os.path.getsize(file_path)
         with open(file_path, "rb") as handle:
-            self.upload_to_target(action, handle, size)
+            self.upload_to_target(action["target"], handle, size)
 
     def upload_package_installer_parts(self, object_id, file_path):
         parts = []

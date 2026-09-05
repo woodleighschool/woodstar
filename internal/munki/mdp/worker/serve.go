@@ -10,8 +10,8 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/woodleighschool/woodstar/internal/httpx"
+	"github.com/woodleighschool/woodstar/internal/munki/mdp/capability"
 	"github.com/woodleighschool/woodstar/internal/munki/mdp/grant"
-	"github.com/woodleighschool/woodstar/internal/storage/capability"
 )
 
 type server struct {

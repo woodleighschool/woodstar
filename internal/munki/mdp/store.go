@@ -11,22 +11,22 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/woodleighschool/goodies/bloby"
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/listing"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
 	"github.com/woodleighschool/woodstar/internal/postgres"
-	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
 // Store persists distribution points and their per-package mirror state.
 type Store struct {
 	pool    *pgxpool.Pool
-	objects *storage.ObjectStore
+	objects *bloby.Service
 	logger  *slog.Logger
 }
 
 // NewStore returns a distribution point store backed by PostgreSQL.
-func NewStore(pool *pgxpool.Pool, objects *storage.ObjectStore, logger *slog.Logger) *Store {
+func NewStore(pool *pgxpool.Pool, objects *bloby.Service, logger *slog.Logger) *Store {
 	return &Store{pool: pool, objects: objects, logger: logger}
 }
 
@@ -515,24 +515,24 @@ ORDER BY p.id`)
 }
 
 // InstallerObject returns the stored content for a package's installer.
-func (s *Store) InstallerObject(ctx context.Context, packageID int64) (storage.Object, error) {
+func (s *Store) InstallerObject(ctx context.Context, packageID int64) (bloby.Object, error) {
 	var objectID *int64
 	err := s.pool.QueryRow(ctx, `
 SELECT installer_object_id
 FROM munki_packages
 WHERE id = $1`, packageID).Scan(&objectID)
 	if err != nil {
-		return storage.Object{}, postgres.GetError(err)
+		return bloby.Object{}, postgres.GetError(err)
 	}
 	if objectID == nil {
-		return storage.Object{}, fault.ErrNotFound
+		return bloby.Object{}, fault.ErrNotFound
 	}
 	object, err := s.objects.GetByID(ctx, *objectID)
 	if err != nil {
-		return storage.Object{}, err
+		return bloby.Object{}, err
 	}
 	if !object.Available() || object.SizeBytes == nil || object.SHA256 == nil {
-		return storage.Object{}, fmt.Errorf("munki package %d installer object is not finalized", packageID)
+		return bloby.Object{}, fmt.Errorf("munki package %d installer object is not finalized", packageID)
 	}
 	return *object, nil
 }

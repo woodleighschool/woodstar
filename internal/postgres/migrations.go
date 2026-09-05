@@ -13,6 +13,7 @@ import (
 	"github.com/pressly/goose/v3/lock"
 	"github.com/riverqueue/river/riverdriver/riverpgxv5"
 	"github.com/riverqueue/river/rivermigrate"
+	blobydb "github.com/woodleighschool/goodies/bloby/pgxstore"
 	"github.com/woodleighschool/goodies/pglock"
 )
 
@@ -26,6 +27,10 @@ const (
 	// riverMigrationVersion is deliberately pinned so dependency updates do not
 	// mutate the database schema without an explicit application change.
 	riverMigrationVersion = 7
+
+	// blobyAdoptionVersion hands the existing object schema to Bloby before
+	// its runner or later application migrations can use it.
+	blobyAdoptionVersion = 20260901080000
 )
 
 //go:embed migrations/*.sql
@@ -54,6 +59,12 @@ func migrate(ctx context.Context, pool *pgxpool.Pool) error {
 	)
 	if err != nil {
 		return fmt.Errorf("create migration provider: %w", err)
+	}
+	if _, err := provider.UpTo(ctx, blobyAdoptionVersion); err != nil {
+		return fmt.Errorf("apply migrations through Bloby adoption: %w", err)
+	}
+	if err := blobydb.Migrate(ctx, pool); err != nil {
+		return fmt.Errorf("apply blob migrations: %w", err)
 	}
 	if _, err := provider.Up(ctx); err != nil {
 		return fmt.Errorf("apply migrations: %w", err)

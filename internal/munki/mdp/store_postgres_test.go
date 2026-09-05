@@ -14,14 +14,15 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/munki/mdp"
-	"github.com/woodleighschool/woodstar/internal/storage"
+	"github.com/woodleighschool/woodstar/internal/testutil/testbloby"
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
 )
 
 const testConnectionID = "test-connection"
 
-func newStore(db *pgxpool.Pool) *mdp.Store {
-	return mdp.NewStore(db, storage.NewObjectStore(db, nil, discardLogger()), discardLogger())
+func newStore(t *testing.T, db *pgxpool.Pool) *mdp.Store {
+	t.Helper()
+	return mdp.NewStore(db, testbloby.New(t, db), discardLogger())
 }
 
 func testWorker() mdp.DistributionPointWorker {
@@ -53,9 +54,8 @@ func seedAvailablePackage(
 	ctx context.Context,
 	db *pgxpool.Pool,
 	name string,
-	sha256 string,
 	size int64,
-) int64 {
+) (int64, string) {
 	t.Helper()
 	var softwareID int64
 	if err := db.QueryRow(ctx,
@@ -63,23 +63,21 @@ func seedAvailablePackage(
 	).Scan(&softwareID); err != nil {
 		t.Fatalf("insert software: %v", err)
 	}
-	var objectID int64
-	if err := db.QueryRow(ctx,
-		`INSERT INTO storage_objects (prefix, filename, content_type, size_bytes, sha256, available_at)
-		 VALUES ('packages', $1, 'application/octet-stream', $2, $3, now()) RETURNING id`,
-		name+".pkg", size, sha256,
-	).Scan(&objectID); err != nil {
-		t.Fatalf("insert object: %v", err)
+	body := make([]byte, size)
+	copy(body, name)
+	object, err := testbloby.New(t, db).Write(ctx, "munki/packages", name+".pkg", "application/octet-stream", body)
+	if err != nil {
+		t.Fatalf("write object: %v", err)
 	}
 	var packageID int64
 	if err := db.QueryRow(ctx,
 		`INSERT INTO munki_packages (software_id, version, installer_object_id)
 		 VALUES ($1, '1.0', $2) RETURNING id`,
-		softwareID, objectID,
+		softwareID, object.ID,
 	).Scan(&packageID); err != nil {
 		t.Fatalf("insert package: %v", err)
 	}
-	return packageID
+	return packageID, object.SHA256Value()
 }
 
 // recordCurrent reports a package as mirrored with the given hash, the worker's
@@ -116,11 +114,9 @@ func claimWorker(
 
 func TestGetByIDDerivesPackageStatusFromDesiredAndMirrorState(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	store := newStore(db)
-	shaA := strings.Repeat("a", 64)
-	shaB := strings.Repeat("b", 64)
-	pkgA := seedAvailablePackage(t, ctx, db, "Chrome", shaA, 4096)
-	pkgB := seedAvailablePackage(t, ctx, db, "Firefox", shaB, 8192)
+	store := newStore(t, db)
+	pkgA, shaA := seedAvailablePackage(t, ctx, db, "Chrome", 4096)
+	pkgB, shaB := seedAvailablePackage(t, ctx, db, "Firefox", 8192)
 
 	point, err := store.Create(ctx, pointMutation("Melbourne", []string{"10.0.0.0/8"}), "key-mel")
 	if err != nil {
@@ -159,9 +155,8 @@ func TestGetByIDDerivesPackageStatusFromDesiredAndMirrorState(t *testing.T) {
 
 func TestGetByIDSurfacesPackageError(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	store := newStore(db)
-	sha := strings.Repeat("a", 64)
-	pkg := seedAvailablePackage(t, ctx, db, "Chrome", sha, 4096)
+	store := newStore(t, db)
+	pkg, _ := seedAvailablePackage(t, ctx, db, "Chrome", 4096)
 	point, err := store.Create(ctx, pointMutation("Melbourne", []string{"10.0.0.0/8"}), "key-mel")
 	if err != nil {
 		t.Fatalf("Create: %v", err)
@@ -182,8 +177,8 @@ func TestGetByIDSurfacesPackageError(t *testing.T) {
 
 func TestListIncludesLiveWorkerMetadata(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	store := newStore(db)
-	otherStore := newStore(db)
+	store := newStore(t, db)
+	otherStore := newStore(t, db)
 
 	pointID := mustCreate(t, ctx, store, "Melbourne")
 	points, _, err := store.List(ctx, mdp.DistributionPointListParams{})
@@ -206,8 +201,8 @@ func TestListIncludesLiveWorkerMetadata(t *testing.T) {
 
 func TestWorkerStateIsSharedAndKeepsRejectionPrecedence(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	store := newStore(db)
-	otherStore := newStore(db)
+	store := newStore(t, db)
+	otherStore := newStore(t, db)
 	pointID := mustCreate(t, ctx, store, "Melbourne")
 	rejected := mdp.DistributionPointWorker{
 		ProtocolVersion: new(2),
@@ -251,9 +246,8 @@ WHERE distribution_point_id = $1`, pointID); err != nil {
 
 func TestWorkerSessionReplacementRejectsStaleState(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	store := newStore(db)
-	sha := strings.Repeat("a", 64)
-	pkg := seedAvailablePackage(t, ctx, db, "Chrome", sha, 4096)
+	store := newStore(t, db)
+	pkg, sha := seedAvailablePackage(t, ctx, db, "Chrome", 4096)
 	point, err := store.Create(
 		ctx,
 		pointMutation("Melbourne", []string{"10.0.0.0/8"}),
@@ -288,7 +282,7 @@ func TestWorkerSessionReplacementRejectsStaleState(t *testing.T) {
 
 func TestWorkerSessionExpiryDisableAndRotationInvalidateAuthority(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	store := newStore(db)
+	store := newStore(t, db)
 	point, err := store.Create(ctx, pointMutation("Melbourne", nil), "key-mel")
 	if err != nil {
 		t.Fatalf("Create: %v", err)
@@ -334,7 +328,7 @@ WHERE distribution_point_id = $1`, point.ID); err != nil {
 
 func TestCandidatesForClientsReturnsOrderedEnabledCIDRMatches(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	store := newStore(db)
+	store := newStore(t, db)
 
 	broad, err := store.Create(ctx, pointMutation("Broad", []string{"10.0.0.0/8"}), "key-broad")
 	if err != nil {
@@ -380,9 +374,8 @@ func TestCandidatesForClientsReturnsOrderedEnabledCIDRMatches(t *testing.T) {
 
 func TestResolveForClientHonorsEveryGate(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	store := newStore(db)
-	sha := strings.Repeat("a", 64)
-	pkg := seedAvailablePackage(t, ctx, db, "Chrome", sha, 4096)
+	store := newStore(t, db)
+	pkg, sha := seedAvailablePackage(t, ctx, db, "Chrome", 4096)
 
 	point, err := store.Create(ctx, pointMutation("Melbourne", []string{"10.0.0.0/8"}), "key-mel")
 	if err != nil {
@@ -457,9 +450,8 @@ func TestResolveForClientHonorsEveryGate(t *testing.T) {
 
 func TestResolveForClientSkipsEmptyClientBaseURL(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	store := newStore(db)
-	sha := strings.Repeat("a", 64)
-	pkg := seedAvailablePackage(t, ctx, db, "Chrome", sha, 4096)
+	store := newStore(t, db)
+	pkg, sha := seedAvailablePackage(t, ctx, db, "Chrome", 4096)
 
 	point, err := store.Create(ctx, mdp.DistributionPointMutation{
 		Name:          "Melbourne",
@@ -480,9 +472,8 @@ func TestResolveForClientSkipsEmptyClientBaseURL(t *testing.T) {
 
 func TestResolveForClientContinuesThroughOrderedCandidates(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	store := newStore(db)
-	sha := strings.Repeat("a", 64)
-	pkg := seedAvailablePackage(t, ctx, db, "Chrome", sha, 4096)
+	store := newStore(t, db)
+	pkg, sha := seedAvailablePackage(t, ctx, db, "Chrome", 4096)
 
 	first, err := store.Create(ctx, pointMutation("First", []string{"10.0.0.0/8"}), "key-first")
 	if err != nil {
@@ -511,7 +502,7 @@ func TestResolveForClientContinuesThroughOrderedCandidates(t *testing.T) {
 
 func TestReorderRequiresExactSet(t *testing.T) {
 	db, ctx := testdb.Open(t)
-	store := newStore(db)
+	store := newStore(t, db)
 	a := mustCreate(t, ctx, store, "A")
 	b := mustCreate(t, ctx, store, "B")
 	c := mustCreate(t, ctx, store, "C")

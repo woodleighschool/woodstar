@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/woodleighschool/woodstar/internal/storage"
+	"github.com/woodleighschool/goodies/bloby"
 )
 
 // MunkiVersionedSoftwareName returns Munki's name--version syntax for a specific package version.
@@ -32,8 +32,8 @@ func Pkginfo(pkg Package, objects PkginfoObjects) (any, error) {
 
 // PkginfoObjects are storage objects needed only while rendering Munki pkginfo.
 type PkginfoObjects struct {
-	Installer *storage.Object
-	Icon      *storage.Object
+	Installer *bloby.Object
+	Icon      *bloby.Object
 }
 
 type munkiPkginfo struct {
@@ -210,7 +210,7 @@ func munkiPkginfoFromPackage(pkg Package, objects PkginfoObjects) munkiPkginfo {
 }
 
 // InstallerItemLocation returns the Munki repository path for a package installer.
-func InstallerItemLocation(pkg Package, obj storage.Object) string {
+func InstallerItemLocation(pkg Package, obj bloby.Object) string {
 	return packageObjectLocation(pkg.ID, "installer", obj)
 }
 
@@ -226,7 +226,7 @@ func ParseInstallerItemLocation(location string) (int64, bool) {
 }
 
 // IconName returns the Munki icon filename for a storage object.
-func IconName(obj storage.Object) string {
+func IconName(obj bloby.Object) string {
 	if obj.ID <= 0 || obj.Filename == "" {
 		return ""
 	}
@@ -243,7 +243,7 @@ func ParseIconName(name string) (int64, bool) {
 	return id, err == nil && id > 0
 }
 
-func packageObjectLocation(packageID int64, role string, obj storage.Object) string {
+func packageObjectLocation(packageID int64, role string, obj bloby.Object) string {
 	if packageID <= 0 || obj.ID <= 0 || obj.Filename == "" {
 		return ""
 	}

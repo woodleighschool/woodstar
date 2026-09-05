@@ -138,10 +138,6 @@ WOODSTAR_TEST_DATABASE_URL="${WOODSTAR_TEST_DATABASE_URL:-postgres://woodstar:wo
   go test -race -count=1 -tags=e2e -v -run '^TestSanta$' ./test/e2e
 """
 
-[tasks.test-integration-storage]
-description = "Run Garage-backed S3 backend conformance"
-run = "go test -race -count=1 -tags=integration -v -run '^TestS3StorageBackend$' ./test/integration/storage"
-
 [tasks.test-e2e-mdp]
 description = "Run the MDP end-to-end mirroring lifecycle"
 run = """
@@ -163,18 +159,9 @@ WOODSTAR_TEST_DATABASE_URL="${WOODSTAR_TEST_DATABASE_URL:-postgres://woodstar:wo
   go test -race -count=1 -tags=e2e -v ./test/e2e
 """
 
-[tasks.test-integration]
-description = "Run integration suites"
-run = [{ task = "test-integration-storage" }]
-
 [tasks.test-all]
-description = "Run dependency-free, PostgreSQL, integration, and end-to-end tests"
-run = [
-  { task = "test" },
-  { task = "test-postgres" },
-  { task = "test-integration" },
-  { task = "test-e2e" },
-]
+description = "Run dependency-free, PostgreSQL, and end-to-end tests"
+run = [{ task = "test" }, { task = "test-postgres" }, { task = "test-e2e" }]
 
 [tasks.openapi]
 description = "Generate OpenAPI schema"

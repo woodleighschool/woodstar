@@ -5,20 +5,18 @@ package clientresources
 import (
 	"context"
 	"errors"
-	"log/slog"
-	"strings"
 	"testing"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/woodleighschool/goodies/bloby"
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/listing"
-	"github.com/woodleighschool/woodstar/internal/storage"
+	"github.com/woodleighschool/woodstar/internal/testutil/testbloby"
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
 )
 
 func TestStoreCRUDKeepsEffectiveSingleton(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear CRUD and object lifecycle.
 	db, ctx := testdb.Open(t)
-	objects := storage.NewObjectStore(db, nil, slog.New(slog.DiscardHandler))
+	objects := testbloby.New(t, db)
 	store := NewStore(db, objects)
 	resources, count, err := store.List(ctx, listing.Params{})
 	if err != nil {
@@ -28,11 +26,10 @@ func TestStoreCRUDKeepsEffectiveSingleton(t *testing.T) { //nolint:cyclop,funlen
 		t.Fatalf("List empty = %d/%+v, want 0/empty", count, resources)
 	}
 
-	banner := createAvailableObject(t, ctx, db, objects, BannerObjectPrefix, "banner.png", "image/png")
+	banner := createAvailableObject(t, ctx, objects, BannerObjectPrefix, "banner.png", "image/png")
 	generatedArchive := createAvailableObject(
 		t,
 		ctx,
-		db,
 		objects,
 		ArchiveObjectPrefix,
 		archiveFilename,
@@ -90,7 +87,6 @@ VALUES (2, $1, FALSE, $2)`, generatedArchive.ID, banner.ID); err == nil {
 	uploadedArchive := createAvailableObject(
 		t,
 		ctx,
-		db,
 		objects,
 		ArchiveObjectPrefix,
 		"school-resources.zip",
@@ -112,14 +108,13 @@ VALUES (2, $1, FALSE, $2)`, generatedArchive.ID, banner.ID); err == nil {
 	if _, err := objects.GetByID(ctx, banner.ID); err != nil {
 		t.Fatalf("get retained banner: %v", err)
 	}
-	if _, err := objects.GetByID(ctx, generatedArchive.ID); !errors.Is(err, fault.ErrNotFound) {
+	if _, err := objects.GetByID(ctx, generatedArchive.ID); !errors.Is(err, bloby.ErrNotFound) {
 		t.Fatalf("get replaced generated archive error = %v, want ErrNotFound", err)
 	}
 
 	rebuiltArchive := createAvailableObject(
 		t,
 		ctx,
-		db,
 		objects,
 		ArchiveObjectPrefix,
 		archiveFilename,
@@ -135,7 +130,7 @@ VALUES (2, $1, FALSE, $2)`, generatedArchive.ID, banner.ID); err == nil {
 	if rebuilt.Custom || rebuilt.Builder == nil || rebuilt.Builder.BannerObjectID != banner.ID {
 		t.Fatalf("rebuilt resources = %+v", rebuilt)
 	}
-	if _, err := objects.GetByID(ctx, uploadedArchive.ID); !errors.Is(err, fault.ErrNotFound) {
+	if _, err := objects.GetByID(ctx, uploadedArchive.ID); !errors.Is(err, bloby.ErrNotFound) {
 		t.Fatalf("get replaced uploaded archive error = %v, want ErrNotFound", err)
 	}
 
@@ -145,17 +140,16 @@ VALUES (2, $1, FALSE, $2)`, generatedArchive.ID, banner.ID); err == nil {
 	if _, err := store.GetByID(ctx, generated.ID); !errors.Is(err, fault.ErrNotFound) {
 		t.Fatalf("GetByID after Delete error = %v, want ErrNotFound", err)
 	}
-	if _, err := objects.GetByID(ctx, rebuiltArchive.ID); !errors.Is(err, fault.ErrNotFound) {
+	if _, err := objects.GetByID(ctx, rebuiltArchive.ID); !errors.Is(err, bloby.ErrNotFound) {
 		t.Fatalf("get undeployed archive error = %v, want ErrNotFound", err)
 	}
-	if _, err := objects.GetByID(ctx, banner.ID); !errors.Is(err, fault.ErrNotFound) {
+	if _, err := objects.GetByID(ctx, banner.ID); !errors.Is(err, bloby.ErrNotFound) {
 		t.Fatalf("get undeployed banner error = %v, want ErrNotFound", err)
 	}
 
 	recreatedArchive := createAvailableObject(
 		t,
 		ctx,
-		db,
 		objects,
 		ArchiveObjectPrefix,
 		"recreated.zip",
@@ -176,24 +170,15 @@ VALUES (2, $1, FALSE, $2)`, generatedArchive.ID, banner.ID); err == nil {
 func createAvailableObject(
 	t *testing.T,
 	ctx context.Context,
-	db *pgxpool.Pool,
-	objects *storage.ObjectStore,
+	objects *bloby.Service,
 	prefix string,
 	filename string,
 	contentType string,
-) *storage.Object {
+) *bloby.Object {
 	t.Helper()
-	var objectID int64
-	if err := db.QueryRow(ctx, `
-INSERT INTO storage_objects (
-    prefix, filename, content_type, size_bytes, sha256, available_at
-) VALUES ($1, $2, $3, 1, $4, now())
-RETURNING id`, prefix, filename, contentType, strings.Repeat("a", 64)).Scan(&objectID); err != nil {
-		t.Fatalf("insert available object: %v", err)
-	}
-	object, err := objects.GetByID(ctx, objectID)
+	object, err := objects.Write(ctx, prefix, filename, contentType, []byte(filename))
 	if err != nil {
-		t.Fatalf("get available object: %v", err)
+		t.Fatalf("write object: %v", err)
 	}
 	return object
 }

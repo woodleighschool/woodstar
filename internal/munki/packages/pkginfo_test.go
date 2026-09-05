@@ -7,7 +7,7 @@ import (
 
 	"howett.net/plist"
 
-	"github.com/woodleighschool/woodstar/internal/storage"
+	"github.com/woodleighschool/goodies/bloby"
 )
 
 const munkiReceiptPackageIDKey = "package" + "id"
@@ -64,7 +64,7 @@ func TestPkginfoProjectsMunkiTransportShape(t *testing.T) {
 		SuppressBundleRelocation: true,
 		InstallerObjectID:        &installerID,
 	}, PkginfoObjects{
-		Installer: &storage.Object{
+		Installer: &bloby.Object{
 			ID:          installerID,
 			Prefix:      ObjectPrefix,
 			Filename:    "Example.pkg",
@@ -72,7 +72,7 @@ func TestPkginfoProjectsMunkiTransportShape(t *testing.T) {
 			SHA256:      &installerHash,
 			AvailableAt: &availableAt,
 		},
-		Icon: &storage.Object{
+		Icon: &bloby.Object{
 			ID:       7,
 			Prefix:   "munki/icons",
 			Filename: "Example.png",
@@ -324,7 +324,7 @@ func pkginfoObjects() PkginfoObjects {
 	availableAt := time.Now()
 	size := int64(1)
 	sha256sum := "hash"
-	return PkginfoObjects{Installer: &storage.Object{
+	return PkginfoObjects{Installer: &bloby.Object{
 		ID:          1,
 		Prefix:      ObjectPrefix,
 		Filename:    "Installer.pkg",

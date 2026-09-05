@@ -3,6 +3,7 @@ package httpapi
 import (
 	"log/slog"
 
+	"github.com/woodleighschool/goodies/bloby"
 	"github.com/woodleighschool/woodstar/internal/api"
 	"github.com/woodleighschool/woodstar/internal/api/middleware"
 	"github.com/woodleighschool/woodstar/internal/auth"
@@ -10,7 +11,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/munki/clientresources"
 	"github.com/woodleighschool/woodstar/internal/munki/mdp"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
-	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
 // Dependencies are the services used by the Munki HTTP boundary.
@@ -21,9 +21,7 @@ type Dependencies struct {
 	DeleteSoftware  *munki.SoftwareDeletionService
 	Packages        *munki.PackageService
 	ClientResources *clientresources.Service
-	Objects         *storage.ObjectStore
-	Ingestor        *storage.Ingestor
-	Delivery        storage.Deliverer
+	Objects         *bloby.Service
 	Distribution    *mdp.Store
 	Connections     distributionPointConnections
 	Logger          *slog.Logger
@@ -40,7 +38,6 @@ func RegisterAPI(routes api.AppRoutes, deps Dependencies) {
 	registerMunkiContentRoutes(
 		routes.Transfers.With(middleware.RequireHTTPAuth(deps.AuthService)),
 		deps.Objects,
-		deps.Delivery,
 		deps.Logger,
 	)
 }
@@ -59,21 +56,19 @@ func registerOperations(routes api.AppRoutes, deps Dependencies) {
 		deps.DeleteSoftware,
 		deps.Packages,
 		deps.Objects,
-		deps.Ingestor,
 		deps.Logger,
 	)
 	registerMunkiPackages(
 		routes.Ordinary,
 		routes.LongRunningOrdinary,
 		deps.Packages,
-		deps.Ingestor,
+		deps.Objects,
 		deps.Logger,
 	)
 	registerMunkiClientResources(
 		routes.Ordinary,
 		deps.ClientResources,
 		deps.Objects,
-		deps.Ingestor,
 		deps.Logger,
 	)
 	registerMunkiDistributionPoints(routes.Ordinary, deps.Distribution, deps.Connections, deps.Logger)

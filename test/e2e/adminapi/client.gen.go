@@ -307,36 +307,6 @@ func (e MunkiClientResourcesBuilderBannerFit) Valid() bool {
 	}
 }
 
-// Defines values for MunkiDirectUploadActionMethod.
-const (
-	PUT MunkiDirectUploadActionMethod = "PUT"
-)
-
-// Valid indicates whether the value is a known member of the MunkiDirectUploadActionMethod enum.
-func (e MunkiDirectUploadActionMethod) Valid() bool {
-	switch e {
-	case PUT:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for MunkiDirectUploadActionStrategy.
-const (
-	DirectPut MunkiDirectUploadActionStrategy = "direct-put"
-)
-
-// Valid indicates whether the value is a known member of the MunkiDirectUploadActionStrategy enum.
-func (e MunkiDirectUploadActionStrategy) Valid() bool {
-	switch e {
-	case DirectPut:
-		return true
-	default:
-		return false
-	}
-}
-
 // Defines values for MunkiHostManifestLatestPackageStrategy.
 const (
 	MunkiHostManifestLatestPackageStrategyLatest MunkiHostManifestLatestPackageStrategy = "latest"
@@ -421,21 +391,6 @@ func (e MunkiIncludeActions) Valid() bool {
 	case MunkiIncludeActionsManagedUpdates:
 		return true
 	case MunkiIncludeActionsOptionalInstalls:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for MunkiMultipartUploadActionStrategy.
-const (
-	Multipart MunkiMultipartUploadActionStrategy = "multipart"
-)
-
-// Valid indicates whether the value is a known member of the MunkiMultipartUploadActionStrategy enum.
-func (e MunkiMultipartUploadActionStrategy) Valid() bool {
-	switch e {
-	case Multipart:
 		return true
 	default:
 		return false
@@ -634,6 +589,36 @@ func (e MunkiPackageStateStatus) Valid() bool {
 	case MunkiPackageStateStatusPending:
 		return true
 	case MunkiPackageStateStatusSyncing:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MunkiUploadTargetUpload0Strategy.
+const (
+	DirectPut MunkiUploadTargetUpload0Strategy = "direct-put"
+)
+
+// Valid indicates whether the value is a known member of the MunkiUploadTargetUpload0Strategy enum.
+func (e MunkiUploadTargetUpload0Strategy) Valid() bool {
+	switch e {
+	case DirectPut:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MunkiUploadTargetUpload1Strategy.
+const (
+	Multipart MunkiUploadTargetUpload1Strategy = "multipart"
+)
+
+// Valid indicates whether the value is a known member of the MunkiUploadTargetUpload1Strategy enum.
+func (e MunkiUploadTargetUpload1Strategy) Valid() bool {
+	switch e {
+	case Multipart:
 		return true
 	default:
 		return false
@@ -1180,6 +1165,21 @@ func (e SoftwareTitleSource) Valid() bool {
 	case SoftwareTitleSourceSafariExtensions:
 		return true
 	case SoftwareTitleSourceVscodeExtensions:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for UploadTargetMethod.
+const (
+	PUT UploadTargetMethod = "PUT"
+)
+
+// Valid indicates whether the value is a known member of the UploadTargetMethod enum.
+func (e UploadTargetMethod) Valid() bool {
+	switch e {
+	case PUT:
 		return true
 	default:
 		return false
@@ -1893,29 +1893,9 @@ type MunkiCreateMutation struct {
 	Targets      MunkiTargets `json:"targets"`
 }
 
-// MunkiDirectUploadAction defines model for MunkiDirectUploadAction.
-type MunkiDirectUploadAction struct {
-	Headers  *map[string]string              `json:"headers,omitempty"`
-	Method   MunkiDirectUploadActionMethod   `json:"method"`
-	Strategy MunkiDirectUploadActionStrategy `json:"strategy"`
-	Url      string                          `json:"url"`
-}
-
-// MunkiDirectUploadActionMethod defines model for MunkiDirectUploadAction.Method.
-type MunkiDirectUploadActionMethod string
-
-// MunkiDirectUploadActionStrategy defines model for MunkiDirectUploadAction.Strategy.
-type MunkiDirectUploadActionStrategy string
-
 // MunkiDirectUploadRequest defines model for MunkiDirectUploadRequest.
 type MunkiDirectUploadRequest struct {
 	Filename string `json:"filename"`
-}
-
-// MunkiDirectUploadTarget defines model for MunkiDirectUploadTarget.
-type MunkiDirectUploadTarget struct {
-	ObjectId int64                   `json:"object_id"`
-	Upload   MunkiDirectUploadAction `json:"upload"`
 }
 
 // MunkiDistributionPointDetail defines model for MunkiDistributionPointDetail.
@@ -2030,14 +2010,6 @@ type MunkiLink struct {
 	OpenInBrowser bool   `json:"open_in_browser"`
 	Target        string `json:"target"`
 }
-
-// MunkiMultipartUploadAction defines model for MunkiMultipartUploadAction.
-type MunkiMultipartUploadAction struct {
-	Strategy MunkiMultipartUploadActionStrategy `json:"strategy"`
-}
-
-// MunkiMultipartUploadActionStrategy defines model for MunkiMultipartUploadAction.Strategy.
-type MunkiMultipartUploadActionStrategy string
 
 // MunkiObjectView defines model for MunkiObjectView.
 type MunkiObjectView struct {
@@ -2213,17 +2185,6 @@ type MunkiPackageInstallerUploadRequest struct {
 	SizeBytes int64  `json:"size_bytes"`
 }
 
-// MunkiPackageInstallerUploadTarget defines model for MunkiPackageInstallerUploadTarget.
-type MunkiPackageInstallerUploadTarget struct {
-	ObjectId int64                                    `json:"object_id"`
-	Upload   MunkiPackageInstallerUploadTarget_Upload `json:"upload"`
-}
-
-// MunkiPackageInstallerUploadTarget_Upload defines model for MunkiPackageInstallerUploadTarget.Upload.
-type MunkiPackageInstallerUploadTarget_Upload struct {
-	union json.RawMessage
-}
-
 // MunkiPackageItemToCopy defines model for MunkiPackageItemToCopy.
 type MunkiPackageItemToCopy struct {
 	DestinationItem *string `json:"destination_item,omitempty"`
@@ -2326,6 +2287,34 @@ type MunkiSoftwareDetail struct {
 type MunkiTargets struct {
 	Exclude []LabelRef     `json:"exclude"`
 	Include []MunkiInclude `json:"include"`
+}
+
+// MunkiUploadTarget defines model for MunkiUploadTarget.
+type MunkiUploadTarget struct {
+	ObjectId int64                    `json:"object_id"`
+	Upload   MunkiUploadTarget_Upload `json:"upload"`
+}
+
+// MunkiUploadTargetUpload0 defines model for MunkiUploadTarget.Upload.0.
+type MunkiUploadTargetUpload0 struct {
+	Strategy MunkiUploadTargetUpload0Strategy `json:"strategy"`
+	Target   UploadTarget                     `json:"target"`
+}
+
+// MunkiUploadTargetUpload0Strategy defines model for MunkiUploadTarget.Upload.0.Strategy.
+type MunkiUploadTargetUpload0Strategy string
+
+// MunkiUploadTargetUpload1 defines model for MunkiUploadTarget.Upload.1.
+type MunkiUploadTargetUpload1 struct {
+	Strategy MunkiUploadTargetUpload1Strategy `json:"strategy"`
+}
+
+// MunkiUploadTargetUpload1Strategy defines model for MunkiUploadTarget.Upload.1.Strategy.
+type MunkiUploadTargetUpload1Strategy string
+
+// MunkiUploadTarget_Upload defines model for MunkiUploadTarget.Upload.
+type MunkiUploadTarget_Upload struct {
+	union json.RawMessage
 }
 
 // OsqueryReport defines model for OsqueryReport.
@@ -2803,6 +2792,16 @@ type SoftwareVersionList struct {
 	Items []SoftwareVersion `json:"items"`
 }
 
+// UploadTarget defines model for UploadTarget.
+type UploadTarget struct {
+	Headers *map[string]string `json:"headers,omitempty"`
+	Method  UploadTargetMethod `json:"method"`
+	Url     string             `json:"url"`
+}
+
+// UploadTargetMethod defines model for UploadTarget.Method.
+type UploadTargetMethod string
+
 // User defines model for User.
 type User struct {
 	CanLogin          bool                `json:"can_login"`
@@ -3101,31 +3100,23 @@ func (t *MunkiHostManifestSoftware_Package) UnmarshalJSON(b []byte) error {
 	return err
 }
 
-// AsMunkiDirectUploadAction returns the union data inside the MunkiPackageInstallerUploadTarget_Upload as a MunkiDirectUploadAction
-func (t MunkiPackageInstallerUploadTarget_Upload) AsMunkiDirectUploadAction() (MunkiDirectUploadAction, error) {
-	var body MunkiDirectUploadAction
+// AsMunkiUploadTargetUpload0 returns the union data inside the MunkiUploadTarget_Upload as a MunkiUploadTargetUpload0
+func (t MunkiUploadTarget_Upload) AsMunkiUploadTargetUpload0() (MunkiUploadTargetUpload0, error) {
+	var body MunkiUploadTargetUpload0
 	err := json.Unmarshal(t.union, &body)
 	return body, err
 }
 
-// FromMunkiDirectUploadAction overwrites any union data inside the MunkiPackageInstallerUploadTarget_Upload as the provided MunkiDirectUploadAction
-func (t *MunkiPackageInstallerUploadTarget_Upload) FromMunkiDirectUploadAction(v MunkiDirectUploadAction) error {
+// FromMunkiUploadTargetUpload0 overwrites any union data inside the MunkiUploadTarget_Upload as the provided MunkiUploadTargetUpload0
+func (t *MunkiUploadTarget_Upload) FromMunkiUploadTargetUpload0(v MunkiUploadTargetUpload0) error {
 	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-	b, err = runtime.JSONMerge(b, []byte(`{"strategy":"direct-put"}`))
 	t.union = b
 	return err
 }
 
-// MergeMunkiDirectUploadAction performs a merge with any union data inside the MunkiPackageInstallerUploadTarget_Upload, using the provided MunkiDirectUploadAction
-func (t *MunkiPackageInstallerUploadTarget_Upload) MergeMunkiDirectUploadAction(v MunkiDirectUploadAction) error {
+// MergeMunkiUploadTargetUpload0 performs a merge with any union data inside the MunkiUploadTarget_Upload, using the provided MunkiUploadTargetUpload0
+func (t *MunkiUploadTarget_Upload) MergeMunkiUploadTargetUpload0(v MunkiUploadTargetUpload0) error {
 	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-	b, err = runtime.JSONMerge(b, []byte(`{"strategy":"direct-put"}`))
 	if err != nil {
 		return err
 	}
@@ -3135,31 +3126,23 @@ func (t *MunkiPackageInstallerUploadTarget_Upload) MergeMunkiDirectUploadAction(
 	return err
 }
 
-// AsMunkiMultipartUploadAction returns the union data inside the MunkiPackageInstallerUploadTarget_Upload as a MunkiMultipartUploadAction
-func (t MunkiPackageInstallerUploadTarget_Upload) AsMunkiMultipartUploadAction() (MunkiMultipartUploadAction, error) {
-	var body MunkiMultipartUploadAction
+// AsMunkiUploadTargetUpload1 returns the union data inside the MunkiUploadTarget_Upload as a MunkiUploadTargetUpload1
+func (t MunkiUploadTarget_Upload) AsMunkiUploadTargetUpload1() (MunkiUploadTargetUpload1, error) {
+	var body MunkiUploadTargetUpload1
 	err := json.Unmarshal(t.union, &body)
 	return body, err
 }
 
-// FromMunkiMultipartUploadAction overwrites any union data inside the MunkiPackageInstallerUploadTarget_Upload as the provided MunkiMultipartUploadAction
-func (t *MunkiPackageInstallerUploadTarget_Upload) FromMunkiMultipartUploadAction(v MunkiMultipartUploadAction) error {
+// FromMunkiUploadTargetUpload1 overwrites any union data inside the MunkiUploadTarget_Upload as the provided MunkiUploadTargetUpload1
+func (t *MunkiUploadTarget_Upload) FromMunkiUploadTargetUpload1(v MunkiUploadTargetUpload1) error {
 	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-	b, err = runtime.JSONMerge(b, []byte(`{"strategy":"multipart"}`))
 	t.union = b
 	return err
 }
 
-// MergeMunkiMultipartUploadAction performs a merge with any union data inside the MunkiPackageInstallerUploadTarget_Upload, using the provided MunkiMultipartUploadAction
-func (t *MunkiPackageInstallerUploadTarget_Upload) MergeMunkiMultipartUploadAction(v MunkiMultipartUploadAction) error {
+// MergeMunkiUploadTargetUpload1 performs a merge with any union data inside the MunkiUploadTarget_Upload, using the provided MunkiUploadTargetUpload1
+func (t *MunkiUploadTarget_Upload) MergeMunkiUploadTargetUpload1(v MunkiUploadTargetUpload1) error {
 	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-	b, err = runtime.JSONMerge(b, []byte(`{"strategy":"multipart"}`))
 	if err != nil {
 		return err
 	}
@@ -3169,35 +3152,12 @@ func (t *MunkiPackageInstallerUploadTarget_Upload) MergeMunkiMultipartUploadActi
 	return err
 }
 
-func (t MunkiPackageInstallerUploadTarget_Upload) Discriminator() (string, error) {
-	var discriminator struct {
-		Discriminator string `json:"strategy"`
-	}
-	err := json.Unmarshal(t.union, &discriminator)
-	return discriminator.Discriminator, err
-}
-
-func (t MunkiPackageInstallerUploadTarget_Upload) ValueByDiscriminator() (interface{}, error) {
-	discriminator, err := t.Discriminator()
-	if err != nil {
-		return nil, err
-	}
-	switch discriminator {
-	case "direct-put":
-		return t.AsMunkiDirectUploadAction()
-	case "multipart":
-		return t.AsMunkiMultipartUploadAction()
-	default:
-		return nil, errors.New("unknown discriminator value: " + discriminator)
-	}
-}
-
-func (t MunkiPackageInstallerUploadTarget_Upload) MarshalJSON() ([]byte, error) {
+func (t MunkiUploadTarget_Upload) MarshalJSON() ([]byte, error) {
 	b, err := t.union.MarshalJSON()
 	return b, err
 }
 
-func (t *MunkiPackageInstallerUploadTarget_Upload) UnmarshalJSON(b []byte) error {
+func (t *MunkiUploadTarget_Upload) UnmarshalJSON(b []byte) error {
 	err := t.union.UnmarshalJSON(b)
 	return err
 }
@@ -7969,7 +7929,7 @@ type CreateMunkiClientResourcesArchiveUploadResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	// JSON201 the response for an HTTP 201 `application/json` response
-	JSON201 *MunkiDirectUploadTarget
+	JSON201 *MunkiUploadTarget
 	// ApplicationproblemJSON400 the response for an HTTP 400 `application/problem+json` response
 	ApplicationproblemJSON400 *ErrorModel
 	// ApplicationproblemJSON401 the response for an HTTP 401 `application/problem+json` response
@@ -7983,7 +7943,7 @@ type CreateMunkiClientResourcesArchiveUploadResponse struct {
 }
 
 // GetJSON201 returns the response for an HTTP 201 `application/json` response
-func (r CreateMunkiClientResourcesArchiveUploadResponse) GetJSON201() *MunkiDirectUploadTarget {
+func (r CreateMunkiClientResourcesArchiveUploadResponse) GetJSON201() *MunkiUploadTarget {
 	return r.JSON201
 }
 
@@ -8045,7 +8005,7 @@ type CreateMunkiClientResourcesBannerUploadResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	// JSON201 the response for an HTTP 201 `application/json` response
-	JSON201 *MunkiDirectUploadTarget
+	JSON201 *MunkiUploadTarget
 	// ApplicationproblemJSON400 the response for an HTTP 400 `application/problem+json` response
 	ApplicationproblemJSON400 *ErrorModel
 	// ApplicationproblemJSON401 the response for an HTTP 401 `application/problem+json` response
@@ -8059,7 +8019,7 @@ type CreateMunkiClientResourcesBannerUploadResponse struct {
 }
 
 // GetJSON201 returns the response for an HTTP 201 `application/json` response
-func (r CreateMunkiClientResourcesBannerUploadResponse) GetJSON201() *MunkiDirectUploadTarget {
+func (r CreateMunkiClientResourcesBannerUploadResponse) GetJSON201() *MunkiUploadTarget {
 	return r.JSON201
 }
 
@@ -8501,7 +8461,7 @@ type CreateMunkiPackageInstallerUploadResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	// JSON201 the response for an HTTP 201 `application/json` response
-	JSON201 *MunkiPackageInstallerUploadTarget
+	JSON201 *MunkiUploadTarget
 	// ApplicationproblemJSON400 the response for an HTTP 400 `application/problem+json` response
 	ApplicationproblemJSON400 *ErrorModel
 	// ApplicationproblemJSON401 the response for an HTTP 401 `application/problem+json` response
@@ -8515,7 +8475,7 @@ type CreateMunkiPackageInstallerUploadResponse struct {
 }
 
 // GetJSON201 returns the response for an HTTP 201 `application/json` response
-func (r CreateMunkiPackageInstallerUploadResponse) GetJSON201() *MunkiPackageInstallerUploadTarget {
+func (r CreateMunkiPackageInstallerUploadResponse) GetJSON201() *MunkiUploadTarget {
 	return r.JSON201
 }
 
@@ -11217,7 +11177,7 @@ func ParseCreateMunkiClientResourcesArchiveUploadResponse(rsp *http.Response) (*
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
-		var dest MunkiDirectUploadTarget
+		var dest MunkiUploadTarget
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -11278,7 +11238,7 @@ func ParseCreateMunkiClientResourcesBannerUploadResponse(rsp *http.Response) (*C
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
-		var dest MunkiDirectUploadTarget
+		var dest MunkiUploadTarget
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -11647,7 +11607,7 @@ func ParseCreateMunkiPackageInstallerUploadResponse(rsp *http.Response) (*Create
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
-		var dest MunkiPackageInstallerUploadTarget
+		var dest MunkiUploadTarget
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

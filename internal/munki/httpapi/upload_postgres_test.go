@@ -11,20 +11,18 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"strings"
 	"testing"
-	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	"github.com/go-chi/chi/v5"
 
-	"github.com/woodleighschool/woodstar/internal/fault"
+	"github.com/woodleighschool/goodies/bloby"
 	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/munki/clientresources"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
-	"github.com/woodleighschool/woodstar/internal/storage"
+	"github.com/woodleighschool/woodstar/internal/testutil/testbloby"
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
 )
 
@@ -40,7 +38,7 @@ func TestMunkiPackageInstallerFileLifecycle(t *testing.T) {
 		)
 		assertStatus(t, rec, http.StatusNoContent, "cancel installer")
 		_, err := fixture.objects.GetByID(t.Context(), target.ObjectID)
-		if !errors.Is(err, fault.ErrNotFound) {
+		if !errors.Is(err, bloby.ErrNotFound) {
 			t.Fatalf("get cancelled object error = %v, want ErrNotFound", err)
 		}
 	})
@@ -50,7 +48,7 @@ func TestMunkiPackageInstallerFileLifecycle(t *testing.T) {
 		rec := fixture.request(t, http.MethodPut, fmt.Sprintf("%s/%d", munkiPackageInstallerPath, target.ObjectID))
 		assertStatus(t, rec, http.StatusBadRequest, "missing upload")
 		_, err := fixture.objects.GetByID(t.Context(), target.ObjectID)
-		if !errors.Is(err, fault.ErrNotFound) {
+		if !errors.Is(err, bloby.ErrNotFound) {
 			t.Fatalf("get cleaned missing upload error = %v, want ErrNotFound", err)
 		}
 	})
@@ -144,7 +142,7 @@ func TestMunkiUploadRejectsWrongPrefixAndInvalidIcon(t *testing.T) {
 		rec := fixture.requestJSON(t, http.MethodPut, attachPath, MunkiObjectMutation{ObjectID: target.ObjectID})
 		assertStatus(t, rec, http.StatusBadRequest, "invalid icon")
 		_, err := fixture.objects.GetByID(t.Context(), target.ObjectID)
-		if !errors.Is(err, fault.ErrNotFound) {
+		if !errors.Is(err, bloby.ErrNotFound) {
 			t.Fatalf("get cleaned invalid icon error = %v, want ErrNotFound", err)
 		}
 	})
@@ -177,7 +175,7 @@ func TestClientResourcesUploadsRemainPrefixScoped(t *testing.T) {
 
 type munkiUploadFixture struct {
 	router     *chi.Mux
-	objects    *storage.ObjectStore
+	objects    *bloby.Service
 	packages   *packages.Store
 	softwareID int64
 }
@@ -185,20 +183,7 @@ type munkiUploadFixture struct {
 func newMunkiUploadFixture(t *testing.T) munkiUploadFixture {
 	t.Helper()
 	db, ctx := testdb.Open(t)
-	backend, err := storage.New(ctx, storage.Config{
-		Kind:        storage.KindFile,
-		TransferTTL: time.Minute,
-		File: storage.FileConfig{
-			Root:             t.TempDir(),
-			BaseURL:          "https://woodstar.example",
-			CapabilityKeyHex: strings.Repeat("42", 32),
-		},
-	})
-	if err != nil {
-		t.Fatalf("create storage backend: %v", err)
-	}
-	objects := storage.NewObjectStore(db, backend, discardLogger())
-	uploads := storage.NewIngestor(objects, backend)
+	objects := testbloby.New(t, db)
 	packageStore := packages.NewStore(db, objects)
 	softwareStore := munkisoftware.NewStore(db, objects, packageStore)
 	software, err := softwareStore.Create(ctx, munkisoftware.CreateMutation{Name: "Upload Test"})
@@ -208,15 +193,15 @@ func newMunkiUploadFixture(t *testing.T) munkiUploadFixture {
 
 	router := chi.NewRouter()
 	humaAPI := humachi.New(router, huma.DefaultConfig("test", "test"))
-	registerPackageInstallerRoutes(humaAPI, humaAPI, uploads, discardLogger())
+	registerPackageInstallerRoutes(humaAPI, humaAPI, objects, discardLogger())
 	registerCreateMunkiPackage(humaAPI, munki.NewPackageService(munki.PackageServiceDependencies{
 		Packages:               packageStore,
 		DesiredPackagesChanged: func() {},
 	}), discardLogger())
-	registerIconRoutes(humaAPI, softwareStore, objects, uploads, discardLogger())
+	registerIconRoutes(humaAPI, softwareStore, objects, discardLogger())
 	registerCreateClientResourcesUpload(
 		humaAPI,
-		uploads,
+		objects,
 		discardLogger(),
 		clientResourcesBannerUploadPath,
 		clientresources.BannerObjectPrefix,
@@ -225,7 +210,7 @@ func newMunkiUploadFixture(t *testing.T) munkiUploadFixture {
 	)
 	registerDeleteClientResourcesUpload(
 		humaAPI,
-		uploads,
+		objects,
 		discardLogger(),
 		clientResourcesBannerUploadPath,
 		clientresources.BannerObjectPrefix,
@@ -234,7 +219,7 @@ func newMunkiUploadFixture(t *testing.T) munkiUploadFixture {
 	)
 	registerCreateClientResourcesUpload(
 		humaAPI,
-		uploads,
+		objects,
 		discardLogger(),
 		clientResourcesArchiveUploadPath,
 		clientresources.ArchiveObjectPrefix,
@@ -243,15 +228,15 @@ func newMunkiUploadFixture(t *testing.T) munkiUploadFixture {
 	)
 	registerDeleteClientResourcesUpload(
 		humaAPI,
-		uploads,
+		objects,
 		discardLogger(),
 		clientResourcesArchiveUploadPath,
 		clientresources.ArchiveObjectPrefix,
 		"delete-test-client-resources-archive-upload",
 		"Delete an archive upload",
 	)
-	registerMunkiContentRoutes(router, objects, storage.NewDelivery(backend), discardLogger())
-	storage.RegisterTransferRoutes(router, backend, discardLogger())
+	registerMunkiContentRoutes(router, objects, discardLogger())
+	router.Handle("/storage/*", objects.TransferHandler())
 
 	return munkiUploadFixture{
 		router:     router,
@@ -261,7 +246,7 @@ func newMunkiUploadFixture(t *testing.T) munkiUploadFixture {
 	}
 }
 
-func (f munkiUploadFixture) beginUpload(t *testing.T, path, filename string) MunkiDirectUploadTarget {
+func (f munkiUploadFixture) beginUpload(t *testing.T, path, filename string) MunkiUploadTarget {
 	t.Helper()
 	var request any = MunkiDirectUploadRequest{Filename: filename}
 	if path == munkiPackageInstallerPath {
@@ -269,23 +254,23 @@ func (f munkiUploadFixture) beginUpload(t *testing.T, path, filename string) Mun
 	}
 	rec := f.requestJSON(t, http.MethodPost, path, request)
 	assertStatus(t, rec, http.StatusCreated, "begin upload")
-	var target MunkiDirectUploadTarget
+	var target MunkiUploadTarget
 	decodeJSON(t, rec, &target)
-	if target.Upload.Strategy != munkiUploadStrategyDirectPut {
+	if target.Upload.Strategy != bloby.StrategyDirectPut {
 		t.Fatalf("upload strategy = %q, want direct-put", target.Upload.Strategy)
 	}
 	return target
 }
 
-func (f munkiUploadFixture) upload(t *testing.T, target MunkiDirectUploadTarget, body []byte) {
+func (f munkiUploadFixture) upload(t *testing.T, target MunkiUploadTarget, body []byte) {
 	t.Helper()
-	uploadURL, err := url.Parse(target.Upload.URL)
+	uploadURL, err := url.Parse(target.Upload.Target.URL)
 	if err != nil {
 		t.Fatalf("parse upload URL: %v", err)
 	}
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequestWithContext(t.Context(), target.Upload.Method, uploadURL.RequestURI(), bytes.NewReader(body))
-	for name, value := range target.Upload.Headers {
+	req := httptest.NewRequestWithContext(t.Context(), target.Upload.Target.Method, uploadURL.RequestURI(), bytes.NewReader(body))
+	for name, value := range target.Upload.Target.Headers {
 		req.Header.Set(name, value)
 	}
 	f.router.ServeHTTP(rec, req)

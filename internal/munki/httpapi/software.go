@@ -7,12 +7,12 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
+	"github.com/woodleighschool/goodies/bloby"
 	"github.com/woodleighschool/woodstar/internal/api"
 	"github.com/woodleighschool/woodstar/internal/listing"
 	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
-	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
 const (
@@ -66,8 +66,7 @@ func registerMunkiSoftware(
 	store *munkisoftware.Store,
 	deletions *munki.SoftwareDeletionService,
 	packageService *munki.PackageService,
-	objects *storage.ObjectStore,
-	ingestor *storage.Ingestor,
+	objects *bloby.Service,
 	logger *slog.Logger,
 ) {
 	registerListMunkiSoftware(humaAPI, store, logger)
@@ -76,7 +75,7 @@ func registerMunkiSoftware(
 	registerPutMunkiSoftware(humaAPI, store, packageService, logger)
 	registerDeleteMunkiSoftware(humaAPI, deletions, logger)
 	registerBulkDeleteMunkiSoftware(humaAPI, deletions, logger)
-	registerIconRoutes(humaAPI, store, objects, ingestor, logger)
+	registerIconRoutes(humaAPI, store, objects, logger)
 }
 
 func registerListMunkiSoftware(humaAPI huma.API, store *munkisoftware.Store, logger *slog.Logger) {

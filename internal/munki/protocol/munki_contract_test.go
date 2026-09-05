@@ -14,6 +14,7 @@ import (
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"howett.net/plist"
 
+	"github.com/woodleighschool/goodies/bloby"
 	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/heartbeats"
@@ -22,7 +23,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/munki/mdp"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
-	"github.com/woodleighschool/woodstar/internal/storage"
 )
 
 func TestMunkiHTTPServesIconHashIndex(t *testing.T) {
@@ -329,7 +329,7 @@ func TestMunkiHTTPBindsEveryRepositoryRouteToAuthenticatedHost(t *testing.T) {
 						repository,
 						&recordingHeartbeatRecorder{},
 						&fakeSelector{},
-						&fakeDeliverer{url: "https://storage.example/file"},
+						&fakeDeliverer{url: "https://bloby.example/file"},
 						testLogger(),
 					).RegisterRoutes(router, router)
 					recorder := httptest.NewRecorder()
@@ -488,7 +488,7 @@ func TestMunkiHTTPRejectsConditionalRequestWithoutSerial(t *testing.T) {
 		repository,
 		&recordingHeartbeatRecorder{},
 		&fakeSelector{},
-		&fakeDeliverer{url: "https://storage.example/file"},
+		&fakeDeliverer{url: "https://bloby.example/file"},
 		testLogger(),
 	).RegisterRoutes(router, router)
 	recorder := httptest.NewRecorder()
@@ -511,7 +511,7 @@ func TestMunkiHTTPRedirectsPackageFileToDistributionPoint(t *testing.T) {
 	repository.packageID = 20
 	sha256sum := strings.Repeat("a", 64)
 	sizeBytes := int64(4096)
-	repository.fileObject = storage.Object{
+	repository.fileObject = bloby.Object{
 		ID:          42,
 		Prefix:      "munki/packages",
 		Filename:    "GoogleChrome.pkg",
@@ -519,7 +519,7 @@ func TestMunkiHTTPRedirectsPackageFileToDistributionPoint(t *testing.T) {
 		SHA256:      &sha256sum,
 		SizeBytes:   &sizeBytes,
 	}
-	delivery := &fakeDeliverer{url: "https://storage.example/direct"}
+	delivery := &fakeDeliverer{url: "https://bloby.example/direct"}
 	selector := &fakeSelector{
 		url: "https://mdp.example/munki/pkgs/packages/20/installer/GoogleChrome.pkg?cap=grant",
 		ok:  true,
@@ -564,7 +564,7 @@ func TestMunkiHTTPDecodesPackageLocationBeforeResolution(t *testing.T) {
 	repository.packageID = 38
 	sha256sum := strings.Repeat("a", 64)
 	sizeBytes := int64(4096)
-	repository.fileObject = storage.Object{
+	repository.fileObject = bloby.Object{
 		ID:        81,
 		Prefix:    "munki/packages",
 		Filename:  "Zoom-7.1.5 (84650).pkg",
@@ -615,13 +615,13 @@ func TestMunkiHTTPDecodesPackageLocationBeforeResolution(t *testing.T) {
 
 func TestMunkiHTTPDeliversIconFileWithNestedIconName(t *testing.T) {
 	repository := newStaticRepository()
-	repository.fileObject = storage.Object{
+	repository.fileObject = bloby.Object{
 		ID:          7,
 		Prefix:      "munki/icons",
 		Filename:    "GoogleChrome.png",
 		ContentType: "image/png",
 	}
-	delivery := &fakeDeliverer{url: "https://storage.example/icon.png?signature=test"}
+	delivery := &fakeDeliverer{url: "https://bloby.example/icon.png?signature=test"}
 	router := newMunkiContractRouter(
 		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
 		repository,
@@ -642,7 +642,8 @@ func TestMunkiHTTPDeliversIconFileWithNestedIconName(t *testing.T) {
 		repository.fileKey != "7-GoogleChrome.png" {
 		t.Fatalf("file request = class %q key %q", repository.fileClass, repository.fileKey)
 	}
-	if delivery.gotObject.Key() != "munki/icons/7/GoogleChrome.png" {
+	if delivery.gotObject.ID != 7 || delivery.gotObject.Prefix != "munki/icons" ||
+		delivery.gotObject.Filename != "GoogleChrome.png" {
 		t.Fatalf("delivered object = %+v", delivery.gotObject)
 	}
 	if delivery.gotObject.ContentType != "image/png" {
@@ -666,9 +667,9 @@ func TestMunkiHTTPMapsVerifierErrorsToServerErrors(t *testing.T) {
 func newMunkiContractRouter(
 	verifier agentauth.SecretVerifier,
 	repository Repository,
-	delivery ...storage.Deliverer,
+	delivery ...objectDeliverer,
 ) chi.Router {
-	var d storage.Deliverer
+	var d objectDeliverer
 	if len(delivery) > 0 {
 		d = delivery[0]
 	}
@@ -697,15 +698,15 @@ func (f *fakeSelector) SelectRedirect(
 
 type fakeDeliverer struct {
 	url        string
-	gotObject  storage.Object
-	gotOptions storage.DeliveryOptions
+	gotObject  bloby.Object
+	gotOptions bloby.DeliveryOptions
 }
 
 func (f *fakeDeliverer) Deliver(
 	w http.ResponseWriter,
 	r *http.Request,
-	object storage.Object,
-	opts storage.DeliveryOptions,
+	object bloby.Object,
+	opts bloby.DeliveryOptions,
 ) error {
 	f.gotObject = object
 	f.gotOptions = opts
@@ -736,7 +737,7 @@ type staticRepository struct {
 	fileClass  string
 	fileKey    string
 	packageID  int64
-	fileObject storage.Object
+	fileObject bloby.Object
 	err        error
 }
 
@@ -807,7 +808,7 @@ func (r *staticRepository) ResolveIconFile(
 	_ context.Context,
 	hostID int64,
 	key string,
-) (storage.Object, error) {
+) (bloby.Object, error) {
 	r.calls++
 	r.hostID = hostID
 	return r.resolve("icon", key)
@@ -817,20 +818,20 @@ func (r *staticRepository) ResolveClientResources(
 	_ context.Context,
 	hostID int64,
 	name string,
-) (storage.Object, error) {
+) (bloby.Object, error) {
 	r.calls++
 	r.hostID = hostID
 	return r.resolve("client resources", name)
 }
 
-func (r *staticRepository) resolve(class, key string) (storage.Object, error) {
+func (r *staticRepository) resolve(class, key string) (bloby.Object, error) {
 	r.fileClass = class
 	r.fileKey = key
 	if r.err != nil {
-		return storage.Object{}, r.err
+		return bloby.Object{}, r.err
 	}
 	if r.fileErr != nil {
-		return storage.Object{}, r.fileErr
+		return bloby.Object{}, r.fileErr
 	}
 	return r.fileObject, nil
 }
