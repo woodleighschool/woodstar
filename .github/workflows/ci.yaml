@@ -31,7 +31,7 @@ jobs:
   docs:
     if: ${{ github.event_name != 'push' }}
     name: Docs
-    uses: ./.github/workflows/docs.yaml
+    uses: $/.github/workflows/docs.yaml
     permissions:
       contents: read
     with:
