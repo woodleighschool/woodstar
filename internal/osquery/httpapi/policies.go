@@ -7,10 +7,10 @@ import (
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/woodleighschool/goodies/auth/authn"
 
 	"github.com/woodleighschool/woodstar/internal/activity"
 	"github.com/woodleighschool/woodstar/internal/api"
-	"github.com/woodleighschool/woodstar/internal/api/ctxkeys"
 	"github.com/woodleighschool/woodstar/internal/osquery/policies"
 )
 
@@ -99,7 +99,7 @@ type policyRemediationBatchSummaryOutput struct {
 
 func registerOsqueryPolicies(
 	humaAPI huma.API,
-	sensitiveAPI huma.API,
+	remediationsAPI huma.API,
 	policyStore *policies.Store,
 	activityRecorder activity.Recorder,
 	logger *slog.Logger,
@@ -111,9 +111,9 @@ func registerOsqueryPolicies(
 	registerDeletePolicy(humaAPI, policyStore, activityRecorder, logger)
 	registerBulkDeletePolicies(humaAPI, policyStore, activityRecorder, logger)
 	registerPolicyResults(humaAPI, policyStore, logger)
-	registerRunPolicyRemediations(humaAPI, policyStore, activityRecorder, logger)
-	registerPolicyRemediationSource(sensitiveAPI, policyStore, logger)
-	registerPolicyRemediationRun(sensitiveAPI, policyStore, logger)
+	registerRunPolicyRemediations(remediationsAPI, policyStore, activityRecorder, logger)
+	registerPolicyRemediationSource(remediationsAPI, policyStore, logger)
+	registerPolicyRemediationRun(remediationsAPI, policyStore, logger)
 }
 
 func registerListPolicies(humaAPI huma.API, policyStore *policies.Store, logger *slog.Logger) {
@@ -242,7 +242,7 @@ func registerCreatePolicy(
 	}, func(ctx context.Context, input *policyCreateInput) (*policyOutput, error) {
 		policy, err := policyStore.Create(ctx, policies.PolicyCreateMutation{
 			PolicyMutation:  input.Body,
-			CreatedByUserID: ctxkeys.CurrentUserID(ctx),
+			CreatedByUserID: authn.CurrentPrincipalID(ctx),
 		})
 		if err != nil {
 			return nil, api.ResourceError(ctx, logger, "create-osquery-policy", policyResource, err)

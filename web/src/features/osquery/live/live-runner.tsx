@@ -22,7 +22,7 @@ import {
 } from "@components/ui/combobox";
 import { Field, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@components/ui/field";
 import { Spinner } from "@components/ui/spinner";
-import { useAuth } from "@features/auth/queries";
+import { useCan } from "@features/authz/access";
 import { useHosts } from "@features/hosts/queries";
 import { LabelPicker } from "@features/labels/components/label-picker";
 import {
@@ -67,8 +67,7 @@ export function LiveRunner({
   sql: string;
   onCancel: () => void;
 }) {
-  const { user } = useAuth();
-  const isAdmin = user?.role === "admin";
+  const canEdit = useCan({ resource: "osquery.live-queries", access: "edit" });
   const create = useCreateLiveQuery();
   const stop = useStopLiveQuery();
   const [step, setStep] = useState<LiveRunStep>("targets");
@@ -134,12 +133,12 @@ export function LiveRunner({
   }
   const itemLabel = kind === "report" ? "report" : "policy";
   const title = kind === "report" ? "Run Report" : "Run Policy";
-  if (!isAdmin) {
+  if (!canEdit) {
     return (
       <PageShell>
         <PageHeader
           title={title}
-          description={`Live ${itemLabel} execution is admin-only.`}
+          description={`You don't have permission to run live ${itemLabel} queries.`}
           actions={<ShowQueryButton sql={sql} />}
         />
         <PanelEmptyState>Live execution is unavailable for this account.</PanelEmptyState>

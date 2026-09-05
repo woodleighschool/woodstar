@@ -18,20 +18,8 @@ func NewUserService(store *Store) *UserService {
 	return &UserService{store: store}
 }
 
-func (s *UserService) GetLoginByEmail(ctx context.Context, email string) (*User, error) {
-	return s.store.GetLoginUserByEmail(ctx, email)
-}
-
-func (s *UserService) GetSSOByEmail(ctx context.Context, email string) (*User, error) {
-	return s.store.GetSSOUserByEmail(ctx, email)
-}
-
 func (s *UserService) Get(ctx context.Context, id int64) (*User, error) {
 	return s.store.GetUserByID(ctx, id)
-}
-
-func (s *UserService) GetByAPIKey(ctx context.Context, key string) (*User, error) {
-	return s.store.GetUserByAPIKey(ctx, key)
 }
 
 func (s *UserService) List(ctx context.Context, params UserListParams) ([]User, int, error) {
@@ -55,7 +43,7 @@ func (s *UserService) Create(ctx context.Context, params UserCreate) (*User, err
 	if err := params.validate(); err != nil {
 		return nil, err
 	}
-	hash, err := HashPassword(params.Password)
+	hash, err := hashPassword(params.Password)
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +84,7 @@ func (s *UserService) SetPasswordByEmail(
 	password string,
 ) (*User, error) {
 	email = strings.TrimSpace(email)
-	hash, err := HashPassword(password)
+	hash, err := hashPassword(password)
 	if err != nil {
 		return nil, err
 	}
@@ -113,21 +101,11 @@ func (s *UserService) SetRoleByEmail(ctx context.Context, email string, role Rol
 	return s.store.setUserRoleByEmail(ctx, email, role)
 }
 
-// SetAccountAPIKey writes a generated API key to the user's account record.
-func (s *UserService) SetAccountAPIKey(ctx context.Context, userID int64, key string) (*Account, error) {
-	return s.store.setAccountAPIKey(ctx, userID, key)
-}
-
-// ClearAccountAPIKey removes the user's account API key.
-func (s *UserService) ClearAccountAPIKey(ctx context.Context, userID int64) (*Account, error) {
-	return s.store.clearAccountAPIKey(ctx, userID)
-}
-
 func hashOptionalPassword(password *string) (*string, error) {
 	if password == nil {
 		return nil, nil
 	}
-	hash, err := HashPassword(*password)
+	hash, err := hashPassword(*password)
 	if err != nil {
 		return nil, err
 	}

@@ -7,10 +7,12 @@ import (
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
+	authhuma "github.com/woodleighschool/goodies/auth/huma"
 
 	"github.com/woodleighschool/woodstar/internal/api"
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/inventory"
+	"github.com/woodleighschool/woodstar/internal/rbac"
 )
 
 type inventorySoftwareListInput struct {
@@ -42,18 +44,24 @@ type inventorySoftwareGetOutput struct {
 func RegisterAPI(
 	routes api.AppRoutes,
 	softwareStore *inventory.Store,
+	authorizer authhuma.Authorizer,
 	logger *slog.Logger,
 ) {
-	registerAPI(routes, softwareStore, logger)
+	registerAPI(routes, softwareStore, authorizer, logger)
 }
 
 // RegisterOpenAPI documents software inventory endpoints without runtime services.
 func RegisterOpenAPI(routes api.AppRoutes) {
-	registerAPI(routes, nil, nil)
+	registerAPI(routes, nil, nil, nil)
 }
 
-func registerAPI(routes api.AppRoutes, softwareStore *inventory.Store, logger *slog.Logger) {
-	humaAPI := routes.Ordinary
+func registerAPI(
+	routes api.AppRoutes,
+	softwareStore *inventory.Store,
+	authorizer authhuma.Authorizer,
+	logger *slog.Logger,
+) {
+	humaAPI := authhuma.ResourceAPI(routes.Protected, authorizer, logger, rbac.ResourceSoftware)
 	registerListInventorySoftware(humaAPI, softwareStore, logger)
 	registerGetInventorySoftware(humaAPI, softwareStore, logger)
 	registerHostSoftware(humaAPI, softwareStore, logger)

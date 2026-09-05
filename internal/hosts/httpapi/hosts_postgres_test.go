@@ -20,11 +20,11 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	"github.com/go-chi/chi/v5"
+	"github.com/woodleighschool/goodies/auth/authn"
+	"github.com/woodleighschool/goodies/auth/authz"
 
 	"github.com/woodleighschool/woodstar/internal/activity"
 	"github.com/woodleighschool/woodstar/internal/api"
-	"github.com/woodleighschool/woodstar/internal/api/ctxkeys"
-	"github.com/woodleighschool/woodstar/internal/directory"
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/geoip"
 	"github.com/woodleighschool/woodstar/internal/heartbeats"
@@ -53,7 +53,18 @@ func TestDeleteHostsDecodesCollectionIDs(t *testing.T) {
 	}
 
 	router := hostTestRouter(t, func(humaAPI huma.API) {
-		RegisterAPI(api.AppRoutes{Ordinary: humaAPI}, store, nil, nil, nil, nil, nil, activities, discardLogger())
+		RegisterAPI(
+			api.AppRoutes{Protected: humaAPI},
+			store,
+			nil,
+			nil,
+			nil,
+			nil,
+			nil,
+			activities,
+			allowAuthorizer{},
+			discardLogger(),
+		)
 	})
 	for _, path := range []string{"/api/hosts", "/api/hosts?ids="} {
 		rec := hostAPIRequest(t, router, http.MethodDelete, path, "")
@@ -137,7 +148,7 @@ RETURNING id`).Scan(&manualUserID); err != nil {
 
 	router := hostTestRouter(t, func(humaAPI huma.API) {
 		RegisterAPI(
-			api.AppRoutes{Ordinary: humaAPI},
+			api.AppRoutes{Protected: humaAPI},
 			hostStore,
 			primaryUsers,
 			nil,
@@ -145,6 +156,7 @@ RETURNING id`).Scan(&manualUserID); err != nil {
 			nil,
 			nil,
 			nil,
+			allowAuthorizer{},
 			discardLogger(),
 		)
 	})
@@ -217,7 +229,7 @@ WHERE host_id = $1 AND source = 'osquery'`, host.ID, now); err != nil {
 	santaVersions := &testAgentVersionLoader{versions: map[int64]string{host.ID: "2026.4"}}
 	router := hostTestRouter(t, func(humaAPI huma.API) {
 		RegisterAPI(
-			api.AppRoutes{Ordinary: humaAPI},
+			api.AppRoutes{Protected: humaAPI},
 			hostStore,
 			nil,
 			munkiVersions,
@@ -225,6 +237,7 @@ WHERE host_id = $1 AND source = 'osquery'`, host.ID, now); err != nil {
 			nil,
 			nil,
 			nil,
+			allowAuthorizer{},
 			discardLogger(),
 		)
 	})
@@ -317,7 +330,7 @@ WHERE host_id = $1 AND source = 'osquery'`, host.ID); err != nil {
 	}}
 	router := hostTestRouter(t, func(humaAPI huma.API) {
 		RegisterAPI(
-			api.AppRoutes{Ordinary: humaAPI},
+			api.AppRoutes{Protected: humaAPI},
 			hostStore,
 			nil,
 			nil,
@@ -325,6 +338,7 @@ WHERE host_id = $1 AND source = 'osquery'`, host.ID); err != nil {
 			distribution,
 			geo.Lookup,
 			nil,
+			allowAuthorizer{},
 			discardLogger(),
 		)
 	})
@@ -464,15 +478,19 @@ func hostTestRouter(t *testing.T, register func(huma.API)) *chi.Mux {
 	humaAPI := humachi.New(router, cfg)
 	protected := huma.NewGroup(humaAPI)
 	protected.UseMiddleware(func(ctx huma.Context, next func(huma.Context)) {
-		role := directory.RoleAdmin
-		next(huma.WithContext(ctx, ctxkeys.WithUser(ctx.Context(), &directory.User{
+		next(huma.WithContext(ctx, authn.WithPrincipal(ctx.Context(), &authn.Principal{
 			ID:    1,
 			Email: "host-admin@example.test",
-			Role:  &role,
 		})))
 	})
 	register(protected)
 	return router
+}
+
+type allowAuthorizer struct{}
+
+func (allowAuthorizer) CanAll(context.Context, int64, ...authz.Requirement) (bool, error) {
+	return true, nil
 }
 
 func hostAPIRequest(t *testing.T, router *chi.Mux, method, path, body string) *httptest.ResponseRecorder {

@@ -1,7 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { z } from "zod";
 
-import { requireAdmin } from "@features/auth/guards";
+import { requirePermission } from "@features/authn/guards";
 import { ReportEditPage } from "@features/osquery/reports/edit";
 
 const searchSchema = z.object({
@@ -12,7 +12,7 @@ export const Route = createFileRoute("/_authenticated/osquery/reports/$id/edit")
   staticData: { breadcrumb: "Edit" },
   validateSearch: searchSchema,
   beforeLoad: ({ context, params }) =>
-    requireAdmin(context.currentUser, () => {
+    requirePermission(context.queryClient, { resource: "osquery.reports", access: "edit" }, () => {
       throw redirect({
         to: "/osquery/reports/$id",
         params: { id: params.id },

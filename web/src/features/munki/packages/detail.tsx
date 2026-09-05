@@ -10,7 +10,7 @@ import { Link, TextLink } from "@components/link";
 import { QueryGate } from "@components/query-gate";
 import { TokenList } from "@components/token-list";
 import { Button } from "@components/ui/button";
-import { useAuth } from "@features/auth/queries";
+import { useCan } from "@features/authz/access";
 import { SoftwareArtwork } from "@features/software/software-icon";
 import type { MunkiPackageReference } from "@lib/api";
 import { parseRouteID } from "@lib/route-params";
@@ -21,7 +21,7 @@ import { useMunkiPackage } from "./queries";
 export function MunkiPackageDetailPage() {
   const params = useParams({ strict: false });
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const canEdit = useCan({ resource: "munki.packages", access: "edit" });
   const packageID = parseRouteID(params.id);
   const query = useMunkiPackage(packageID);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -42,7 +42,6 @@ export function MunkiPackageDetailPage() {
   }
 
   const pkg = query.data;
-  const isAdmin = user?.role === "admin";
   return (
     <PageShell className="gap-6">
       <PageHeader
@@ -56,7 +55,7 @@ export function MunkiPackageDetailPage() {
           />
         }
         actions={
-          isAdmin ? (
+          canEdit ? (
             <>
               <Button
                 size="sm"

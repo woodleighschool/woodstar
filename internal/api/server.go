@@ -15,10 +15,12 @@ import (
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/rs/cors"
+	"github.com/woodleighschool/goodies/auth/authn"
+	authhuma "github.com/woodleighschool/goodies/auth/huma"
 
 	"github.com/woodleighschool/woodstar/internal/api/middleware"
-	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/config"
+	"github.com/woodleighschool/woodstar/internal/rbac"
 	"github.com/woodleighschool/woodstar/internal/webui"
 )
 
@@ -46,7 +48,7 @@ type ServerOptions struct {
 	Logger         *slog.Logger
 	WebHandler     *webui.Handler
 	SessionManager *scs.SessionManager
-	AuthService    *auth.Service
+	Authn          *authn.Service
 	TransferOrigin string
 	RegisterRoutes func(Routes)
 }
@@ -62,15 +64,14 @@ type Routes struct {
 // AppRoutes groups browser/admin APIs by their shared authentication and
 // timeout policy.
 type AppRoutes struct {
-	PasswordLogin       huma.API
-	Session             huma.API
-	Protected           huma.API
-	Ordinary            huma.API
-	Sensitive           huma.API
-	StreamingSensitive  huma.API
-	LongRunningOrdinary huma.API
-	Router              chi.Router
-	Transfers           chi.Router
+	PasswordLogin huma.API
+	Session       huma.API
+	Logout        huma.API
+	Protected     huma.API
+	Streaming     huma.API
+	LongRunning   huma.API
+	Router        chi.Router
+	Transfers     chi.Router
 }
 
 // ProtocolRoutes groups agent-facing routers by their transport policy.
@@ -203,14 +204,13 @@ func newBrowserRoutes(
 
 	sessionMiddleware := options.SessionManager.LoadAndSave
 	crossOriginProtection := middleware.CrossOriginProtection(options.Config.CORSAllowedOrigins)
-	passwordLoginLimiter := middleware.NewPasswordLoginLimiter()
 	// Reject excess attempts before session loading so the denied path cannot
 	// reach the session store or any password-authentication work.
 	passwordLogin := r.With(
 		requestTimeoutMiddleware(defaultRequestTimeout),
 		compression,
 		requestLogger,
-		middleware.LimitPasswordLogin(passwordLoginLimiter),
+		options.Authn.LimitPasswordLogin,
 		sessionMiddleware,
 		crossOriginProtection,
 	)
@@ -231,7 +231,7 @@ func newBrowserRoutes(
 		crossOriginProtection,
 	)
 	apis := newAppAPIs(passwordLogin, ordinary, streaming, longRunning, options.Version)
-	return newAppRoutes(ordinary, transfers, apis, options.AuthService), storageTransfers
+	return newAppRoutes(ordinary, transfers, apis, options.Authn, options.Logger), storageTransfers
 }
 
 type appAPIs struct {
@@ -261,32 +261,25 @@ func newAppRoutes(
 	ordinaryRouter chi.Router,
 	transferRouter chi.Router,
 	apis appAPIs,
-	authService *auth.Service,
+	authenticator authhuma.Authenticator,
+	logger *slog.Logger,
 ) AppRoutes {
 	session := huma.NewGroup(apis.ordinary)
-	session.UseMiddleware(middleware.OptionalHumaAuth(apis.ordinary, authService))
+	session.UseMiddleware(authhuma.OptionalAuth(apis.ordinary, authenticator, logger))
 
-	protected := newProtectedGroup(apis.ordinary, authService)
-	ordinary := newOrdinaryGroup(protected)
-	sensitive := newSensitiveGroup(protected)
-
-	streamingSensitive := newSensitiveGroup(
-		newProtectedGroup(apis.streaming, authService),
-	)
-	longRunningOrdinary := newOrdinaryGroup(
-		newProtectedGroup(apis.longRunning, authService),
-	)
+	protected := newProtectedGroup(apis.ordinary, authenticator, logger)
+	streaming := newProtectedGroup(apis.streaming, authenticator, logger)
+	longRunning := newProtectedGroup(apis.longRunning, authenticator, logger)
 
 	return AppRoutes{
-		PasswordLogin:       apis.passwordLogin,
-		Session:             session,
-		Protected:           protected,
-		Ordinary:            ordinary,
-		Sensitive:           sensitive,
-		StreamingSensitive:  streamingSensitive,
-		LongRunningOrdinary: longRunningOrdinary,
-		Router:              ordinaryRouter,
-		Transfers:           transferRouter,
+		PasswordLogin: apis.passwordLogin,
+		Session:       session,
+		Logout:        apis.ordinary,
+		Protected:     protected,
+		Streaming:     streaming,
+		LongRunning:   longRunning,
+		Router:        ordinaryRouter,
+		Transfers:     transferRouter,
 	}
 }
 
@@ -298,45 +291,30 @@ func NewSchema(version string) (huma.API, AppRoutes) {
 
 	session := huma.NewGroup(apis.ordinary)
 	protected := newDocumentedProtectedGroup(apis.ordinary)
-	ordinary := newOrdinaryGroup(protected)
-	sensitive := newSensitiveGroup(protected)
-	streamingSensitive := newSensitiveGroup(newDocumentedProtectedGroup(apis.streaming))
-	longRunningOrdinary := newOrdinaryGroup(newDocumentedProtectedGroup(apis.longRunning))
+	streaming := newDocumentedProtectedGroup(apis.streaming)
+	longRunning := newDocumentedProtectedGroup(apis.longRunning)
 
 	return apis.ordinary, AppRoutes{
-		PasswordLogin:       apis.passwordLogin,
-		Session:             session,
-		Protected:           protected,
-		Ordinary:            ordinary,
-		Sensitive:           sensitive,
-		StreamingSensitive:  streamingSensitive,
-		LongRunningOrdinary: longRunningOrdinary,
+		PasswordLogin: apis.passwordLogin,
+		Session:       session,
+		Logout:        apis.ordinary,
+		Protected:     protected,
+		Streaming:     streaming,
+		LongRunning:   longRunning,
 	}
 }
 
-func newProtectedGroup(api huma.API, authService *auth.Service) *huma.Group {
+func newProtectedGroup(api huma.API, authenticator authhuma.Authenticator, logger *slog.Logger) *huma.Group {
 	protected := huma.NewGroup(api)
-	protected.UseMiddleware(middleware.RequireHumaAuth(api, authService))
-	protected.UseModifier(middleware.ProtectedOperation(api))
+	protected.UseMiddleware(authhuma.RequireAuth(api, authenticator, logger))
+	protected.UseModifier(authhuma.ProtectedOperation(api))
 	return protected
 }
 
 func newDocumentedProtectedGroup(api huma.API) *huma.Group {
 	protected := huma.NewGroup(api)
-	protected.UseModifier(middleware.ProtectedOperation(api))
+	protected.UseModifier(authhuma.ProtectedOperation(api))
 	return protected
-}
-
-func newOrdinaryGroup(protected huma.API) *huma.Group {
-	ordinary := huma.NewGroup(protected)
-	ordinary.UseModifier(middleware.RequireAdminForMutations(protected))
-	return ordinary
-}
-
-func newSensitiveGroup(protected huma.API) *huma.Group {
-	sensitive := huma.NewGroup(protected)
-	sensitive.UseModifier(middleware.RequireAdminForAll(protected))
-	return sensitive
 }
 
 // humaConfig returns the Huma config shared by serve and openapi.
@@ -367,6 +345,8 @@ func humaConfig(version string) huma.Config {
 		},
 	}
 
+	authhuma.RegisterSchemas(cfg.Components.Schemas)
+	cfg.Components.Schemas.Map()["AuthzResource"] = rbac.ResourceSchema()
 	return cfg
 }
 

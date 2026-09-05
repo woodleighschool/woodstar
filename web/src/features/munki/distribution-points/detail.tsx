@@ -15,7 +15,7 @@ import { TokenList } from "@components/token-list";
 import { Button } from "@components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@components/ui/empty";
 import { toast } from "@components/ui/toast";
-import { useAuth } from "@features/auth/queries";
+import { useCan } from "@features/authz/access";
 import { SoftwareArtwork } from "@features/software/software-icon";
 import type { MunkiDistributionPointDetail, MunkiPackageState } from "@lib/api";
 
@@ -32,8 +32,7 @@ export function DistributionPointDetailPage() {
     from: "/_authenticated/munki/distribution-points/$id",
   });
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const isAdmin = user?.role === "admin";
+  const canEdit = useCan({ resource: "munki.distribution-points", access: "edit" });
   const id = Number(distributionPointId);
   const query = useLiveMunkiDistributionPoint(Number.isFinite(id) ? id : null);
   const rotate = useRotateMunkiDistributionPointKey();
@@ -59,7 +58,7 @@ export function DistributionPointDetailPage() {
       <PageHeader
         title="Distribution Point Details"
         actions={
-          isAdmin ? (
+          canEdit ? (
             <>
               <Button
                 size="sm"

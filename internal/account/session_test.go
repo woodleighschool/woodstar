@@ -1,13 +1,13 @@
-package httpapi
+//go:build postgres
+
+package account
 
 import (
 	"context"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
-	"strconv"
 	"strings"
-	"testing"
 	"time"
 
 	"github.com/alexedwards/scs/v2"
@@ -15,66 +15,44 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	"github.com/go-chi/chi/v5"
-	"golang.org/x/time/rate"
+	"github.com/woodleighschool/goodies/auth/authn"
+	authhttp "github.com/woodleighschool/goodies/auth/http"
+	authhuma "github.com/woodleighschool/goodies/auth/huma"
 
 	"github.com/woodleighschool/woodstar/internal/api"
-	apimiddleware "github.com/woodleighschool/woodstar/internal/api/middleware"
-	"github.com/woodleighschool/woodstar/internal/auth"
-	"github.com/woodleighschool/woodstar/internal/directory"
 )
 
-func TestLoginRateLimitPrecedesRequestValidation(t *testing.T) {
-	sessions := testSessionManager()
-	authService, err := auth.NewService(nil, sessions)
-	if err != nil {
-		t.Fatalf("create auth service: %v", err)
-	}
-	router := authTestRouter(
-		authService,
-		nil,
-		sessions,
-		rate.NewLimiter(rate.Every(time.Hour), 1),
-	)
-
-	malformed := authTestRequest(router, `{}`)
-	if malformed.Code != http.StatusUnprocessableEntity {
-		t.Fatalf("admitted malformed status = %d, want %d", malformed.Code, http.StatusUnprocessableEntity)
-	}
-
-	rec := authTestLogin(router, "different@example.invalid", "wrong-password")
-	if rec.Code != http.StatusTooManyRequests {
-		t.Fatalf("limited status = %d, want %d; body = %q", rec.Code, http.StatusTooManyRequests, rec.Body.String())
-	}
-	retryAfter, err := strconv.Atoi(rec.Header().Get("Retry-After"))
-	if err != nil || retryAfter < 1 {
-		t.Fatalf("Retry-After = %q, want positive integer seconds", rec.Header().Get("Retry-After"))
-	}
-}
-
 func authTestRouter(
-	authService *auth.Service,
-	userService *directory.UserService,
+	deps Dependencies,
 	sessions *scs.SessionManager,
-	loginLimiter *rate.Limiter,
 ) *chi.Mux {
 	router := chi.NewRouter()
 	config := testHumaConfig()
 	passwordLoginRouter := router.With(
-		apimiddleware.LimitPasswordLogin(loginLimiter),
+		deps.Authn.LimitPasswordLogin,
 		sessions.LoadAndSave,
 	)
 	ordinaryRouter := router.With(sessions.LoadAndSave)
 	passwordLoginAPI := humachi.New(passwordLoginRouter, config)
 	ordinaryAPI := humachi.New(ordinaryRouter, config)
+	requestAuth := deps.Authn
+	sessionAPI := huma.NewGroup(ordinaryAPI)
+	sessionAPI.UseMiddleware(authhuma.OptionalAuth(ordinaryAPI, requestAuth, deps.Logger))
+	protectedAPI := huma.NewGroup(ordinaryAPI)
+	protectedAPI.UseMiddleware(authhuma.RequireAuth(ordinaryAPI, requestAuth, deps.Logger))
 	RegisterAPI(api.AppRoutes{
 		PasswordLogin: passwordLoginAPI,
-		Session:       ordinaryAPI,
-		Protected:     ordinaryAPI,
+		Session:       sessionAPI,
+		Logout:        ordinaryAPI,
+		Protected:     protectedAPI,
 		Router:        ordinaryRouter,
-	}, Dependencies{
-		AuthService: authService,
-		Users:       userService,
-		Logger:      discardLogger(),
+	}, deps)
+	ordinaryRouter.With(authhttp.RequireAuth(requestAuth, deps.Logger)).Get("/content", func(w http.ResponseWriter, r *http.Request) {
+		if _, err := authn.RequirePrincipal(r.Context()); err != nil {
+			http.Error(w, "principal missing", http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
 	})
 	return router
 }
@@ -91,7 +69,7 @@ func authTestRequest(router *chi.Mux, body string) *httptest.ResponseRecorder {
 	req := httptest.NewRequestWithContext(
 		context.Background(),
 		http.MethodPost,
-		sessionPath,
+		"/api/session",
 		strings.NewReader(body),
 	)
 	req.Header.Set("Content-Type", "application/json")
@@ -100,9 +78,10 @@ func authTestRequest(router *chi.Mux, body string) *httptest.ResponseRecorder {
 }
 
 func testSessionManager() *scs.SessionManager {
-	sm := scs.New()
-	sm.Store = memstore.New()
-	return sm
+	return &scs.SessionManager{
+		Store: memstore.NewWithCleanupInterval(0), Codec: scs.GobCodec{}, Lifetime: time.Hour,
+		Cookie: scs.SessionCookie{Name: "session", Path: "/", HttpOnly: true},
+	}
 }
 
 func testHumaConfig() huma.Config {

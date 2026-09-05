@@ -7,12 +7,14 @@ import (
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
+	authhuma "github.com/woodleighschool/goodies/auth/huma"
 
 	"github.com/woodleighschool/woodstar/internal/api"
 	"github.com/woodleighschool/woodstar/internal/directory"
 	"github.com/woodleighschool/woodstar/internal/directory/entra"
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/listing"
+	"github.com/woodleighschool/woodstar/internal/rbac"
 )
 
 const (
@@ -70,14 +72,15 @@ func RegisterAPI(
 	userService *directory.UserService,
 	store *directory.Store,
 	syncJobs *entra.SyncJobs,
+	authorizer authhuma.Authorizer,
 	logger *slog.Logger,
 ) {
-	registerAPI(routes, userService, store, syncJobs, logger)
+	registerAPI(routes, userService, store, syncJobs, authorizer, logger)
 }
 
 // RegisterOpenAPI documents directory endpoints without runtime services.
 func RegisterOpenAPI(routes api.AppRoutes) {
-	registerAPI(routes, nil, nil, nil, nil)
+	registerAPI(routes, nil, nil, nil, nil, nil)
 }
 
 func registerAPI(
@@ -85,18 +88,21 @@ func registerAPI(
 	userService *directory.UserService,
 	store *directory.Store,
 	syncJobs *entra.SyncJobs,
+	authorizer authhuma.Authorizer,
 	logger *slog.Logger,
 ) {
-	humaAPI := routes.Ordinary
-	registerDirectorySync(humaAPI, syncJobs, logger)
-	registerListUsers(humaAPI, userService, logger)
-	registerListUserDepartments(humaAPI, userService, logger)
-	registerCreateUser(humaAPI, userService, logger)
-	registerGetUser(humaAPI, userService, logger)
-	registerPutUser(humaAPI, userService, logger)
-	registerDeleteUser(humaAPI, userService, logger)
-	registerListGroups(humaAPI, store, logger)
-	registerGetGroup(humaAPI, store, logger)
+	directoryAPI := authhuma.ResourceAPI(routes.Protected, authorizer, logger, rbac.ResourceDirectory)
+	usersAPI := authhuma.ResourceAPI(routes.Protected, authorizer, logger, rbac.ResourceUsers)
+	groupsAPI := authhuma.ResourceAPI(routes.Protected, authorizer, logger, rbac.ResourceGroups)
+	registerDirectorySync(directoryAPI, syncJobs, logger)
+	registerListUsers(usersAPI, userService, logger)
+	registerListUserDepartments(usersAPI, userService, logger)
+	registerCreateUser(usersAPI, userService, logger)
+	registerGetUser(usersAPI, userService, logger)
+	registerPutUser(usersAPI, userService, logger)
+	registerDeleteUser(usersAPI, userService, logger)
+	registerListGroups(groupsAPI, store, logger)
+	registerGetGroup(groupsAPI, store, logger)
 }
 
 func (i userListInput) params() directory.UserListParams {

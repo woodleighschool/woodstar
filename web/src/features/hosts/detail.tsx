@@ -1,4 +1,5 @@
 import { Outlet, useNavigate, useParams, useRouterState } from "@tanstack/react-router";
+import { canAll } from "@woodleighschool/authz";
 import { ChevronDown, RefreshCw, Trash2 } from "lucide-react";
 import { useState } from "react";
 
@@ -15,7 +16,8 @@ import {
   DropdownMenuTrigger,
 } from "@components/ui/dropdown-menu";
 import { TabsTrigger } from "@components/ui/tabs";
-import { useAuth } from "@features/auth/queries";
+import { useAccount } from "@features/account/queries";
+import { useCan } from "@features/authz/access";
 import {
   HostCertificatesCard,
   HostIdentityCard,
@@ -40,29 +42,54 @@ import {
 import type { HostDetail } from "@lib/api";
 
 const hostSections = [
-  { value: "details", label: "Details", path: "/hosts/$id" },
-  { value: "activity", label: "Activity", path: "/hosts/$id/activity" },
-  { value: "software", label: "Software", path: "/hosts/$id/software" },
-  { value: "reports", label: "Reports", path: "/hosts/$id/reports" },
-  { value: "policies", label: "Policies", path: "/hosts/$id/policies" },
+  { value: "details", label: "Details", path: "/hosts/$id", permissions: [] },
+  {
+    value: "activity",
+    label: "Activity",
+    path: "/hosts/$id/activity",
+    permissions: [{ resource: "activity", access: "view" }],
+  },
+  {
+    value: "software",
+    label: "Software",
+    path: "/hosts/$id/software",
+    permissions: [{ resource: "software", access: "view" }],
+  },
+  {
+    value: "reports",
+    label: "Reports",
+    path: "/hosts/$id/reports",
+    permissions: [{ resource: "osquery.reports", access: "view" }],
+  },
+  {
+    value: "policies",
+    label: "Policies",
+    path: "/hosts/$id/policies",
+    permissions: [{ resource: "osquery.policies", access: "view" }],
+  },
   {
     value: "munki",
     label: "Munki",
     path: "/hosts/$id/munki",
     heartbeatSource: "munki",
+    permissions: [{ resource: "munki.software", access: "view" }],
   },
   {
     value: "santa",
     label: "Santa",
     path: "/hosts/$id/santa",
     heartbeatSource: "santa",
+    permissions: [
+      { resource: "santa.configurations", access: "view" },
+      { resource: "santa.rules", access: "view" },
+    ],
   },
 ] as const;
 
 export function HostDetailPage() {
   const hostID = useHostID();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const canEdit = useCan({ resource: "hosts", access: "edit" });
   const [deleteOpen, setDeleteOpen] = useState(false);
   const refresh = useRequestHostInventoryRefresh();
   const query = useHost(hostID, {
@@ -87,7 +114,7 @@ export function HostDetailPage() {
         <HostHeader
           host={host}
           actions={
-            user?.role === "admin" ? (
+            canEdit ? (
               <DropdownMenu>
                 <DropdownMenuTrigger render={<Button type="button" variant="outline" size="sm" />}>
                   Actions
@@ -198,6 +225,7 @@ export function HostSantaPage() {
 }
 
 function HostSectionNav({ hostID, host }: { hostID: number; host: HostDetail }) {
+  const account = useAccount();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const active =
     hostSections.find(
@@ -208,6 +236,7 @@ function HostSectionNav({ hostID, host }: { hostID: number; host: HostDetail }) 
     <ScrollableTabs value={active}>
       <ScrollableTabsList>
         {hostSections
+          .filter((section) => canAll(account.data?.effective_permissions, section.permissions))
           .filter(
             (section) =>
               !("heartbeatSource" in section) ||

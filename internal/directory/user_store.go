@@ -2,12 +2,14 @@ package directory
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/listing"
 	"github.com/woodleighschool/woodstar/internal/postgres"
 )
@@ -47,43 +49,73 @@ type userRow struct {
 	UpdatedAt         time.Time  `db:"updated_at"`
 }
 
-var userColumnExprs = []string{
-	"id",
-	"email",
-	"name",
-	"password_hash",
-	"role::text AS role",
-	"api_key",
-	"api_key_created_at",
-	"source::text AS source",
-	"external_id",
-	"user_principal_name",
-	"mail_nickname",
-	"given_name",
-	"family_name",
-	"department",
-	"deleted_at",
-	"created_at",
-	"updated_at",
-}
-
 func userColumnsSQL(alias string) string {
 	prefix := ""
 	if alias != "" {
 		prefix = alias + "."
 	}
-	columns := make([]string, len(userColumnExprs))
-	for i, column := range userColumnExprs {
-		columns[i] = prefix + column
+	columns := []string{
+		prefix + "id",
+		prefix + "email",
+		prefix + "name",
+		prefix + "password_hash",
+		directRoleKeySQL(prefix+"id") + " AS role",
+		prefix + "api_key",
+		prefix + "api_key_created_at",
+		prefix + "source::text AS source",
+		prefix + "external_id",
+		prefix + "user_principal_name",
+		prefix + "mail_nickname",
+		prefix + "given_name",
+		prefix + "family_name",
+		prefix + "department",
+		prefix + "deleted_at",
+		prefix + "created_at",
+		prefix + "updated_at",
 	}
 	return strings.Join(columns, ", ")
+}
+
+func directRoleKeySQL(userIDExpression string) string {
+	return `(SELECT role.key
+FROM authz_user_roles AS assignment
+JOIN authz_roles AS role ON role.id = assignment.role_id
+WHERE assignment.user_id = ` + userIDExpression + `)`
+}
+
+func effectiveRoleExistsSQL(userIDExpression string) string {
+	return `EXISTS (
+    SELECT 1 FROM authz_user_roles AS direct_role WHERE direct_role.user_id = ` + userIDExpression + `
+    UNION ALL
+    SELECT 1
+    FROM directory_group_memberships AS membership
+    JOIN authz_group_roles AS group_role ON group_role.group_id = membership.group_id
+    WHERE membership.user_id = ` + userIDExpression + `
+)`
+}
+
+func effectiveRoleKeyExistsSQL(userIDExpression string, roleKeysExpression string) string {
+	return `EXISTS (
+    SELECT 1
+    FROM authz_user_roles AS direct_role
+    JOIN authz_roles AS role ON role.id = direct_role.role_id
+    WHERE direct_role.user_id = ` + userIDExpression + `
+      AND role.key = ANY(` + roleKeysExpression + `::text[])
+    UNION ALL
+    SELECT 1
+    FROM directory_group_memberships AS membership
+    JOIN authz_group_roles AS group_role ON group_role.group_id = membership.group_id
+    JOIN authz_roles AS role ON role.id = group_role.role_id
+    WHERE membership.user_id = ` + userIDExpression + `
+      AND role.key = ANY(` + roleKeysExpression + `::text[])
+)`
 }
 
 func userSelectSQL() string {
 	return `
 SELECT
-    ` + userColumnsSQL("") + `
-FROM users`
+	` + userColumnsSQL("u") + `
+FROM users AS u`
 }
 
 func userFromRow(r userRow) User {
@@ -101,7 +133,6 @@ func userFromRow(r userRow) User {
 		GivenName:         derefString(r.GivenName),
 		FamilyName:        derefString(r.FamilyName),
 		Department:        derefString(r.Department),
-		CanLogin:          r.DeletedAt == nil && role != nil,
 		DeletedAt:         r.DeletedAt,
 		CreatedAt:         r.CreatedAt,
 		UpdatedAt:         r.UpdatedAt,
@@ -147,18 +178,20 @@ func (s *Store) createUser(
 ) (*User, error) {
 	var user User
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
-		qrows, err := tx.Query(ctx, `
-INSERT INTO users (email, name, password_hash, role, source)
-VALUES ($1, $2, $3, $4::user_role, 'local')
-RETURNING `+userColumnsSQL(""),
-			params.Email, params.Name, params.PasswordHash, string(params.Role),
-		)
-		if err != nil {
+		var userID int64
+		if err := tx.QueryRow(ctx, `
+INSERT INTO users (email, name, password_hash, source)
+VALUES ($1, $2, $3, 'local')
+RETURNING id`, params.Email, params.Name, params.PasswordHash).Scan(&userID); err != nil {
 			return postgres.MutationError(err)
 		}
-		row, err := pgx.CollectExactlyOneRow(qrows, pgx.RowToStructByName[userRow])
+		if err := replaceUserRole(ctx, tx, userID, &params.Role); err != nil {
+			return err
+		}
+		row, err := postgres.GetOne[userRow](ctx, tx, userSelectSQL()+`
+WHERE u.id = $1`, userID)
 		if err != nil {
-			return postgres.MutationError(err)
+			return err
 		}
 		user = userFromRow(row)
 		return s.labels.RefreshDerivedTx(ctx, tx)
@@ -167,32 +200,6 @@ RETURNING `+userColumnsSQL(""),
 		return nil, err
 	}
 	return &user, nil
-}
-
-func (s *Store) GetLoginUserByEmail(ctx context.Context, email string) (*User, error) {
-	return s.getUserByEmail(ctx, email, `
-WHERE deleted_at IS NULL
-  AND source = 'local'
-  AND role IS NOT NULL
-  AND password_hash IS NOT NULL
-  AND email = $1`)
-}
-
-func (s *Store) GetSSOUserByEmail(ctx context.Context, email string) (*User, error) {
-	return s.getUserByEmail(ctx, email, `
-WHERE deleted_at IS NULL
-  AND source <> 'local'
-  AND role IS NOT NULL
-  AND email = $1`)
-}
-
-func (s *Store) getUserByEmail(ctx context.Context, email string, whereSQL string) (*User, error) {
-	row, err := postgres.GetOne[userRow](ctx, s.pool, userSelectSQL()+whereSQL, email)
-	if err != nil {
-		return nil, postgres.GetError(err)
-	}
-	out := userFromRow(row)
-	return &out, nil
 }
 
 func (s *Store) GetUserByID(ctx context.Context, id int64) (*User, error) {
@@ -243,33 +250,37 @@ type userUpdateRecord struct {
 }
 
 func (s *Store) updateUser(ctx context.Context, id int64, params userUpdateRecord) (*User, error) {
-	var roleStr *string
-	if params.Role != nil {
-		v := string(*params.Role)
-		roleStr = &v
-	}
-	qrows, err := s.pool.Query(ctx, `
+	var user User
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		var userID int64
+		if err := tx.QueryRow(ctx, `
 UPDATE users
 SET
     name = CASE WHEN source = 'local' THEN $1 ELSE name END,
-    role = $2::user_role,
     password_hash = CASE
-        WHEN source = 'local' THEN COALESCE($3, password_hash)
+		WHEN source = 'local' THEN COALESCE($2, password_hash)
         ELSE password_hash
     END,
     updated_at = now()
-WHERE id = $4
+WHERE id = $3
   AND deleted_at IS NULL
-RETURNING `+userColumnsSQL(""),
-		params.Name, roleStr, params.PasswordHash, id)
+RETURNING id`, params.Name, params.PasswordHash, id).Scan(&userID); err != nil {
+			return postgres.MutationError(err)
+		}
+		if err := replaceUserRole(ctx, tx, userID, params.Role); err != nil {
+			return err
+		}
+		row, err := postgres.GetOne[userRow](ctx, tx, userSelectSQL()+`
+WHERE u.id = $1`, userID)
+		if err != nil {
+			return err
+		}
+		user = userFromRow(row)
+		return nil
+	})
 	if err != nil {
-		return nil, postgres.MutationError(err)
+		return nil, err
 	}
-	row, err := pgx.CollectExactlyOneRow(qrows, pgx.RowToStructByName[userRow])
-	if err != nil {
-		return nil, postgres.MutationError(err)
-	}
-	user := userFromRow(row)
 	return &user, nil
 }
 
@@ -286,7 +297,7 @@ SET
 WHERE email = $2
   AND source = 'local'
   AND deleted_at IS NULL
-RETURNING `+userColumnsSQL(""), passwordHash, email)
+RETURNING `+userColumnsSQL("users"), passwordHash, email)
 	if err != nil {
 		return nil, postgres.MutationError(err)
 	}
@@ -299,31 +310,49 @@ RETURNING `+userColumnsSQL(""), passwordHash, email)
 }
 
 func (s *Store) setUserRoleByEmail(ctx context.Context, email string, role Role) (*User, error) {
-	qrows, err := s.pool.Query(ctx, `
-WITH target AS (
-    SELECT id
-    FROM users
-    WHERE email = $2
-      AND deleted_at IS NULL
-    ORDER BY CASE WHEN source = 'local' THEN 1 ELSE 0 END, id
-    LIMIT 1
-)
-UPDATE users u
-SET
-    role = $1::user_role,
-    updated_at = now()
-FROM target
-WHERE u.id = target.id
-RETURNING `+userColumnsSQL("u"), string(role), email)
+	var userID int64
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		if err := tx.QueryRow(ctx, `
+SELECT id
+FROM users
+WHERE lower(email) = lower($1)
+  AND deleted_at IS NULL
+ORDER BY CASE WHEN source = 'local' THEN 1 ELSE 0 END, id
+LIMIT 1
+FOR UPDATE`, email).Scan(&userID); err != nil {
+			return postgres.GetError(err)
+		}
+		if err := replaceUserRole(ctx, tx, userID, &role); err != nil {
+			return err
+		}
+		_, err := tx.Exec(ctx, `UPDATE users SET updated_at = now() WHERE id = $1`, userID)
+		return postgres.MutationError(err)
+	})
 	if err != nil {
-		return nil, postgres.MutationError(err)
+		return nil, err
 	}
-	row, err := pgx.CollectExactlyOneRow(qrows, pgx.RowToStructByName[userRow])
+	return s.GetUserByID(ctx, userID)
+}
+
+func replaceUserRole(ctx context.Context, tx pgx.Tx, userID int64, role *Role) error {
+	if _, err := tx.Exec(ctx, `DELETE FROM authz_user_roles WHERE user_id = $1`, userID); err != nil {
+		return postgres.MutationError(err)
+	}
+	if role == nil {
+		return nil
+	}
+	tag, err := tx.Exec(ctx, `
+INSERT INTO authz_user_roles (user_id, role_id)
+SELECT $1, id
+FROM authz_roles
+WHERE key = $2`, userID, string(*role))
 	if err != nil {
-		return nil, postgres.MutationError(err)
+		return postgres.MutationError(err)
 	}
-	user := userFromRow(row)
-	return &user, nil
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("%w: unknown role %q", fault.ErrInvalidInput, *role)
+	}
+	return nil
 }
 
 func (s *Store) updateAccount(ctx context.Context, id int64, params accountUpdateRecord) (*Account, error) {
@@ -337,7 +366,7 @@ SET
     END,
     updated_at = now()
 WHERE id = $3
-RETURNING `+userColumnsSQL(""),
+RETURNING `+userColumnsSQL("users"),
 		params.Name, params.PasswordHash, id)
 	if err != nil {
 		return nil, postgres.MutationError(err)
@@ -388,62 +417,6 @@ RETURNING id`, id).Scan(&deletedID); err != nil {
 	})
 }
 
-func (s *Store) GetUserByAPIKey(ctx context.Context, key string) (*User, error) {
-	row, err := postgres.GetOne[userRow](ctx, s.pool, userSelectSQL()+`
-WHERE api_key = $1
-  AND deleted_at IS NULL
-  AND role IS NOT NULL`, key)
-	if err != nil {
-		return nil, postgres.GetError(err)
-	}
-	out := userFromRow(row)
-	return &out, nil
-}
-
-func (s *Store) setAccountAPIKey(ctx context.Context, id int64, key string) (*Account, error) {
-	qrows, err := s.pool.Query(ctx, `
-UPDATE users
-SET
-    api_key = $1,
-    api_key_created_at = now(),
-    updated_at = now()
-WHERE id = $2
-  AND deleted_at IS NULL
-  AND role IS NOT NULL
-RETURNING `+userColumnsSQL(""),
-		key, id)
-	if err != nil {
-		return nil, postgres.MutationError(err)
-	}
-	row, err := pgx.CollectExactlyOneRow(qrows, pgx.RowToStructByName[userRow])
-	if err != nil {
-		return nil, postgres.MutationError(err)
-	}
-	out := accountFromRow(row)
-	return &out, nil
-}
-
-func (s *Store) clearAccountAPIKey(ctx context.Context, id int64) (*Account, error) {
-	qrows, err := s.pool.Query(ctx, `
-UPDATE users
-SET
-    api_key = NULL,
-    api_key_created_at = NULL,
-    updated_at = now()
-WHERE id = $1
-RETURNING `+userColumnsSQL(""),
-		id)
-	if err != nil {
-		return nil, postgres.MutationError(err)
-	}
-	row, err := pgx.CollectExactlyOneRow(qrows, pgx.RowToStructByName[userRow])
-	if err != nil {
-		return nil, postgres.MutationError(err)
-	}
-	out := accountFromRow(row)
-	return &out, nil
-}
-
 func userWhere(params UserListParams) (string, []any) {
 	var where postgres.WhereBuilder
 	where.Add("u.deleted_at IS NULL")
@@ -468,8 +441,8 @@ func userWhere(params UserListParams) (string, []any) {
 	if len(params.Roles) > 0 {
 		roles := where.Arg(params.Roles)
 		where.Add(`(
-			u.role::text = ANY(` + roles + `::text[])
-			OR ('none' = ANY(` + roles + `::text[]) AND u.role IS NULL)
+			` + effectiveRoleKeyExistsSQL("u.id", roles) + `
+			OR ('none' = ANY(` + roles + `::text[]) AND NOT ` + effectiveRoleExistsSQL("u.id") + `)
 		)`)
 	}
 	switch params.Source {
@@ -504,7 +477,7 @@ func userListQuery(params UserListParams, where string, args []any) postgres.Lis
 		OrderKeys: map[string]postgres.OrderExpr{
 			"name":       {SQL: "lower(u.name)"},
 			"email":      {SQL: "lower(u.email)"},
-			"role":       {SQL: "u.role", NullOrder: postgres.NullsLast},
+			"role":       {SQL: directRoleKeySQL("u.id"), NullOrder: postgres.NullsLast},
 			"department": {SQL: "lower(u.department)", NullOrder: postgres.NullsLast},
 			"created_at": {SQL: "u.created_at"},
 			"updated_at": {SQL: "u.updated_at"},

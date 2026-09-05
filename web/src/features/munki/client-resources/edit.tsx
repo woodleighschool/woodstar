@@ -1,7 +1,7 @@
 import { useRef } from "react";
 
 import { QueryGate } from "@components/query-gate";
-import { useAuth } from "@features/auth/queries";
+import { useCan } from "@features/authz/access";
 import type { MunkiClientResources } from "@lib/api";
 
 import { MunkiClientResourcesForm } from "./fields";
@@ -16,7 +16,7 @@ import {
 } from "./queries";
 
 export function MunkiClientResourcesEditPage() {
-  const { user } = useAuth();
+  const canEdit = useCan({ resource: "munki.client-resources", access: "edit" });
   const query = useMunkiClientResources();
   if (query.isPending) return null;
   if (query.error) {
@@ -34,7 +34,7 @@ export function MunkiClientResourcesEditPage() {
     <MunkiClientResourcesEditForm
       key={resource?.updated_at ?? "undeployed"}
       resource={resource}
-      editable={user?.role === "admin"}
+      editable={canEdit}
     />
   );
 }

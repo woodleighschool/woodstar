@@ -31,7 +31,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@components/ui/dropdown-menu";
-import { useAuth } from "@features/auth/queries";
+import { useCan } from "@features/authz/access";
 import type { OsqueryPolicy } from "@lib/api";
 import { DEFAULT_PAGE_SIZE } from "@lib/pagination";
 import { formatRelative } from "@lib/utils";
@@ -54,8 +54,7 @@ export function PolicyListPage() {
     search,
     onSearchChange: (updater) => void navigate({ search: updater, replace: true }),
   });
-  const { user } = useAuth();
-  const isAdmin = user?.role === "admin";
+  const canEdit = useCan({ resource: "osquery.policies", access: "edit" });
   const bulkDelete = useBulkDeletePolicies();
   const [deleting, setDeleting] = useState<OsqueryPolicy | null>(null);
   const query = usePolicies({
@@ -73,19 +72,19 @@ export function PolicyListPage() {
   const table = useDataTable({
     tableState: tableSearch,
     data: tableRows,
-    columns: isAdmin ? policyAdminColumns : policyColumns,
+    columns: canEdit ? policyAdminColumns : policyColumns,
     pageCount,
     rowCount: totalCount,
     initialState: { pagination: { pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE } },
     getRowId: (row) => String(row.id),
-    enableRowSelection: isAdmin,
+    enableRowSelection: canEdit,
   });
   return (
     <PageShell>
       <PageHeader
         title="Policies"
         actions={
-          isAdmin ? (
+          canEdit ? (
             <Button size="sm" render={<Link to="/osquery/policies/new" />} nativeButton={false}>
               <Plus data-icon="inline-start" />
               Create
@@ -100,13 +99,13 @@ export function PolicyListPage() {
           onRetry={() => void query.refetch()}
         />
       ) : query.isLoading ? (
-        <DataTableSkeleton columnCount={isAdmin ? 9 : 7} />
+        <DataTableSkeleton columnCount={canEdit ? 9 : 7} />
       ) : (
         <DataTable
           table={table}
           pending={query.isPlaceholderData}
           actionBar={
-            isAdmin ? (
+            canEdit ? (
               <BulkDeleteActionBar table={table} bulkDelete={bulkDelete} noun="policy" />
             ) : undefined
           }
@@ -128,7 +127,7 @@ export function PolicyListPage() {
         </DataTable>
       )}
 
-      {isAdmin ? (
+      {canEdit ? (
         <PolicyDeleteDialog
           open={deleting !== null}
           onOpenChange={(open) => {

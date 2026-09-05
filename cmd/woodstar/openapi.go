@@ -7,10 +7,10 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/spf13/cobra"
 
+	"github.com/woodleighschool/woodstar/internal/account"
 	activityapi "github.com/woodleighschool/woodstar/internal/activity/httpapi"
 	agentauthapi "github.com/woodleighschool/woodstar/internal/agentauth/httpapi"
 	"github.com/woodleighschool/woodstar/internal/api"
-	authapi "github.com/woodleighschool/woodstar/internal/auth/httpapi"
 	"github.com/woodleighschool/woodstar/internal/buildinfo"
 	directoryapi "github.com/woodleighschool/woodstar/internal/directory/httpapi"
 	hostsapi "github.com/woodleighschool/woodstar/internal/hosts/httpapi"
@@ -54,7 +54,7 @@ not invoked, so this command does not require a database.`,
 
 func buildOpenAPI(version string) huma.API {
 	schema, routes := api.NewSchema(version)
-	authapi.RegisterOpenAPI(routes)
+	account.RegisterOpenAPI(routes)
 	activityapi.RegisterOpenAPI(routes)
 	directoryapi.RegisterOpenAPI(routes)
 	hostsapi.RegisterOpenAPI(routes)

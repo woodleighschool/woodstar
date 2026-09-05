@@ -21,7 +21,9 @@ woodstar user create \
 
 The command prompts for a password unless `--password` is provided. The database URL comes from `WOODSTAR_DATABASE_URL` by default; use `--database-url` to pass another connection URL.
 
-Email addresses must be lowercase. The app supports two roles: `admin` can make changes, while `viewer` has read-only access.
+Email addresses must be lowercase. The built-in `admin` role grants full access; `viewer` grants read-only access to ordinary resources, excluding credentials, live queries and remediation operations.
+
+Permissions combine direct and inherited role grants, taking the highest access for each resource: `none < view < edit`. A user without any grants cannot enter the app. The **Account** page shows the resulting permissions.
 
 Use these commands to recover an existing local account:
 
@@ -32,7 +34,7 @@ woodstar user set-role --email you@example.com --role admin
 
 ## OIDC
 
-OIDC is enabled when its issuer URL, client ID, and client secret are set. The configured email claim must exactly match the lowercase email of a user with an assigned role.
+OIDC is enabled when its issuer URL, client ID, and client secret are set. The configured email claim must match the email of a provisioned directory user. Authentication resolves that identity; application access still requires a direct or inherited permission grant.
 
 See [Environment](./environment#oidc) for the settings.
 

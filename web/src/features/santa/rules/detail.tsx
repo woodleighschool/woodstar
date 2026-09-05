@@ -8,7 +8,7 @@ import { Link } from "@components/link";
 import { QueryGate } from "@components/query-gate";
 import { TargetBadge, TargetDetails } from "@components/targeting/target-details";
 import { Button } from "@components/ui/button";
-import { useAuth } from "@features/auth/queries";
+import { useCan } from "@features/authz/access";
 import { useLabelNameMap } from "@features/labels/components/label-ref-list";
 import type { SantaRule } from "@lib/api";
 import { parseRouteID } from "@lib/route-params";
@@ -22,8 +22,7 @@ export function RuleDetailPage() {
     from: "/_authenticated/santa/rules/$id",
   });
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const isAdmin = user?.role === "admin";
+  const canEdit = useCan({ resource: "santa.rules", access: "edit" });
   const id = parseRouteID(ruleID);
   const query = useSantaRule(id);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -49,7 +48,7 @@ export function RuleDetailPage() {
       <PageHeader
         title="Rule Details"
         actions={
-          isAdmin ? (
+          canEdit ? (
             <>
               <Button
                 size="sm"

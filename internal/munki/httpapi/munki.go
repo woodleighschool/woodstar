@@ -3,19 +3,23 @@ package httpapi
 import (
 	"log/slog"
 
+	"github.com/woodleighschool/goodies/auth/authz"
+	authhttp "github.com/woodleighschool/goodies/auth/http"
+	authhuma "github.com/woodleighschool/goodies/auth/huma"
+
 	"github.com/woodleighschool/goodies/bloby"
 	"github.com/woodleighschool/woodstar/internal/api"
-	"github.com/woodleighschool/woodstar/internal/api/middleware"
-	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/munki/clientresources"
 	"github.com/woodleighschool/woodstar/internal/munki/mdp"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
+	"github.com/woodleighschool/woodstar/internal/rbac"
 )
 
 // Dependencies are the services used by the Munki HTTP boundary.
 type Dependencies struct {
-	AuthService     *auth.Service
+	Authenticator   authhttp.Authenticator
+	Authorizer      authhuma.Authorizer
 	HostState       *munki.Store
 	Software        *munkisoftware.Store
 	DeleteSoftware  *munki.SoftwareDeletionService
@@ -35,8 +39,11 @@ type distributionPointConnections interface {
 // point endpoints.
 func RegisterAPI(routes api.AppRoutes, deps Dependencies) {
 	registerOperations(routes, deps)
+	transfers := routes.Transfers.With(authhttp.RequireAuth(deps.Authenticator, deps.Logger))
 	registerMunkiContentRoutes(
-		routes.Transfers.With(middleware.RequireHTTPAuth(deps.AuthService)),
+		transfers.With(authhttp.RequirePermission(deps.Authorizer, deps.Logger, rbac.ResourceMunkiSoftware, authz.View)),
+		transfers.With(authhttp.RequirePermission(deps.Authorizer, deps.Logger, rbac.ResourceMunkiPackages, authz.View)),
+		transfers.With(authhttp.RequirePermission(deps.Authorizer, deps.Logger, rbac.ResourceMunkiClientResources, authz.View)),
 		deps.Objects,
 		deps.Logger,
 	)
@@ -48,10 +55,22 @@ func RegisterOpenAPI(routes api.AppRoutes) {
 }
 
 func registerOperations(routes api.AppRoutes, deps Dependencies) {
-	registerHostMunkiState(routes.Ordinary, deps.HostState, deps.Logger)
-	registerHostMunkiSoftware(routes.Ordinary, deps.Software, deps.Logger)
+	softwareAPI := authhuma.ResourceAPI(routes.Protected, deps.Authorizer, deps.Logger, rbac.ResourceMunkiSoftware)
+	packagesAPI := authhuma.ResourceAPI(routes.Protected, deps.Authorizer, deps.Logger, rbac.ResourceMunkiPackages)
+	longRunningPackagesAPI := authhuma.ResourceAPI(routes.LongRunning, deps.Authorizer, deps.Logger,
+		rbac.ResourceMunkiPackages,
+	)
+	clientResourcesAPI := authhuma.ResourceAPI(routes.Protected, deps.Authorizer, deps.Logger,
+		rbac.ResourceMunkiClientResources,
+	)
+	distributionPointsAPI := authhuma.ResourceAPI(routes.Protected, deps.Authorizer, deps.Logger,
+		rbac.ResourceMunkiDistributionPoints,
+	)
+
+	registerHostMunkiState(softwareAPI, deps.HostState, deps.Logger)
+	registerHostMunkiSoftware(softwareAPI, deps.Software, deps.Logger)
 	registerMunkiSoftware(
-		routes.Ordinary,
+		softwareAPI,
 		deps.Software,
 		deps.DeleteSoftware,
 		deps.Packages,
@@ -59,17 +78,22 @@ func registerOperations(routes api.AppRoutes, deps Dependencies) {
 		deps.Logger,
 	)
 	registerMunkiPackages(
-		routes.Ordinary,
-		routes.LongRunningOrdinary,
+		packagesAPI,
+		longRunningPackagesAPI,
 		deps.Packages,
 		deps.Objects,
 		deps.Logger,
 	)
 	registerMunkiClientResources(
-		routes.Ordinary,
+		clientResourcesAPI,
 		deps.ClientResources,
 		deps.Objects,
 		deps.Logger,
 	)
-	registerMunkiDistributionPoints(routes.Ordinary, deps.Distribution, deps.Connections, deps.Logger)
+	registerMunkiDistributionPoints(
+		distributionPointsAPI,
+		deps.Distribution,
+		deps.Connections,
+		deps.Logger,
+	)
 }

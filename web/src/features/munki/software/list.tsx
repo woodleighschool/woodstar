@@ -22,7 +22,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@components/ui/dropdown-menu";
-import { useAuth } from "@features/auth/queries";
+import { useCan } from "@features/authz/access";
 import { SoftwareArtwork } from "@features/software/software-icon";
 import type { MunkiSoftware } from "@lib/api";
 import { DEFAULT_PAGE_SIZE } from "@lib/pagination";
@@ -50,7 +50,7 @@ function SoftwareNameCell({ row }: DataTableCellContext<MunkiSoftware>) {
 }
 
 function softwareColumns(
-  isAdmin: boolean,
+  canEdit: boolean,
   onDelete: (software: MunkiSoftware) => void,
 ): DataTableColumnDef<MunkiSoftware>[] {
   const columns: DataTableColumnDef<MunkiSoftware>[] = [
@@ -89,7 +89,7 @@ function softwareColumns(
       meta: { label: "Updated" },
     },
   ];
-  if (!isAdmin) return columns;
+  if (!canEdit) return columns;
   return [
     selectColumn<MunkiSoftware>(),
     ...columns,
@@ -116,8 +116,7 @@ export function MunkiSoftwareListPage() {
     search,
     onSearchChange: (updater) => void navigate({ search: updater, replace: true }),
   });
-  const { user } = useAuth();
-  const isAdmin = user?.role === "admin";
+  const canEdit = useCan({ resource: "munki.software", access: "edit" });
   const bulkDelete = useBulkDeleteMunkiSoftware();
   const [deleting, setDeleting] = React.useState<MunkiSoftware | null>(null);
   const query = useMunkiSoftware({
@@ -129,7 +128,7 @@ export function MunkiSoftwareListPage() {
   const software = React.useMemo(() => query.data?.items ?? [], [query.data?.items]);
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
-  const columns = React.useMemo(() => softwareColumns(isAdmin, setDeleting), [isAdmin]);
+  const columns = React.useMemo(() => softwareColumns(canEdit, setDeleting), [canEdit]);
   const table = useDataTable({
     tableState: tableSearch,
     data: software,
@@ -138,14 +137,14 @@ export function MunkiSoftwareListPage() {
     rowCount: totalCount,
     initialState: { pagination: { pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE } },
     getRowId: (row) => String(row.id),
-    enableRowSelection: isAdmin,
+    enableRowSelection: canEdit,
   });
   return (
     <PageShell>
       <PageHeader
         title="Software"
         actions={
-          isAdmin ? (
+          canEdit ? (
             <Button size="sm" render={<Link to="/munki/software/new" />} nativeButton={false}>
               <Plus data-icon="inline-start" />
               Create
@@ -161,13 +160,13 @@ export function MunkiSoftwareListPage() {
           onRetry={() => void query.refetch()}
         />
       ) : query.isLoading ? (
-        <DataTableSkeleton columnCount={isAdmin ? 6 : 4} />
+        <DataTableSkeleton columnCount={canEdit ? 6 : 4} />
       ) : (
         <DataTable
           table={table}
           pending={query.isPlaceholderData}
           actionBar={
-            isAdmin ? (
+            canEdit ? (
               <BulkDeleteActionBar
                 table={table}
                 bulkDelete={bulkDelete}
@@ -196,7 +195,7 @@ export function MunkiSoftwareListPage() {
         </DataTable>
       )}
 
-      {isAdmin ? (
+      {canEdit ? (
         <MunkiSoftwareDeleteDialog
           software={deleting}
           open={deleting !== null}

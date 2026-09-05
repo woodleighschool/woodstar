@@ -24,7 +24,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@components/ui/dropdown-menu";
-import { useAuth } from "@features/auth/queries";
+import { useCan } from "@features/authz/access";
 import { SoftwareArtwork } from "@features/software/software-icon";
 import type { MunkiPackage } from "@lib/api";
 import { DEFAULT_PAGE_SIZE } from "@lib/pagination";
@@ -54,7 +54,7 @@ function PackageSoftwareCell({ row }: DataTableCellContext<MunkiPackage>) {
 }
 
 function packageColumns(
-  isAdmin: boolean,
+  canEdit: boolean,
   onDelete: (pkg: MunkiPackage) => void,
 ): DataTableColumnDef<MunkiPackage>[] {
   const columns: DataTableColumnDef<MunkiPackage>[] = [
@@ -99,7 +99,7 @@ function packageColumns(
       meta: { label: "Updated" },
     },
   ];
-  if (!isAdmin) return columns;
+  if (!canEdit) return columns;
   return [
     selectColumn<MunkiPackage>(),
     ...columns,
@@ -127,8 +127,7 @@ export function MunkiPackageListPage() {
     onSearchChange: (updater) => void navigate({ search: updater, replace: true }),
     filterKeys: PACKAGE_TYPE_FILTER_KEYS,
   });
-  const { user } = useAuth();
-  const isAdmin = user?.role === "admin";
+  const canEdit = useCan({ resource: "munki.packages", access: "edit" });
   const bulkDelete = useBulkDeleteMunkiPackages();
   const [deleting, setDeleting] = React.useState<MunkiPackage | null>(null);
   const packageTypes = search.type ?? [];
@@ -142,7 +141,7 @@ export function MunkiPackageListPage() {
   const packages = React.useMemo(() => query.data?.items ?? [], [query.data?.items]);
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
-  const columns = React.useMemo(() => packageColumns(isAdmin, setDeleting), [isAdmin]);
+  const columns = React.useMemo(() => packageColumns(canEdit, setDeleting), [canEdit]);
   const table = useDataTable({
     tableState: tableSearch,
     data: packages,
@@ -151,14 +150,14 @@ export function MunkiPackageListPage() {
     rowCount: totalCount,
     initialState: { pagination: { pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE } },
     getRowId: (row) => String(row.id),
-    enableRowSelection: isAdmin,
+    enableRowSelection: canEdit,
   });
   return (
     <PageShell>
       <PageHeader
         title="Packages"
         actions={
-          isAdmin ? (
+          canEdit ? (
             <Button size="sm" render={<Link to="/munki/packages/new" />} nativeButton={false}>
               <Plus data-icon="inline-start" />
               Create
@@ -173,13 +172,13 @@ export function MunkiPackageListPage() {
           onRetry={() => void query.refetch()}
         />
       ) : query.isLoading ? (
-        <DataTableSkeleton columnCount={isAdmin ? 7 : 5} filterCount={1} />
+        <DataTableSkeleton columnCount={canEdit ? 7 : 5} filterCount={1} />
       ) : (
         <DataTable
           table={table}
           pending={query.isPlaceholderData}
           actionBar={
-            isAdmin ? (
+            canEdit ? (
               <BulkDeleteActionBar
                 table={table}
                 bulkDelete={bulkDelete}
@@ -212,7 +211,7 @@ export function MunkiPackageListPage() {
         </DataTable>
       )}
 
-      {isAdmin ? (
+      {canEdit ? (
         <MunkiPackageDeleteDialog
           pkg={deleting}
           open={deleting !== null}

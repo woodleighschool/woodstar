@@ -22,7 +22,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@components/ui/dropdown-menu";
-import { useAuth } from "@features/auth/queries";
+import { useCan } from "@features/authz/access";
 import type { OsqueryReport } from "@lib/api";
 import { DEFAULT_PAGE_SIZE } from "@lib/pagination";
 import { formatInterval, formatRelative } from "@lib/utils";
@@ -44,8 +44,7 @@ export function ReportListPage() {
     search,
     onSearchChange: (updater) => void navigate({ search: updater, replace: true }),
   });
-  const { user } = useAuth();
-  const isAdmin = user?.role === "admin";
+  const canEdit = useCan({ resource: "osquery.reports", access: "edit" });
   const bulkDelete = useBulkDeleteReports();
   const [deleting, setDeleting] = useState<OsqueryReport | null>(null);
   const query = useReports({
@@ -63,19 +62,19 @@ export function ReportListPage() {
   const table = useDataTable({
     tableState: tableSearch,
     data: tableRows,
-    columns: isAdmin ? reportAdminColumns : reportColumns,
+    columns: canEdit ? reportAdminColumns : reportColumns,
     pageCount,
     rowCount: totalCount,
     initialState: { pagination: { pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE } },
     getRowId: (row) => String(row.id),
-    enableRowSelection: isAdmin,
+    enableRowSelection: canEdit,
   });
   return (
     <PageShell>
       <PageHeader
         title="Reports"
         actions={
-          isAdmin ? (
+          canEdit ? (
             <Button size="sm" render={<Link to="/osquery/reports/new" />} nativeButton={false}>
               <Plus data-icon="inline-start" />
               Create
@@ -90,13 +89,13 @@ export function ReportListPage() {
           onRetry={() => void query.refetch()}
         />
       ) : query.isLoading ? (
-        <DataTableSkeleton columnCount={isAdmin ? 8 : 6} />
+        <DataTableSkeleton columnCount={canEdit ? 8 : 6} />
       ) : (
         <DataTable
           table={table}
           pending={query.isPlaceholderData}
           actionBar={
-            isAdmin ? (
+            canEdit ? (
               <BulkDeleteActionBar table={table} bulkDelete={bulkDelete} noun="report" />
             ) : undefined
           }
@@ -118,7 +117,7 @@ export function ReportListPage() {
         </DataTable>
       )}
 
-      {isAdmin ? (
+      {canEdit ? (
         <ReportDeleteDialog
           open={deleting !== null}
           onOpenChange={(open) => {

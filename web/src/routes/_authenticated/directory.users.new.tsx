@@ -1,12 +1,12 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
-import { requireAdmin } from "@features/auth/guards";
+import { requirePermission } from "@features/authn/guards";
 import { UserCreatePage } from "@features/directory/users/create";
 
 export const Route = createFileRoute("/_authenticated/directory/users/new")({
   staticData: { breadcrumb: "Create" },
   beforeLoad: ({ context }) =>
-    requireAdmin(context.currentUser, () => {
+    requirePermission(context.queryClient, { resource: "users", access: "edit" }, () => {
       throw redirect({ to: "/directory/users" });
     }),
   component: UserCreatePage,

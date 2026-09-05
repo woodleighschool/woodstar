@@ -7,10 +7,13 @@ import (
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/woodleighschool/goodies/auth/authz"
+	authhuma "github.com/woodleighschool/goodies/auth/huma"
 
 	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/api"
 	"github.com/woodleighschool/woodstar/internal/fault"
+	"github.com/woodleighschool/woodstar/internal/rbac"
 )
 
 const (
@@ -40,20 +43,34 @@ type agentSecretDeleteInput struct {
 }
 
 // RegisterAPI mounts shared agent-secret management endpoints.
-func RegisterAPI(routes api.AppRoutes, store *agentauth.Store, logger *slog.Logger) {
-	registerAPI(routes, store, logger)
+func RegisterAPI(
+	routes api.AppRoutes,
+	store *agentauth.Store,
+	authorizer authhuma.Authorizer,
+	logger *slog.Logger,
+) {
+	registerAPI(routes, store, authorizer, logger)
 }
 
 // RegisterOpenAPI documents agent-secret endpoints without runtime services.
 func RegisterOpenAPI(routes api.AppRoutes) {
-	registerAPI(routes, nil, nil)
+	registerAPI(routes, nil, nil, nil)
 }
 
-func registerAPI(routes api.AppRoutes, store *agentauth.Store, logger *slog.Logger) {
-	registerListAgentSecrets(routes.Sensitive, store, logger)
-	registerCreateAgentSecret(routes.Sensitive, store, logger)
-	registerUpdateAgentSecret(routes.Sensitive, store, logger)
-	registerDeleteAgentSecret(routes.Sensitive, store, logger)
+func registerAPI(
+	routes api.AppRoutes,
+	store *agentauth.Store,
+	authorizer authhuma.Authorizer,
+	logger *slog.Logger,
+) {
+	humaAPI := authhuma.RequireAPI(routes.Protected, authorizer, logger, authz.Requirement{
+		Resource: rbac.ResourceAgentSecrets,
+		Access:   authz.Edit,
+	})
+	registerListAgentSecrets(humaAPI, store, logger)
+	registerCreateAgentSecret(humaAPI, store, logger)
+	registerUpdateAgentSecret(humaAPI, store, logger)
+	registerDeleteAgentSecret(humaAPI, store, logger)
 }
 
 func registerListAgentSecrets(humaAPI huma.API, store *agentauth.Store, logger *slog.Logger) {

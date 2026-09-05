@@ -8,10 +8,21 @@ components:
         api_key_created_at:
           format: date-time
           type: string
+        effective_permissions:
+          additionalProperties:
+            enum:
+              - none
+              - view
+              - edit
+            type: string
+          propertyNames:
+            $ref: "#/components/schemas/AuthzResource"
+          type: object
         user:
           $ref: "#/components/schemas/User"
       required:
         - user
+        - effective_permissions
       type: object
     AccountMutation:
       additionalProperties: false
@@ -138,6 +149,29 @@ components:
       required:
         - value
       type: object
+    AuthzResource:
+      enum:
+        - activity
+        - users
+        - groups
+        - directory
+        - hosts
+        - labels
+        - software
+        - agents.secrets
+        - munki.software
+        - munki.packages
+        - munki.distribution-points
+        - munki.client-resources
+        - osquery.overview
+        - osquery.reports
+        - osquery.policies
+        - osquery.live-queries
+        - osquery.remediations
+        - santa.configurations
+        - santa.events
+        - santa.rules
+      type: string
     CertificateName:
       additionalProperties: false
       properties:
@@ -3135,6 +3169,22 @@ components:
         - items
         - count
       type: object
+    Principal:
+      additionalProperties: false
+      properties:
+        email:
+          format: email
+          type: string
+        id:
+          format: int64
+          type: integer
+        name:
+          type: string
+      required:
+        - id
+        - email
+        - name
+      type: object
     PublicIPDetails:
       additionalProperties: false
       properties:
@@ -3977,7 +4027,7 @@ components:
         sso_enabled:
           type: boolean
         user:
-          $ref: "#/components/schemas/User"
+          $ref: "#/components/schemas/Principal"
       required:
         - sso_enabled
       type: object
@@ -3988,7 +4038,6 @@ components:
           format: email
           type: string
         password:
-          minLength: 1
           type: string
       required:
         - email
@@ -4235,8 +4284,6 @@ components:
     User:
       additionalProperties: false
       properties:
-        can_login:
-          type: boolean
         created_at:
           format: date-time
           type: string
@@ -4281,7 +4328,6 @@ components:
         - email
         - name
         - source
-        - can_login
         - created_at
         - updated_at
       type: object
@@ -4617,6 +4663,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
         default:
           content:
             application/problem+json:
@@ -4629,6 +4681,9 @@ paths:
       summary: List activity
       tags:
         - Activity
+      x-authz:
+        access: view
+        resource: activity
   /api/agent-secrets:
     get:
       operationId: list-agent-secrets
@@ -4665,6 +4720,9 @@ paths:
       summary: List agent secrets
       tags:
         - Agent secrets
+      x-authz:
+        access: edit
+        resource: agents.secrets
     post:
       operationId: create-agent-secret
       requestBody:
@@ -4716,6 +4774,9 @@ paths:
       summary: Create an agent secret
       tags:
         - Agent secrets
+      x-authz:
+        access: edit
+        resource: agents.secrets
   /api/agent-secrets/{id}:
     delete:
       operationId: delete-agent-secret
@@ -4771,6 +4832,9 @@ paths:
       summary: Delete an agent secret
       tags:
         - Agent secrets
+      x-authz:
+        access: edit
+        resource: agents.secrets
     put:
       operationId: update-agent-secret
       parameters:
@@ -4835,6 +4899,9 @@ paths:
       summary: Update an agent secret
       tags:
         - Agent secrets
+      x-authz:
+        access: edit
+        resource: agents.secrets
   /api/directory/sync:
     get:
       operationId: get-directory-sync
@@ -4851,6 +4918,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
         default:
           content:
             application/problem+json:
@@ -4863,6 +4936,9 @@ paths:
       summary: Get directory sync status
       tags:
         - Directory sync
+      x-authz:
+        access: view
+        resource: directory
     post:
       operationId: trigger-directory-sync
       responses:
@@ -4902,6 +4978,9 @@ paths:
       summary: Trigger a directory sync
       tags:
         - Directory sync
+      x-authz:
+        access: edit
+        resource: directory
   /api/groups:
     get:
       operationId: list-groups
@@ -4951,6 +5030,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
         default:
           content:
             application/problem+json:
@@ -4963,6 +5048,9 @@ paths:
       summary: List groups
       tags:
         - Directory groups
+      x-authz:
+        access: view
+        resource: groups
   /api/groups/{id}:
     get:
       operationId: get-group
@@ -4986,6 +5074,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
         "404":
           content:
             application/problem+json:
@@ -5010,6 +5104,9 @@ paths:
       summary: Get a group
       tags:
         - Directory groups
+      x-authz:
+        access: view
+        resource: groups
   /api/hosts:
     delete:
       operationId: bulk-delete-hosts
@@ -5063,6 +5160,9 @@ paths:
       summary: Delete hosts
       tags:
         - Hosts
+      x-authz:
+        access: edit
+        resource: hosts
     get:
       operationId: list-hosts
       parameters:
@@ -5138,6 +5238,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
         default:
           content:
             application/problem+json:
@@ -5150,6 +5256,9 @@ paths:
       summary: List hosts
       tags:
         - Hosts
+      x-authz:
+        access: view
+        resource: hosts
   /api/hosts/{id}:
     delete:
       operationId: delete-host
@@ -5199,6 +5308,9 @@ paths:
       summary: Delete a host
       tags:
         - Hosts
+      x-authz:
+        access: edit
+        resource: hosts
     get:
       operationId: get-host
       parameters:
@@ -5221,6 +5333,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
         "404":
           content:
             application/problem+json:
@@ -5245,6 +5363,9 @@ paths:
       summary: Get a host
       tags:
         - Hosts
+      x-authz:
+        access: view
+        resource: hosts
   /api/hosts/{id}/inventory-refresh:
     post:
       operationId: request-host-inventory-refresh
@@ -5294,6 +5415,9 @@ paths:
       summary: Request host inventory refresh
       tags:
         - Hosts
+      x-authz:
+        access: edit
+        resource: hosts
   /api/hosts/{id}/munki:
     get:
       operationId: get-host-munki-state
@@ -5317,6 +5441,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
         "404":
           content:
             application/problem+json:
@@ -5341,6 +5471,9 @@ paths:
       summary: Get Munki state for a host
       tags:
         - Hosts
+      x-authz:
+        access: view
+        resource: munki.software
   /api/hosts/{id}/munki/software:
     get:
       operationId: list-host-munki-software
@@ -5395,6 +5528,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
         "404":
           content:
             application/problem+json:
@@ -5419,6 +5558,9 @@ paths:
       summary: List Munki software for a host
       tags:
         - Hosts
+      x-authz:
+        access: view
+        resource: munki.software
   /api/hosts/{id}/osquery/policies:
     get:
       operationId: list-host-osquery-policies
@@ -5479,6 +5621,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
         "404":
           content:
             application/problem+json:
@@ -5503,6 +5651,9 @@ paths:
       summary: List policies for a host
       tags:
         - Hosts
+      x-authz:
+        access: view
+        resource: osquery.policies
   /api/hosts/{id}/osquery/reports:
     get:
       operationId: list-host-osquery-reports
@@ -5560,6 +5711,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
         "404":
           content:
             application/problem+json:
@@ -5584,6 +5741,9 @@ paths:
       summary: List reports for a host
       tags:
         - Hosts
+      x-authz:
+        access: view
+        resource: osquery.reports
   /api/hosts/{id}/primary-user:
     delete:
       operationId: clear-host-primary-user
@@ -5637,6 +5797,9 @@ paths:
       summary: Clear primary user for a host
       tags:
         - Hosts
+      x-authz:
+        access: edit
+        resource: hosts
     put:
       operationId: set-host-primary-user
       parameters:
@@ -5701,6 +5864,9 @@ paths:
       summary: Set primary user for a host
       tags:
         - Hosts
+      x-authz:
+        access: edit
+        resource: hosts
   /api/hosts/{id}/santa:
     get:
       operationId: get-host-santa-state
@@ -5724,6 +5890,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
         "404":
           content:
             application/problem+json:
@@ -5748,6 +5920,9 @@ paths:
       summary: Get Santa state for a host
       tags:
         - Hosts
+      x-authz:
+        access: view
+        resource: santa.configurations
   /api/hosts/{id}/santa/rules:
     get:
       operationId: list-host-santa-rules
@@ -5802,6 +5977,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
         "404":
           content:
             application/problem+json:
@@ -5826,6 +6007,9 @@ paths:
       summary: List Santa rules for a host
       tags:
         - Hosts
+      x-authz:
+        access: view
+        resource: santa.rules
   /api/hosts/{id}/software:
     get:
       operationId: list-host-software
@@ -5892,6 +6076,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
         "404":
           content:
             application/problem+json:
@@ -5916,6 +6106,9 @@ paths:
       summary: List software for a host
       tags:
         - Hosts
+      x-authz:
+        access: view
+        resource: software
   /api/labels:
     get:
       operationId: list-labels
@@ -5977,6 +6170,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
         default:
           content:
             application/problem+json:
@@ -5989,6 +6188,9 @@ paths:
       summary: List labels
       tags:
         - Labels
+      x-authz:
+        access: view
+        resource: labels
     post:
       operationId: create-label
       requestBody:
@@ -6052,6 +6254,9 @@ paths:
       summary: Create a label
       tags:
         - Labels
+      x-authz:
+        access: edit
+        resource: labels
   /api/labels/{id}:
     delete:
       operationId: delete-label
@@ -6101,6 +6306,9 @@ paths:
       summary: Delete a label
       tags:
         - Labels
+      x-authz:
+        access: edit
+        resource: labels
     get:
       operationId: get-label
       parameters:
@@ -6123,6 +6331,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
         "404":
           content:
             application/problem+json:
@@ -6147,6 +6361,9 @@ paths:
       summary: Get a label
       tags:
         - Labels
+      x-authz:
+        access: view
+        resource: labels
     put:
       operationId: update-label
       parameters:
@@ -6217,6 +6434,9 @@ paths:
       summary: Update a label
       tags:
         - Labels
+      x-authz:
+        access: edit
+        resource: labels
   /api/munki/client-resources:
     get:
       operationId: list-munki-client-resources
@@ -6254,6 +6474,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
         default:
           content:
             application/problem+json:
@@ -6266,6 +6492,9 @@ paths:
       summary: List client resources
       tags:
         - Munki client resources
+      x-authz:
+        access: view
+        resource: munki.client-resources
     post:
       operationId: create-munki-client-resources
       requestBody:
@@ -6329,6 +6558,9 @@ paths:
       summary: Create client resources
       tags:
         - Munki client resources
+      x-authz:
+        access: edit
+        resource: munki.client-resources
   /api/munki/client-resources/archive-uploads:
     post:
       operationId: create-munki-client-resources-archive-upload
@@ -6381,6 +6613,9 @@ paths:
       summary: Create a client resources archive upload
       tags:
         - Munki client resources
+      x-authz:
+        access: edit
+        resource: munki.client-resources
   /api/munki/client-resources/archive-uploads/{id}:
     delete:
       operationId: delete-munki-client-resources-archive-upload
@@ -6442,6 +6677,9 @@ paths:
       summary: Delete a client resources archive upload
       tags:
         - Munki client resources
+      x-authz:
+        access: edit
+        resource: munki.client-resources
   /api/munki/client-resources/banner-uploads:
     post:
       operationId: create-munki-client-resources-banner-upload
@@ -6494,6 +6732,9 @@ paths:
       summary: Create a banner upload
       tags:
         - Munki client resources
+      x-authz:
+        access: edit
+        resource: munki.client-resources
   /api/munki/client-resources/banner-uploads/{id}:
     delete:
       operationId: delete-munki-client-resources-banner-upload
@@ -6555,6 +6796,9 @@ paths:
       summary: Delete a banner upload
       tags:
         - Munki client resources
+      x-authz:
+        access: edit
+        resource: munki.client-resources
   /api/munki/client-resources/{id}:
     delete:
       operationId: delete-munki-client-resources
@@ -6604,6 +6848,9 @@ paths:
       summary: Delete client resources
       tags:
         - Munki client resources
+      x-authz:
+        access: edit
+        resource: munki.client-resources
     get:
       operationId: get-munki-client-resources
       parameters:
@@ -6626,6 +6873,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
         "404":
           content:
             application/problem+json:
@@ -6650,6 +6903,9 @@ paths:
       summary: Get client resources
       tags:
         - Munki client resources
+      x-authz:
+        access: view
+        resource: munki.client-resources
     put:
       operationId: update-munki-client-resources
       parameters:
@@ -6720,6 +6976,9 @@ paths:
       summary: Update client resources
       tags:
         - Munki client resources
+      x-authz:
+        access: edit
+        resource: munki.client-resources
   /api/munki/distribution-points:
     get:
       operationId: list-munki-distribution-points
@@ -6762,6 +7021,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
         default:
           content:
             application/problem+json:
@@ -6774,6 +7039,9 @@ paths:
       summary: List distribution points
       tags:
         - Munki distribution points
+      x-authz:
+        access: view
+        resource: munki.distribution-points
     post:
       operationId: create-munki-distribution-point
       requestBody:
@@ -6831,6 +7099,9 @@ paths:
       summary: Create a distribution point
       tags:
         - Munki distribution points
+      x-authz:
+        access: edit
+        resource: munki.distribution-points
   /api/munki/distribution-points/order:
     put:
       operationId: reorder-munki-distribution-points
@@ -6879,6 +7150,9 @@ paths:
       summary: Reorder distribution points
       tags:
         - Munki distribution points
+      x-authz:
+        access: edit
+        resource: munki.distribution-points
   /api/munki/distribution-points/{id}:
     delete:
       operationId: delete-munki-distribution-point
@@ -6928,6 +7202,9 @@ paths:
       summary: Delete a distribution point
       tags:
         - Munki distribution points
+      x-authz:
+        access: edit
+        resource: munki.distribution-points
     get:
       operationId: get-munki-distribution-point
       parameters:
@@ -6950,6 +7227,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
         "404":
           content:
             application/problem+json:
@@ -6974,6 +7257,9 @@ paths:
       summary: Get a distribution point
       tags:
         - Munki distribution points
+      x-authz:
+        access: view
+        resource: munki.distribution-points
     put:
       operationId: update-munki-distribution-point
       parameters:
@@ -7044,6 +7330,9 @@ paths:
       summary: Update a distribution point
       tags:
         - Munki distribution points
+      x-authz:
+        access: edit
+        resource: munki.distribution-points
   /api/munki/distribution-points/{id}/key:
     post:
       operationId: rotate-munki-distribution-point-key
@@ -7097,6 +7386,9 @@ paths:
       summary: Rotate a distribution point key
       tags:
         - Munki distribution points
+      x-authz:
+        access: edit
+        resource: munki.distribution-points
   /api/munki/icons:
     get:
       operationId: list-munki-icons
@@ -7139,6 +7431,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
         default:
           content:
             application/problem+json:
@@ -7151,6 +7449,9 @@ paths:
       summary: List icons
       tags:
         - Munki icons
+      x-authz:
+        access: view
+        resource: munki.software
     post:
       operationId: create-munki-icon-upload
       requestBody:
@@ -7202,6 +7503,9 @@ paths:
       summary: Create an icon upload
       tags:
         - Munki icons
+      x-authz:
+        access: edit
+        resource: munki.software
   /api/munki/package-installers:
     post:
       operationId: create-munki-package-installer-upload
@@ -7254,6 +7558,9 @@ paths:
       summary: Create a package installer upload
       tags:
         - Munki package installers
+      x-authz:
+        access: edit
+        resource: munki.packages
   /api/munki/package-installers/{id}:
     delete:
       operationId: delete-munki-package-installer-upload
@@ -7315,6 +7622,9 @@ paths:
       summary: Delete a package installer upload
       tags:
         - Munki package installers
+      x-authz:
+        access: edit
+        resource: munki.packages
     put:
       operationId: complete-munki-package-installer-upload
       parameters:
@@ -7373,6 +7683,9 @@ paths:
       summary: Complete a package installer upload
       tags:
         - Munki package installers
+      x-authz:
+        access: edit
+        resource: munki.packages
   /api/munki/package-installers/{id}/multipart:
     put:
       operationId: complete-munki-package-installer-multipart
@@ -7434,6 +7747,9 @@ paths:
       summary: Complete a multipart upload
       tags:
         - Munki package installers
+      x-authz:
+        access: edit
+        resource: munki.packages
   /api/munki/package-installers/{id}/multipart/parts/{part_number}:
     post:
       operationId: sign-munki-package-installer-part
@@ -7501,6 +7817,9 @@ paths:
       summary: Sign a multipart upload part
       tags:
         - Munki package installers
+      x-authz:
+        access: edit
+        resource: munki.packages
   /api/munki/packages:
     delete:
       operationId: bulk-delete-munki-packages
@@ -7560,6 +7879,9 @@ paths:
       summary: Delete packages
       tags:
         - Munki packages
+      x-authz:
+        access: edit
+        resource: munki.packages
     get:
       operationId: list-munki-packages
       parameters:
@@ -7618,6 +7940,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
         default:
           content:
             application/problem+json:
@@ -7630,6 +7958,9 @@ paths:
       summary: List packages
       tags:
         - Munki packages
+      x-authz:
+        access: view
+        resource: munki.packages
     post:
       operationId: create-munki-package
       requestBody:
@@ -7693,6 +8024,9 @@ paths:
       summary: Create a package
       tags:
         - Munki packages
+      x-authz:
+        access: edit
+        resource: munki.packages
   /api/munki/packages/{id}:
     get:
       operationId: get-munki-package
@@ -7716,6 +8050,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
         "404":
           content:
             application/problem+json:
@@ -7740,6 +8080,9 @@ paths:
       summary: Get a package
       tags:
         - Munki packages
+      x-authz:
+        access: view
+        resource: munki.packages
     put:
       operationId: update-munki-package
       parameters:
@@ -7810,6 +8153,9 @@ paths:
       summary: Update a package
       tags:
         - Munki packages
+      x-authz:
+        access: edit
+        resource: munki.packages
   /api/munki/software:
     delete:
       operationId: bulk-delete-munki-software
@@ -7863,6 +8209,9 @@ paths:
       summary: Delete software titles
       tags:
         - Munki software
+      x-authz:
+        access: edit
+        resource: munki.software
     get:
       operationId: list-munki-software
       parameters:
@@ -7904,6 +8253,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
         default:
           content:
             application/problem+json:
@@ -7916,6 +8271,9 @@ paths:
       summary: List software titles
       tags:
         - Munki software
+      x-authz:
+        access: view
+        resource: munki.software
     post:
       operationId: create-munki-software
       requestBody:
@@ -7979,6 +8337,9 @@ paths:
       summary: Create a software title
       tags:
         - Munki software
+      x-authz:
+        access: edit
+        resource: munki.software
   /api/munki/software/{id}:
     delete:
       operationId: delete-munki-software
@@ -8028,6 +8389,9 @@ paths:
       summary: Delete a software title
       tags:
         - Munki software
+      x-authz:
+        access: edit
+        resource: munki.software
     get:
       operationId: get-munki-software
       parameters:
@@ -8050,6 +8414,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
         "404":
           content:
             application/problem+json:
@@ -8074,6 +8444,9 @@ paths:
       summary: Get a software title
       tags:
         - Munki software
+      x-authz:
+        access: view
+        resource: munki.software
     put:
       operationId: update-munki-software
       parameters:
@@ -8144,6 +8517,9 @@ paths:
       summary: Update a software title
       tags:
         - Munki software
+      x-authz:
+        access: edit
+        resource: munki.software
   /api/munki/software/{id}/icon:
     put:
       operationId: set-munki-software-icon
@@ -8209,6 +8585,9 @@ paths:
       summary: Set a software icon
       tags:
         - Munki icons
+      x-authz:
+        access: edit
+        resource: munki.software
   /api/osquery/host-status-history:
     get:
       operationId: list-osquery-host-status-history
@@ -8234,6 +8613,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
         default:
           content:
             application/problem+json:
@@ -8246,6 +8631,9 @@ paths:
       summary: List host status history
       tags:
         - Osquery overview
+      x-authz:
+        access: view
+        resource: osquery.overview
   /api/osquery/live-queries:
     post:
       operationId: create-live-query
@@ -8298,6 +8686,9 @@ paths:
       summary: Create a live query
       tags:
         - Osquery live queries
+      x-authz:
+        access: edit
+        resource: osquery.live-queries
   /api/osquery/live-queries/target-count:
     post:
       operationId: count-live-query-targets
@@ -8350,6 +8741,9 @@ paths:
       summary: Count live query targets
       tags:
         - Osquery live queries
+      x-authz:
+        access: edit
+        resource: osquery.live-queries
   /api/osquery/live-queries/{id}:
     delete:
       operationId: delete-live-query
@@ -8399,6 +8793,9 @@ paths:
       summary: Delete a live query
       tags:
         - Osquery live queries
+      x-authz:
+        access: edit
+        resource: osquery.live-queries
   /api/osquery/live-queries/{id}/stream:
     get:
       operationId: stream-live-query
@@ -8457,6 +8854,9 @@ paths:
       summary: Stream live query results
       tags:
         - Osquery live queries
+      x-authz:
+        access: view
+        resource: osquery.live-queries
   /api/osquery/policies:
     delete:
       operationId: bulk-delete-osquery-policies
@@ -8510,6 +8910,9 @@ paths:
       summary: Delete policies
       tags:
         - Osquery policies
+      x-authz:
+        access: edit
+        resource: osquery.policies
     get:
       operationId: list-osquery-policies
       parameters:
@@ -8551,6 +8954,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
         default:
           content:
             application/problem+json:
@@ -8563,6 +8972,9 @@ paths:
       summary: List policies
       tags:
         - Osquery policies
+      x-authz:
+        access: view
+        resource: osquery.policies
     post:
       operationId: create-osquery-policy
       requestBody:
@@ -8626,6 +9038,9 @@ paths:
       summary: Create a policy
       tags:
         - Osquery policies
+      x-authz:
+        access: edit
+        resource: osquery.policies
   /api/osquery/policies/{id}:
     delete:
       operationId: delete-osquery-policy
@@ -8675,6 +9090,9 @@ paths:
       summary: Delete a policy
       tags:
         - Osquery policies
+      x-authz:
+        access: edit
+        resource: osquery.policies
     get:
       operationId: get-osquery-policy
       parameters:
@@ -8697,6 +9115,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
         "404":
           content:
             application/problem+json:
@@ -8721,6 +9145,9 @@ paths:
       summary: Get a policy
       tags:
         - Osquery policies
+      x-authz:
+        access: view
+        resource: osquery.policies
     put:
       operationId: update-osquery-policy
       parameters:
@@ -8791,6 +9218,9 @@ paths:
       summary: Update a policy
       tags:
         - Osquery policies
+      x-authz:
+        access: edit
+        resource: osquery.policies
   /api/osquery/policies/{id}/hosts/{host_id}/remediation:
     get:
       operationId: get-osquery-policy-remediation-run
@@ -8850,6 +9280,9 @@ paths:
       summary: Get current policy remediation run
       tags:
         - Osquery policies
+      x-authz:
+        access: view
+        resource: osquery.remediations
   /api/osquery/policies/{id}/remediation:
     get:
       operationId: get-osquery-policy-remediation-source
@@ -8903,6 +9336,9 @@ paths:
       summary: Get policy remediation source
       tags:
         - Osquery policies
+      x-authz:
+        access: view
+        resource: osquery.remediations
     post:
       operationId: run-osquery-policy-remediations
       parameters:
@@ -8980,6 +9416,9 @@ paths:
       summary: Run policy remediations
       tags:
         - Osquery policies
+      x-authz:
+        access: edit
+        resource: osquery.remediations
   /api/osquery/policies/{id}/results:
     get:
       operationId: list-osquery-policy-results
@@ -9052,6 +9491,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
         "404":
           content:
             application/problem+json:
@@ -9076,6 +9521,9 @@ paths:
       summary: List policy results
       tags:
         - Osquery policies
+      x-authz:
+        access: view
+        resource: osquery.policies
   /api/osquery/policies/{id}/status-history:
     get:
       operationId: list-osquery-policy-status-history
@@ -9107,6 +9555,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
         "404":
           content:
             application/problem+json:
@@ -9131,6 +9585,9 @@ paths:
       summary: List policy status history
       tags:
         - Osquery policies
+      x-authz:
+        access: view
+        resource: osquery.overview
   /api/osquery/reports:
     delete:
       operationId: bulk-delete-osquery-reports
@@ -9184,6 +9641,9 @@ paths:
       summary: Delete reports
       tags:
         - Osquery reports
+      x-authz:
+        access: edit
+        resource: osquery.reports
     get:
       operationId: list-osquery-reports
       parameters:
@@ -9225,6 +9685,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
         default:
           content:
             application/problem+json:
@@ -9237,6 +9703,9 @@ paths:
       summary: List reports
       tags:
         - Osquery reports
+      x-authz:
+        access: view
+        resource: osquery.reports
     post:
       operationId: create-osquery-report
       requestBody:
@@ -9300,6 +9769,9 @@ paths:
       summary: Create a report
       tags:
         - Osquery reports
+      x-authz:
+        access: edit
+        resource: osquery.reports
   /api/osquery/reports/{id}:
     delete:
       operationId: delete-osquery-report
@@ -9349,6 +9821,9 @@ paths:
       summary: Delete a report
       tags:
         - Osquery reports
+      x-authz:
+        access: edit
+        resource: osquery.reports
     get:
       operationId: get-osquery-report
       parameters:
@@ -9371,6 +9846,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
         "404":
           content:
             application/problem+json:
@@ -9395,6 +9876,9 @@ paths:
       summary: Get a report
       tags:
         - Osquery reports
+      x-authz:
+        access: view
+        resource: osquery.reports
     put:
       operationId: update-osquery-report
       parameters:
@@ -9465,6 +9949,9 @@ paths:
       summary: Update a report
       tags:
         - Osquery reports
+      x-authz:
+        access: edit
+        resource: osquery.reports
   /api/osquery/reports/{id}/snapshots:
     get:
       operationId: list-osquery-report-snapshots
@@ -9522,6 +10009,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
         "404":
           content:
             application/problem+json:
@@ -9546,6 +10039,9 @@ paths:
       summary: List report snapshots
       tags:
         - Osquery reports
+      x-authz:
+        access: view
+        resource: osquery.reports
   /api/santa/configurations:
     delete:
       operationId: bulk-delete-santa-configurations
@@ -9599,6 +10095,9 @@ paths:
       summary: Delete configurations
       tags:
         - Santa configurations
+      x-authz:
+        access: edit
+        resource: santa.configurations
     get:
       operationId: list-santa-configurations
       parameters:
@@ -9640,6 +10139,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
         default:
           content:
             application/problem+json:
@@ -9652,6 +10157,9 @@ paths:
       summary: List configurations
       tags:
         - Santa configurations
+      x-authz:
+        access: view
+        resource: santa.configurations
     post:
       operationId: create-santa-configuration
       requestBody:
@@ -9715,6 +10223,9 @@ paths:
       summary: Create a configuration
       tags:
         - Santa configurations
+      x-authz:
+        access: edit
+        resource: santa.configurations
   /api/santa/configurations/order:
     put:
       operationId: reorder-santa-configurations
@@ -9763,6 +10274,9 @@ paths:
       summary: Reorder configurations
       tags:
         - Santa configurations
+      x-authz:
+        access: edit
+        resource: santa.configurations
   /api/santa/configurations/{id}:
     delete:
       operationId: delete-santa-configuration
@@ -9812,6 +10326,9 @@ paths:
       summary: Delete a configuration
       tags:
         - Santa configurations
+      x-authz:
+        access: edit
+        resource: santa.configurations
     get:
       operationId: get-santa-configuration
       parameters:
@@ -9834,6 +10351,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
         "404":
           content:
             application/problem+json:
@@ -9858,6 +10381,9 @@ paths:
       summary: Get a configuration
       tags:
         - Santa configurations
+      x-authz:
+        access: view
+        resource: santa.configurations
     put:
       operationId: update-santa-configuration
       parameters:
@@ -9928,6 +10454,9 @@ paths:
       summary: Update a configuration
       tags:
         - Santa configurations
+      x-authz:
+        access: edit
+        resource: santa.configurations
   /api/santa/events:
     get:
       operationId: list-santa-events
@@ -10021,6 +10550,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
         "422":
           content:
             application/problem+json:
@@ -10039,6 +10574,9 @@ paths:
       summary: List execution events
       tags:
         - Santa events
+      x-authz:
+        access: view
+        resource: santa.events
   /api/santa/events/{id}:
     get:
       operationId: get-santa-event
@@ -10068,6 +10606,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
         "404":
           content:
             application/problem+json:
@@ -10092,6 +10636,9 @@ paths:
       summary: Get an execution event
       tags:
         - Santa events
+      x-authz:
+        access: view
+        resource: santa.events
   /api/santa/file-access-events:
     get:
       operationId: list-santa-file-access-events
@@ -10164,6 +10711,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
         "422":
           content:
             application/problem+json:
@@ -10182,6 +10735,9 @@ paths:
       summary: List file access events
       tags:
         - Santa events
+      x-authz:
+        access: view
+        resource: santa.events
   /api/santa/file-access-events/{id}:
     get:
       operationId: get-santa-file-access-event
@@ -10211,6 +10767,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
         "404":
           content:
             application/problem+json:
@@ -10235,6 +10797,9 @@ paths:
       summary: Get a file access event
       tags:
         - Santa events
+      x-authz:
+        access: view
+        resource: santa.events
   /api/santa/rules:
     delete:
       operationId: bulk-delete-santa-rules
@@ -10288,6 +10853,9 @@ paths:
       summary: Delete rules
       tags:
         - Santa rules
+      x-authz:
+        access: edit
+        resource: santa.rules
     get:
       operationId: list-santa-rules
       parameters:
@@ -10349,6 +10917,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
         "422":
           content:
             application/problem+json:
@@ -10367,6 +10941,9 @@ paths:
       summary: List rules
       tags:
         - Santa rules
+      x-authz:
+        access: view
+        resource: santa.rules
     post:
       operationId: create-santa-rule
       requestBody:
@@ -10430,6 +11007,9 @@ paths:
       summary: Create a rule
       tags:
         - Santa rules
+      x-authz:
+        access: edit
+        resource: santa.rules
   /api/santa/rules/{id}:
     delete:
       operationId: delete-santa-rule
@@ -10479,6 +11059,9 @@ paths:
       summary: Delete a rule
       tags:
         - Santa rules
+      x-authz:
+        access: edit
+        resource: santa.rules
     get:
       operationId: get-santa-rule
       parameters:
@@ -10501,6 +11084,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
         "404":
           content:
             application/problem+json:
@@ -10525,6 +11114,9 @@ paths:
       summary: Get a rule
       tags:
         - Santa rules
+      x-authz:
+        access: view
+        resource: santa.rules
     put:
       operationId: update-santa-rule
       parameters:
@@ -10595,27 +11187,21 @@ paths:
       summary: Update a rule
       tags:
         - Santa rules
+      x-authz:
+        access: edit
+        resource: santa.rules
   /api/session:
     delete:
       operationId: delete-session
       responses:
         "204":
           description: No Content
-        "401":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unauthorized
         default:
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Error
-      security:
-        - cookieAuth: []
-        - bearerAuth: []
       summary: Delete session
       tags:
         - Session
@@ -10650,7 +11236,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/User"
+                $ref: "#/components/schemas/Principal"
           description: OK
         "400":
           content:
@@ -10751,6 +11337,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
         default:
           content:
             application/problem+json:
@@ -10763,6 +11355,9 @@ paths:
       summary: List software titles
       tags:
         - Software
+      x-authz:
+        access: view
+        resource: software
   /api/software/{id}:
     get:
       operationId: get-software
@@ -10786,6 +11381,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
         "404":
           content:
             application/problem+json:
@@ -10810,6 +11411,9 @@ paths:
       summary: Get a software title
       tags:
         - Software
+      x-authz:
+        access: view
+        resource: software
   /api/users:
     get:
       operationId: list-users
@@ -10885,6 +11489,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
         default:
           content:
             application/problem+json:
@@ -10897,6 +11507,9 @@ paths:
       summary: List users
       tags:
         - Directory users
+      x-authz:
+        access: view
+        resource: users
     post:
       operationId: create-user
       requestBody:
@@ -10954,6 +11567,9 @@ paths:
       summary: Create a user
       tags:
         - Directory users
+      x-authz:
+        access: edit
+        resource: users
   /api/users/departments:
     get:
       operationId: list-user-departments
@@ -11003,6 +11619,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
         default:
           content:
             application/problem+json:
@@ -11015,6 +11637,9 @@ paths:
       summary: List user departments
       tags:
         - Directory users
+      x-authz:
+        access: view
+        resource: users
   /api/users/{id}:
     delete:
       operationId: delete-user
@@ -11070,6 +11695,9 @@ paths:
       summary: Delete a user
       tags:
         - Directory users
+      x-authz:
+        access: edit
+        resource: users
     get:
       operationId: get-user
       parameters:
@@ -11092,6 +11720,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
         "404":
           content:
             application/problem+json:
@@ -11116,6 +11750,9 @@ paths:
       summary: Get a user
       tags:
         - Directory users
+      x-authz:
+        access: view
+        resource: users
     put:
       operationId: update-user
       parameters:
@@ -11186,6 +11823,9 @@ paths:
       summary: Update a user
       tags:
         - Directory users
+      x-authz:
+        access: edit
+        resource: users
 tags:
   - name: Account
     x-displayName: Account

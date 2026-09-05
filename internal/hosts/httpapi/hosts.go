@@ -7,11 +7,13 @@ import (
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
+	authhuma "github.com/woodleighschool/goodies/auth/huma"
 
 	"github.com/woodleighschool/woodstar/internal/activity"
 	"github.com/woodleighschool/woodstar/internal/api"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/munki/mdp"
+	"github.com/woodleighschool/woodstar/internal/rbac"
 )
 
 const hostResource = "host"
@@ -68,6 +70,7 @@ func RegisterAPI(
 	distribution *mdp.Store,
 	geo geoIPLookup,
 	activityRecorder activity.Recorder,
+	authorizer authhuma.Authorizer,
 	logger *slog.Logger,
 ) {
 	registerAPI(
@@ -79,13 +82,14 @@ func RegisterAPI(
 		distribution,
 		geo,
 		activityRecorder,
+		authorizer,
 		logger,
 	)
 }
 
 // RegisterOpenAPI documents host endpoints without runtime services.
 func RegisterOpenAPI(routes api.AppRoutes) {
-	registerAPI(routes, nil, nil, nil, nil, nil, nil, nil, nil)
+	registerAPI(routes, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 }
 
 func registerAPI(
@@ -97,9 +101,10 @@ func registerAPI(
 	distribution *mdp.Store,
 	geo geoIPLookup,
 	activityRecorder activity.Recorder,
+	authorizer authhuma.Authorizer,
 	logger *slog.Logger,
 ) {
-	humaAPI := routes.Ordinary
+	humaAPI := authhuma.ResourceAPI(routes.Protected, authorizer, logger, rbac.ResourceHosts)
 	registerListHosts(humaAPI, hostStore, munkiVersions, santaVersions, distribution, geo, logger)
 	registerGetHost(humaAPI, hostStore, munkiVersions, santaVersions, distribution, geo, logger)
 	registerRequestHostInventoryRefresh(humaAPI, hostStore, activityRecorder, logger)

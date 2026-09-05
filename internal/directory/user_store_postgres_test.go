@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/woodleighschool/goodies/auth/authn"
+
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/listing"
@@ -57,7 +59,7 @@ func TestDeleteSoftDeletesDirectoryUsers(t *testing.T) {
 		t.Fatalf("create local admin: %v", err)
 	}
 
-	hash, err := HashPassword("correct-password")
+	hash, err := authn.HashPassword("correct-password")
 	if err != nil {
 		t.Fatalf("hash password: %v", err)
 	}
@@ -68,7 +70,6 @@ INSERT INTO users (
     email,
     name,
     password_hash,
-    role,
     source,
     external_id,
     api_key,
@@ -79,7 +80,6 @@ VALUES (
     'source@example.test',
     'Sourced User',
     $1,
-    'admin',
     'entra',
     'entra-user-1',
     $2,
@@ -88,6 +88,11 @@ VALUES (
 )
 RETURNING id`, hash, apiKey).Scan(&userID); err != nil {
 		t.Fatalf("insert sourced user: %v", err)
+	}
+	if _, err := database.Exec(ctx, `
+INSERT INTO authz_user_roles (user_id, role_id)
+SELECT $1, id FROM authz_roles WHERE key = 'admin'`, userID); err != nil {
+		t.Fatalf("assign sourced user role: %v", err)
 	}
 
 	if err := service.Delete(ctx, userID); err != nil {
@@ -103,9 +108,11 @@ RETURNING id`, hash, apiKey).Scan(&userID); err != nil {
 	var role string
 	var deletedAt *time.Time
 	if err := database.QueryRow(ctx, `
-SELECT source::text, external_id, role::text, deleted_at
+SELECT users.source::text, users.external_id, authz_roles.key, users.deleted_at
 FROM users
-WHERE id = $1`, userID).Scan(&source, &externalID, &role, &deletedAt); err != nil {
+JOIN authz_user_roles ON authz_user_roles.user_id = users.id
+JOIN authz_roles ON authz_roles.id = authz_user_roles.role_id
+WHERE users.id = $1`, userID).Scan(&source, &externalID, &role, &deletedAt); err != nil {
 		t.Fatalf("load soft-deleted directory user: %v", err)
 	}
 	if source != SourceEntra || externalID != "entra-user-1" {
@@ -117,8 +124,8 @@ WHERE id = $1`, userID).Scan(&source, &externalID, &role, &deletedAt); err != ni
 	if deletedAt == nil {
 		t.Fatal("deleted_at is nil, want soft-deleted")
 	}
-	if _, err := store.GetUserByAPIKey(ctx, apiKey); !errors.Is(err, fault.ErrNotFound) {
-		t.Fatalf("get soft-deleted user by api key err = %v, want %v", err, fault.ErrNotFound)
+	if _, err := NewAuthnStore(store).GetPrincipalByAPIKey(ctx, apiKey); !errors.Is(err, authn.ErrPrincipalNotFound) {
+		t.Fatalf("authenticate soft-deleted user by api key err = %v, want %v", err, authn.ErrPrincipalNotFound)
 	}
 }
 

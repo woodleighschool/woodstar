@@ -23,7 +23,7 @@ import { Button } from "@components/ui/button";
 import { Separator } from "@components/ui/separator";
 import { Skeleton } from "@components/ui/skeleton";
 import { TabsContent, TabsTrigger } from "@components/ui/tabs";
-import { useAuth } from "@features/auth/queries";
+import { useCan } from "@features/authz/access";
 import { LiveRunButton } from "@features/osquery/live/query-actions";
 import { parseRouteID } from "@lib/route-params";
 import { formatInterval } from "@lib/utils";
@@ -70,8 +70,7 @@ export function ReportDetailPage() {
     onSearchChange: (updater) => void navigate({ search: updater, replace: true }),
     filterKeys: STATUS_FILTER_KEYS,
   });
-  const { user } = useAuth();
-  const isAdmin = user?.role === "admin";
+  const canEdit = useCan({ resource: "osquery.reports", access: "edit" });
   const [deleteOpen, setDeleteOpen] = useState(false);
   const id = parseRouteID(reportId);
   const report = useReport(id);
@@ -149,7 +148,7 @@ export function ReportDetailPage() {
         title="Report Details"
         actions={
           <>
-            {isAdmin ? (
+            {canEdit ? (
               <>
                 <Button
                   size="sm"
@@ -162,7 +161,7 @@ export function ReportDetailPage() {
               </>
             ) : null}
             <LiveRunButton kind="report" id={id} sql={report.data.query} />
-            {isAdmin ? (
+            {canEdit ? (
               <Button
                 type="button"
                 variant="destructive"
@@ -296,7 +295,7 @@ export function ReportDetailPage() {
         </TabsContent>
       </ScrollableTabs>
 
-      {isAdmin ? (
+      {canEdit ? (
         <ReportDeleteDialog
           open={deleteOpen}
           onOpenChange={setDeleteOpen}

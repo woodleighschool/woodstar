@@ -23,7 +23,9 @@ type munkiContentHandler struct {
 }
 
 func registerMunkiContentRoutes(
-	r chi.Router,
+	softwareRouter chi.Router,
+	packagesRouter chi.Router,
+	clientResourcesRouter chi.Router,
 	objects *bloby.Service,
 	logger *slog.Logger,
 ) {
@@ -31,13 +33,13 @@ func registerMunkiContentRoutes(
 		objects: objects,
 		logger:  logger,
 	}
-	r.Get(munkiIconPath+"/{id}/content", h.object(munkisoftware.IconObjectPrefix, munkiAssetCacheControl))
-	r.Get(munkiPackageInstallerPath+"/{id}/content", h.object(packages.ObjectPrefix, ""))
-	r.Get(
+	softwareRouter.Get(munkiIconPath+"/{id}/content", h.object(munkisoftware.IconObjectPrefix, munkiAssetCacheControl))
+	packagesRouter.Get(munkiPackageInstallerPath+"/{id}/content", h.object(packages.ObjectPrefix, ""))
+	clientResourcesRouter.Get(
 		clientResourcesBannerUploadPath+"/{id}/content",
 		h.object(clientresources.BannerObjectPrefix, munkiAssetCacheControl),
 	)
-	r.Get(
+	clientResourcesRouter.Get(
 		clientResourcesArchiveUploadPath+"/{id}/content",
 		h.object(clientresources.ArchiveObjectPrefix, ""),
 	)

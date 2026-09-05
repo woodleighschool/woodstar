@@ -2,11 +2,11 @@ package httpapi
 
 import (
 	"errors"
+	"github.com/woodleighschool/woodstar/internal/directory"
 	"testing"
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/directory"
 	"github.com/woodleighschool/woodstar/internal/fault"
 )
 

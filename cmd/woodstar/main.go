@@ -18,17 +18,18 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/riverqueue/river"
 	"github.com/spf13/cobra"
+	"github.com/woodleighschool/goodies/auth/authn"
+	"github.com/woodleighschool/goodies/auth/authz"
 	"github.com/woodleighschool/goodies/bloby"
 	blobydb "github.com/woodleighschool/goodies/bloby/pgxstore"
 	"github.com/woodleighschool/goodies/pglock"
 
+	"github.com/woodleighschool/woodstar/internal/account"
 	"github.com/woodleighschool/woodstar/internal/activity"
 	activityapi "github.com/woodleighschool/woodstar/internal/activity/httpapi"
 	"github.com/woodleighschool/woodstar/internal/agentauth"
 	agentauthapi "github.com/woodleighschool/woodstar/internal/agentauth/httpapi"
 	"github.com/woodleighschool/woodstar/internal/api"
-	"github.com/woodleighschool/woodstar/internal/auth"
-	authapi "github.com/woodleighschool/woodstar/internal/auth/httpapi"
 	"github.com/woodleighschool/woodstar/internal/backgroundjobs"
 	"github.com/woodleighschool/woodstar/internal/buildinfo"
 	"github.com/woodleighschool/woodstar/internal/config"
@@ -63,6 +64,7 @@ import (
 	osqueryprotocol "github.com/woodleighschool/woodstar/internal/osquery/protocol"
 	"github.com/woodleighschool/woodstar/internal/osquery/reports"
 	"github.com/woodleighschool/woodstar/internal/postgres"
+	"github.com/woodleighschool/woodstar/internal/rbac"
 	"github.com/woodleighschool/woodstar/internal/santa"
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 	"github.com/woodleighschool/woodstar/internal/santa/events"
@@ -138,7 +140,7 @@ func run(parent context.Context) error {
 	}
 	defer pool.Close()
 
-	sessions, sessionStore := newSessions(pool, cfg)
+	sessions, sessionStore := newSessions(pool, cfg, logger)
 
 	// StopCleanup must run while the DB pool still exists.
 	defer sessionStore.StopCleanup()
@@ -266,7 +268,11 @@ func buildApplication(
 	syncStore := syncstate.NewStore(pool)
 
 	userService := directory.NewUserService(directoryStore)
-	authService, err := newAuth(ctx, cfg, userService, sessions)
+	authzService, err := authz.NewService(rbac.NewStore(pool), rbac.Resources())
+	if err != nil {
+		return nil, fmt.Errorf("create authorization service: %w", err)
+	}
+	authnService, err := newAuth(ctx, cfg, directoryStore, sessions, authzService, logger.With("component", "auth"))
 	if err != nil {
 		return nil, err
 	}
@@ -281,18 +287,11 @@ func buildApplication(
 		Logger:                 logger.With("component", "orbit"),
 	})
 
-	inventoryProjector := ingest.NewProjector(
-		hostStore,
-		inventoryStore,
-		logger.With("component", "inventory"),
-	)
-	munkiIngestor := munki.NewDetailIngestor(munkiHostState)
-	labelEvaluator := ingest.NewLabelEvaluator(labelStore, logger.With("component", "labels"))
 	osqueryAgent := osquery.NewAgentService(osquery.Dependencies{
 		HostStore:          hostStore,
-		InventoryProjector: inventoryProjector,
-		MunkiCollector:     munkiIngestor,
-		LabelEvaluator:     labelEvaluator,
+		InventoryProjector: ingest.NewProjector(hostStore, inventoryStore, logger.With("component", "inventory")),
+		MunkiCollector:     munki.NewDetailIngestor(munkiHostState),
+		LabelEvaluator:     ingest.NewLabelEvaluator(labelStore, logger.With("component", "labels")),
 		ReportStore:        reportStore,
 		PolicyStore:        policyStore,
 		LiveQueries:        liveQueries,
@@ -361,7 +360,7 @@ func buildApplication(
 		Version:        buildinfo.Version,
 		Logger:         logger,
 		SessionManager: sessions,
-		AuthService:    authService,
+		Authn:          authnService,
 		TransferOrigin: storage.TransferOrigin(),
 		WebHandler: webui.NewHandler(webui.HandlerOptions{
 			FS:        webdist.DistDirFS,
@@ -372,13 +371,16 @@ func buildApplication(
 		RegisterRoutes: func(routes api.Routes) {
 			routes.StorageTransfers.Handle("/storage/*", storage.TransferHandler())
 
-			activityapi.RegisterAPI(routes.App, activityStore, apiLogger)
-			authapi.RegisterAPI(routes.App, authapi.Dependencies{
-				AuthService: authService,
-				Users:       userService,
-				Logger:      apiLogger,
-			})
-			directoryapi.RegisterAPI(routes.App, userService, directoryStore, directorySync, apiLogger)
+			activityapi.RegisterAPI(routes.App, activityStore, authzService, apiLogger)
+			account.RegisterAPI(routes.App, account.Dependencies{Users: userService, Authn: authnService, Authz: authzService, Logger: apiLogger})
+			directoryapi.RegisterAPI(
+				routes.App,
+				userService,
+				directoryStore,
+				directorySync,
+				authzService,
+				apiLogger,
+			)
 			hostsapi.RegisterAPI(
 				routes.App,
 				hostStore,
@@ -388,11 +390,12 @@ func buildApplication(
 				munkiDistribution,
 				geoLookup,
 				activityStore,
+				authzService,
 				apiLogger,
 			)
-			inventoryapi.RegisterAPI(routes.App, inventoryStore, apiLogger)
-			labelsapi.RegisterAPI(routes.App, labelStore, apiLogger)
-			agentauthapi.RegisterAPI(routes.App, secretStore, apiLogger)
+			inventoryapi.RegisterAPI(routes.App, inventoryStore, authzService, apiLogger)
+			labelsapi.RegisterAPI(routes.App, labelStore, authzService, apiLogger)
+			agentauthapi.RegisterAPI(routes.App, secretStore, authzService, apiLogger)
 			osqueryapi.RegisterAPI(routes.App, osqueryapi.Dependencies{
 				Reports:     reportStore,
 				Policies:    policyStore,
@@ -400,10 +403,12 @@ func buildApplication(
 				Hosts:       hostStore,
 				History:     historyStore,
 				Activity:    activityStore,
+				Authorizer:  authzService,
 				Logger:      apiLogger,
 			})
 			munkiapi.RegisterAPI(routes.App, munkiapi.Dependencies{
-				AuthService:     authService,
+				Authenticator:   authnService,
+				Authorizer:      authzService,
 				HostState:       munkiHostState,
 				Software:        munkiSoftwareStore,
 				DeleteSoftware:  munkiSoftwareDeletions,
@@ -420,6 +425,7 @@ func buildApplication(
 				configurationStore,
 				ruleStore,
 				eventStore,
+				authzService,
 				apiLogger,
 			)
 
@@ -602,27 +608,27 @@ func storageUploadCleanupStarter(storage *bloby.Service) starter {
 func newAuth(
 	ctx context.Context,
 	cfg config.Config,
-	users *directory.UserService,
+	store *directory.Store,
 	sessions *scs.SessionManager,
-) (*auth.Service, error) {
-	service, err := auth.NewService(users, sessions)
+	authorization *authz.Service,
+	logger *slog.Logger,
+) (*authn.Service, error) {
+	authConfig := authn.Config{
+		Admit: authorization.HasAccess, SuccessRedirect: "/hosts", FailureRedirect: "/login", Logger: logger,
+	}
+	if cfg.OIDCEnabled() {
+		authConfig.OIDC = &authn.OIDCConfig{
+			IssuerURL:    cfg.OIDCIssuerURL,
+			ClientID:     cfg.OIDCClientID,
+			ClientSecret: cfg.OIDCClientSecret,
+			RedirectURL:  cfg.OIDCRedirectURL,
+			Scopes:       cfg.OIDCScopes,
+			EmailClaim:   cfg.OIDCEmailClaim,
+		}
+	}
+	service, err := authn.New(ctx, directory.NewAuthnStore(store), sessions, authConfig)
 	if err != nil {
 		return nil, fmt.Errorf("configure authentication: %w", err)
-	}
-	if !cfg.OIDCEnabled() {
-		return service, nil
-	}
-
-	err = service.ConfigureOIDC(ctx, auth.OIDCConfig{
-		IssuerURL:    cfg.OIDCIssuerURL,
-		ClientID:     cfg.OIDCClientID,
-		ClientSecret: cfg.OIDCClientSecret,
-		RedirectURL:  cfg.OIDCRedirectURL,
-		Scopes:       cfg.OIDCScopes,
-		EmailClaim:   cfg.OIDCEmailClaim,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("configure OIDC: %w", err)
 	}
 	return service, nil
 }
@@ -730,10 +736,14 @@ func backgroundJobsStarter(jobs *backgroundjobs.Runtime, logger *slog.Logger) st
 	}
 }
 
-func newSessions(pool *pgxpool.Pool, cfg config.Config) (*scs.SessionManager, *pgxstore.PostgresStore) {
+func newSessions(pool *pgxpool.Pool, cfg config.Config, logger *slog.Logger) (*scs.SessionManager, *pgxstore.PostgresStore) {
 	store := pgxstore.New(pool)
 
 	sessions := scs.New()
+	sessions.ErrorFunc = func(w http.ResponseWriter, r *http.Request, err error) {
+		logger.ErrorContext(r.Context(), "session persistence failed", "operation", "session", "err", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+	}
 	sessions.Store = store
 	sessions.HashTokenInStore = true
 	sessions.Lifetime = config.SessionLifetime

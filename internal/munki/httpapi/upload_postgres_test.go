@@ -235,7 +235,7 @@ func newMunkiUploadFixture(t *testing.T) munkiUploadFixture {
 		"delete-test-client-resources-archive-upload",
 		"Delete an archive upload",
 	)
-	registerMunkiContentRoutes(router, objects, discardLogger())
+	registerMunkiContentRoutes(router, router, router, objects, discardLogger())
 	router.Handle("/storage/*", objects.TransferHandler())
 
 	return munkiUploadFixture{

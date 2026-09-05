@@ -23,7 +23,7 @@ import { FieldGroup } from "@components/ui/field";
 import { Input } from "@components/ui/input";
 import { Separator } from "@components/ui/separator";
 import { ValidatedFormField } from "@components/validated-form-field";
-import { useAuth } from "@features/auth/queries";
+import { useCan } from "@features/authz/access";
 import { HostPublicIP } from "@features/hosts/components/host-public-ip";
 import { manualPrimaryUserSource } from "@features/hosts/primary-user";
 import { primaryUserSourceLabel } from "@features/hosts/primary-user-source-labels";
@@ -91,10 +91,9 @@ export function HostInfoCard({ host }: { host: HostDetail }) {
   );
 }
 export function HostIdentityCard({ host }: { host: HostDetail }) {
-  const { user } = useAuth();
+  const canEdit = useCan({ resource: "hosts", access: "edit" });
   const [dialogOpen, setDialogOpen] = useState(false);
   const primaryUser = host.primary_user;
-  const canEdit = user?.role === "admin";
   const hasManualSource = manualPrimaryUserSource(host.primary_user_sources) !== null;
   return (
     <>
