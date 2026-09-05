@@ -114,7 +114,7 @@ run = [
 description = "Run PostgreSQL component tests"
 run = """
 WOODSTAR_TEST_DATABASE_URL="${WOODSTAR_TEST_DATABASE_URL:-postgres://woodstar:woodstar@127.0.0.1:5432/postgres?sslmode=disable}" \
-  go test -race -count=1 -tags=postgres ./internal/...
+  go test -race -count=1 -tags=postgres ./internal/... ./cmd/...
 """
 
 [tasks.test-e2e-munki]

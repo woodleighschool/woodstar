@@ -5,7 +5,7 @@ import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 
 import { Toaster } from "@components/ui/toast";
 import { TooltipProvider } from "@components/ui/tooltip";
-import { expireSession } from "@features/auth/session-expiry";
+import { expireSession } from "@features/authn/session-expiry";
 import { setUnauthorizedHandler } from "@lib/api";
 
 import { queryClient } from "./query-client";

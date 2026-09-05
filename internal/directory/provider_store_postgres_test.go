@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/woodleighschool/woodstar/internal/fault"
+	"github.com/woodleighschool/goodies/auth/authn"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
 )
@@ -16,6 +16,7 @@ func TestProviderSnapshotKeepsLocalAndEntraUsersSeparate(t *testing.T) {
 	database, ctx := testdb.Open(t)
 	store := NewStore(database, labels.NewStore(database))
 	service := newTestUserService(store)
+	authnStore := NewAuthnStore(store)
 
 	local, err := service.Create(ctx, UserCreate{
 		Email:    "shared@example.test",
@@ -42,9 +43,11 @@ func TestProviderSnapshotKeepsLocalAndEntraUsersSeparate(t *testing.T) {
 	var providerID int64
 	var providerRole *string
 	if err := database.QueryRow(ctx, `
-SELECT id, role::text
+SELECT users.id, role.key
 FROM users
-WHERE source = 'entra' AND external_id = 'provider-identity'`).Scan(
+LEFT JOIN authz_user_roles AS assignment ON assignment.user_id = users.id
+LEFT JOIN authz_roles AS role ON role.id = assignment.role_id
+WHERE users.source = 'entra' AND users.external_id = 'provider-identity'`).Scan(
 		&providerID,
 		&providerRole,
 	); err != nil {
@@ -56,8 +59,8 @@ WHERE source = 'entra' AND external_id = 'provider-identity'`).Scan(
 	if providerRole != nil {
 		t.Fatalf("provider role = %q, want nil", *providerRole)
 	}
-	if _, err := service.GetSSOByEmail(ctx, local.Email); !errors.Is(err, fault.ErrNotFound) {
-		t.Fatalf("SSO lookup before provider grant error = %v, want %v", err, fault.ErrNotFound)
+	if principal, err := authnStore.GetSSOPrincipalByEmail(ctx, local.Email); err != nil || principal.ID != providerID {
+		t.Fatalf("SSO lookup before application grant = %+v, %v", principal, err)
 	}
 
 	granted, err := service.SetRoleByEmail(ctx, local.Email, RoleViewer)
@@ -67,10 +70,10 @@ WHERE source = 'entra' AND external_id = 'provider-identity'`).Scan(
 	if granted.ID != providerID {
 		t.Fatalf("granted user id = %d, want provider user %d", granted.ID, providerID)
 	}
-	if sso, err := service.GetSSOByEmail(ctx, local.Email); err != nil || sso.ID != providerID {
+	if sso, err := authnStore.GetSSOPrincipalByEmail(ctx, local.Email); err != nil || sso.ID != providerID {
 		t.Fatalf("SSO user after provider grant = %+v, %v", sso, err)
 	}
-	if login, err := service.GetLoginByEmail(ctx, local.Email); err != nil || login.ID != local.ID {
+	if login, err := authnStore.GetPasswordIdentityByEmail(ctx, local.Email); err != nil || login.ID != local.ID {
 		t.Fatalf("password login user = %+v, %v", login, err)
 	}
 }
@@ -78,7 +81,7 @@ WHERE source = 'entra' AND external_id = 'provider-identity'`).Scan(
 func TestSSOLookupDoesNotUseUPNAsAlternateAccountIdentifier(t *testing.T) {
 	database, ctx := testdb.Open(t)
 	store := NewStore(database, labels.NewStore(database))
-	service := newTestUserService(store)
+	authnStore := NewAuthnStore(store)
 
 	if err := store.ApplyProviderSnapshot(ctx, SourceEntra, ProviderSnapshot{
 		Users: []ProviderUser{{
@@ -91,14 +94,10 @@ func TestSSOLookupDoesNotUseUPNAsAlternateAccountIdentifier(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("apply provider snapshot: %v", err)
 	}
-	if _, err := service.SetRoleByEmail(ctx, "canonical@example.test", RoleViewer); err != nil {
-		t.Fatalf("grant app role: %v", err)
+	if _, err := authnStore.GetSSOPrincipalByEmail(ctx, "alternate@example.test"); !errors.Is(err, authn.ErrPrincipalNotFound) {
+		t.Fatalf("SSO lookup by UPN error = %v, want %v", err, authn.ErrPrincipalNotFound)
 	}
-
-	if _, err := service.GetSSOByEmail(ctx, "alternate@example.test"); !errors.Is(err, fault.ErrNotFound) {
-		t.Fatalf("SSO lookup by UPN error = %v, want %v", err, fault.ErrNotFound)
-	}
-	user, err := service.GetSSOByEmail(ctx, "canonical@example.test")
+	user, err := authnStore.GetSSOPrincipalByEmail(ctx, "canonical@example.test")
 	if err != nil {
 		t.Fatalf("SSO lookup by canonical email: %v", err)
 	}
@@ -123,14 +122,11 @@ func TestApplyProviderSnapshotRevokesLastProviderAdministrator(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("seed provider user: %v", err)
 	}
-	var adminID int64
-	if err := database.QueryRow(ctx, `
-UPDATE users
-SET role = 'admin'
-WHERE external_id = 'admin-object-id'
-RETURNING id`).Scan(&adminID); err != nil {
+	admin, err := service.SetRoleByEmail(ctx, "admin@example.test", RoleAdmin)
+	if err != nil {
 		t.Fatalf("grant administrator role: %v", err)
 	}
+	adminID := admin.ID
 
 	if err := provider.ApplyProviderSnapshot(ctx, SourceEntra, ProviderSnapshot{}); err != nil {
 		t.Fatalf("remove last provider administrator: %v", err)
@@ -348,14 +344,12 @@ func TestApplyProviderSnapshotKeepsReplacedEntraObjectsDistinct(t *testing.T) {
 		t.Fatalf("apply original user snapshot: %v", err)
 	}
 
-	var oldUserID int64
-	if err := store.pool.QueryRow(ctx, `
-UPDATE users
-SET role = 'viewer'
-WHERE source = 'entra' AND external_id = 'old-object-id'
-RETURNING id`).Scan(&oldUserID); err != nil {
+	service := newTestUserService(store)
+	original, err := service.SetRoleByEmail(ctx, user.Mail, RoleViewer)
+	if err != nil {
 		t.Fatalf("grant original user role: %v", err)
 	}
+	oldUserID := original.ID
 
 	user.ExternalID = "new-object-id"
 	if err := store.ApplyProviderSnapshot(ctx, SourceEntra, ProviderSnapshot{
@@ -368,8 +362,11 @@ RETURNING id`).Scan(&oldUserID); err != nil {
 	var oldDeletedAt *time.Time
 	var oldRole string
 	if err := store.pool.QueryRow(ctx, `
-		SELECT role::text, deleted_at
-		FROM users WHERE id = $1
+		SELECT role.key, users.deleted_at
+		FROM users
+		LEFT JOIN authz_user_roles AS assignment ON assignment.user_id = users.id
+		LEFT JOIN authz_roles AS role ON role.id = assignment.role_id
+		WHERE users.id = $1
 	`, oldUserID).Scan(&oldRole, &oldDeletedAt); err != nil {
 		t.Fatalf("load original user: %v", err)
 	}
@@ -384,9 +381,11 @@ RETURNING id`).Scan(&oldUserID); err != nil {
 	var newRole *string
 	var newDeletedAt *time.Time
 	if err := store.pool.QueryRow(ctx, `
-		SELECT id, role::text, deleted_at
+		SELECT users.id, role.key, users.deleted_at
 		FROM users
-		WHERE source = 'entra' AND external_id = 'new-object-id'
+		LEFT JOIN authz_user_roles AS assignment ON assignment.user_id = users.id
+		LEFT JOIN authz_roles AS role ON role.id = assignment.role_id
+		WHERE users.source = 'entra' AND users.external_id = 'new-object-id'
 	`).Scan(&newUserID, &newRole, &newDeletedAt); err != nil {
 		t.Fatalf("load replacement user: %v", err)
 	}
@@ -474,15 +473,15 @@ func TestApplyProviderSnapshotReconcilesEmailSwapByExternalID(t *testing.T) {
 func TestApplyProviderSnapshotPreservesExistingLocalUser(t *testing.T) {
 	database, ctx := testdb.Open(t)
 	store := NewStore(database, labels.NewStore(database))
+	service := newTestUserService(store)
 
-	var localID int64
-	if err := store.pool.QueryRow(ctx, `
-		INSERT INTO users (email, name, password_hash, role)
-		VALUES ('admin@example.edu', 'Local Admin', 'password-hash', 'admin')
-		RETURNING id
-	`).Scan(&localID); err != nil {
-		t.Fatalf("insert local user: %v", err)
+	local, err := service.Create(ctx, UserCreate{
+		Email: "admin@example.edu", Name: "Local Admin", Password: "correct-password", Role: RoleAdmin,
+	})
+	if err != nil {
+		t.Fatalf("create local user: %v", err)
 	}
+	localID := local.ID
 
 	if err := store.ApplyProviderSnapshot(ctx, SourceEntra, ProviderSnapshot{
 		GeneratedAt: time.Now().UTC(),
@@ -502,8 +501,11 @@ func TestApplyProviderSnapshotPreservesExistingLocalUser(t *testing.T) {
 	var role, source string
 	var externalID *string
 	if err := store.pool.QueryRow(ctx, `
-		SELECT role::text, source::text, external_id
-		FROM users WHERE id = $1
+		SELECT role.key, users.source::text, users.external_id
+		FROM users
+		JOIN authz_user_roles AS assignment ON assignment.user_id = users.id
+		JOIN authz_roles AS role ON role.id = assignment.role_id
+		WHERE users.id = $1
 	`, localID).Scan(&role, &source, &externalID); err != nil {
 		t.Fatalf("load local user: %v", err)
 	}
@@ -516,7 +518,7 @@ func TestApplyProviderSnapshotPreservesExistingLocalUser(t *testing.T) {
 	if externalID != nil {
 		t.Fatalf("local external_id = %q, want nil", *externalID)
 	}
-	login, err := store.GetLoginUserByEmail(ctx, "admin@example.edu")
+	login, err := NewAuthnStore(store).GetPasswordIdentityByEmail(ctx, "admin@example.edu")
 	if err != nil {
 		t.Fatalf("load local password login: %v", err)
 	}
@@ -527,8 +529,11 @@ func TestApplyProviderSnapshotPreservesExistingLocalUser(t *testing.T) {
 	var providerID int64
 	var providerRole *string
 	if err := store.pool.QueryRow(ctx, `
-		SELECT id, role::text FROM users
-		WHERE source = 'entra' AND external_id = 'entra-admin'
+		SELECT users.id, role.key
+		FROM users
+		LEFT JOIN authz_user_roles AS assignment ON assignment.user_id = users.id
+		LEFT JOIN authz_roles AS role ON role.id = assignment.role_id
+		WHERE users.source = 'entra' AND users.external_id = 'entra-admin'
 	`).Scan(&providerID, &providerRole); err != nil {
 		t.Fatalf("load provider user: %v", err)
 	}
@@ -546,7 +551,7 @@ func TestApplyProviderSnapshotPreservesExistingLocalUser(t *testing.T) {
 	); err != nil {
 		t.Fatalf("remove linked provider identity: %v", err)
 	}
-	login, err = store.GetLoginUserByEmail(ctx, "admin@example.edu")
+	login, err = NewAuthnStore(store).GetPasswordIdentityByEmail(ctx, "admin@example.edu")
 	if err != nil || login.ID != localID {
 		t.Fatalf("password login after provider removal = %+v, %v", login, err)
 	}

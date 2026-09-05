@@ -7,7 +7,7 @@ import {
 } from "@tanstack/react-query";
 
 import { toast } from "@components/ui/toast";
-import { sessionQueryOptions } from "@features/auth/queries";
+import { sessionQueryOptions } from "@features/authn/queries";
 import { groupKeys } from "@features/directory/groups/queries";
 import type { ApiError, PageDepartment, PageUser, User, UserCreate, UserMutation } from "@lib/api";
 import {

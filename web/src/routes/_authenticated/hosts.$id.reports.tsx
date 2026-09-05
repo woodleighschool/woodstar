@@ -1,6 +1,7 @@
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
 
+import { requirePermission } from "@features/authn/guards";
 import { HostReportsPage } from "@features/hosts/detail";
 import { REPORT_SNAPSHOT_STATUS_VALUES } from "@features/osquery/reports/query-results";
 import { createTableSearchSchema, TABLE_SEARCH_DEFAULTS } from "@lib/table-search";
@@ -22,5 +23,7 @@ const searchSchema = createTableSearchSchema(
 export const Route = createFileRoute("/_authenticated/hosts/$id/reports")({
   validateSearch: searchSchema,
   search: { middlewares: [stripSearchParams(SEARCH_DEFAULTS)] },
+  beforeLoad: ({ context }) =>
+    requirePermission(context.queryClient, { resource: "osquery.reports", access: "view" }),
   component: HostReportsPage,
 });

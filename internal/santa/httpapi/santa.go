@@ -3,7 +3,10 @@ package httpapi
 import (
 	"log/slog"
 
+	authhuma "github.com/woodleighschool/goodies/auth/huma"
+
 	"github.com/woodleighschool/woodstar/internal/api"
+	"github.com/woodleighschool/woodstar/internal/rbac"
 	"github.com/woodleighschool/woodstar/internal/santa"
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 	"github.com/woodleighschool/woodstar/internal/santa/events"
@@ -17,14 +20,15 @@ func RegisterAPI(
 	configurationStore *configurations.Store,
 	ruleStore *rules.Store,
 	eventStore *events.Store,
+	authorizer authhuma.Authorizer,
 	logger *slog.Logger,
 ) {
-	registerAPI(routes, hostState, configurationStore, ruleStore, eventStore, logger)
+	registerAPI(routes, hostState, configurationStore, ruleStore, eventStore, authorizer, logger)
 }
 
 // RegisterOpenAPI documents Santa endpoints without runtime services.
 func RegisterOpenAPI(routes api.AppRoutes) {
-	registerAPI(routes, nil, nil, nil, nil, nil)
+	registerAPI(routes, nil, nil, nil, nil, nil, nil)
 }
 
 func registerAPI(
@@ -33,12 +37,16 @@ func registerAPI(
 	configurationStore *configurations.Store,
 	ruleStore *rules.Store,
 	eventStore *events.Store,
+	authorizer authhuma.Authorizer,
 	logger *slog.Logger,
 ) {
-	humaAPI := routes.Ordinary
-	registerHostSantaState(humaAPI, hostState, logger)
-	registerSantaConfigurations(humaAPI, configurationStore, logger)
-	registerSantaRules(humaAPI, ruleStore, logger)
-	registerSantaEvents(humaAPI, eventStore, logger)
-	registerHostSantaRules(humaAPI, ruleStore, logger)
+	configurationsAPI := authhuma.ResourceAPI(routes.Protected, authorizer, logger, rbac.ResourceSantaConfigurations)
+	eventsAPI := authhuma.ResourceAPI(routes.Protected, authorizer, logger, rbac.ResourceSantaEvents)
+	rulesAPI := authhuma.ResourceAPI(routes.Protected, authorizer, logger, rbac.ResourceSantaRules)
+
+	registerHostSantaState(configurationsAPI, hostState, logger)
+	registerSantaConfigurations(configurationsAPI, configurationStore, logger)
+	registerSantaRules(rulesAPI, ruleStore, logger)
+	registerSantaEvents(eventsAPI, eventStore, logger)
+	registerHostSantaRules(rulesAPI, ruleStore, logger)
 }

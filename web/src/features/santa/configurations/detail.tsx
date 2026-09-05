@@ -11,7 +11,7 @@ import { QueryGate } from "@components/query-gate";
 import { LabelTargetDetails } from "@components/targeting/target-details";
 import { TokenList } from "@components/token-list";
 import { Button } from "@components/ui/button";
-import { useAuth } from "@features/auth/queries";
+import { useCan } from "@features/authz/access";
 import type { SantaRemovableMediaPolicy } from "@lib/api";
 import { parseRouteID } from "@lib/route-params";
 import { formatInterval } from "@lib/utils";
@@ -30,8 +30,7 @@ export function ConfigurationDetailPage() {
     from: "/_authenticated/santa/configurations/$id",
   });
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const isAdmin = user?.role === "admin";
+  const canEdit = useCan({ resource: "santa.configurations", access: "edit" });
   const id = parseRouteID(configurationID);
   const query = useSantaConfiguration(id);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -62,7 +61,7 @@ export function ConfigurationDetailPage() {
       <PageHeader
         title="Configuration Details"
         actions={
-          isAdmin ? (
+          canEdit ? (
             <>
               <Button
                 size="sm"

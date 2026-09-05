@@ -1,22 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { sessionQueryOptions } from "@features/auth/queries";
+import { accountKey, accountQueryOptions } from "@features/account/query-options";
+import { sessionQueryOptions } from "@features/authn/queries";
 import { userKeys } from "@features/directory/users/queries";
 import type { Account, AccountMutation, ApiError, SessionBody } from "@lib/api";
-import {
-  getAccount,
-  revokeAccountApiKey,
-  rotateAccountApiKey,
-  unwrap,
-  updateAccount,
-} from "@lib/api";
-const accountKey = ["account"] as const;
-
+import { revokeAccountApiKey, rotateAccountApiKey, unwrap, updateAccount } from "@lib/api";
 export function useAccount() {
-  return useQuery<Account, ApiError>({
-    queryKey: accountKey,
-    queryFn: async ({ signal }) => unwrap(getAccount({ signal })),
-  });
+  return useQuery(accountQueryOptions);
 }
 
 export function useUpdateAccount() {

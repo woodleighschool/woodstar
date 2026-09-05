@@ -1,7 +1,9 @@
 import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
 
-import type { ApiError, SessionBody, SessionCreateInputBody, User } from "@lib/api";
+import { firstAccessiblePath } from "@components/layout/nav-config";
+import { accountQueryOptions } from "@features/account/query-options";
+import type { ApiError, Principal, SessionBody, SessionCreateInputBody } from "@lib/api";
 import { createSession, deleteSession, getSession, unwrap } from "@lib/api";
 
 export type CurrentUser = NonNullable<SessionBody["user"]>;
@@ -37,12 +39,13 @@ export function useLogout() {
 export function useLogin() {
   const queryClient = useQueryClient();
   const router = useRouter();
-  return useMutation<User, ApiError, SessionCreateInputBody>({
+  return useMutation<Principal, ApiError, SessionCreateInputBody>({
     mutationFn: (body) => unwrap(createSession({ body })),
     meta: { inlineError: true },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: sessionQueryOptions.queryKey });
-      await router.navigate({ to: "/hosts" });
+      const account = await queryClient.fetchQuery(accountQueryOptions);
+      await router.navigate({ to: firstAccessiblePath(account) ?? "/account" });
     },
   });
 }

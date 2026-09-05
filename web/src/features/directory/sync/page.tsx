@@ -5,7 +5,7 @@ import { Link } from "@components/link";
 import { ResourceOverviewCard } from "@components/resource-overview-card";
 import { Button } from "@components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@components/ui/tooltip";
-import { useAuth } from "@features/auth/queries";
+import { Can, useCan } from "@features/authz/access";
 import { useGroups } from "@features/directory/groups/queries";
 import { useDirectorySync, useTriggerDirectorySync } from "@features/directory/sync/queries";
 import { useUsers } from "@features/directory/users/queries";
@@ -14,9 +14,6 @@ import { cn, formatRelative } from "@lib/utils";
 const OVERVIEW_COUNT_PARAMS = { page: 1, per_page: 1 } as const;
 
 export function DirectoryOverviewPage() {
-  const users = useUsers(OVERVIEW_COUNT_PARAMS);
-  const groups = useGroups(OVERVIEW_COUNT_PARAMS);
-
   return (
     <PageShell>
       <PageHeader
@@ -26,31 +23,49 @@ export function DirectoryOverviewPage() {
       />
 
       <div className="grid min-w-0 gap-4 md:grid-cols-3">
-        <Link to="/directory/users">
-          <ResourceOverviewCard
-            title="Users"
-            count={users.data?.count}
-            loading={users.isLoading}
-            error={users.error}
-            icon={UserRound}
-          />
-        </Link>
-        <Link to="/directory/groups">
-          <ResourceOverviewCard
-            title="Groups"
-            count={groups.data?.count}
-            loading={groups.isLoading}
-            error={groups.error}
-            icon={UsersRound}
-          />
-        </Link>
+        <Can resource="users" access="view">
+          <UsersOverviewCard />
+        </Can>
+        <Can resource="groups" access="view">
+          <GroupsOverviewCard />
+        </Can>
       </div>
     </PageShell>
   );
 }
 
+function UsersOverviewCard() {
+  const users = useUsers(OVERVIEW_COUNT_PARAMS);
+  return (
+    <Link to="/directory/users">
+      <ResourceOverviewCard
+        title="Users"
+        count={users.data?.count}
+        loading={users.isLoading}
+        error={users.error}
+        icon={UserRound}
+      />
+    </Link>
+  );
+}
+
+function GroupsOverviewCard() {
+  const groups = useGroups(OVERVIEW_COUNT_PARAMS);
+  return (
+    <Link to="/directory/groups">
+      <ResourceOverviewCard
+        title="Groups"
+        count={groups.data?.count}
+        loading={groups.isLoading}
+        error={groups.error}
+        icon={UsersRound}
+      />
+    </Link>
+  );
+}
+
 function DirectorySyncAction() {
-  const { user } = useAuth();
+  const canEdit = useCan({ resource: "directory", access: "edit" });
   const sync = useDirectorySync();
   const trigger = useTriggerDirectorySync();
   const status = sync.data;
@@ -59,7 +74,7 @@ function DirectorySyncAction() {
   const lastRun = status?.activity === "idle" && !syncing ? status.last_run : undefined;
   const lastRunAt = lastRun?.finished_at ?? lastRun?.started_at ?? lastRun?.queued_at;
 
-  if (user?.role !== "admin") return null;
+  if (!canEdit) return null;
   if (status && !status.enabled) return null;
 
   return (

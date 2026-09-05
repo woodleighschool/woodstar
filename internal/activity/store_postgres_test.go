@@ -16,8 +16,8 @@ func TestActivityStoreFiltersSnapshotsAndSweeps(t *testing.T) {
 
 	var userID int64
 	if err := db.QueryRow(ctx, `
-		INSERT INTO users (email, name, role)
-		VALUES ('admin@example.test', 'Admin User', 'admin')
+		INSERT INTO users (email, name)
+		VALUES ('admin@example.test', 'Admin User')
 		RETURNING id`).Scan(&userID); err != nil {
 		t.Fatalf("insert actor: %v", err)
 	}

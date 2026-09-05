@@ -1,5 +1,5 @@
 import type { User } from "@lib/api";
-import { enumLabel, type EnumMetadataMap, enumOptions } from "@lib/enum-metadata";
+import { type EnumMetadataMap, enumOptions } from "@lib/enum-metadata";
 
 export type UserRole = NonNullable<User["role"]>;
 export type UserAccessRole = UserRole | "none";
@@ -31,10 +31,6 @@ export const USER_ACCESS_ROLES = {
 
 export const USER_ROLE_OPTIONS = enumOptions(USER_ROLES, USER_ROLE_VALUES);
 export const USER_ACCESS_ROLE_OPTIONS = enumOptions(USER_ACCESS_ROLES, USER_ACCESS_ROLE_VALUES);
-
-export function userRoleLabel(value: UserRole) {
-  return enumLabel(USER_ROLES, value);
-}
 
 export function userAccessRole(value: User["role"]): UserAccessRole {
   return value ?? "none";

@@ -11,7 +11,7 @@ import { TokenList } from "@components/token-list";
 import { Badge } from "@components/ui/badge";
 import { Button } from "@components/ui/button";
 import { Separator } from "@components/ui/separator";
-import { useAuth } from "@features/auth/queries";
+import { useCan } from "@features/authz/access";
 import { useGroups } from "@features/directory/groups/queries";
 import { useUsers } from "@features/directory/users/queries";
 import { labelDerivedAttributeSelectorLabel, labelMembershipLabel } from "@features/labels/model";
@@ -28,8 +28,7 @@ export function LabelDetailPage() {
     from: "/_authenticated/labels/$id",
   });
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const isAdmin = user?.role === "admin";
+  const canEdit = useCan({ resource: "labels", access: "edit" });
   const id = parseRouteID(labelID);
   const query = useLabel(id);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -58,7 +57,7 @@ export function LabelDetailPage() {
       <PageHeader
         title="Label Details"
         actions={
-          isAdmin && mutable ? (
+          canEdit && mutable ? (
             <>
               <Button
                 size="sm"

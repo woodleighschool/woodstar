@@ -16,10 +16,9 @@ import (
 
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	"github.com/go-chi/chi/v5"
+	"github.com/woodleighschool/goodies/auth/authn"
 
 	"github.com/woodleighschool/woodstar/internal/activity"
-	"github.com/woodleighschool/woodstar/internal/api/ctxkeys"
-	"github.com/woodleighschool/woodstar/internal/directory"
 	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
 )
@@ -179,7 +178,7 @@ func TestDeleteLiveQueryStopsSharedRun(t *testing.T) {
 	registerLiveQueries(humaAPI, humaAPI, store, nil, activities, discardLogger())
 
 	recorder := httptest.NewRecorder()
-	requestCtx := ctxkeys.WithUser(ctx, &directory.User{ID: 9, Name: "Query Admin"})
+	requestCtx := authn.WithPrincipal(ctx, &authn.Principal{ID: 9, Name: "Query Admin"})
 	router.ServeHTTP(
 		recorder,
 		httptest.NewRequestWithContext(

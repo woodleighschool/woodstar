@@ -25,7 +25,7 @@ import { Button } from "@components/ui/button";
 import { Separator } from "@components/ui/separator";
 import { Skeleton } from "@components/ui/skeleton";
 import { TabsContent, TabsTrigger } from "@components/ui/tabs";
-import { useAuth } from "@features/auth/queries";
+import { useCan } from "@features/authz/access";
 import { PolicyStatusChart } from "@features/osquery/history/policy-status-chart";
 import { LiveRunButton } from "@features/osquery/live/query-actions";
 import {
@@ -104,16 +104,17 @@ export function PolicyDetailPage() {
     onSearchChange: (updater) => void navigate({ search: updater, replace: true }),
     filterKeys: RESULT_FILTER_KEYS,
   });
-  const { user } = useAuth();
-  const isAdmin = user?.role === "admin";
+  const canEdit = useCan({ resource: "osquery.policies", access: "edit" });
+  const canViewRemediation = useCan({ resource: "osquery.remediations", access: "view" });
+  const canEditRemediation = useCan({ resource: "osquery.remediations", access: "edit" });
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [viewRemediation, setViewRemediation] = useState<PolicyResultRow | null>(null);
   const id = parseRouteID(policyId);
   const policy = usePolicy(id);
   const showRemediation = Boolean(policy.data?.remediation.configured);
-  const canRunRemediation = Boolean(isAdmin && policy.data?.remediation.configured);
+  const canRunRemediation = Boolean(canEditRemediation && policy.data?.remediation.configured);
   const remediationSource = usePolicyRemediationSource(
-    activeTab === "remediation" && isAdmin ? id : null,
+    activeTab === "remediation" && canViewRemediation ? id : null,
   );
   const runRemediations = useRunPolicyRemediations();
   const status = search.status;
@@ -130,9 +131,9 @@ export function PolicyDetailPage() {
     results.data?.items.map((result) =>
       policyResultFromStatus(
         result,
-        isAdmin
+        canViewRemediation
           ? {
-              onRunRemediation: policy.data?.remediation.configured
+              onRunRemediation: canRunRemediation
                 ? () =>
                     runRemediations.mutate({
                       policyID: result.policy_id,
@@ -152,10 +153,10 @@ export function PolicyDetailPage() {
     const columns = createPolicyResultColumns({
       timestampHeader: "Last Evaluated",
       includeRemediation: showRemediation,
-      includeActions: isAdmin && showRemediation,
+      includeActions: canViewRemediation && showRemediation,
     });
     return canRunRemediation ? [selectColumn<PolicyResultRow>(), ...columns] : columns;
-  }, [canRunRemediation, isAdmin, showRemediation]);
+  }, [canRunRemediation, canViewRemediation, showRemediation]);
   const table = useDataTable({
     tableState: tableSearch,
     data: rows,
@@ -210,7 +211,7 @@ export function PolicyDetailPage() {
         title="Policy Details"
         actions={
           <>
-            {isAdmin ? (
+            {canEdit ? (
               <>
                 <Button
                   size="sm"
@@ -223,7 +224,7 @@ export function PolicyDetailPage() {
               </>
             ) : null}
             <LiveRunButton kind="policy" id={id} sql={policy.data.query} />
-            {isAdmin ? (
+            {canEdit ? (
               <Button
                 type="button"
                 variant="destructive"
@@ -357,7 +358,7 @@ export function PolicyDetailPage() {
             />
           </KeyValueSection>
 
-          {isAdmin && policy.data.remediation.configured ? (
+          {canViewRemediation && policy.data.remediation.configured ? (
             <section className="flex min-w-0 flex-col gap-3">
               <h2 className="text-base/snug font-medium text-foreground">Script</h2>
               <Separator />
@@ -421,24 +422,24 @@ export function PolicyDetailPage() {
         </TabsContent>
       </ScrollableTabs>
 
-      {isAdmin ? (
-        <>
-          <PolicyDeleteDialog
-            open={deleteOpen}
-            onOpenChange={setDeleteOpen}
-            policy={policy.data}
-            onDeleted={() => void navigate({ to: "/osquery/policies" })}
-          />
-          <PolicyRemediationDialog
-            policyID={id}
-            hostID={viewRemediation?.host_id ?? null}
-            hostName={viewRemediation?.host_name ?? ""}
-            open={viewRemediation !== null}
-            onOpenChange={(open) => {
-              if (!open) setViewRemediation(null);
-            }}
-          />
-        </>
+      {canEdit ? (
+        <PolicyDeleteDialog
+          open={deleteOpen}
+          onOpenChange={setDeleteOpen}
+          policy={policy.data}
+          onDeleted={() => void navigate({ to: "/osquery/policies" })}
+        />
+      ) : null}
+      {canViewRemediation ? (
+        <PolicyRemediationDialog
+          policyID={id}
+          hostID={viewRemediation?.host_id ?? null}
+          hostName={viewRemediation?.host_name ?? ""}
+          open={viewRemediation !== null}
+          onOpenChange={(open) => {
+            if (!open) setViewRemediation(null);
+          }}
+        />
       ) : null}
     </PageShell>
   );

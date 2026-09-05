@@ -20,6 +20,8 @@ Authorization: Bearer <api-key>
 
 An API key has the same access as the associated account. Create or rotate a key from the **Account** page.
 
+Operations declare their resource requirements in the OpenAPI `x-authz` extension. Read access is `view`, write access is `edit`, and missing grants mean `none`. The account response includes `effective_permissions`, combining direct and inherited grants.
+
 ## Errors
 
 Errors use `application/problem+json` and include a readable `detail`. Validation errors can also include field-level entries.

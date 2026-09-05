@@ -40,7 +40,7 @@ import {
   TableRow,
 } from "@components/ui/table";
 import { toast } from "@components/ui/toast";
-import { useAuth } from "@features/auth/queries";
+import { useCan } from "@features/authz/access";
 import type { SantaConfiguration } from "@lib/api";
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "@lib/pagination";
 import { countLabel, formatRelative } from "@lib/utils";
@@ -62,8 +62,7 @@ export function ConfigurationListPage() {
     search,
     onSearchChange: (updater) => void navigate({ search: updater, replace: true }),
   });
-  const { user } = useAuth();
-  const isAdmin = user?.role === "admin";
+  const canEdit = useCan({ resource: "santa.configurations", access: "edit" });
   const bulkDelete = useBulkDeleteSantaConfigurations();
   const [reorderEnabled, setReorderEnabled] = React.useState(false);
   const [reorderWarningOpen, setReorderWarningOpen] = React.useState(false);
@@ -86,10 +85,10 @@ export function ConfigurationListPage() {
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
   const reorderTruncated = reorderEnabled && totalCount > MAX_PAGE_SIZE;
-  const canEnableReorder = isAdmin && !tableSearch.isFiltered && totalCount > 1 && !query.isLoading;
+  const canEnableReorder = canEdit && !tableSearch.isFiltered && totalCount > 1 && !query.isLoading;
   const columns = React.useMemo<DataTableColumnDef<SantaConfiguration>[]>(
-    () => configurationColumns(isAdmin, setDeleting),
-    [isAdmin],
+    () => configurationColumns(canEdit, setDeleting),
+    [canEdit],
   );
   const table = useDataTable({
     tableState: tableSearch,
@@ -99,7 +98,7 @@ export function ConfigurationListPage() {
     rowCount: totalCount,
     initialState: { pagination: { pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE } },
     getRowId: (row) => String(row.id),
-    enableRowSelection: isAdmin,
+    enableRowSelection: canEdit,
   });
   const emptyState = (
     <DataTableEmpty
@@ -115,7 +114,7 @@ export function ConfigurationListPage() {
       <PageHeader
         title="Configurations"
         actions={
-          isAdmin ? (
+          canEdit ? (
             <>
               <ButtonGroup>
                 <Button
@@ -149,7 +148,7 @@ export function ConfigurationListPage() {
           error={query.error}
           onRetry={() => void query.refetch()}
         />
-      ) : reorderEnabled && isAdmin ? (
+      ) : reorderEnabled && canEdit ? (
         <ConfigurationReorder
           key={serverRows.map((row) => row.id).join(",")}
           rows={serverRows}
@@ -158,13 +157,13 @@ export function ConfigurationListPage() {
           onDone={() => setReorderEnabled(false)}
         />
       ) : query.isLoading ? (
-        <DataTableSkeleton columnCount={isAdmin ? 6 : 4} />
+        <DataTableSkeleton columnCount={canEdit ? 6 : 4} />
       ) : (
         <DataTable
           table={table}
           pending={query.isPlaceholderData}
           actionBar={
-            isAdmin ? (
+            canEdit ? (
               <BulkDeleteActionBar
                 table={table}
                 bulkDelete={bulkDelete}
@@ -183,7 +182,7 @@ export function ConfigurationListPage() {
         </DataTable>
       )}
 
-      {isAdmin ? (
+      {canEdit ? (
         <>
           <ReorderWarningDialog
             open={reorderWarningOpen}
@@ -206,11 +205,11 @@ export function ConfigurationListPage() {
   );
 }
 function configurationColumns(
-  isAdmin: boolean,
+  canEdit: boolean,
   onDelete: (configuration: SantaConfiguration) => void,
 ): DataTableColumnDef<SantaConfiguration>[] {
   const columns: DataTableColumnDef<SantaConfiguration>[] = [
-    ...(isAdmin ? [selectColumn<SantaConfiguration>()] : []),
+    ...(canEdit ? [selectColumn<SantaConfiguration>()] : []),
     {
       id: "position",
       accessorKey: "position",
@@ -264,7 +263,7 @@ function configurationColumns(
       enableResizing: false,
       meta: { label: "Updated" },
     },
-    ...(isAdmin
+    ...(canEdit
       ? [
           {
             id: "actions",

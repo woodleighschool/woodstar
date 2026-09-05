@@ -2,7 +2,12 @@ import { useRouterState } from "@tanstack/react-router";
 import { ChevronRight, ChevronsUpDown, History, LogOut, User as UserIcon } from "lucide-react";
 import { useState } from "react";
 
-import { type NavItem, type NavMenu, navSections } from "@components/layout/nav-config";
+import {
+  firstAccessiblePath,
+  type NavItem,
+  type NavMenu,
+  visibleNavSections,
+} from "@components/layout/nav-config";
 import { Link } from "@components/link";
 import { Logo } from "@components/logo";
 import { Pending } from "@components/pending";
@@ -33,21 +38,25 @@ import {
   useSidebar,
 } from "@components/ui/sidebar";
 import { Spinner } from "@components/ui/spinner";
-import { useAuth, useLogout } from "@features/auth/queries";
-import { userRoleLabel } from "@features/directory/users/metadata";
+import { useAccount } from "@features/account/queries";
+import { useAuth, useLogout } from "@features/authn/queries";
+import { Can } from "@features/authz/access";
 import { runtime } from "@lib/runtime";
 import { nonEmpty } from "@lib/utils";
 export function AppSidebar() {
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   });
+  const account = useAccount();
+  const sections = visibleNavSections(account.data);
+  const home = firstAccessiblePath(account.data) ?? "/account";
   return (
     <Sidebar variant="floating" collapsible="icon">
       <SidebarHeader>
-        <SidebarBrand />
+        <SidebarBrand to={home} />
       </SidebarHeader>
       <SidebarContent>
-        {navSections.map((section) => (
+        {sections.map((section) => (
           <SidebarNavGroup key={section.label} section={section} pathname={pathname} />
         ))}
       </SidebarContent>
@@ -58,11 +67,11 @@ export function AppSidebar() {
   );
 }
 
-function SidebarBrand() {
+function SidebarBrand({ to }: { to: string }) {
   return (
     <SidebarMenu>
       <SidebarMenuItem>
-        <SidebarMenuButton size="lg" render={<Link to="/hosts" />}>
+        <SidebarMenuButton size="lg" render={<Link to={to} />}>
           <Logo />
           <div className="grid flex-1 text-left text-sm/tight">
             <span className="truncate font-semibold">Woodstar</span>
@@ -184,11 +193,7 @@ function SidebarUserMenu() {
             <SidebarUserAvatar />
             <div className="grid flex-1 text-left text-sm/tight">
               <span className="truncate font-medium">{label}</span>
-              {user?.role ? (
-                <span className="truncate text-xs text-muted-foreground">
-                  {userRoleLabel(user.role)}
-                </span>
-              ) : null}
+              <span className="truncate text-xs text-muted-foreground">{user?.email}</span>
             </div>
             <ChevronsUpDown className="ml-auto" />
           </DropdownMenuTrigger>
@@ -213,10 +218,12 @@ function SidebarUserMenu() {
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem render={<Link to="/activity" />}>
-                <History />
-                Activity
-              </DropdownMenuItem>
+              <Can resource="activity" access="view">
+                <DropdownMenuItem render={<Link to="/activity" />}>
+                  <History />
+                  Activity
+                </DropdownMenuItem>
+              </Can>
               <DropdownMenuItem render={<Link to="/account" />}>
                 <UserIcon />
                 Account

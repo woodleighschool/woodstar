@@ -1,7 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { z } from "zod";
 
-import { requireAdmin } from "@features/auth/guards";
+import { requirePermission } from "@features/authn/guards";
 import { RuleEditPage } from "@features/santa/rules/edit";
 
 const searchSchema = z.object({
@@ -12,7 +12,7 @@ export const Route = createFileRoute("/_authenticated/santa/rules/$id/edit")({
   staticData: { breadcrumb: "Edit" },
   validateSearch: searchSchema,
   beforeLoad: ({ context, params }) =>
-    requireAdmin(context.currentUser, () => {
+    requirePermission(context.queryClient, { resource: "santa.rules", access: "edit" }, () => {
       throw redirect({
         to: "/santa/rules/$id",
         params: { id: params.id },

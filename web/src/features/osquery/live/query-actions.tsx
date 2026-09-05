@@ -9,7 +9,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@components/ui/dialog";
-import { useAuth } from "@features/auth/queries";
+import { useCan } from "@features/authz/access";
 
 import { useOpenOsqueryLive } from "./history";
 
@@ -46,10 +46,9 @@ export function LiveRunButton({
   id: number;
   sql: string;
 }) {
-  const { user } = useAuth();
+  const canEdit = useCan({ resource: "osquery.live-queries", access: "edit" });
   const openLive = useOpenOsqueryLive();
-  const isAdmin = user?.role === "admin";
-  if (!isAdmin) return null;
+  if (!canEdit) return null;
   return (
     <Button variant="outline" size="sm" onClick={() => void openLive({ kind, id, sql })}>
       <Play data-icon="inline-start" />

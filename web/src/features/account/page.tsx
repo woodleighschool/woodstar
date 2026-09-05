@@ -1,4 +1,5 @@
 import { revalidateLogic, useForm } from "@tanstack/react-form";
+import { permissionLevel } from "@woodleighschool/authz";
 import { z } from "zod";
 
 import { EnumBadge } from "@components/enum-badge";
@@ -11,8 +12,8 @@ import { toast } from "@components/ui/toast";
 import { ValidatedFormField } from "@components/validated-form-field";
 import { APIKeySection } from "@features/account/api-key-section";
 import { useAccount, useUpdateAccount } from "@features/account/queries";
+import { PermissionLevelBadge, permissionLabel } from "@features/authz/permission-level";
 import { DIRECTORY_SOURCES } from "@features/directory/source";
-import { USER_ACCESS_ROLES, userAccessRole } from "@features/directory/users/metadata";
 import { usePageFormExitGuard } from "@hooks/use-page-form-exit-guard";
 import type { Account } from "@lib/api";
 
@@ -73,12 +74,7 @@ function AccountForm({ account }: { account: Account }) {
       <PageShell>
         <PageHeader
           title="Account"
-          context={
-            <>
-              <EnumBadge value={user.source} metadata={DIRECTORY_SOURCES} />
-              <EnumBadge value={userAccessRole(user.role)} metadata={USER_ACCESS_ROLES} />
-            </>
-          }
+          context={<EnumBadge value={user.source} metadata={DIRECTORY_SOURCES} />}
         />
 
         <FieldGroup className="max-w-3xl">
@@ -134,6 +130,26 @@ function AccountForm({ account }: { account: Account }) {
         <FormActions form={form} submitLabel="Save" onCancel={exitGuard.requestDiscard} />
 
         <APIKeySection account={account} />
+
+        <section className="flex max-w-3xl flex-col gap-3 border-t pt-6">
+          <div className="flex flex-col gap-1">
+            <h2 className="text-base font-semibold">Permissions</h2>
+            <p className="text-sm text-muted-foreground">
+              Access currently granted to this account.
+            </p>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {Object.entries(account.effective_permissions).map(([resource, level]) => (
+              <div
+                key={resource}
+                className="flex items-center justify-between gap-4 rounded-lg border px-3 py-2"
+              >
+                <span>{permissionLabel(resource)}</span>
+                <PermissionLevelBadge level={permissionLevel(level)} />
+              </div>
+            ))}
+          </div>
+        </section>
 
         {exitGuard.dialog}
       </PageShell>

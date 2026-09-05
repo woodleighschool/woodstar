@@ -442,8 +442,8 @@ func insertLocalUser(t *testing.T, db *pgxpool.Pool, email string) int64 {
 	t.Helper()
 	var id int64
 	if err := db.QueryRow(context.Background(), `
-INSERT INTO users (email, name, password_hash, role)
-VALUES ($1, $1, 'password-hash', 'viewer')
+INSERT INTO users (email, name, password_hash)
+VALUES ($1, $1, 'password-hash')
 RETURNING id`, email).Scan(&id); err != nil {
 		t.Fatalf("insert local user: %v", err)
 	}

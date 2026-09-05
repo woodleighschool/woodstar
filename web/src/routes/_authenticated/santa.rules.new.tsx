@@ -1,7 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { z } from "zod";
 
-import { requireAdmin } from "@features/auth/guards";
+import { requirePermission } from "@features/authn/guards";
 import { RuleCreatePage } from "@features/santa/rules/create";
 import { RULE_TYPE_VALUES } from "@features/santa/rules/metadata";
 
@@ -16,7 +16,7 @@ export const Route = createFileRoute("/_authenticated/santa/rules/new")({
   staticData: { breadcrumb: "Create" },
   validateSearch: searchSchema,
   beforeLoad: ({ context }) =>
-    requireAdmin(context.currentUser, () => {
+    requirePermission(context.queryClient, { resource: "santa.rules", access: "edit" }, () => {
       throw redirect({ to: "/santa/rules" });
     }),
   component: RuleCreatePage,

@@ -2,14 +2,14 @@ import { useNavigate, useParams } from "@tanstack/react-router";
 import { Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 
-import { BooleanIndicator } from "@components/boolean-indicator";
 import { EnumBadge } from "@components/enum-badge";
 import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link } from "@components/link";
 import { QueryGate } from "@components/query-gate";
 import { Button } from "@components/ui/button";
-import { useAuth } from "@features/auth/queries";
+import { useAuth } from "@features/authn/queries";
+import { useCan } from "@features/authz/access";
 import { DIRECTORY_SOURCES } from "@features/directory/source";
 import { UserDeleteDialog } from "@features/directory/users/delete-dialog";
 import { USER_ACCESS_ROLES, userAccessRole } from "@features/directory/users/metadata";
@@ -23,6 +23,7 @@ export function UserDetailPage() {
   });
   const navigate = useNavigate();
   const { user: currentUser } = useAuth();
+  const canEdit = useCan({ resource: "users", access: "edit" });
   const id = parseRouteID(userID);
   const query = useUser(id);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -42,7 +43,6 @@ export function UserDetailPage() {
 
   const user = query.data;
   const isSelf = currentUser?.id === user.id;
-  const isAdmin = currentUser?.role === "admin";
   const editLink = isSelf
     ? ({ to: "/account" } as const)
     : ({
@@ -56,13 +56,13 @@ export function UserDetailPage() {
         <PageHeader
           title="User Details"
           actions={
-            isSelf || isAdmin ? (
+            isSelf || canEdit ? (
               <>
                 <Button size="sm" render={<Link {...editLink} />} nativeButton={false}>
                   <Pencil data-icon="inline-start" />
                   Edit
                 </Button>
-                {isAdmin && !isSelf ? (
+                {canEdit && !isSelf ? (
                   <Button
                     type="button"
                     variant="destructive"
@@ -89,7 +89,6 @@ export function UserDetailPage() {
             label="Role"
             value={<EnumBadge value={userAccessRole(user.role)} metadata={USER_ACCESS_ROLES} />}
           />
-          <KeyValueRow label="Can Login" value={<BooleanIndicator value={user.can_login} />} />
           <KeyValueRow label="Department" value={nonEmpty(user.department) ?? "-"} />
           <KeyValueRow label="Given Name" value={nonEmpty(user.given_name) ?? "-"} />
           <KeyValueRow label="Family Name" value={nonEmpty(user.family_name) ?? "-"} />

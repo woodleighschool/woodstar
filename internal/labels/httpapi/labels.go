@@ -6,9 +6,11 @@ import (
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
+	authhuma "github.com/woodleighschool/goodies/auth/huma"
 
 	"github.com/woodleighschool/woodstar/internal/api"
 	"github.com/woodleighschool/woodstar/internal/labels"
+	"github.com/woodleighschool/woodstar/internal/rbac"
 )
 
 const (
@@ -57,17 +59,27 @@ func (i labelListInput) params() labels.LabelListParams {
 }
 
 // RegisterAPI mounts label management endpoints.
-func RegisterAPI(routes api.AppRoutes, labelStore *labels.Store, logger *slog.Logger) {
-	registerAPI(routes, labelStore, logger)
+func RegisterAPI(
+	routes api.AppRoutes,
+	labelStore *labels.Store,
+	authorizer authhuma.Authorizer,
+	logger *slog.Logger,
+) {
+	registerAPI(routes, labelStore, authorizer, logger)
 }
 
 // RegisterOpenAPI documents label endpoints without runtime services.
 func RegisterOpenAPI(routes api.AppRoutes) {
-	registerAPI(routes, nil, nil)
+	registerAPI(routes, nil, nil, nil)
 }
 
-func registerAPI(routes api.AppRoutes, labelStore *labels.Store, logger *slog.Logger) {
-	humaAPI := routes.Ordinary
+func registerAPI(
+	routes api.AppRoutes,
+	labelStore *labels.Store,
+	authorizer authhuma.Authorizer,
+	logger *slog.Logger,
+) {
+	humaAPI := authhuma.ResourceAPI(routes.Protected, authorizer, logger, rbac.ResourceLabels)
 	registerListLabels(humaAPI, labelStore, logger)
 	registerCreateLabel(humaAPI, labelStore, logger)
 	registerGetLabel(humaAPI, labelStore, logger)

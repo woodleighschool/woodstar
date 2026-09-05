@@ -8,9 +8,11 @@ import (
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
+	authhuma "github.com/woodleighschool/goodies/auth/huma"
 
 	"github.com/woodleighschool/woodstar/internal/activity"
 	"github.com/woodleighschool/woodstar/internal/api"
+	"github.com/woodleighschool/woodstar/internal/rbac"
 )
 
 type listInput struct {
@@ -30,16 +32,27 @@ type listOutput struct {
 }
 
 // RegisterAPI mounts the activity timeline endpoint.
-func RegisterAPI(routes api.AppRoutes, store *activity.Store, logger *slog.Logger) {
-	registerAPI(routes.Ordinary, store, logger)
+func RegisterAPI(
+	routes api.AppRoutes,
+	store *activity.Store,
+	authorizer authhuma.Authorizer,
+	logger *slog.Logger,
+) {
+	registerAPI(routes, store, authorizer, logger)
 }
 
 // RegisterOpenAPI documents the activity timeline endpoint.
 func RegisterOpenAPI(routes api.AppRoutes) {
-	registerAPI(routes.Ordinary, nil, nil)
+	registerAPI(routes, nil, nil, nil)
 }
 
-func registerAPI(humaAPI huma.API, store *activity.Store, logger *slog.Logger) {
+func registerAPI(
+	routes api.AppRoutes,
+	store *activity.Store,
+	authorizer authhuma.Authorizer,
+	logger *slog.Logger,
+) {
+	humaAPI := authhuma.ResourceAPI(routes.Protected, authorizer, logger, rbac.ResourceActivity)
 	huma.Register(humaAPI, huma.Operation{
 		OperationID: "list-activity",
 		Method:      http.MethodGet,

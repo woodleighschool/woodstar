@@ -22,7 +22,7 @@ import { QueryError } from "@components/query-error";
 import { RelativeTime } from "@components/relative-time";
 import { Button } from "@components/ui/button";
 import { AgentSecretsDialog } from "@features/agent-secrets/secrets-dialog";
-import { useAuth } from "@features/auth/queries";
+import { useCan } from "@features/authz/access";
 import { HostLastContact } from "@features/hosts/components/host-heartbeats";
 import { HostOnlineDot } from "@features/hosts/components/host-online-dot";
 import { HostPublicIP } from "@features/hosts/components/host-public-ip";
@@ -49,8 +49,8 @@ export function HostListPage() {
     filterKeys: STATUS_FILTER_KEYS,
     scopeKeys: ["label_id", "software_title_id"],
   });
-  const { user } = useAuth();
-  const isAdmin = user?.role === "admin";
+  const canEdit = useCan({ resource: "hosts", access: "edit" });
+  const canManageSecrets = useCan({ resource: "agents.secrets", access: "edit" });
   const bulkDelete = useBulkDeleteHosts();
   const [enrollmentOpen, setEnrollmentOpen] = React.useState(false);
   const softwareID = search.software_title_id === undefined ? undefined : search.software_id;
@@ -79,8 +79,8 @@ export function HostListPage() {
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
   const columns = React.useMemo<DataTableColumnDef<Host>[]>(
-    () => (isAdmin ? hostColumns : hostViewerColumns),
-    [isAdmin],
+    () => (canEdit ? hostColumns : hostViewerColumns),
+    [canEdit],
   );
 
   const table = useDataTable({
@@ -94,7 +94,7 @@ export function HostListPage() {
       columnVisibility: { status: false, "hardware.uuid": false },
     },
     getRowId: (row) => String(row.id),
-    enableRowSelection: isAdmin,
+    enableRowSelection: canEdit,
   });
   const exportOptions: DataTableExportOptions<Host> = {
     filename: "hosts",
@@ -134,7 +134,7 @@ export function HostListPage() {
           </>
         }
         actions={
-          isAdmin ? (
+          canManageSecrets ? (
             <Button size="sm" onClick={() => setEnrollmentOpen(true)}>
               <KeyRound data-icon="inline-start" />
               Enroll Hosts
@@ -162,7 +162,7 @@ export function HostListPage() {
           exportOptions={exportOptions}
           toolbarActions={<DataTableViewOptions table={table} align="end" />}
           actionBar={
-            isAdmin ? (
+            canEdit ? (
               <BulkDeleteActionBar
                 table={table}
                 bulkDelete={bulkDelete}

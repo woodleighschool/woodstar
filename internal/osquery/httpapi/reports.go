@@ -7,10 +7,10 @@ import (
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/woodleighschool/goodies/auth/authn"
 
 	"github.com/woodleighschool/woodstar/internal/activity"
 	"github.com/woodleighschool/woodstar/internal/api"
-	"github.com/woodleighschool/woodstar/internal/api/ctxkeys"
 	"github.com/woodleighschool/woodstar/internal/osquery/reports"
 )
 
@@ -120,7 +120,7 @@ func registerCreateReport(
 	}, func(ctx context.Context, input *reportCreateInput) (*reportOutput, error) {
 		report, err := reportStore.Create(ctx, reports.ReportCreateMutation{
 			ReportMutation:  input.Body,
-			CreatedByUserID: ctxkeys.CurrentUserID(ctx),
+			CreatedByUserID: authn.CurrentPrincipalID(ctx),
 		})
 		if err != nil {
 			return nil, api.ResourceError(ctx, logger, "create-osquery-report", reportResource, err)

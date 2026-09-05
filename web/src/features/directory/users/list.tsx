@@ -23,7 +23,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@components/ui/dropdown-menu";
-import { useAuth } from "@features/auth/queries";
+import { useAuth } from "@features/authn/queries";
+import { useCan } from "@features/authz/access";
 import { useGroup } from "@features/directory/groups/queries";
 import { DIRECTORY_SOURCE_OPTIONS, DIRECTORY_SOURCES } from "@features/directory/source";
 import { UserDeleteDialog } from "@features/directory/users/delete-dialog";
@@ -43,7 +44,7 @@ const USER_FILTER_KEYS = [{ id: "role", multiple: true }, { id: "source" }] as c
 interface UserTableRow {
   user: User;
   currentUserId: number | null;
-  isAdmin: boolean;
+  canEdit: boolean;
   onDelete: (user: User) => void;
 }
 
@@ -140,7 +141,7 @@ export function UserListPage() {
     scopeKeys: ["group_id"],
   });
   const { user: currentUser } = useAuth();
-  const isAdmin = currentUser?.role === "admin";
+  const canEdit = useCan({ resource: "users", access: "edit" });
   const [deleting, setDeleting] = React.useState<User | null>(null);
   const role = search.role;
   const source = search.source;
@@ -160,10 +161,10 @@ export function UserListPage() {
       query.data?.items.map((user) => ({
         user,
         currentUserId: currentUser?.id ?? null,
-        isAdmin,
+        canEdit,
         onDelete: setDeleting,
       })) ?? [],
-    [currentUser?.id, isAdmin, query.data?.items],
+    [currentUser?.id, canEdit, query.data?.items],
   );
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
@@ -172,7 +173,7 @@ export function UserListPage() {
   const table = useDataTable({
     tableState: tableSearch,
     data: tableRows,
-    columns: isAdmin ? userColumns : userViewerColumns,
+    columns: canEdit ? userColumns : userViewerColumns,
     pageCount,
     rowCount: totalCount,
     initialState: { pagination: { pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE } },
@@ -193,7 +194,7 @@ export function UserListPage() {
           ) : null
         }
         actions={
-          isAdmin ? (
+          canEdit ? (
             <Button size="sm" render={<Link to="/directory/users/new" />} nativeButton={false}>
               <UserPlus data-icon="inline-start" />
               Create
@@ -242,7 +243,7 @@ export function UserListPage() {
         </DataTable>
       )}
 
-      {isAdmin ? (
+      {canEdit ? (
         <UserDeleteDialog
           open={deleting !== null}
           onOpenChange={(open) => {

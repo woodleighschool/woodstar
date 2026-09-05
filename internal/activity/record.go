@@ -4,7 +4,7 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/woodleighschool/woodstar/internal/api/ctxkeys"
+	"github.com/woodleighschool/goodies/auth/authn"
 )
 
 // Recorder accepts activity events from capability owners.
@@ -24,7 +24,7 @@ func RecordUser(
 	if recorder == nil {
 		return
 	}
-	user, ok := ctxkeys.User(ctx)
+	user, ok := authn.PrincipalFromContext(ctx)
 	if !ok {
 		activityLogger(logger).ErrorContext(ctx, "record activity without authenticated user", "action", action)
 		return

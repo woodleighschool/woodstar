@@ -10,6 +10,7 @@
     "lint": "oxlint . && tsc -b",
     "lint:fix": "oxlint --fix . && tsc -b",
     "typecheck": "tsc -b",
+    "test": "node --test src/components/layout/navigation.test.ts",
     "format": "oxfmt",
     "openapi:types": "openapi-ts -i ./openapi.yaml -o ./src/lib/api-client -c @hey-api/client-fetch --plugins @hey-api/typescript @hey-api/sdk"
   },
@@ -33,6 +34,7 @@
     "@tanstack/react-store": "^0.11.1",
     "@tanstack/react-table": "^9.2.4",
     "@uiw/react-codemirror": "^4.25.11",
+    "@woodleighschool/authz": "^1.0.0",
     "@woodleighschool/bloby-client": "^1.0.0",
     "cn": "^0.2.4",
     "cva": "^1.0.0-beta.8",

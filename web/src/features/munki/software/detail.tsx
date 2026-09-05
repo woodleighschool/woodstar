@@ -12,7 +12,7 @@ import { QueryGate } from "@components/query-gate";
 import { TargetBadge, TargetDetails } from "@components/targeting/target-details";
 import { Badge } from "@components/ui/badge";
 import { Button } from "@components/ui/button";
-import { useAuth } from "@features/auth/queries";
+import { useCan } from "@features/authz/access";
 import { useLabelNameMap } from "@features/labels/components/label-ref-list";
 import { SoftwareArtwork } from "@features/software/software-icon";
 import type { MunkiInclude, MunkiPackage, MunkiSoftwareDetail } from "@lib/api";
@@ -58,7 +58,7 @@ const packageColumns: DataTableColumnDef<MunkiPackage>[] = [
 export function MunkiSoftwareDetailPage() {
   const params = useParams({ strict: false });
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const canEdit = useCan({ resource: "munki.software", access: "edit" });
   const softwareID = parseRouteID(params.id);
   const query = useMunkiSoftwareDetail(softwareID);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -82,7 +82,6 @@ export function MunkiSoftwareDetailPage() {
   }
 
   const software = query.data;
-  const isAdmin = user?.role === "admin";
   return (
     <PageShell className="gap-6">
       <PageHeader
@@ -96,7 +95,7 @@ export function MunkiSoftwareDetailPage() {
           />
         }
         actions={
-          isAdmin ? (
+          canEdit ? (
             <>
               <Button
                 size="sm"

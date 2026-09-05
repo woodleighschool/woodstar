@@ -7,6 +7,7 @@ import {
   ACTIVITY_SCOPE_VALUES,
 } from "@features/activity/metadata";
 import { ActivityPage } from "@features/activity/page";
+import { requirePermission } from "@features/authn/guards";
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "@lib/pagination";
 
 const searchDefaults = { page: 1, per_page: DEFAULT_PAGE_SIZE, scope: "user" as const };
@@ -38,6 +39,8 @@ const searchSchema = z
 export const Route = createFileRoute("/_authenticated/activity")({
   validateSearch: searchSchema,
   search: { middlewares: [stripSearchParams(searchDefaults)] },
+  beforeLoad: ({ context }) =>
+    requirePermission(context.queryClient, { resource: "activity", access: "view" }),
   staticData: { breadcrumb: "Activity" },
   component: ActivityPage,
 });

@@ -3,10 +3,10 @@
 package directory
 
 import (
-	"errors"
 	"testing"
 
-	"github.com/woodleighschool/woodstar/internal/fault"
+	"github.com/woodleighschool/goodies/auth/authn"
+
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
 )
@@ -68,7 +68,7 @@ func TestCreateHashesPassword(t *testing.T) {
 	if user.PasswordHash == "correct-password" {
 		t.Fatal("password hash stored raw password")
 	}
-	valid, err := VerifyPassword("correct-password", user.PasswordHash)
+	valid, err := authn.VerifyPassword("correct-password", user.PasswordHash)
 	if err != nil {
 		t.Fatalf("verify password hash: %v", err)
 	}
@@ -136,7 +136,7 @@ func TestUpdateHashesPassword(t *testing.T) {
 	if updated.PasswordHash == user.PasswordHash {
 		t.Fatal("password hash did not change")
 	}
-	valid, err := VerifyPassword(newPassword, updated.PasswordHash)
+	valid, err := authn.VerifyPassword(newPassword, updated.PasswordHash)
 	if err != nil {
 		t.Fatalf("verify updated password hash: %v", err)
 	}
@@ -169,7 +169,7 @@ func TestSetPasswordByEmailHashesPassword(t *testing.T) {
 	if updated.ID != user.ID || updated.PasswordHash == user.PasswordHash {
 		t.Fatalf("updated user = %+v, want changed password for user %d", updated, user.ID)
 	}
-	valid, err := VerifyPassword("replacement-password", updated.PasswordHash)
+	valid, err := authn.VerifyPassword("replacement-password", updated.PasswordHash)
 	if err != nil {
 		t.Fatalf("verify replacement password: %v", err)
 	}
@@ -203,59 +203,12 @@ func TestUpdateAccountHashesPassword(t *testing.T) {
 	if account.User.PasswordHash == user.PasswordHash {
 		t.Fatal("password hash did not change")
 	}
-	valid, err := VerifyPassword(newPassword, account.User.PasswordHash)
+	valid, err := authn.VerifyPassword(newPassword, account.User.PasswordHash)
 	if err != nil {
 		t.Fatalf("verify account password hash: %v", err)
 	}
 	if !valid {
 		t.Fatal("account password hash does not verify new password")
-	}
-}
-
-func TestSetAndClearAccountAPIKey(t *testing.T) {
-	database, ctx := testdb.Open(t)
-	service := newTestUserService(NewStore(database, labels.NewStore(database)))
-	user, err := service.Create(ctx, UserCreate{
-		Email:    "local@example.test",
-		Name:     "Local User",
-		Role:     RoleAdmin,
-		Password: "correct-password",
-	})
-	if err != nil {
-		t.Fatalf("create user: %v", err)
-	}
-
-	const apiKey = "test-account-api-key"
-	account, err := service.SetAccountAPIKey(ctx, user.ID, apiKey)
-	if err != nil {
-		t.Fatalf("set account api key: %v", err)
-	}
-	if account.APIKey != apiKey {
-		t.Fatalf("api key = %q, want %q", account.APIKey, apiKey)
-	}
-	if account.APIKeyCreatedAt == nil {
-		t.Fatal("api key created at is nil")
-	}
-	got, err := service.GetByAPIKey(ctx, apiKey)
-	if err != nil {
-		t.Fatalf("get by api key: %v", err)
-	}
-	if got.ID != user.ID {
-		t.Fatalf("api key user id = %d, want %d", got.ID, user.ID)
-	}
-
-	cleared, err := service.ClearAccountAPIKey(ctx, user.ID)
-	if err != nil {
-		t.Fatalf("clear account api key: %v", err)
-	}
-	if cleared.APIKey != "" {
-		t.Fatalf("cleared api key = %q, want empty", cleared.APIKey)
-	}
-	if cleared.APIKeyCreatedAt != nil {
-		t.Fatalf("cleared api key created at = %v, want nil", cleared.APIKeyCreatedAt)
-	}
-	if _, err := service.GetByAPIKey(ctx, apiKey); !errors.Is(err, fault.ErrNotFound) {
-		t.Fatalf("get cleared api key err = %v, want %v", err, fault.ErrNotFound)
 	}
 }
 

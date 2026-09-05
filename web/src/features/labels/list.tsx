@@ -21,7 +21,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@components/ui/dropdown-menu";
-import { useAuth } from "@features/auth/queries";
+import { useCan } from "@features/authz/access";
 import { LABEL_MEMBERSHIP_OPTIONS, labelMembershipLabel } from "@features/labels/model";
 import { useLabels } from "@features/labels/queries";
 import type { Label } from "@lib/api";
@@ -122,8 +122,7 @@ export function LabelListPage() {
     onSearchChange: (updater) => void navigate({ search: updater, replace: true }),
     filterKeys: MEMBERSHIP_FILTER_KEYS,
   });
-  const { user } = useAuth();
-  const isAdmin = user?.role === "admin";
+  const canEdit = useCan({ resource: "labels", access: "edit" });
   const [deleting, setDeleting] = React.useState<Label | null>(null);
   const membership = search.label_membership_type;
   const query = useLabels(
@@ -146,7 +145,7 @@ export function LabelListPage() {
   const table = useDataTable({
     tableState: tableSearch,
     data: tableRows,
-    columns: isAdmin ? labelColumns : labelViewerColumns,
+    columns: canEdit ? labelColumns : labelViewerColumns,
     pageCount,
     rowCount: totalCount,
     initialState: { pagination: { pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE } },
@@ -158,7 +157,7 @@ export function LabelListPage() {
         title="Labels"
         description="Group hosts for targeting, reporting, and Santa rules."
         actions={
-          isAdmin ? (
+          canEdit ? (
             <Button size="sm" render={<Link to="/labels/new" />} nativeButton={false}>
               <Plus data-icon="inline-start" />
               Create
@@ -173,7 +172,7 @@ export function LabelListPage() {
           onRetry={() => void query.refetch()}
         />
       ) : query.isLoading ? (
-        <DataTableSkeleton columnCount={isAdmin ? 5 : 4} filterCount={1} />
+        <DataTableSkeleton columnCount={canEdit ? 5 : 4} filterCount={1} />
       ) : (
         <DataTable
           table={table}
@@ -201,7 +200,7 @@ export function LabelListPage() {
         </DataTable>
       )}
 
-      {isAdmin ? (
+      {canEdit ? (
         <LabelDeleteDialog
           label={deleting}
           open={deleting !== null}

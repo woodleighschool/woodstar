@@ -13,7 +13,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/validation"
 )
 
-// Role controls permissions.
+// Role identifies one fixed policy that can be assigned directly.
 type (
 	Role string
 )
@@ -24,7 +24,7 @@ const (
 	RoleViewer Role = "viewer"
 )
 
-var RoleValues = []Role{RoleAdmin, RoleViewer}
+var roleValues = [...]Role{RoleAdmin, RoleViewer}
 
 // User is an application account row, optionally granted access by Role.
 type User struct {
@@ -40,7 +40,6 @@ type User struct {
 	GivenName         string     `json:"given_name,omitempty"`
 	FamilyName        string     `json:"family_name,omitempty"`
 	Department        string     `json:"department,omitempty"`
-	CanLogin          bool       `json:"can_login"`
 	DeletedAt         *time.Time `json:"deleted_at,omitempty"`
 	CreatedAt         time.Time  `json:"created_at"`
 	UpdatedAt         time.Time  `json:"updated_at"`
@@ -126,7 +125,7 @@ func (params *UserMutation) validate() error {
 }
 
 func (Role) Schema(_ huma.Registry) *huma.Schema {
-	return openapischema.StringEnum(RoleValues...)
+	return openapischema.StringEnum(roleValues[:]...)
 }
 
 // Account is the signed-in user's self-view, including their retrievable API key.

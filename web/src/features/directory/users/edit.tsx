@@ -2,7 +2,7 @@ import { useNavigate, useParams } from "@tanstack/react-router";
 
 import { QueryGate } from "@components/query-gate";
 import { AccountPage } from "@features/account/page";
-import { useAuth } from "@features/auth/queries";
+import { useAuth } from "@features/authn/queries";
 import { UserForm, userFromDetail } from "@features/directory/users/fields";
 import { useUpdateUser, useUser } from "@features/directory/users/queries";
 import type { User } from "@lib/api";

@@ -40,7 +40,7 @@ import {
   TableRow,
 } from "@components/ui/table";
 import { toast } from "@components/ui/toast";
-import { useAuth } from "@features/auth/queries";
+import { useCan } from "@features/authz/access";
 import type { MunkiDistributionPoint } from "@lib/api";
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "@lib/pagination";
 import { countLabel } from "@lib/utils";
@@ -58,8 +58,7 @@ export function DistributionPointListPage() {
     search,
     onSearchChange: (updater) => void navigate({ search: updater, replace: true }),
   });
-  const { user } = useAuth();
-  const isAdmin = user?.role === "admin";
+  const canEdit = useCan({ resource: "munki.distribution-points", access: "edit" });
   const [reorderEnabled, setReorderEnabled] = React.useState(false);
   const [reorderWarningOpen, setReorderWarningOpen] = React.useState(false);
   const [deleting, setDeleting] = React.useState<MunkiDistributionPoint | null>(null);
@@ -77,10 +76,10 @@ export function DistributionPointListPage() {
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
   const reorderTruncated = reorderEnabled && totalCount > MAX_PAGE_SIZE;
-  const canEnableReorder = isAdmin && !tableSearch.isFiltered && totalCount > 1 && !query.isLoading;
+  const canEnableReorder = canEdit && !tableSearch.isFiltered && totalCount > 1 && !query.isLoading;
   const columns = React.useMemo<DataTableColumnDef<MunkiDistributionPoint>[]>(
-    () => distributionPointColumns(isAdmin, setDeleting),
-    [isAdmin],
+    () => distributionPointColumns(canEdit, setDeleting),
+    [canEdit],
   );
   const table = useDataTable({
     tableState: tableSearch,
@@ -105,7 +104,7 @@ export function DistributionPointListPage() {
       <PageHeader
         title="Distribution Points"
         actions={
-          isAdmin ? (
+          canEdit ? (
             <>
               <ButtonGroup>
                 <Button
@@ -139,7 +138,7 @@ export function DistributionPointListPage() {
           error={query.error}
           onRetry={() => void query.refetch()}
         />
-      ) : reorderEnabled && isAdmin ? (
+      ) : reorderEnabled && canEdit ? (
         <DistributionPointReorder
           key={serverRows.map((row) => row.id).join(",")}
           rows={serverRows}
@@ -148,7 +147,7 @@ export function DistributionPointListPage() {
           onDone={() => setReorderEnabled(false)}
         />
       ) : query.isLoading ? (
-        <DataTableSkeleton columnCount={isAdmin ? 7 : 6} />
+        <DataTableSkeleton columnCount={canEdit ? 7 : 6} />
       ) : (
         <DataTable table={table} pending={query.isPlaceholderData} empty={emptyState}>
           <DataTableSearchInput
@@ -159,7 +158,7 @@ export function DistributionPointListPage() {
         </DataTable>
       )}
 
-      {isAdmin ? (
+      {canEdit ? (
         <>
           <ReorderWarningDialog
             open={reorderWarningOpen}
@@ -182,7 +181,7 @@ export function DistributionPointListPage() {
   );
 }
 function distributionPointColumns(
-  isAdmin: boolean,
+  canEdit: boolean,
   onDelete: (point: MunkiDistributionPoint) => void,
 ): DataTableColumnDef<MunkiDistributionPoint>[] {
   const columns: DataTableColumnDef<MunkiDistributionPoint>[] = [
@@ -268,7 +267,7 @@ function distributionPointColumns(
       meta: { label: "Base URL" },
     },
   ];
-  if (!isAdmin) return columns;
+  if (!canEdit) return columns;
   return [
     ...columns,
     {

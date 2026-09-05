@@ -23,7 +23,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@components/ui/dropdown-menu";
-import { useAuth } from "@features/auth/queries";
+import { useCan } from "@features/authz/access";
 import type { SantaRule } from "@lib/api";
 import { DEFAULT_PAGE_SIZE } from "@lib/pagination";
 import { formatRelative } from "@lib/utils";
@@ -57,9 +57,9 @@ function RuleActionsCell({ row }: DataTableCellContext<RuleTableRow>) {
   return <RuleRowActions rule={row.original.rule} onDelete={row.original.onDelete} />;
 }
 
-function ruleColumns(isAdmin: boolean): DataTableColumnDef<RuleTableRow>[] {
+function ruleColumns(canEdit: boolean): DataTableColumnDef<RuleTableRow>[] {
   return [
-    ...(isAdmin ? [selectColumn<RuleTableRow>()] : []),
+    ...(canEdit ? [selectColumn<RuleTableRow>()] : []),
     {
       id: "name",
       accessorFn: (row) => row.rule.name,
@@ -102,7 +102,7 @@ function ruleColumns(isAdmin: boolean): DataTableColumnDef<RuleTableRow>[] {
       enableResizing: false,
       meta: { label: "Updated" },
     },
-    ...(isAdmin
+    ...(canEdit
       ? [
           {
             id: "actions",
@@ -128,8 +128,7 @@ export function RuleListPage() {
     onSearchChange: (updater) => void navigate({ search: updater, replace: true }),
     filterKeys: RULE_TYPE_FILTER_KEYS,
   });
-  const { user } = useAuth();
-  const isAdmin = user?.role === "admin";
+  const canEdit = useCan({ resource: "santa.rules", access: "edit" });
   const bulkDelete = useBulkDeleteSantaRules();
   const [deleting, setDeleting] = useState<SantaRule | null>(null);
   const ruleType = search.rule_type;
@@ -151,7 +150,7 @@ export function RuleListPage() {
   );
   const totalCount = query.data?.count ?? 0;
   const pageCount = query.data ? Math.ceil(totalCount / tableSearch.per_page) : -1;
-  const columns = useMemo(() => ruleColumns(isAdmin), [isAdmin]);
+  const columns = useMemo(() => ruleColumns(canEdit), [canEdit]);
   const table = useDataTable({
     tableState: tableSearch,
     data: tableRows,
@@ -160,14 +159,14 @@ export function RuleListPage() {
     rowCount: totalCount,
     initialState: { pagination: { pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE } },
     getRowId: (row) => String(row.id),
-    enableRowSelection: isAdmin,
+    enableRowSelection: canEdit,
   });
   return (
     <PageShell>
       <PageHeader
         title="Rules"
         actions={
-          isAdmin ? (
+          canEdit ? (
             <Button size="sm" render={<Link to="/santa/rules/new" />} nativeButton={false}>
               <Plus data-icon="inline-start" />
               Create
@@ -183,13 +182,13 @@ export function RuleListPage() {
           onRetry={() => void query.refetch()}
         />
       ) : query.isLoading ? (
-        <DataTableSkeleton columnCount={isAdmin ? 6 : 4} filterCount={1} />
+        <DataTableSkeleton columnCount={canEdit ? 6 : 4} filterCount={1} />
       ) : (
         <DataTable
           table={table}
           pending={query.isPlaceholderData}
           actionBar={
-            isAdmin ? (
+            canEdit ? (
               <BulkDeleteActionBar
                 table={table}
                 bulkDelete={bulkDelete}
@@ -221,7 +220,7 @@ export function RuleListPage() {
         </DataTable>
       )}
 
-      {isAdmin ? (
+      {canEdit ? (
         <RuleDeleteDialog
           rule={deleting}
           open={deleting !== null}

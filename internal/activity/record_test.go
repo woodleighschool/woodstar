@@ -6,12 +6,11 @@ import (
 	"log/slog"
 	"testing"
 
-	"github.com/woodleighschool/woodstar/internal/api/ctxkeys"
-	"github.com/woodleighschool/woodstar/internal/directory"
+	"github.com/woodleighschool/goodies/auth/authn"
 )
 
 func TestRecordUserBuildsActorSnapshot(t *testing.T) {
-	ctx := ctxkeys.WithUser(t.Context(), &directory.User{
+	ctx := authn.WithPrincipal(t.Context(), &authn.Principal{
 		ID:    42,
 		Name:  "Admin User",
 		Email: "admin@example.test",
@@ -31,7 +30,7 @@ func TestRecordUserBuildsActorSnapshot(t *testing.T) {
 }
 
 func TestRecordUserIgnoresRecorderFailure(t *testing.T) {
-	ctx := ctxkeys.WithUser(t.Context(), &directory.User{ID: 42})
+	ctx := authn.WithPrincipal(t.Context(), &authn.Principal{ID: 42})
 	RecordUser(ctx, recorderFunc(func(context.Context, NewEvent) error {
 		return errors.New("database unavailable")
 	}), slog.New(slog.DiscardHandler), AreaHosts, ActionHostDeleted, Resource("host", 7, "Lab Mac"))

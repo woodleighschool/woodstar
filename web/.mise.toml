@@ -37,6 +37,11 @@ run = "pnpm run typecheck"
 description = "Format web code"
 run = "pnpm run format"
 
+[tasks.test]
+description = "Test application navigation permissions"
+depends = [":deps"]
+run = "pnpm run test"
+
 [tasks.fmt-check]
 description = "Check web formatting"
 run = "oxfmt --check"

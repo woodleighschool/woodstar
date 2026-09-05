@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { requireUser } from "@features/auth/guards";
+import { requireUser } from "@features/authn/guards";
 
 import { AppLayout } from "../app-layout";
 

@@ -10,7 +10,7 @@ import { Field, FieldError, FieldGroup } from "@components/ui/field";
 import { Input } from "@components/ui/input";
 import { Separator } from "@components/ui/separator";
 import { ValidatedFormField } from "@components/validated-form-field";
-import { useLogin, useSession } from "@features/auth/queries";
+import { useLogin, useSession } from "@features/authn/queries";
 import { emailAddress, requiredString } from "@lib/form-validation";
 
 const routeApi = getRouteApi("/login");

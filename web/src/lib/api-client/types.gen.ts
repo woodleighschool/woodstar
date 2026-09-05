@@ -7,6 +7,9 @@ export type ClientOptions = {
 export type Account = {
     api_key?: string;
     api_key_created_at?: string;
+    effective_permissions: {
+        [key in AuthzResource]?: 'none' | 'view' | 'edit';
+    };
     user: User;
 };
 
@@ -46,6 +49,8 @@ export type AgentSecretCreate = {
 export type AgentSecretMutation = {
     value: string;
 };
+
+export type AuthzResource = 'activity' | 'users' | 'groups' | 'directory' | 'hosts' | 'labels' | 'software' | 'agents.secrets' | 'munki.software' | 'munki.packages' | 'munki.distribution-points' | 'munki.client-resources' | 'osquery.overview' | 'osquery.reports' | 'osquery.policies' | 'osquery.live-queries' | 'osquery.remediations' | 'santa.configurations' | 'santa.events' | 'santa.rules';
 
 export type CertificateName = {
     common_name: string;
@@ -1122,6 +1127,12 @@ export type PageUser = {
     items: Array<User>;
 };
 
+export type Principal = {
+    email: string;
+    id: number;
+    name: string;
+};
+
 export type PublicIpDetails = {
     asn?: number;
     city?: string;
@@ -1385,7 +1396,7 @@ export type SantaSigningChainEntry = {
 
 export type SessionBody = {
     sso_enabled: boolean;
-    user?: User;
+    user?: Principal;
 };
 
 export type SessionCreateInputBody = {
@@ -1480,7 +1491,6 @@ export type UploadTarget = {
 };
 
 export type User = {
-    can_login: boolean;
     created_at: string;
     deleted_at?: string;
     department?: string;
@@ -1733,6 +1743,10 @@ export type ListActivityErrors = {
      */
     401: ErrorModel;
     /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
      * Error
      */
     default: ErrorModel;
@@ -1930,6 +1944,10 @@ export type GetDirectorySyncErrors = {
      */
     401: ErrorModel;
     /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
      * Error
      */
     default: ErrorModel;
@@ -2002,6 +2020,10 @@ export type ListGroupsErrors = {
      */
     401: ErrorModel;
     /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
      * Error
      */
     default: ErrorModel;
@@ -2032,6 +2054,10 @@ export type GetGroupErrors = {
      * Unauthorized
      */
     401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
     /**
      * Not Found
      */
@@ -2123,6 +2149,10 @@ export type ListHostsErrors = {
      */
     401: ErrorModel;
     /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
      * Error
      */
     default: ErrorModel;
@@ -2196,6 +2226,10 @@ export type GetHostErrors = {
      * Unauthorized
      */
     401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
     /**
      * Not Found
      */
@@ -2277,6 +2311,10 @@ export type GetHostMunkiStateErrors = {
      */
     401: ErrorModel;
     /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
      * Not Found
      */
     404: ErrorModel;
@@ -2325,6 +2363,10 @@ export type ListHostMunkiSoftwareErrors = {
      */
     401: ErrorModel;
     /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
      * Not Found
      */
     404: ErrorModel;
@@ -2370,6 +2412,10 @@ export type ListHostOsqueryPoliciesErrors = {
      */
     401: ErrorModel;
     /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
      * Not Found
      */
     404: ErrorModel;
@@ -2414,6 +2460,10 @@ export type ListHostOsqueryReportsErrors = {
      * Unauthorized
      */
     401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
     /**
      * Not Found
      */
@@ -2544,6 +2594,10 @@ export type GetHostSantaStateErrors = {
      */
     401: ErrorModel;
     /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
      * Not Found
      */
     404: ErrorModel;
@@ -2592,6 +2646,10 @@ export type ListHostSantaRulesErrors = {
      */
     401: ErrorModel;
     /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
      * Not Found
      */
     404: ErrorModel;
@@ -2637,6 +2695,10 @@ export type ListHostSoftwareErrors = {
      */
     401: ErrorModel;
     /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
      * Not Found
      */
     404: ErrorModel;
@@ -2680,6 +2742,10 @@ export type ListLabelsErrors = {
      * Unauthorized
      */
     401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
     /**
      * Error
      */
@@ -2804,6 +2870,10 @@ export type GetLabelErrors = {
      */
     401: ErrorModel;
     /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
      * Not Found
      */
     404: ErrorModel;
@@ -2895,6 +2965,10 @@ export type ListMunkiClientResourcesErrors = {
      * Unauthorized
      */
     401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
     /**
      * Error
      */
@@ -3203,6 +3277,10 @@ export type GetMunkiClientResourcesErrors = {
      */
     401: ErrorModel;
     /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
      * Not Found
      */
     404: ErrorModel;
@@ -3295,6 +3373,10 @@ export type ListMunkiDistributionPointsErrors = {
      * Unauthorized
      */
     401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
     /**
      * Error
      */
@@ -3456,6 +3538,10 @@ export type GetMunkiDistributionPointErrors = {
      */
     401: ErrorModel;
     /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
      * Not Found
      */
     404: ErrorModel;
@@ -3591,6 +3677,10 @@ export type ListMunkiIconsErrors = {
      * Unauthorized
      */
     401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
     /**
      * Error
      */
@@ -3950,6 +4040,10 @@ export type ListMunkiPackagesErrors = {
      */
     401: ErrorModel;
     /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
      * Error
      */
     default: ErrorModel;
@@ -4029,6 +4123,10 @@ export type GetMunkiPackageErrors = {
      * Unauthorized
      */
     401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
     /**
      * Not Found
      */
@@ -4166,6 +4264,10 @@ export type ListMunkiSoftwareErrors = {
      */
     401: ErrorModel;
     /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
      * Error
      */
     default: ErrorModel;
@@ -4288,6 +4390,10 @@ export type GetMunkiSoftwareErrors = {
      * Unauthorized
      */
     401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
     /**
      * Not Found
      */
@@ -4425,6 +4531,10 @@ export type ListOsqueryHostStatusHistoryErrors = {
      * Unauthorized
      */
     401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
     /**
      * Error
      */
@@ -4673,6 +4783,10 @@ export type ListOsqueryPoliciesErrors = {
      */
     401: ErrorModel;
     /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
      * Error
      */
     default: ErrorModel;
@@ -4795,6 +4909,10 @@ export type GetOsqueryPolicyErrors = {
      * Unauthorized
      */
     401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
     /**
      * Not Found
      */
@@ -5034,6 +5152,10 @@ export type ListOsqueryPolicyResultsErrors = {
      */
     401: ErrorModel;
     /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
      * Not Found
      */
     404: ErrorModel;
@@ -5074,6 +5196,10 @@ export type ListOsqueryPolicyStatusHistoryErrors = {
      * Unauthorized
      */
     401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
     /**
      * Not Found
      */
@@ -5159,6 +5285,10 @@ export type ListOsqueryReportsErrors = {
      * Unauthorized
      */
     401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
     /**
      * Error
      */
@@ -5283,6 +5413,10 @@ export type GetOsqueryReportErrors = {
      */
     401: ErrorModel;
     /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
      * Not Found
      */
     404: ErrorModel;
@@ -5379,6 +5513,10 @@ export type ListOsqueryReportSnapshotsErrors = {
      */
     401: ErrorModel;
     /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
      * Not Found
      */
     404: ErrorModel;
@@ -5463,6 +5601,10 @@ export type ListSantaConfigurationsErrors = {
      * Unauthorized
      */
     401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
     /**
      * Error
      */
@@ -5628,6 +5770,10 @@ export type GetSantaConfigurationErrors = {
      */
     401: ErrorModel;
     /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
      * Not Found
      */
     404: ErrorModel;
@@ -5729,6 +5875,10 @@ export type ListSantaEventsErrors = {
      */
     401: ErrorModel;
     /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
      * Unprocessable Entity
      */
     422: ErrorModel;
@@ -5767,6 +5917,10 @@ export type GetSantaEventErrors = {
      * Unauthorized
      */
     401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
     /**
      * Not Found
      */
@@ -5817,6 +5971,10 @@ export type ListSantaFileAccessEventsErrors = {
      */
     401: ErrorModel;
     /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
      * Unprocessable Entity
      */
     422: ErrorModel;
@@ -5855,6 +6013,10 @@ export type GetSantaFileAccessEventErrors = {
      * Unauthorized
      */
     401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
     /**
      * Not Found
      */
@@ -5945,6 +6107,10 @@ export type ListSantaRulesErrors = {
      * Unauthorized
      */
     401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
     /**
      * Unprocessable Entity
      */
@@ -6073,6 +6239,10 @@ export type GetSantaRuleErrors = {
      */
     401: ErrorModel;
     /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
      * Not Found
      */
     404: ErrorModel;
@@ -6157,10 +6327,6 @@ export type DeleteSessionData = {
 
 export type DeleteSessionErrors = {
     /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
      * Error
      */
     default: ErrorModel;
@@ -6238,7 +6404,7 @@ export type CreateSessionResponses = {
     /**
      * OK
      */
-    200: User;
+    200: Principal;
 };
 
 export type CreateSessionResponse = CreateSessionResponses[keyof CreateSessionResponses];
@@ -6261,6 +6427,10 @@ export type ListSoftwareErrors = {
      * Unauthorized
      */
     401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
     /**
      * Error
      */
@@ -6292,6 +6462,10 @@ export type GetSoftwareErrors = {
      * Unauthorized
      */
     401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
     /**
      * Not Found
      */
@@ -6338,6 +6512,10 @@ export type ListUsersErrors = {
      * Unauthorized
      */
     401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
     /**
      * Error
      */
@@ -6419,6 +6597,10 @@ export type ListUserDepartmentsErrors = {
      */
     401: ErrorModel;
     /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
      * Error
      */
     default: ErrorModel;
@@ -6496,6 +6678,10 @@ export type GetUserErrors = {
      * Unauthorized
      */
     401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
     /**
      * Not Found
      */
