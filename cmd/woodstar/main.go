@@ -18,6 +18,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/riverqueue/river"
 	"github.com/spf13/cobra"
+	"github.com/woodleighschool/goodies/pglock"
 
 	"github.com/woodleighschool/woodstar/internal/activity"
 	activityapi "github.com/woodleighschool/woodstar/internal/activity/httpapi"
@@ -570,7 +571,7 @@ func newBackgroundJobs(
 			jobWorkers,
 			entra.NewSyncWorker(
 				entraService,
-				postgres.NewSessionLocker(pool, entra.SyncAdvisoryLockID),
+				pglock.New(pool, entra.SyncAdvisoryLockID),
 			),
 		); err != nil {
 			return nil, nil, fmt.Errorf("register Entra sync worker: %w", err)
