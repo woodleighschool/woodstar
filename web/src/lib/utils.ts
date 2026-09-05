@@ -1,10 +1,5 @@
-import { type ClassValue, clsx } from "clsx";
 import { formatDistanceToNow } from "date-fns";
-import { twMerge } from "tailwind-merge";
-
-export function cn(...inputs: ClassValue[]): string {
-  return twMerge(clsx(inputs));
-}
+export { cn } from "cn";
 
 // Collapses missing/empty/whitespace-only strings to undefined. Used when shaping
 // query params so empty filters don't poison cache keys or hit the API.
