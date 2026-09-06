@@ -29,7 +29,10 @@ env:
 
 jobs:
   docs:
-    if: ${{ github.event_name != 'push' }}
+    if: >-
+      ${{ github.event_name != 'push'
+      && !(startsWith(github.head_ref, 'release-please--')
+      && github.event.pull_request.head.repo.full_name == github.repository) }}
     name: Docs
     uses: $/.github/workflows/docs.yaml
     permissions:
@@ -38,6 +41,9 @@ jobs:
       deploy: false
 
   workflow-lint:
+    if: >-
+      ${{ !(startsWith(github.head_ref, 'release-please--')
+      && github.event.pull_request.head.repo.full_name == github.repository) }}
     name: Workflow Lint
     runs-on: ubuntu-24.04
     permissions:
@@ -66,6 +72,9 @@ jobs:
           zizmor-version: ${{ steps.tools.outputs.zizmor }}
 
   backend:
+    if: >-
+      ${{ !(startsWith(github.head_ref, 'release-please--')
+      && github.event.pull_request.head.repo.full_name == github.repository) }}
     name: Backend
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -126,6 +135,9 @@ jobs:
         run: mise run test-postgres
 
   frontend:
+    if: >-
+      ${{ !(startsWith(github.head_ref, 'release-please--')
+      && github.event.pull_request.head.repo.full_name == github.repository) }}
     name: Frontend
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -186,6 +198,9 @@ jobs:
         run: mise run build
 
   e2e:
+    if: >-
+      ${{ !(startsWith(github.head_ref, 'release-please--')
+      && github.event.pull_request.head.repo.full_name == github.repository) }}
     name: E2E
     runs-on: ubuntu-24.04
     timeout-minutes: 30
