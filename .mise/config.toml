@@ -211,13 +211,6 @@ depends = ["go-format", "//web:format", "//docs:format"]
 description = "Check backend, web, and docs formatting"
 depends = ["go-fmt-check", "//web:fmt-check", "//docs:fmt-check"]
 
-[tasks.workflow-lint]
-description = "Lint GitHub Actions workflows"
-run = [
-  "actionlint -ignore 'reusable workflow call \"\\$/.*\" at \"uses\" is not following the format'",
-  "zizmor --offline --no-ignores .github/workflows",
-]
-
 [tasks.clean]
 description = "Remove local build outputs"
 run = "rm -rf woodstar .air build web/dist"

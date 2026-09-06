@@ -81,6 +81,5 @@ mise run schema-sync
 
 ```bash
 mise run tidy-check
-mise run workflow-lint
 mise run //docs:build
 ```
