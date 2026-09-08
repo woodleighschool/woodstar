@@ -1,5 +1,1 @@
 packages: []
-
-minimumReleaseAgeExclude:
-  - "@woodleighschool/authz@1.0.0"
-  - "@woodleighschool/bloby-client@1.0.0"
