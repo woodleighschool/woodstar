@@ -25,6 +25,13 @@ issues:
   max-same-issues: 50
 
 linters:
+  exclusions:
+    rules:
+      # The plugin shares API models with the server module in this checkout.
+      - path: '^stemma/go\.mod$'
+        linters:
+          - gomoddirectives
+        text: '^local replacement are not allowed: github\.com/woodleighschool/woodstar$'
   enable:
     - asasalint # checks for pass []any as any in variadic func(...any)
     - asciicheck # checks that your code does not contain non-ASCII identifiers

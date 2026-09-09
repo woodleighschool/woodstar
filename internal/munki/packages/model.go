@@ -315,7 +315,20 @@ func (p *PackageListParams) validate() error {
 	return nil
 }
 
-func (m *PackageMutation) validate() error {
+// Validate checks a normalized mutation, including installer attachment requirements.
+func (m *PackageMutation) Validate() error {
+	if err := m.ValidateMetadata(); err != nil {
+		return err
+	}
+	if m.InstallerType != InstallerTypeNoPkg && m.InstallerObjectID == nil {
+		return fmt.Errorf("%w: %s requires installer_object_id", fault.ErrInvalidInput, m.InstallerType)
+	}
+	return nil
+}
+
+// ValidateMetadata checks normalized metadata before an installer is uploaded.
+// It permits a missing installer ID; supplied IDs and all other rules still apply.
+func (m *PackageMutation) ValidateMetadata() error {
 	if err := validation.Struct(m); err != nil {
 		return fmt.Errorf("%w: %w", fault.ErrInvalidInput, err)
 	}
@@ -326,20 +339,12 @@ func (m PackageCreateMutation) validate() error {
 	if err := validation.Struct(m); err != nil {
 		return fmt.Errorf("%w: %w", fault.ErrInvalidInput, err)
 	}
-	return m.validateRelations()
+	return m.Validate()
 }
 
 func (m *PackageMutation) validateRelations() error {
-	hasInstaller := m.InstallerObjectID != nil
-	switch m.InstallerType {
-	case InstallerTypeNoPkg:
-		if hasInstaller {
-			return fmt.Errorf("%w: nopkg must not reference installer_object_id", fault.ErrInvalidInput)
-		}
-	case InstallerTypePkg, InstallerTypeCopyFromDMG:
-		if !hasInstaller {
-			return fmt.Errorf("%w: %s requires installer_object_id", fault.ErrInvalidInput, m.InstallerType)
-		}
+	if m.InstallerType == InstallerTypeNoPkg && m.InstallerObjectID != nil {
+		return fmt.Errorf("%w: nopkg must not reference installer_object_id", fault.ErrInvalidInput)
 	}
 	if m.InstallerType == InstallerTypeCopyFromDMG && len(m.ItemsToCopy) == 0 {
 		return fmt.Errorf("%w: copy_from_dmg requires items_to_copy entries", fault.ErrInvalidInput)
@@ -385,7 +390,8 @@ func (m *PackageMutation) validateRelations() error {
 	return nil
 }
 
-func (m *PackageMutation) normalize() {
+// Normalize applies server defaults and canonicalizes editable package metadata.
+func (m *PackageMutation) Normalize() {
 	m.InstallerType = InstallerType(strings.TrimSpace(string(m.InstallerType)))
 	if m.InstallerType == "" {
 		m.InstallerType = InstallerTypePkg
@@ -404,6 +410,11 @@ func (m *PackageMutation) normalize() {
 	m.MinimumOSVersion = strings.TrimSpace(m.MinimumOSVersion)
 	m.MaximumOSVersion = strings.TrimSpace(m.MaximumOSVersion)
 	m.PackagePath = strings.TrimSpace(m.PackagePath)
+	if m.ForceInstallAfterDate != nil {
+		// PostgreSQL timestamps retain microseconds; canonicalize before comparing or storing.
+		date := m.ForceInstallAfterDate.UTC().Truncate(time.Microsecond)
+		m.ForceInstallAfterDate = &date
+	}
 	for i := range m.SupportedArchitectures {
 		m.SupportedArchitectures[i] = strings.TrimSpace(m.SupportedArchitectures[i])
 	}
