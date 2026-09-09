@@ -93,6 +93,7 @@ const config: Config = {
         docsDir: "content",
         generateLLMsTxt: true,
         generateLLMsFullTxt: true,
+        ignoreFiles: ["**/*.api.mdx", "**/*.info.mdx"],
         includeBlog: false,
         excludeImports: true,
         removeDuplicateHeadings: true,
