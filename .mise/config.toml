@@ -21,7 +21,7 @@ pin = true
 lockfile = true
 
 [monorepo]
-config_roots = ["web", "docs"]
+config_roots = ["web", "docs", "stemma"]
 
 [tasks.go-deps]
 description = "Download Go dependencies"

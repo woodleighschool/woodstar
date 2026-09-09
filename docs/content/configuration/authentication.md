@@ -40,7 +40,7 @@ See [Environment](./environment#oidc) for the settings.
 
 ## API keys
 
-An account can create or rotate its API key from the **Account** page. The key has the same access as the account and can be used by scripts and [AutoPkg](../autopkg/overview).
+An account can create or rotate its API key from the **Account** page. The key has the same access as the account and can be used by scripts and [Stemma](../admin/stemma).
 
 ## Agent credentials
 

@@ -34,6 +34,10 @@ func TestPackagePatchPreservesNestedFieldsAndReplacesArrays(t *testing.T) {
 		!updated.PreinstallAlert.Enabled || updated.PreinstallAlert.Title != "Keep" || updated.PreinstallAlert.Detail != "New" {
 		t.Fatalf("merged mutation = %+v", updated)
 	}
+	updated.Normalize()
+	if err := updated.Validate(); err != nil {
+		t.Fatal(err)
+	}
 	if current.SupportedArchitectures[0] != "arm64" || current.PreinstallAlert.Detail != "Replace" || current.Notes != "old" ||
 		current.RestartAction != "RequireRestart" || current.UninstallMethod != "uninstall_script" {
 		t.Fatal("patch mutated current state")

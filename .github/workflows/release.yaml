@@ -47,11 +47,16 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
   goreleaser:
-    name: GoReleaser
+    name: GoReleaser (${{ matrix.workdir }})
     if: ${{ github.event_name == 'release' }}
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        workdir: [".", "stemma"]
     permissions:
       contents: write
+      packages: write
     env:
       MISE_NO_HOOKS: "1"
     steps:
@@ -68,11 +73,35 @@ jobs:
           experimental: true
           install_args: --locked go node pnpm
 
+      - name: Setup plugin publisher
+        if: ${{ matrix.workdir == 'stemma' }}
+        working-directory: stemma
+        run: |
+          mise install --locked oras goreleaser
+          printf '%s' "$REGISTRY_TOKEN" | mise exec -- oras login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+        env:
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Run GoReleaser
+        if: ${{ matrix.workdir == '.' }}
         uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
         with:
           distribution: goreleaser
           version: "~> v2"
           args: release --clean --parallelism=2
+          workdir: ${{ matrix.workdir }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Release plugin bundles
+        if: ${{ matrix.workdir == 'stemma' }}
+        working-directory: stemma
+        run: mise exec -- goreleaser release --clean --parallelism=2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish plugin index
+        if: ${{ matrix.workdir == 'stemma' }}
+        run: mise run //stemma:publish-index "$RELEASE_TAG"
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
