@@ -134,6 +134,83 @@ jobs:
       - name: Run PostgreSQL component tests
         run: mise run test-postgres
 
+  stemma:
+    if: >-
+      ${{ !(startsWith(github.head_ref, 'release-please--')
+      && github.event.pull_request.head.repo.full_name == github.repository) }}
+    name: Stemma
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: woodstar
+          POSTGRES_PASSWORD: woodstar
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U woodstar -d postgres"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Mise
+        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+        with:
+          experimental: true
+          install_args: --locked go golangci-lint go:golang.org/x/vuln/cmd/govulncheck
+
+      - name: Cache Go modules and build
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-stemma-${{ hashFiles('stemma/go.sum', 'go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-stemma-
+            ${{ runner.os }}-go-
+
+      - name: Cache golangci-lint
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/golangci-lint
+          key: ${{ runner.os }}-stemma-golangci-lint-${{ hashFiles('stemma/go.sum', 'go.sum', '.golangci.yml', '.mise/mise.lock') }}
+
+      - name: Check Go formatting
+        run: mise run //stemma:fmt-check
+
+      - name: Check Go module tidiness
+        run: mise run //stemma:tidy-check
+
+      - name: Run Go lint
+        run: mise run //stemma:lint
+
+      - name: Run dependency-free Go checks
+        run: mise run //stemma:test
+
+      - name: Run PostgreSQL integration tests
+        run: mise run //stemma:test-postgres
+
+      - name: Validate plugin packaging
+        working-directory: stemma
+        run: |
+          mise install --locked goreleaser
+          mise run release-check
+
+      - name: Build Stemma destination
+        run: mise run //stemma:build
+
+      - name: Run govulncheck
+        run: mise run //stemma:vulncheck
+
   frontend:
     if: >-
       ${{ !(startsWith(github.head_ref, 'release-please--')
@@ -271,6 +348,7 @@ jobs:
       - docs
       - workflow-lint
       - backend
+      - stemma
       - e2e
       - frontend
       - go-vulncheck

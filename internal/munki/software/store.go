@@ -34,8 +34,8 @@ func NewStore(pool *pgxpool.Pool, objects *bloby.Service, packages packageStore)
 }
 
 func (s *Store) Create(ctx context.Context, params CreateMutation) (*Software, error) {
-	params.normalize()
-	if err := params.validate(); err != nil {
+	params.Normalize()
+	if err := params.Validate(); err != nil {
 		return nil, err
 	}
 	write := newSoftwareWrite(params)
@@ -101,8 +101,8 @@ func (s *Store) update(ctx context.Context, id int64, mutate func(*Software, pgx
 		if err != nil {
 			return err
 		}
-		params.normalize(current.Name)
-		if err := params.validate(); err != nil {
+		params.Normalize(current.Name)
+		if err := params.Validate(); err != nil {
 			return err
 		}
 		if err := validateIcon(ctx, tx, params.IconObjectID); err != nil {
