@@ -1,5 +1,5 @@
-buf.build/gen/go/northpolesec/protos/protocolbuffers/go v1.36.12-20260904135605-a0b311108b7c.2 h1:NPe2/U6ZJFfgwYAm/Lz1KnCC5XM2WO+zQwSF27/L7Uw=
-buf.build/gen/go/northpolesec/protos/protocolbuffers/go v1.36.12-20260904135605-a0b311108b7c.2/go.mod h1:zG4BsQXlYqt56Eo/qMDy6CSMr2qSsUIoqaCqPOqPnyI=
+buf.build/gen/go/northpolesec/protos/protocolbuffers/go v1.36.12-20260909195458-6015a6df1b0f.2 h1:XJfC9tORb3VYqn5SxPjvcpVMIjowiwuGbSuSiMz8ZdM=
+buf.build/gen/go/northpolesec/protos/protocolbuffers/go v1.36.12-20260909195458-6015a6df1b0f.2/go.mod h1:zG4BsQXlYqt56Eo/qMDy6CSMr2qSsUIoqaCqPOqPnyI=
 cel.dev/cel-go v0.32.0 h1:irvpFKr5EuGPyxeME03ERh0rii1TX+BDAnB9eL3IvNk=
 cel.dev/cel-go v0.32.0/go.mod h1:DnVip7tpJSsgZymwfT+m1tnEVy3ivAjSMXPx12YrMkU=
 cel.dev/expr v0.25.3 h1:A2jO8jwOugrrovveCWfj0KEZOfqiLgAcwjpHPhzIGw0=
