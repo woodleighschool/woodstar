@@ -15,7 +15,7 @@
     "openapi:types": "openapi-ts -i ./openapi.yaml -o ./src/lib/api-client -c @hey-api/client-fetch --plugins @hey-api/typescript @hey-api/sdk"
   },
   "dependencies": {
-    "@base-ui/react": "^1.7.0",
+    "@base-ui/react": "^1.8.0",
     "@codemirror/autocomplete": "^6.20.3",
     "@codemirror/lang-sql": "^6.10.0",
     "@codemirror/language": "^6.12.4",
