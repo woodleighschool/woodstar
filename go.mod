@@ -22,7 +22,7 @@ require (
 	github.com/microsoftgraph/msgraph-sdk-go v1.102.0
 	github.com/microsoftgraph/msgraph-sdk-go-core v1.4.1
 	github.com/oapi-codegen/runtime v1.7.0
-	github.com/oschwald/geoip2-golang/v2 v2.3.0
+	github.com/oschwald/geoip2-golang/v2 v2.4.0
 	github.com/pressly/goose/v3 v3.28.0
 	github.com/riverqueue/river v0.47.0
 	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.47.0
@@ -123,7 +123,7 @@ require (
 	github.com/oasdiff/yaml3 v0.0.14 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
-	github.com/oschwald/maxminddb-golang/v2 v2.5.0 // indirect
+	github.com/oschwald/maxminddb-golang/v2 v2.6.0 // indirect
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/riverqueue/river/riverdriver v0.47.0 // indirect
