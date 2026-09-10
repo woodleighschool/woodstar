@@ -158,9 +158,9 @@ backend = "npm:@commitlint/cli"
 specifiers = ["21.2.2"]
 
 [[tools.oxfmt]]
-version = "0.66.0"
+version = "0.67.0"
 backend = "npm:oxfmt"
-specifiers = ["0.66.0"]
+specifiers = ["0.67.0"]
 
 [[tools.pnpm]]
 version = "12.3.4"
