@@ -1,18 +1,26 @@
 # stemma-woodstar 🌿
 
-Publish native Munki pkginfo and matching installers through the administrative API.
+Publish installers and native Munki settings through the administrative API.
 
 ## 🚀 Usage
 
 See the [Stemma guide](https://woodleighschool.github.io/woodstar/docs/admin/stemma) for configuration, acquisition, and publication.
 
-The executable exposes `woodstar.munki` through Stemma's operation protocol v2.
-Select the JSON artifact produced by `munki.pkginfo` and supply the installer as
-`inputs.installer`. Native rendering belongs to Stemma; the shared server importer
-maps native fields to sparse API mutations. Destination metadata contains only
-deployment `targets`.
+The standalone plugin exposes `woodstar.munki` through Stemma's operation protocol.
+Pass an installer directly and author native `pkginfo`, optional `derive.app`,
+deployment `targets`, and `retention.keep` on the destination. Source-free `nopkg`
+items publish scripts and metadata without an installer.
+
+The shared server importer maps native fields to sparse PATCH requests. Supplied
+values remain explicit; omitted fields stay unmanaged unless owned by derivation.
+Durable bindings track published payloads and protect against adopting unrelated
+software by name. Retention removes only owned package versions after publication
+succeeds and preserves pinned or referenced packages.
 
 ## 🧑‍💻 Development
+
+Develop unpublished SDK changes in a Go workspace containing this module, the
+parent server module, and the Stemma checkout.
 
 Run from this directory:
 
@@ -23,8 +31,10 @@ mise run test
 mise run lint
 ```
 
-The binary is written to `build/stemma-woodstar`. The module uses the server models
-from this checkout and pins the operation SDK in `go.mod`.
+The binary is written to `build/stemma-woodstar`. This directory is a separate Go
+module using the server models from the parent checkout and Stemma's public
+`plugin` SDK. The operation advertises `ConfigSchema`, `MetadataSchema`, and
+`RequiresInspection`; Stemma discovers the contract through the trusted plugin.
 Use `mise run test-postgres` for the PostgreSQL integration test.
 
 ## 📦 Packaging

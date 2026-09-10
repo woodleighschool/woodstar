@@ -17,6 +17,7 @@ import (
 )
 
 type desired struct {
+	targets software.Targets
 	pkg     packages.PackageMutation
 	content bool
 	changes []plugin.Change
@@ -37,6 +38,7 @@ func (remote *client) plan(artifact plugin.Artifact, metadata metadata, observed
 		return result, err
 	}
 	nextSoftware.Normalize(remote.config.Name)
+	result.targets = nextSoftware.Targets
 	if err := nextSoftware.Validate(); err != nil {
 		return result, fmt.Errorf("software: %w", err)
 	}
@@ -68,7 +70,7 @@ func (remote *client) plan(artifact plugin.Artifact, metadata metadata, observed
 	if observed.Package != nil {
 		file = observed.Package.InstallerFile
 	}
-	result.content = file == nil || file.SHA256 != artifact.SHA256 || file.SizeBytes != artifact.Size || file.Filename != artifact.Filename
+	result.content = file == nil || file.SHA256 != artifact.SHA256 || file.SizeBytes != artifact.Size
 	if result.content {
 		change := plugin.Change{Kind: "content", Field: "package.installer", Action: "upload", After: raw(artifact.SHA256)}
 		if file != nil {

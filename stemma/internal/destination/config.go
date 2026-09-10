@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/url"
 	"strings"
 
@@ -31,6 +32,9 @@ type metadata struct {
 	pkg       packages.Patch
 	requires  []munki.PkginfoReference
 	updateFor []munki.PkginfoReference
+	installer plugin.Artifact
+	controls  controls
+	origins   map[string]string
 }
 
 func readRequest(ctx context.Context, request plugin.ReconcileRequest) (config, metadata, error) {
@@ -41,28 +45,50 @@ func readRequest(ctx context.Context, request plugin.ReconcileRequest) (config, 
 	if err := cfg.validate(); err != nil {
 		return cfg, metadata{}, err
 	}
-	data, err := readPkginfo(ctx, request.Artifact)
+	settings, err := decodeControls(request.Metadata)
 	if err != nil {
 		return cfg, metadata{}, err
 	}
-	imported, err := munki.ImportPkginfo(data)
+	if request.Artifact.Format == "json" {
+		document, err := readPkginfo(ctx, request.Artifact)
+		if err != nil {
+			return cfg, metadata{}, err
+		}
+		fields, err := object(document)
+		if err != nil {
+			return cfg, metadata{}, err
+		}
+		overrides, _ := object(settings.Pkginfo)
+		maps.Copy(fields, overrides)
+		settings.Pkginfo = raw(fields)
+		request.Artifact = request.Inputs["installer"]
+		request.Facts = request.Artifact.Facts
+		request.Prepared = true
+		request.Metadata = raw(settings)
+	}
+	values, origins, err := derive(request)
+	if err != nil {
+		return cfg, metadata{}, err
+	}
+	static := !request.Prepared && request.Artifact.Path == ""
+	if static {
+		if _, ok := values["name"]; !ok {
+			values["name"] = "PendingSoftware"
+		}
+		if _, ok := values["version"]; !ok {
+			values["version"] = "0"
+		}
+	}
+	imported, err := munki.ImportPkginfo(raw(values))
 	if err != nil {
 		return cfg, metadata{}, fmt.Errorf("pkginfo: %w", err)
 	}
-	var controls struct {
-		Targets json.RawMessage `json:"targets"`
-	}
-	if len(request.Metadata) > 0 {
-		if err := decode(request.Metadata, &controls); err != nil {
-			return cfg, metadata{}, fmt.Errorf("metadata: %w", err)
-		}
-	}
-	if len(controls.Targets) > 0 {
+	if len(settings.Targets) > 0 {
 		fields, err := object(imported.Software.Bytes())
 		if err != nil {
 			return cfg, metadata{}, err
 		}
-		fields["targets"] = controls.Targets
+		fields["targets"] = settings.Targets
 		if err := json.Unmarshal(raw(fields), &imported.Software); err != nil {
 			return cfg, metadata{}, fmt.Errorf("targets: %w", err)
 		}
@@ -73,24 +99,29 @@ func readRequest(ctx context.Context, request plugin.ReconcileRequest) (config, 
 	}
 	identity.Normalize()
 	cfg.Name, cfg.Version, cfg.InstallerType = imported.Name, identity.Version, string(identity.InstallerType)
-	if err := validateInstaller(ctx, request, &imported, identity.InstallerType); err != nil {
-		return cfg, metadata{}, err
+	if !static {
+		if err := validateInstaller(ctx, request, &imported, identity.InstallerType); err != nil {
+			return cfg, metadata{}, err
+		}
 	}
-	return cfg, metadata{software: imported.Software, pkg: imported.Package, requires: imported.Requires, updateFor: imported.UpdateFor}, nil
+	return cfg, metadata{installer: request.Artifact, controls: settings, origins: origins, software: imported.Software, pkg: imported.Package, requires: imported.Requires, updateFor: imported.UpdateFor}, nil
 }
 
 func validateInstaller(ctx context.Context, request plugin.ReconcileRequest, imported *munki.PkginfoImport, installerType packages.InstallerType) error {
 	if installerType == packages.InstallerTypeNoPkg {
+		if request.Artifact.Path != "" || request.Artifact.SHA256 != "" {
+			return errors.New("nopkg must not include installer content")
+		}
 		fields, _ := object(imported.Package.Bytes())
 		fields["installer_object_id"] = raw(nil)
 		return json.Unmarshal(raw(fields), &imported.Package)
 	}
-	installer, ok := request.Inputs["installer"]
-	if !ok {
-		return errors.New("inputs.installer is required")
+	installer := request.Artifact
+	if installer.Path == "" {
+		return errors.New("installer is required")
 	}
 	if imported.InstallerItemHash != "" && imported.InstallerItemHash != installer.SHA256 {
-		return errors.New("pkginfo installer_item_hash does not match inputs.installer")
+		return errors.New("pkginfo installer_item_hash does not match installer")
 	}
 	if err := verifyArtifact(ctx, installer, nil); err != nil {
 		return fmt.Errorf("installer: %w", err)

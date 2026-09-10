@@ -38,7 +38,7 @@ func TestCompiledPluginReconcilesContentAndPresence(t *testing.T) {
 		t.Fatal(err)
 	}
 	digest := sha256.Sum256(data)
-	request := plugin.ReconcileRequest{Method: "plan", Identity: plugin.Identity{Project: "fixture", Recipe: "Example", Destination: "woodstar"}, Config: raw(map[string]any{"url": server.URL, "api_key": "synthetic-key", "ca_file": caPath}), Inputs: map[string]plugin.Artifact{"installer": {Path: artifactPath, Filename: "Example.pkg", Version: "1.0", Size: int64(len(data)), SHA256: hex.EncodeToString(digest[:])}}}
+	request := plugin.ReconcileRequest{Method: "plan", Identity: plugin.Identity{Project: "fixture", Software: "Example", Destination: "woodstar"}, Config: raw(map[string]any{"url": server.URL, "api_key": "synthetic-key", "ca_file": caPath}), Inputs: map[string]plugin.Artifact{"installer": {Path: artifactPath, Filename: "Example.pkg", Version: "1.0", Size: int64(len(data)), SHA256: hex.EncodeToString(digest[:])}}}
 	setPkginfo(t, &request, `{"name":"Example App","version":"1.0","description":"Managed description","unattended_install":true,"blocking_applications":[],"receipts":[{"packageid":"test.example","version":"1.0"}],"installs":[{"type":"application","path":"/Applications/Example.app","CFBundleIdentifier":"test.example","CFBundleShortVersionString":"1.0"}]}`)
 	described, err := plugin.Run(t.Context(), binary, plugin.Request{Method: "describe"})
 	if err != nil {
@@ -55,7 +55,7 @@ func TestCompiledPluginReconcilesContentAndPresence(t *testing.T) {
 	}
 	t.Run("failed plan retains recovered binding", func(t *testing.T) {
 		invalid := request
-		invalid.Method, invalid.Binding = "plan", nil
+		invalid.Method, invalid.Binding = "plan", request.Binding
 		setPkginfo(t, &invalid, `{"name":"Example App","version":"1.0","uninstallable":true,"uninstall_method":"removepackages","receipts":[]}`)
 		before := state.writes()
 		result, err := runPlugin(t, binary, invalid)
@@ -118,6 +118,7 @@ type apiFixture struct {
 	mu                                                 sync.Mutex
 	origin                                             string
 	software, pkg                                      map[string]any
+	packages                                           map[int64]map[string]any
 	objects                                            map[int64][]byte
 	names                                              map[int64]string
 	createdSoftware, createdPackages, updates, uploads int
@@ -164,7 +165,9 @@ func (fixture *apiFixture) ServeHTTP(response http.ResponseWriter, request *http
 }
 
 func (fixture *apiFixture) setPackage(body map[string]any) {
-	body["id"] = json.Number(strconv.Itoa(fixture.createdPackages))
+	if number(body["id"]) == 0 {
+		body["id"] = json.Number(strconv.Itoa(fixture.createdPackages))
+	}
 	body["software"] = map[string]any{"id": json.Number("1"), "name": fixture.software["name"]}
 	delete(body, "software_id")
 	if id := number(body["installer_object_id"]); id != 0 {
@@ -173,6 +176,10 @@ func (fixture *apiFixture) setPackage(body map[string]any) {
 		body["installer_file"] = map[string]any{"filename": fixture.names[id], "size_bytes": len(content), "sha256": hex.EncodeToString(digest[:])}
 	}
 	fixture.pkg = body
+	if fixture.packages == nil {
+		fixture.packages = map[int64]map[string]any{}
+	}
+	fixture.packages[number(body["id"])] = body
 }
 
 func (fixture *apiFixture) uploadCount() int {
@@ -345,11 +352,19 @@ func checkPluginMetadata(t *testing.T, binary string, state *apiFixture, request
 	if state.uploadCount() != 1 {
 		t.Fatal("metadata edit reuploaded installer")
 	}
-	request.Binding = nil
+	request.Binding = third.Binding
 	setPkginfo(t, request, `{"name":"Example App","version":"1.0","description":null}`)
 	request.Metadata = json.RawMessage(`{"targets":{"include":[]}}`)
-	if _, err := runPlugin(t, binary, *request); err != nil {
+	cleared, err := runPlugin(t, binary, *request)
+	if err != nil {
 		t.Fatal(err)
+	}
+	request.Binding = cleared.Binding
+	lost := *request
+	lost.Binding = nil
+	before := state.writes()
+	if _, err := runPlugin(t, binary, lost); err == nil || state.writes() != before {
+		t.Fatalf("lost binding error=%v writes=%d", err, state.writes())
 	}
 	state.mu.Lock()
 	if state.software["description"] != "" || len(fixtureIncludes(state.software)) != 0 {
@@ -363,19 +378,23 @@ func checkPluginMetadata(t *testing.T, binary string, state *apiFixture, request
 
 func checkPluginRecovery(t *testing.T, binary string, state *apiFixture, request *plugin.ReconcileRequest) {
 	t.Helper()
+	changeInstaller(t, request, "version two installer")
 	setPkginfo(t, request, `{"name":"Example App","version":"2.0"}`)
 	state.mu.Lock()
 	state.dropPackageReply = true
 	state.mu.Unlock()
-	if _, err := runPlugin(t, binary, *request); err != nil {
+	recovered, err := runPlugin(t, binary, *request)
+	if err != nil {
 		t.Fatalf("recover committed package response loss: %v", err)
 	}
+	request.Binding = recovered.Binding
 	if state.packageCount() != 2 {
 		t.Fatalf("ambiguous create duplicated package: %d", state.packageCount())
 	}
 	state.mu.Lock()
 	state.forgeDigest = true
 	state.mu.Unlock()
+	changeInstaller(t, request, "version three installer")
 	setPkginfo(t, request, `{"name":"Example App","version":"3.0"}`)
 	failed, err := runPlugin(t, binary, *request)
 	if err == nil {
@@ -458,18 +477,28 @@ func (fixture *apiFixture) servePackages(response http.ResponseWriter, request *
 	switch {
 	case request.URL.Path == "/api/munki/packages":
 		if request.Method == http.MethodGet {
-			items := []any{}
-			if fixture.pkg != nil && fixture.pkg["version"] == request.URL.Query().Get("q") {
-				items = append(items, fixture.pkg)
+			if request.URL.Query().Get("software_id") != "1" {
+				http.Error(response, "unscoped package read", http.StatusBadRequest)
+				return
 			}
+			items := fixture.packageList(request.URL.Query().Get("q"))
 			write(map[string]any{"items": items, "count": len(items)})
+			return
+		}
+		if request.Method == http.MethodDelete {
+			id, _ := strconv.ParseInt(request.URL.Query().Get("ids"), 10, 64)
+			delete(fixture.packages, id)
+			fixture.updates++
+			response.WriteHeader(http.StatusNoContent)
 			return
 		}
 		if request.Method == http.MethodPost {
 			body := read()
-			if fixture.pkg != nil && fixture.pkg["version"] == body["version"] {
-				http.Error(response, "conflict", http.StatusConflict)
-				return
+			for _, item := range fixture.packages {
+				if item["version"] == body["version"] {
+					http.Error(response, "conflict", http.StatusConflict)
+					return
+				}
 			}
 			fixture.createdPackages++
 			fixture.setPackage(body)
@@ -485,6 +514,8 @@ func (fixture *apiFixture) servePackages(response http.ResponseWriter, request *
 			return
 		}
 	case strings.HasPrefix(request.URL.Path, "/api/munki/packages/"):
+		id, _ := strconv.ParseInt(strings.TrimPrefix(request.URL.Path, "/api/munki/packages/"), 10, 64)
+		fixture.pkg = fixture.packages[id]
 		if fixture.pkg == nil {
 			http.NotFound(response, request)
 			return
@@ -509,4 +540,24 @@ func TestPlanRejectsPaddedArtifactFilename(t *testing.T) {
 	if _, err := remote.plan(artifact, metadata, observation{}); err == nil {
 		t.Fatal("accepted a filename that changes during upload")
 	}
+}
+
+func changeInstaller(t *testing.T, request *plugin.ReconcileRequest, body string) {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "Example.pkg")
+	if err := os.WriteFile(path, []byte(body), 0o400); err != nil {
+		t.Fatal(err)
+	}
+	hash := sha256.Sum256([]byte(body))
+	request.Inputs["installer"] = plugin.Artifact{Path: path, Filename: "Example.pkg", Format: "pkg", Size: int64(len(body)), SHA256: hex.EncodeToString(hash[:])}
+}
+
+func (fixture *apiFixture) packageList(query string) []any {
+	items := []any{}
+	for _, item := range fixture.packages {
+		if query == "" || item["version"] == query {
+			items = append(items, item)
+		}
+	}
+	return items
 }

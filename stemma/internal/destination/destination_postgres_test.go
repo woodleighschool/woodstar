@@ -92,7 +92,7 @@ func TestStemmaAdapterPostgresLifecycle(t *testing.T) { //nolint:funlen,gocognit
 		t.Fatal(err)
 	}
 	request := plugin.ReconcileRequest{
-		Identity: plugin.Identity{Project: "adapter-test", Recipe: "AdapterApp", Destination: "woodstar"},
+		Identity: plugin.Identity{Project: "adapter-test", Software: "AdapterApp", Destination: "woodstar"},
 		Config:   connection,
 		Metadata: json.RawMessage(fmt.Sprintf(`{"targets":{"include":[{"label_id":%d,"package":{"strategy":"latest"},"actions":["managed_installs"]}],"exclude":[{"label_id":%d}]}}`, included.ID, excluded.ID)),
 	}
@@ -228,7 +228,11 @@ func TestStemmaAdapterPostgresLifecycle(t *testing.T) { //nolint:funlen,gocognit
 	}
 	assertConverged()
 	request.Binding = nil
-	assertConverged()
+	before = writes.Load()
+	request.Method = "apply"
+	if _, err := Handle(ctx, request); err == nil || writes.Load() != before {
+		t.Fatalf("lost binding error=%v writes=%d", err, writes.Load())
+	}
 }
 
 type testAuthorizer struct{}
