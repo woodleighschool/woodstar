@@ -5,6 +5,7 @@ go 1.27.0
 require (
 	github.com/danielgtaylor/huma/v2 v2.39.1
 	github.com/go-chi/chi/v5 v5.3.2
+	github.com/invopop/jsonschema v0.14.0
 	github.com/woodleighschool/goodies/auth v1.0.0
 	github.com/woodleighschool/stemma v0.1.1-0.20260906131511-87cbf9153f06
 	github.com/woodleighschool/woodstar v0.0.0
@@ -32,6 +33,8 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.42.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.49.0 // indirect
 	github.com/aws/smithy-go v1.28.1 // indirect
+	github.com/bahlo/generic-list-go v0.2.0 // indirect
+	github.com/buger/jsonparser v1.6.1 // indirect
 	github.com/caarlos0/env/v11 v11.4.1 // indirect
 	github.com/coreos/go-oidc/v3 v3.21.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.15 // indirect
@@ -46,6 +49,7 @@ require (
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/leodido/go-urn v1.5.0 // indirect
 	github.com/mfridman/interpolate v0.0.2 // indirect
+	github.com/pb33f/ordered-map/v2 v2.3.1 // indirect
 	github.com/pressly/goose/v3 v3.28.0 // indirect
 	github.com/riverqueue/river v0.47.0 // indirect
 	github.com/riverqueue/river/riverdriver v0.47.0 // indirect
@@ -58,6 +62,7 @@ require (
 	github.com/woodleighschool/goodies/bloby v1.0.0 // indirect
 	github.com/woodleighschool/goodies/pglock v0.1.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
+	go.yaml.in/yaml/v4 v4.0.0-rc.6 // indirect
 	golang.org/x/crypto v0.56.0 // indirect
 	golang.org/x/net v0.58.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect

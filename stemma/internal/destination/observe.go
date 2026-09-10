@@ -17,11 +17,15 @@ import (
 )
 
 type binding struct {
-	URL        string `json:"url"`
-	Name       string `json:"name"`
-	SoftwareID int64  `json:"software_id"`
-	PackageID  int64  `json:"package_id,omitempty"`
-	Version    string `json:"version,omitempty"`
+	URL          string                 `json:"url"`
+	Name         string                 `json:"name"`
+	SoftwareID   int64                  `json:"software_id"`
+	PackageID    int64                  `json:"package_id,omitempty"`
+	Version      string                 `json:"version,omitempty"`
+	Packages     map[string]publication `json:"packages,omitempty"`
+	Publications plugin.Publications    `json:"publications"`
+	Upload       *pendingUpload         `json:"upload,omitempty"`
+	Creating     bool                   `json:"creating,omitempty"`
 }
 
 type softwareDetail struct {
@@ -35,38 +39,72 @@ type observation struct {
 	Package  *packages.Package
 }
 
+type publication struct {
+	ID      int64    `json:"id"`
+	Version string   `json:"version"`
+	SHA256  string   `json:"sha256,omitempty"`
+	Derived []string `json:"derived,omitempty"`
+}
+
+type pendingUpload struct {
+	ObjectID int64  `json:"object_id"`
+	SHA256   string `json:"sha256"`
+	Size     int64  `json:"size"`
+	Complete bool   `json:"complete"`
+}
+
 func (remote *client) observe(ctx context.Context, rawBinding json.RawMessage) (observation, error) {
-	var saved binding
 	if len(rawBinding) != 0 && strings.TrimSpace(string(rawBinding)) != "null" {
-		if err := decode(rawBinding, &saved); err != nil {
+		if err := decode(rawBinding, &remote.state); err != nil {
 			return observation{}, fmt.Errorf("binding: %w", err)
 		}
-		if saved.Name != remote.config.Name || strings.TrimRight(saved.URL, "/") != strings.TrimRight(remote.config.URL, "/") {
-			return observation{}, errors.New("binding belongs to another origin or software name")
-		}
+	}
+	saved := &remote.state
+	if saved.Creating {
+		return observation{}, errors.New("prior create has an uncertain result; restore its durable binding before retrying")
+	}
+	if saved.Name != "" && (saved.Name != remote.config.Name || strings.TrimRight(saved.URL, "/") != strings.TrimRight(remote.config.URL, "/")) {
+		return observation{}, errors.New("binding belongs to another origin or software name")
+	}
+	saved.Name, saved.URL = remote.config.Name, strings.TrimRight(remote.config.URL, "/")
+	if saved.Packages == nil {
+		saved.Packages = map[string]publication{}
 	}
 	found, err := remote.findSoftware(ctx, saved.SoftwareID, remote.config.Name)
 	if err != nil || found == nil {
 		return observation{}, err
 	}
+	if saved.SoftwareID == 0 {
+		return observation{}, errors.New("software exists without a durable binding; restore its binding before publishing")
+	}
 	result := observation{Software: found}
-	items, err := list[packages.Package](ctx, remote, "/api/munki/packages", url.Values{"q": {remote.config.Version}, "software_id": {strconv.FormatInt(found.ID, 10)}})
+	owned, known := saved.Packages[remote.fingerprint]
+	items, err := list[packages.Package](ctx, remote, "/api/munki/packages", url.Values{"software_id": {strconv.FormatInt(found.ID, 10)}})
 	if err != nil {
 		return result, err
 	}
 	for _, item := range items {
-		if item.Version != remote.config.Version || item.Software.ID != found.ID {
-			continue
+		if item.Software.ID != found.ID {
+			return result, errors.New("package discovery escaped its software scope")
 		}
-		if result.Package != nil {
-			return result, errors.New("ambiguous package discovery")
+		if known && item.ID == owned.ID {
+			result.Package = &item
 		}
-		result.Package = &item
+		if item.Version == remote.config.Version && (!known || item.ID != owned.ID) {
+			return result, errors.New("native package version exists without the expected owned payload binding")
+		}
+	}
+	if known && result.Package == nil {
+		return result, errors.New("bound package no longer exists")
 	}
 	if result.Package != nil {
 		endpoint := "/api/munki/packages/" + strconv.FormatInt(result.Package.ID, 10)
 		if err := remote.request(ctx, http.MethodGet, endpoint, nil, &result.Package); err != nil {
 			return result, err
+		}
+		pkg := result.Package
+		if !owned.matches(*pkg, found.ID) {
+			return result, errors.New("bound package no longer matches its owned identity and payload")
 		}
 	}
 	return result, nil
@@ -82,10 +120,7 @@ func (remote *client) findSoftware(ctx context.Context, id int64, name string) (
 			}
 			return &found, nil
 		}
-		var status httpError
-		if !errors.As(err, &status) || status.status != http.StatusNotFound {
-			return nil, err
-		}
+		return nil, err
 	}
 	items, err := list[software.Software](ctx, remote, "/api/munki/software", url.Values{"q": {name}})
 	if err != nil {
@@ -141,13 +176,15 @@ func list[T any](ctx context.Context, remote *client, endpoint string, query url
 }
 
 func (remote *client) response(observed observation, changes []plugin.Change) plugin.ReconcileResponse {
-	response := plugin.ReconcileResponse{Changes: changes}
 	if observed.Software != nil {
-		saved := binding{URL: strings.TrimRight(remote.config.URL, "/"), Name: remote.config.Name, SoftwareID: observed.Software.ID, Version: remote.config.Version}
-		if observed.Package != nil {
-			saved.PackageID = observed.Package.ID
-		}
-		response.Binding = raw(saved)
+		remote.state.SoftwareID = observed.Software.ID
 	}
-	return response
+	if observed.Package != nil {
+		remote.state.PackageID, remote.state.Version = observed.Package.ID, observed.Package.Version
+	}
+	return plugin.ReconcileResponse{Changes: changes, Binding: raw(remote.state), Origins: remote.origins}
+}
+
+func (p publication) matches(pkg packages.Package, softwareID int64) bool {
+	return pkg.ID == p.ID && pkg.Software.ID == softwareID && pkg.Version == p.Version && (p.SHA256 == "" || pkg.InstallerFile != nil && pkg.InstallerFile.SHA256 == p.SHA256)
 }

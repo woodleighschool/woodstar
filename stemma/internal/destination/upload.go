@@ -19,6 +19,9 @@ import (
 )
 
 func (remote *client) upload(ctx context.Context, artifact plugin.Artifact) (int64, error) {
+	if id, err := remote.resumeUpload(ctx, artifact); id != 0 || err != nil {
+		return id, err
+	}
 	if !filepath.IsAbs(artifact.Path) {
 		return 0, errors.New("artifact path must be an absolute leased path")
 	}
@@ -52,10 +55,13 @@ func (remote *client) upload(ctx context.Context, artifact plugin.Artifact) (int
 		return 0, errors.New("upload reservation has no object id")
 	}
 	endpoint := "/api/munki/package-installers/" + strconv.FormatInt(upload.ObjectID, 10)
+	remote.state.Upload = &pendingUpload{ObjectID: upload.ObjectID, SHA256: artifact.SHA256, Size: artifact.Size}
+	finalizationStarted := false
 	finalizedSuccessfully := false
 	defer func() {
-		if !finalizedSuccessfully {
+		if !finalizedSuccessfully && !finalizationStarted {
 			remote.cleanupUpload(ctx, upload.ObjectID)
+			remote.state.Upload = nil
 		}
 	}()
 	switch upload.Upload.Strategy {
@@ -70,19 +76,29 @@ func (remote *client) upload(ctx context.Context, artifact plugin.Artifact) (int
 	default:
 		return 0, errors.New("unsupported installer upload strategy")
 	}
+	finalizationStarted = true
+	if err := remote.finalizeUpload(ctx, artifact, upload.ObjectID); err != nil {
+		return 0, err
+	}
+	finalizedSuccessfully = true
+	remote.state.Upload.Complete = true
+	return upload.ObjectID, nil
+}
+
+func (remote *client) finalizeUpload(ctx context.Context, artifact plugin.Artifact, objectID int64) error {
 	var finalized struct {
 		ID        int64  `json:"id"`
 		SHA256    string `json:"sha256"`
 		SizeBytes int64  `json:"size_bytes"`
 	}
+	endpoint := "/api/munki/package-installers/" + strconv.FormatInt(objectID, 10)
 	if err := remote.request(ctx, http.MethodPut, endpoint, nil, &finalized); err != nil {
-		return 0, err
+		return err
 	}
-	if finalized.ID != upload.ObjectID || finalized.SHA256 != artifact.SHA256 || finalized.SizeBytes != artifact.Size {
-		return 0, errors.New("finalized installer does not match the prepared content")
+	if finalized.ID != objectID || finalized.SHA256 != artifact.SHA256 || finalized.SizeBytes != artifact.Size {
+		return errors.New("finalized installer does not match the prepared content")
 	}
-	finalizedSuccessfully = true
-	return finalized.ID, nil
+	return nil
 }
 
 func (remote *client) uploadMultipart(ctx context.Context, endpoint string, file *os.File, size int64) error {
@@ -140,4 +156,27 @@ func (remote *client) cleanupUpload(ctx context.Context, objectID int64) {
 	cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
 	defer cancel()
 	_ = remote.request(cleanup, http.MethodDelete, "/api/munki/package-installers/"+strconv.FormatInt(objectID, 10), nil, nil)
+}
+
+func (remote *client) resumeUpload(ctx context.Context, artifact plugin.Artifact) (int64, error) {
+	if pending := remote.state.Upload; pending != nil {
+		if pending.SHA256 != artifact.SHA256 || pending.Size != artifact.Size {
+			return 0, errors.New("pending installer belongs to different content; finish its publication first")
+		}
+		if pending.Complete {
+			return pending.ObjectID, nil
+		}
+		err := remote.finalizeUpload(ctx, artifact, pending.ObjectID)
+		if err == nil {
+			pending.Complete = true
+			return pending.ObjectID, nil
+		}
+		var status httpError
+		if !errors.As(err, &status) || (status.status != http.StatusBadRequest && status.status != http.StatusNotFound) {
+			return 0, err
+		}
+		remote.cleanupUpload(ctx, pending.ObjectID)
+		remote.state.Upload = nil
+	}
+	return 0, nil
 }

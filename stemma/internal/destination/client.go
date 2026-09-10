@@ -17,9 +17,12 @@ import (
 )
 
 type client struct {
-	config   config
-	api      *resty.Client
-	transfer *resty.Client
+	state       binding
+	fingerprint string
+	origins     map[string]string
+	config      config
+	api         *resty.Client
+	transfer    *resty.Client
 }
 
 func newClient(cfg config) (*client, error) {
