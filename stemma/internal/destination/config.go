@@ -32,6 +32,7 @@ type metadata struct {
 	pkg       packages.Patch
 	requires  []munki.PkginfoReference
 	updateFor []munki.PkginfoReference
+	icon      plugin.Artifact
 	installer plugin.Artifact
 	controls  controls
 	origins   map[string]string
@@ -79,19 +80,9 @@ func readRequest(ctx context.Context, request plugin.ReconcileRequest) (config, 
 			values["version"] = "0"
 		}
 	}
-	imported, err := munki.ImportPkginfo(raw(values))
+	imported, err := importPkginfo(values, settings.Targets)
 	if err != nil {
-		return cfg, metadata{}, fmt.Errorf("pkginfo: %w", err)
-	}
-	if len(settings.Targets) > 0 {
-		fields, err := object(imported.Software.Bytes())
-		if err != nil {
-			return cfg, metadata{}, err
-		}
-		fields["targets"] = settings.Targets
-		if err := json.Unmarshal(raw(fields), &imported.Software); err != nil {
-			return cfg, metadata{}, fmt.Errorf("targets: %w", err)
-		}
+		return cfg, metadata{}, err
 	}
 	identity, err := imported.Package.Apply(packages.PackageMutation{})
 	if err != nil {
@@ -104,7 +95,14 @@ func readRequest(ctx context.Context, request plugin.ReconcileRequest) (config, 
 			return cfg, metadata{}, err
 		}
 	}
-	return cfg, metadata{installer: request.Artifact, controls: settings, origins: origins, software: imported.Software, pkg: imported.Package, requires: imported.Requires, updateFor: imported.UpdateFor}, nil
+	icon := request.Inputs["icon"]
+	if !static && icon.Path != "" {
+		if err := validateIcon(ctx, icon); err != nil {
+			return cfg, metadata{}, fmt.Errorf("icon: %w", err)
+		}
+		origins["software.icon"] = "input.icon"
+	}
+	return cfg, metadata{icon: icon, installer: request.Artifact, controls: settings, origins: origins, software: imported.Software, pkg: imported.Package, requires: imported.Requires, updateFor: imported.UpdateFor}, nil
 }
 
 func validateInstaller(ctx context.Context, request plugin.ReconcileRequest, imported *munki.PkginfoImport, installerType packages.InstallerType) error {
@@ -170,4 +168,22 @@ func decode(data json.RawMessage, target any) error {
 func raw(value any) json.RawMessage {
 	data, _ := json.Marshal(value)
 	return data
+}
+
+func importPkginfo(values map[string]any, targets json.RawMessage) (munki.PkginfoImport, error) {
+	imported, err := munki.ImportPkginfo(raw(values))
+	if err != nil {
+		return munki.PkginfoImport{}, fmt.Errorf("pkginfo: %w", err)
+	}
+	if len(targets) > 0 {
+		fields, err := object(imported.Software.Bytes())
+		if err != nil {
+			return munki.PkginfoImport{}, err
+		}
+		fields["targets"] = targets
+		if err := json.Unmarshal(raw(fields), &imported.Software); err != nil {
+			return munki.PkginfoImport{}, fmt.Errorf("targets: %w", err)
+		}
+	}
+	return imported, nil
 }

@@ -24,6 +24,7 @@ type binding struct {
 	Version      string                 `json:"version,omitempty"`
 	Packages     map[string]publication `json:"packages,omitempty"`
 	Publications plugin.Publications    `json:"publications"`
+	Icon         *pendingUpload         `json:"icon,omitempty"`
 	Upload       *pendingUpload         `json:"upload,omitempty"`
 	Creating     bool                   `json:"creating,omitempty"`
 }

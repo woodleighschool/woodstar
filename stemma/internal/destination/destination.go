@@ -44,6 +44,9 @@ func Handle(ctx context.Context, request plugin.ReconcileRequest) (plugin.Reconc
 	if err := remote.resolveReferences(ctx, &metadata); err != nil {
 		return remote.response(observed, nil), err
 	}
+	if err := remote.manageIcon(&metadata, observed); err != nil {
+		return remote.response(observed, nil), err
+	}
 	if err := remote.manageDerived(&metadata); err != nil {
 		return remote.response(observed, nil), err
 	}
@@ -58,6 +61,9 @@ func Handle(ctx context.Context, request plugin.ReconcileRequest) (plugin.Reconc
 		}
 	}
 	if request.Method == "apply" {
+		if metadata.icon.Path == "" && (remote.state.Icon == nil || remote.state.Icon.Complete) {
+			remote.state.Icon = nil
+		}
 		remote.recordPackage(metadata, observed.Package)
 		remote.state.Publications.Record(remote.fingerprint)
 	}
@@ -94,6 +100,11 @@ func (remote *client) apply(ctx context.Context, artifact plugin.Artifact, metad
 	}
 	if changed(plan.changes, "software") {
 		if err := remote.saveSoftware(ctx, artifact, metadata, observed); err != nil {
+			return err
+		}
+	}
+	if plan.icon {
+		if err := remote.saveIcon(ctx, metadata.icon, observed); err != nil {
 			return err
 		}
 	}

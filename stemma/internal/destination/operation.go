@@ -14,6 +14,7 @@ func Register(registry *plugin.Registry) error {
 	return registry.Register(plugin.Operation{
 		Name: "woodstar.munki", Kind: "reconcile", SideEffects: "remote", Methods: []string{"validate", "plan", "apply"},
 		RequiresInspection: true,
+		Content:            &plugin.ContentContract{Formats: []string{"pkg", "dmg"}, SourceFree: true},
 		ConfigSchema:       json.RawMessage(`{"type":"object","properties":{"url":{"type":"string","pattern":"^https://"},"api_key":{"type":"string","minLength":1,"writeOnly":true},"ca_file":{"type":"string"}},"required":["url","api_key"],"additionalProperties":false}`),
 		MetadataSchema:     raw(metadataSchema()),
 		InputSchema:        raw(reflector.Reflect(plugin.ReconcileRequest{})),
