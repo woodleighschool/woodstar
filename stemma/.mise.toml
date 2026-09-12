@@ -31,7 +31,7 @@ run = "go mod download"
 
 [tasks.build]
 description = "Build the Stemma destination"
-run = "go build -trimpath -o build/stemma-woodstar ./cmd/stemma-woodstar"
+run = "go build -trimpath -o build/plugin ./cmd/plugin"
 
 [tasks.test]
 description = "Run Stemma destination checks"

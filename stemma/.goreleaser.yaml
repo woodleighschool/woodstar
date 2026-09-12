@@ -1,15 +1,17 @@
 ---
 # yaml-language-server: $schema=https://goreleaser.com/static/schema.json
 version: 2
-project_name: stemma-woodstar
+project_name: stemma
 
 before:
   hooks:
     - mise run //stemma:tidy-check
+    - mkdir -p build
+    - cp ../LICENSE build/LICENSE
 
 builds:
-  - id: stemma-woodstar
-    main: ./cmd/stemma-woodstar
+  - id: plugin
+    main: ./cmd/plugin
     binary: plugin
     env:
       - CGO_ENABLED=0
@@ -30,7 +32,7 @@ builds:
 archives:
   - id: plugin
     ids:
-      - stemma-woodstar
+      - plugin
     formats:
       - tar.zst
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
@@ -39,7 +41,7 @@ archives:
       group: root
       mtime: "1970-01-01T00:00:00Z"
     files:
-      - src: LICENSE
+      - src: build/LICENSE
         strip_parent: true
         info:
           owner: root
@@ -49,7 +51,8 @@ archives:
 
 publishers:
   - name: oci
-    ids: [plugin]
+    ids:
+      - plugin
     dir: "{{ dir .ArtifactPath }}"
     cmd: >-
       oras push ghcr.io/woodleighschool/woodstar/stemma:{{ .Tag }}-{{ .Os }}-{{ .Arch }}
