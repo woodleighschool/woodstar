@@ -175,12 +175,14 @@ stemma plugins install
 stemma operations --offline
 stemma validate --offline
 stemma update
-stemma prepare --frozen-lockfile
-stemma plan --frozen-lockfile
-stemma apply --frozen-lockfile
+stemma prepare
+stemma plan
+stemma apply
 ```
 
-`plugins install` locks the release index and fetches the runner's bundle. `validate` checks configuration and plugin contracts before acquisition. `update` records reviewed source identities in `stemma.lock.yaml`; `prepare` acquires and inspects those inputs. `plan` reads remote state, and `apply` publishes changed content, metadata, and supplied targets. Metadata edits reuse cached acquisition and installer preparation.
+`plugins install` locks the release index and fetches the runner's bundle. `validate` checks configuration and plugin contracts before acquisition. `prepare` records new inputs and local changes, reuses existing remote pins, and prepares installers. `update` explicitly refreshes upstream sources. `plan` and `apply` require reviewed locks; `plan` reads remote state, and `apply` publishes changed content, metadata, and supplied targets. Metadata edits reuse cached acquisition and installer preparation.
+
+Stages and diagnostics go to stderr, including the plugin's upload, publication, and verification stages. Terminals show live progress; CI and redirected output use ordinary lines. `--verbose` (`-v`) enables debug diagnostics, `--quiet` (`-q`) keeps warnings and errors, and `--log-level debug|info|warn|error` selects an explicit threshold. `--no-progress` disables animation. Use `--output json` for the final stdout report and `--log-format json` for structured stderr logs. Log levels leave reports intact.
 
 Generate a project editor schema with `stemma schema --project --offline` for field validation and help from the configured plugins.
 

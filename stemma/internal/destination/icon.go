@@ -38,6 +38,7 @@ func (remote *client) manageIcon(metadata *metadata, observed observation) error
 }
 
 func (remote *client) saveIcon(ctx context.Context, artifact plugin.Artifact, observed *observation) error {
+	plugin.Stage(ctx, "Publishing icon")
 	var data bytes.Buffer
 	if err := verifyArtifact(ctx, artifact, &data); err != nil {
 		return fmt.Errorf("icon: %w", err)

@@ -37,6 +37,7 @@ func Handle(ctx context.Context, request plugin.ReconcileRequest) (plugin.Reconc
 	if cfg.InstallerType == "nopkg" {
 		remote.fingerprint = "nopkg:" + cfg.Version
 	}
+	plugin.Stage(ctx, "Observing destination")
 	observed, err := remote.observe(ctx, request.Binding)
 	if err != nil {
 		return remote.response(observed, nil), err
@@ -108,6 +109,7 @@ func (remote *client) apply(ctx context.Context, artifact plugin.Artifact, metad
 			return err
 		}
 	}
+	plugin.Stage(ctx, "Verifying publication")
 	readback, err := remote.observe(ctx, nil)
 	if err != nil {
 		return err
@@ -143,6 +145,7 @@ func (remote *client) createSoftware(ctx context.Context, observed *observation)
 }
 
 func (remote *client) savePackage(ctx context.Context, artifact plugin.Artifact, metadata metadata, plan desired, objectID int64, observed *observation) error {
+	plugin.Stage(ctx, "Saving package")
 	method, endpoint := http.MethodPost, "/api/munki/packages"
 	var body any
 	if observed.Package == nil {
@@ -220,6 +223,7 @@ func (remote *client) recoverPackage(ctx context.Context, observed *observation,
 }
 
 func (remote *client) saveSoftware(ctx context.Context, artifact plugin.Artifact, metadata metadata, observed *observation) error {
+	plugin.Stage(ctx, "Saving software")
 	var saved softwareDetail
 	endpoint := "/api/munki/software/" + strconv.FormatInt(observed.Software.ID, 10)
 	if err := remote.request(ctx, http.MethodPatch, endpoint, metadata.software, &saved); err != nil {

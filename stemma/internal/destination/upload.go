@@ -19,6 +19,7 @@ import (
 )
 
 func (remote *client) upload(ctx context.Context, artifact plugin.Artifact) (int64, error) {
+	plugin.Stage(ctx, "Uploading installer")
 	if id, err := remote.resumeUpload(ctx, artifact); id != 0 || err != nil {
 		return id, err
 	}
@@ -86,6 +87,7 @@ func (remote *client) upload(ctx context.Context, artifact plugin.Artifact) (int
 }
 
 func (remote *client) finalizeUpload(ctx context.Context, artifact plugin.Artifact, objectID int64) error {
+	plugin.Stage(ctx, "Finalizing upload")
 	var finalized struct {
 		ID        int64  `json:"id"`
 		SHA256    string `json:"sha256"`
