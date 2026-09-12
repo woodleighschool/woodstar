@@ -137,12 +137,9 @@ func derive(request plugin.ReconcileRequest) (map[string]any, map[string]string,
 		facts = request.Artifact.Facts
 	}
 	versions := d.receipts(facts, kind)
-	selected, versionKey, architectures, err := macEvidence(request.Artifact)
+	selected, versionKey, err := macEvidence(request.Artifact)
 	if err != nil {
 		return nil, nil, err
-	}
-	if len(architectures) > 0 {
-		d.put("supported_architectures", architectures, "macos.arch")
 	}
 	options := metadata.Derive.App
 	if options != nil || selected == nil {
