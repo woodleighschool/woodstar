@@ -230,9 +230,9 @@ func number(value any) int64 {
 
 func buildPlugin(t *testing.T) string {
 	t.Helper()
-	binary := filepath.Join(t.TempDir(), "stemma-woodstar")
+	binary := filepath.Join(t.TempDir(), "plugin")
 	// #nosec G204 -- Builds a fixed package into a test-owned temporary path.
-	command := exec.CommandContext(t.Context(), "go", "build", "-o", binary, "../../cmd/stemma-woodstar")
+	command := exec.CommandContext(t.Context(), "go", "build", "-o", binary, "../../cmd/plugin")
 	if output, err := command.CombinedOutput(); err != nil {
 		t.Fatalf("build plugin: %v\n%s", err, output)
 	}

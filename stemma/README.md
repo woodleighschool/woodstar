@@ -1,4 +1,4 @@
-# stemma-woodstar 🌿
+# Stemma plugin 🌿
 
 Publish installers and native Munki settings through the administrative API.
 
@@ -19,9 +19,6 @@ succeeds and preserves pinned or referenced packages.
 
 ## 🧑‍💻 Development
 
-Develop unpublished SDK changes in a Go workspace containing this module, the
-parent server module, and the Stemma checkout.
-
 Run from this directory:
 
 ```sh
@@ -31,7 +28,7 @@ mise run test
 mise run lint
 ```
 
-The binary is written to `build/stemma-woodstar`. This directory is a separate Go
+The binary is written to `build/plugin`. This directory is a separate Go
 module using the server models from the parent checkout and Stemma's public
 `plugin` SDK. The operation advertises `ConfigSchema`, `MetadataSchema`, and
 `RequiresInspection`; Stemma discovers the contract through the trusted plugin.
@@ -48,4 +45,4 @@ Stemma’s OCI artifact contract. The release workflow publishes one platform in
 under the release tag after every bundle succeeds. Registry authentication uses
 the standard credential store; no container runtime is required.
 
-Run `mise run snapshot` to build and inspect all bundles locally without publishing.
+Run `mise run snapshot` to build all release bundles locally.
