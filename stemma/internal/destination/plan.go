@@ -19,6 +19,7 @@ import (
 type desired struct {
 	targets software.Targets
 	pkg     packages.PackageMutation
+	icon    bool
 	content bool
 	changes []plugin.Change
 }
@@ -60,6 +61,12 @@ func (remote *client) plan(artifact plugin.Artifact, metadata metadata, observed
 	}
 	result.changes = append(result.changes, diff("software", currentSoftware, nextSoftware)...)
 	result.changes = append(result.changes, diff("package", currentPackage, result.pkg)...)
+	if metadata.icon.Path != "" {
+		result.icon = observed.Software == nil || observed.Software.IconFile == nil || observed.Software.IconFile.SHA256 != metadata.icon.SHA256 || observed.Software.IconFile.SizeBytes != metadata.icon.Size
+		if result.icon {
+			result.changes = append(result.changes, plugin.Change{Kind: "content", Field: "software.icon", Action: "upload", After: raw(metadata.icon.SHA256)})
+		}
+	}
 	if result.pkg.InstallerType == packages.InstallerTypeNoPkg {
 		return result, nil
 	}

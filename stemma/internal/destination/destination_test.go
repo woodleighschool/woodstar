@@ -123,6 +123,7 @@ type apiFixture struct {
 	names                                              map[int64]string
 	createdSoftware, createdPackages, updates, uploads int
 	dropPackageReply, forgeDigest                      bool
+	dropIconReply                                      bool
 }
 
 func (fixture *apiFixture) writes() int {
@@ -157,7 +158,7 @@ func (fixture *apiFixture) ServeHTTP(response http.ResponseWriter, request *http
 		fixture.serveSoftware(response, request, read, write)
 		return
 	}
-	if strings.HasPrefix(request.URL.Path, "/api/munki/package-installers") {
+	if strings.HasPrefix(request.URL.Path, "/api/munki/package-installers") || request.URL.Path == "/api/munki/icons" {
 		fixture.serveUpload(response, request, read, write)
 		return
 	}
@@ -260,13 +261,40 @@ func (fixture *apiFixture) serveSoftware(response http.ResponseWriter, request *
 			write(fixture.software)
 			return
 		}
+	case "/api/munki/software/1/icon":
+		if request.Method != http.MethodPut || fixture.software == nil {
+			http.NotFound(response, request)
+			return
+		}
+		body := read()
+		id := number(body["object_id"])
+		content, exists := fixture.objects[id]
+		if !exists {
+			http.Error(response, "missing bytes", http.StatusBadRequest)
+			return
+		}
+		digest := sha256.Sum256(content)
+		hash := hex.EncodeToString(digest[:])
+		fixture.software["icon_object_id"] = json.Number(strconv.FormatInt(id, 10))
+		fixture.software["icon_file"] = map[string]any{"filename": fixture.names[id], "sha256": hash, "size_bytes": len(content)}
+		if fixture.dropIconReply {
+			http.Error(response, "lost reply", http.StatusInternalServerError)
+			return
+		}
+		write(map[string]any{"id": id, "sha256": hash, "size_bytes": len(content)})
+		return
 	case "/api/munki/software/1":
 		if fixture.software == nil {
 			http.NotFound(response, request)
 			return
 		}
 		if request.Method == http.MethodPatch {
-			fixture.software = mergeFixture(fixture.software, read())
+			body := read()
+			fixture.software = mergeFixture(fixture.software, body)
+			if value, exists := body["icon_object_id"]; exists && value == nil {
+				delete(fixture.software, "icon_file")
+				delete(fixture.software, "icon_object_id")
+			}
 			fixture.updates++
 		}
 		write(fixture.software)
@@ -452,7 +480,7 @@ func TestValidationVerifiesBothLeasedArtifacts(t *testing.T) {
 
 func (fixture *apiFixture) serveUpload(response http.ResponseWriter, request *http.Request, read func() map[string]any, write func(any)) {
 	switch {
-	case request.URL.Path == "/api/munki/package-installers" && request.Method == http.MethodPost:
+	case (request.URL.Path == "/api/munki/package-installers" || request.URL.Path == "/api/munki/icons") && request.Method == http.MethodPost:
 		body := read()
 		fixture.uploads++
 		id := int64(fixture.uploads)
