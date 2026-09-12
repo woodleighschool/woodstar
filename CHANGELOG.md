@@ -1,5 +1,66 @@
 # Changelog
 
+## [0.10.0](https://github.com/woodleighschool/woodstar/compare/0.9.7...0.10.0) (2026-09-12)
+
+
+### ⚠ BREAKING CHANGES
+
+* **auth:** replace role checks with resource permissions ([#313](https://github.com/woodleighschool/woodstar/issues/313))
+* **storage:** adopt Bloby ([#320](https://github.com/woodleighschool/woodstar/issues/320))
+
+### Features
+
+* **auth:** replace role checks with resource permissions ([#313](https://github.com/woodleighschool/woodstar/issues/313)) ([d3a7d50](https://github.com/woodleighschool/woodstar/commit/d3a7d50be24062a882f16746a5e209b0034060aa))
+* **go:** update module github.com/jackc/pgx/v5 (v5.10.0 → v5.11.0) ([#347](https://github.com/woodleighschool/woodstar/issues/347)) ([3876586](https://github.com/woodleighschool/woodstar/commit/3876586ef69cdbd67f55b9b0c9f6722130c3a64b))
+* **go:** update module github.com/oschwald/geoip2-golang/v2 (v2.3.0 → v2.4.0) ([#344](https://github.com/woodleighschool/woodstar/issues/344)) ([6035a0e](https://github.com/woodleighschool/woodstar/commit/6035a0e5546261060f66390ff0c58d284d6a5527))
+* **go:** update module golang.org/x/term (v0.45.0 → v0.46.0) ([#350](https://github.com/woodleighschool/woodstar/issues/350)) ([a37cca1](https://github.com/woodleighschool/woodstar/commit/a37cca1fb406b8271dc63e7eefb06d0454eee9e9))
+* **go:** update module golang.org/x/text (v0.41.0 → v0.42.0) ([#351](https://github.com/woodleighschool/woodstar/issues/351)) ([90c0b94](https://github.com/woodleighschool/woodstar/commit/90c0b9409b01cb085b3ef1c714919137cdb50b27))
+* **npm:** update dependency @base-ui/react (1.7.0 → 1.8.0) ([#338](https://github.com/woodleighschool/woodstar/issues/338)) ([4d6d257](https://github.com/woodleighschool/woodstar/commit/4d6d25743145d5d38bc298a0cc2348dfce3d83d3))
+* **npm:** update dependency @types/node (26.4.1 → 26.5.0) ([#348](https://github.com/woodleighschool/woodstar/issues/348)) ([576f6be](https://github.com/woodleighschool/woodstar/commit/576f6be5f205a77fd36011b62a0ff672a5f23f6a))
+* **npm:** update dependency docusaurus-plugin-llms (0.5.1 → 0.6.0) ([#317](https://github.com/woodleighschool/woodstar/issues/317)) ([4622ff2](https://github.com/woodleighschool/woodstar/commit/4622ff25376b2f15ba923c4abe42af9c9499b032))
+* **npm:** update dependency lucide-react (1.40.0 → 1.42.0) ([#339](https://github.com/woodleighschool/woodstar/issues/339)) ([ce5be3b](https://github.com/woodleighschool/woodstar/commit/ce5be3b621d40f44e31948ad379470c33ce5e44e))
+* **npm:** update dependency lucide-react (1.42.0 → 1.43.0) ([#352](https://github.com/woodleighschool/woodstar/issues/352)) ([32b94a7](https://github.com/woodleighschool/woodstar/commit/32b94a79b46e02c9b98a4a9d25e1e5dad0a2e564))
+* **npm:** update dependency oxlint (1.81.0 → 1.82.0) ([#349](https://github.com/woodleighschool/woodstar/issues/349)) ([f2bc896](https://github.com/woodleighschool/woodstar/commit/f2bc896c5513ee119b97c8bb3456853d7873e3ef))
+* **npm:** update dependency shadcn (4.20.1 → 4.21.0) ([#335](https://github.com/woodleighschool/woodstar/issues/335)) ([16210b1](https://github.com/woodleighschool/woodstar/commit/16210b178fdedc9582d4410a3c63751614e079b6))
+* **npm:** update dependency simple-icons (16.29.0 → 16.30.0) ([#341](https://github.com/woodleighschool/woodstar/issues/341)) ([aaabd1d](https://github.com/woodleighschool/woodstar/commit/aaabd1df29e313578534a2fd1a34c92dfe015601))
+* **npm:** update react monorepo (19.2.18 → 19.3.0) ([#358](https://github.com/woodleighschool/woodstar/issues/358)) ([cac5d75](https://github.com/woodleighschool/woodstar/commit/cac5d758b1f999a276a03799eccd1f5769baed5e))
+
+
+### Bug Fixes
+
+* **container:** update image node (26.8.1 → 26.8.2) ([#354](https://github.com/woodleighschool/woodstar/issues/354)) ([c9147d7](https://github.com/woodleighschool/woodstar/commit/c9147d769d24450e634cd7514fec0f734ed7f741))
+* **docs:** omit unresolved API fragments from LLM output ([c69cebe](https://github.com/woodleighschool/woodstar/commit/c69cebe43eab64074f76c09eb9fb10bc095adfc9))
+* **go:** update module buf.build/gen/go/northpolesec/protos/protocolbuffers/go (v1.36.12-20260904135605-a0b311108b7c.2 → v1.36.12-20260909195458-6015a6df1b0f.2) ([#353](https://github.com/woodleighschool/woodstar/issues/353)) ([d098226](https://github.com/woodleighschool/woodstar/commit/d098226d877bd85eae7a44ff0da91e0cbe5af9dc))
+* **npm:** update dependency @codemirror/state (6.7.2 → 6.7.4) ([#336](https://github.com/woodleighschool/woodstar/issues/336)) ([6da700e](https://github.com/woodleighschool/woodstar/commit/6da700e4e920629dea41b7fe31b4c3016644dc2a))
+* **npm:** update dependency cn (0.2.4 → 0.2.5) ([#334](https://github.com/woodleighschool/woodstar/issues/334)) ([23c63d1](https://github.com/woodleighschool/woodstar/commit/23c63d1777644169531ca93d0165949b14ba928c))
+* **npm:** update dependency cn (0.2.5 → 0.2.6) ([#342](https://github.com/woodleighschool/woodstar/issues/342)) ([5139528](https://github.com/woodleighschool/woodstar/commit/51395280d471d777dcc3b2a75dff7579e7f2144d))
+* **npm:** update dependency cva (1.0.0-beta.8 → 1.0.0-beta.9) ([#343](https://github.com/woodleighschool/woodstar/issues/343)) ([7c4ebe6](https://github.com/woodleighschool/woodstar/commit/7c4ebe6957ea98b9869f1865e02339ec2341ced7))
+* **npm:** update tanstack-router monorepo ([#345](https://github.com/woodleighschool/woodstar/issues/345)) ([9e47237](https://github.com/woodleighschool/woodstar/commit/9e4723785d2b6add478ef01838926b71a5547502))
+* **web:** handle unknown route errors ([ec5e337](https://github.com/woodleighschool/woodstar/commit/ec5e337bd97031f7336b562c3e755e38bd32325c))
+* **web:** preserve calendar focus across renders ([e7fcd13](https://github.com/woodleighschool/woodstar/commit/e7fcd1330fb374ca48488c32b4f85198b4b7860a))
+
+
+### Code Refactoring
+
+* **postgres:** share session advisory locking ([#331](https://github.com/woodleighschool/woodstar/issues/331)) ([3d5abaa](https://github.com/woodleighschool/woodstar/commit/3d5abaa75aa51267297ac87702a6bbdf7ef81677))
+* **storage:** adopt Bloby ([#320](https://github.com/woodleighschool/woodstar/issues/320)) ([fa81764](https://github.com/woodleighschool/woodstar/commit/fa817643e76d157176fedb338868123c55578be1))
+
+
+### Continuous Integration
+
+* avoid redundant release metadata checks ([2a24538](https://github.com/woodleighschool/woodstar/commit/2a245387fbfdaa1c836c596e908b1ba21209358e))
+
+
+### Miscellaneous Chores
+
+* fix cooked lockfile ([f8d63b2](https://github.com/woodleighschool/woodstar/commit/f8d63b2c8a402409fbffbd5a2eb84cb6b2277f99))
+* **mise:** update mise tools ([#337](https://github.com/woodleighschool/woodstar/issues/337)) ([f25cdbd](https://github.com/woodleighschool/woodstar/commit/f25cdbded2c8c671bc8ebfd870dafbad09718ffc))
+* **mise:** update tool oxfmt (0.66.0 → 0.67.0) ([#355](https://github.com/woodleighschool/woodstar/issues/355)) ([f999537](https://github.com/woodleighschool/woodstar/commit/f999537a246ed8006c01d257960ae55c2423eea9))
+* **mise:** update tool zizmor (1.30.0 → 1.30.1) ([#365](https://github.com/woodleighschool/woodstar/issues/365)) ([7963b3b](https://github.com/woodleighschool/woodstar/commit/7963b3b9ceedd95f95fe68141938f0dd84ae3624))
+* **npm:** update dependency pnpm (11.25.0 → 11.26.0) ([#346](https://github.com/woodleighschool/woodstar/issues/346)) ([f1863fd](https://github.com/woodleighschool/woodstar/commit/f1863fdf7e1a92c95111fdd12b1945bf05d59deb))
+* **npm:** update dependency pnpm (11.26.0 → 12.3.4) ([#340](https://github.com/woodleighschool/woodstar/issues/340)) ([c0fac95](https://github.com/woodleighschool/woodstar/commit/c0fac959a5becc573de9a6cfa2ff871442ffa8cf))
+* remove redundant workflow lint task ([d311542](https://github.com/woodleighschool/woodstar/commit/d3115425c16bebdd56531b5b464507df82653b96))
+
 ## [0.9.7](https://github.com/woodleighschool/woodstar/compare/0.9.6...0.9.7) (2026-09-05)
 
 
