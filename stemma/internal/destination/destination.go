@@ -37,8 +37,9 @@ func Handle(ctx context.Context, request plugin.ReconcileRequest) (plugin.Reconc
 	if cfg.InstallerType == "nopkg" {
 		remote.fingerprint = "nopkg:" + cfg.Version
 	}
-	plugin.Stage(ctx, "Observing destination")
+	done := plugin.Stage(ctx, "Observing destination")
 	observed, err := remote.observe(ctx, request.Binding)
+	done(err)
 	if err != nil {
 		return remote.response(observed, nil), err
 	}
@@ -77,7 +78,7 @@ func Handle(ctx context.Context, request plugin.ReconcileRequest) (plugin.Reconc
 	return remote.response(observed, append(plan.changes, pruned...)), err
 }
 
-func (remote *client) apply(ctx context.Context, artifact plugin.Artifact, metadata metadata, plan desired, observed *observation) error {
+func (remote *client) apply(ctx context.Context, artifact plugin.Artifact, metadata metadata, plan desired, observed *observation) (runErr error) {
 	if observed.Software == nil {
 		if err := remote.createSoftware(ctx, observed); err != nil {
 			return err
@@ -109,7 +110,8 @@ func (remote *client) apply(ctx context.Context, artifact plugin.Artifact, metad
 			return err
 		}
 	}
-	plugin.Stage(ctx, "Verifying publication")
+	done := plugin.Stage(ctx, "Verifying publication")
+	defer func() { done(runErr) }()
 	readback, err := remote.observe(ctx, nil)
 	if err != nil {
 		return err
@@ -144,8 +146,9 @@ func (remote *client) createSoftware(ctx context.Context, observed *observation)
 	return nil
 }
 
-func (remote *client) savePackage(ctx context.Context, artifact plugin.Artifact, metadata metadata, plan desired, objectID int64, observed *observation) error {
-	plugin.Stage(ctx, "Saving package")
+func (remote *client) savePackage(ctx context.Context, artifact plugin.Artifact, metadata metadata, plan desired, objectID int64, observed *observation) (runErr error) {
+	done := plugin.Stage(ctx, "Saving package")
+	defer func() { done(runErr) }()
 	method, endpoint := http.MethodPost, "/api/munki/packages"
 	var body any
 	if observed.Package == nil {
@@ -222,8 +225,9 @@ func (remote *client) recoverPackage(ctx context.Context, observed *observation,
 	return result, nil
 }
 
-func (remote *client) saveSoftware(ctx context.Context, artifact plugin.Artifact, metadata metadata, observed *observation) error {
-	plugin.Stage(ctx, "Saving software")
+func (remote *client) saveSoftware(ctx context.Context, artifact plugin.Artifact, metadata metadata, observed *observation) (runErr error) {
+	done := plugin.Stage(ctx, "Saving software")
+	defer func() { done(runErr) }()
 	var saved softwareDetail
 	endpoint := "/api/munki/software/" + strconv.FormatInt(observed.Software.ID, 10)
 	if err := remote.request(ctx, http.MethodPatch, endpoint, metadata.software, &saved); err != nil {

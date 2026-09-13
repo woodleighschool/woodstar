@@ -37,8 +37,9 @@ func (remote *client) manageIcon(metadata *metadata, observed observation) error
 	return json.Unmarshal(raw(fields), &metadata.software)
 }
 
-func (remote *client) saveIcon(ctx context.Context, artifact plugin.Artifact, observed *observation) error {
-	plugin.Stage(ctx, "Publishing icon")
+func (remote *client) saveIcon(ctx context.Context, artifact plugin.Artifact, observed *observation) (runErr error) {
+	done := plugin.Stage(ctx, "Publishing icon")
+	defer func() { done(runErr) }()
 	var data bytes.Buffer
 	if err := verifyArtifact(ctx, artifact, &data); err != nil {
 		return fmt.Errorf("icon: %w", err)
