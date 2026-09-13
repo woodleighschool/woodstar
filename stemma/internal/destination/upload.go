@@ -18,8 +18,9 @@ import (
 	"github.com/woodleighschool/stemma/plugin"
 )
 
-func (remote *client) upload(ctx context.Context, artifact plugin.Artifact) (int64, error) {
-	plugin.Stage(ctx, "Uploading installer")
+func (remote *client) upload(ctx context.Context, artifact plugin.Artifact) (_ int64, runErr error) {
+	done := plugin.Stage(ctx, "Uploading installer")
+	defer func() { done(runErr) }()
 	if id, err := remote.resumeUpload(ctx, artifact); id != 0 || err != nil {
 		return id, err
 	}
@@ -86,8 +87,9 @@ func (remote *client) upload(ctx context.Context, artifact plugin.Artifact) (int
 	return upload.ObjectID, nil
 }
 
-func (remote *client) finalizeUpload(ctx context.Context, artifact plugin.Artifact, objectID int64) error {
-	plugin.Stage(ctx, "Finalizing upload")
+func (remote *client) finalizeUpload(ctx context.Context, artifact plugin.Artifact, objectID int64) (runErr error) {
+	done := plugin.Stage(ctx, "Finalizing upload")
+	defer func() { done(runErr) }()
 	var finalized struct {
 		ID        int64  `json:"id"`
 		SHA256    string `json:"sha256"`
