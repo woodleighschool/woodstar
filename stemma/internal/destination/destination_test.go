@@ -124,6 +124,7 @@ type apiFixture struct {
 	createdSoftware, createdPackages, updates, uploads int
 	dropPackageReply, forgeDigest                      bool
 	dropIconReply                                      bool
+	failIconAttach                                     bool
 }
 
 func (fixture *apiFixture) writes() int {
@@ -152,6 +153,10 @@ func (fixture *apiFixture) ServeHTTP(response http.ResponseWriter, request *http
 
 	if request.Header.Get("Authorization") != "Bearer synthetic-key" {
 		http.Error(response, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	if fixture.failIconAttach && request.Method == http.MethodPut && request.URL.Path == "/api/munki/software/1/icon" {
+		http.Error(response, "attach unavailable", http.StatusServiceUnavailable)
 		return
 	}
 	if strings.HasPrefix(request.URL.Path, "/api/munki/software") {

@@ -28,14 +28,15 @@ type config struct {
 }
 
 type metadata struct {
-	software  software.Patch
-	pkg       packages.Patch
-	requires  []munki.PkginfoReference
-	updateFor []munki.PkginfoReference
-	icon      plugin.Artifact
-	installer plugin.Artifact
-	controls  controls
-	origins   map[string]string
+	software     software.Patch
+	pkg          packages.Patch
+	requires     []munki.PkginfoReference
+	updateFor    []munki.PkginfoReference
+	icon         plugin.Artifact
+	refreshIcons bool
+	installer    plugin.Artifact
+	controls     controls
+	origins      map[string]string
 }
 
 func readRequest(ctx context.Context, request plugin.ReconcileRequest) (config, metadata, error) {
@@ -102,7 +103,7 @@ func readRequest(ctx context.Context, request plugin.ReconcileRequest) (config, 
 		}
 		origins["software.icon"] = "input.icon"
 	}
-	return cfg, metadata{icon: icon, installer: request.Artifact, controls: settings, origins: origins, software: imported.Software, pkg: imported.Package, requires: imported.Requires, updateFor: imported.UpdateFor}, nil
+	return cfg, metadata{icon: icon, refreshIcons: request.RefreshIcons, installer: request.Artifact, controls: settings, origins: origins, software: imported.Software, pkg: imported.Package, requires: imported.Requires, updateFor: imported.UpdateFor}, nil
 }
 
 func validateInstaller(ctx context.Context, request plugin.ReconcileRequest, imported *munki.PkginfoImport, installerType packages.InstallerType) error {
