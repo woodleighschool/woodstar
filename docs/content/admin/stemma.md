@@ -36,23 +36,19 @@ spec:
 
 The plugin image uses the OCI reference `ghcr.io/woodleighschool/woodstar/stemma` with a tag or digest. Stemma selects a bundle for the runner independently of the target software's architecture. For a private CA, add `ca_file` with an absolute PEM certificate path to the connection config.
 
-Imported family files contain one or more `Software` documents separated by `---`. Each document has its own stable identity. For example, `software/example-editor.yaml` can publish separate architecture variants:
+Imported family files contain one or more `MacSoftware` documents separated by `---`. Each document has its own stable identity. For example, `software/example-editor.yaml` can publish separate architecture variants:
 
 ```yaml
 apiVersion: stemma/v1alpha1
-kind: Software
+kind: MacSoftware
 metadata:
   name: example-editor-arm64
 spec:
-  platform: darwin
-  arch: arm64
   source:
-    type: http
     url: https://downloads.example.com/ExampleEditor-1.2.3-arm64.pkg
     filename: ExampleEditor.pkg
   destinations:
     woodstar:
-      installer: prepared
       pkginfo:
         display_name: Example Editor
         description: Managed application for Apple silicon
@@ -64,43 +60,66 @@ spec:
         keep: 2
 ---
 apiVersion: stemma/v1alpha1
-kind: Software
+kind: MacSoftware
 metadata:
   name: example-editor-amd64
 spec:
-  platform: darwin
-  arch: amd64
   source:
-    type: http
     url: https://downloads.example.com/ExampleEditor-1.2.3-x86_64.dmg
     filename: ExampleEditor.dmg
-  subjects:
-    app:
-      kind: app
-      path: ExampleEditor.app
-      bundle_id: com.example.editor
+  application:
+    path: ExampleEditor.app
+    installed_path: /Applications/ExampleEditor.app
   destinations:
     woodstar:
-      installer: prepared
-      derive:
-        app:
-          subject: app
-          installed_path: /Applications/ExampleEditor.app
       pkginfo:
         display_name: Example Editor
         supported_architectures:
           - x86_64
-        version:
-          $fact: app.app.version
       retention:
         keep: 2
 ```
 
-`installer` selects `prepared`, `source`, `artifacts/name`, or a step output such as `package/artifact`. Omit it to use the prepared source. Native `pkginfo.name` defaults to the Software document's identity, keeping these variants separate in Munki.
+`MacSoftware` supplies the prepared installer and selected application evidence.
+Native `pkginfo.name` defaults to the resource's identity, keeping architecture
+variants separate in Munki. `installer` is only needed to select another named
+resource output.
 
-For PKGs, inspection supplies payload receipts and an unambiguous version. An app selection supplies its version, minimum OS, and detection facts. `derive.app` selects a named subject; `installed_path` identifies the endpoint location and `version_key` can select `CFBundleVersion` instead of `CFBundleShortVersionString`. For a DMG app, the plugin derives `items_to_copy` and detection at the copied destination. Authored native values take precedence. Use `stemma inspect FILE` to check subject paths and facts before selecting them.
+For PKGs, inspection supplies payload receipts and an unambiguous version. An app
+selection supplies its version, minimum OS, and detection facts. For a DMG app,
+the plugin derives `items_to_copy` and detection at the selected installed path.
+Authored native values take precedence. Use `stemma inspect FILE` to examine
+application evidence when a source needs an explicit selection.
 
-`pkginfo` uses supported native Munki fields, including `RestartAction`, `receipts[].packageid`, `installs[].CFBundleIdentifier`, `items_to_copy`, scripts, alerts, and installer environment variables. Typed `$fact` references retain their native value type. A separate `munki.pkginfo` step is optional: an existing JSON pkginfo artifact can still be selected with its installer supplied through `inputs.installer`.
+`pkginfo` uses supported native Munki fields, including `RestartAction`,
+`receipts[].packageid`, `installs[].CFBundleIdentifier`, `items_to_copy`, scripts,
+alerts, and installer environment variables. Typed `$fact` references retain their
+native value type. A JSON pkginfo artifact can also be supplied with its installer
+through `inputs.installer`.
+
+## Application icons
+
+`MacSoftware` automatically prepares an `icon` PNG when a selected application
+provides one. macOS uses the native system renderer for current system styling;
+Linux and Windows use supported portable application icon resources. A catalog
+can therefore bootstrap in CI without icon-specific configuration. Native rendering
+is an enhancement; unsupported applications and installers can remain iconless.
+A PKG without a selected application directory is not rendered as an app icon.
+
+The plugin creates a missing icon independently of software or package creation.
+It retains existing artwork across normal runs and software updates, including runs
+that provide no icon. A later portable run does not replace a native icon.
+To intentionally improve artwork across the catalog, run on a current Mac:
+
+```sh
+stemma apply --refresh-icons
+stemma apply MacSoftware/example-editor-amd64 --refresh-icons
+```
+
+`stemma plan --refresh-icons` previews the icon changes. Refresh reuses installer
+preparation and changes only icon content when the software is otherwise current.
+The plugin uploads and attaches a new storage object through the existing icon API;
+it does not create another package version or reupload the installer.
 
 ## Targets and native settings
 
@@ -135,15 +154,14 @@ Native `requires` and `update_for` entries identify software by its Munki name, 
 
 ## Source-free items
 
-A `nopkg` item publishes scripts and metadata without a source or installer. Add another Software document to an imported family file:
+A `nopkg` item publishes scripts and metadata without a source or installer. Add another MacSoftware document to an imported family file:
 
 ```yaml
 apiVersion: stemma/v1alpha1
-kind: Software
+kind: MacSoftware
 metadata:
   name: managed-marker
 spec:
-  platform: darwin
   destinations:
     woodstar:
       pkginfo:

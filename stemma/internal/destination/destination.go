@@ -46,9 +46,7 @@ func Handle(ctx context.Context, request plugin.ReconcileRequest) (plugin.Reconc
 	if err := remote.resolveReferences(ctx, &metadata); err != nil {
 		return remote.response(observed, nil), err
 	}
-	if err := remote.manageIcon(&metadata, observed); err != nil {
-		return remote.response(observed, nil), err
-	}
+	remote.recoverIcon(observed)
 	if err := remote.manageDerived(&metadata); err != nil {
 		return remote.response(observed, nil), err
 	}
@@ -63,9 +61,6 @@ func Handle(ctx context.Context, request plugin.ReconcileRequest) (plugin.Reconc
 		}
 	}
 	if request.Method == "apply" {
-		if metadata.icon.Path == "" && (remote.state.Icon == nil || remote.state.Icon.Complete) {
-			remote.state.Icon = nil
-		}
 		remote.recordPackage(metadata, observed.Package)
 		remote.state.Publications.Record(remote.fingerprint)
 	}
@@ -92,7 +87,7 @@ func (remote *client) apply(ctx context.Context, artifact plugin.Artifact, metad
 		}
 		pendingObject = object
 	}
-	if observed.Package == nil || changed(plan.changes, "package") {
+	if observed.Package == nil || plan.content || metadataChanged(plan.changes, "package") {
 		if err := remote.savePackage(ctx, artifact, metadata, plan, pendingObject, observed); err != nil {
 			return err
 		}
@@ -100,7 +95,7 @@ func (remote *client) apply(ctx context.Context, artifact plugin.Artifact, metad
 	if observed.Package != nil && observed.Package.InstallerObjectID != nil && *observed.Package.InstallerObjectID == pendingObject {
 		remote.state.Upload = nil
 	}
-	if changed(plan.changes, "software") {
+	if metadataChanged(plan.changes, "software") {
 		if err := remote.saveSoftware(ctx, artifact, metadata, observed); err != nil {
 			return err
 		}
@@ -244,7 +239,7 @@ func (remote *client) recoverWrite(ctx context.Context, artifact plugin.Artifact
 	}
 	*observed = recovered
 	remaining, err := remote.plan(artifact, metadata, recovered)
-	if err != nil || changed(remaining.changes, resource) {
+	if err != nil || metadataChanged(remaining.changes, resource) {
 		return writeErr
 	}
 	return nil
