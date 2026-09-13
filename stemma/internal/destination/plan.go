@@ -62,7 +62,8 @@ func (remote *client) plan(artifact plugin.Artifact, metadata metadata, observed
 	result.changes = append(result.changes, diff("software", currentSoftware, nextSoftware)...)
 	result.changes = append(result.changes, diff("package", currentPackage, result.pkg)...)
 	if metadata.icon.Path != "" {
-		result.icon = observed.Software == nil || observed.Software.IconFile == nil || observed.Software.IconFile.SHA256 != metadata.icon.SHA256 || observed.Software.IconFile.SizeBytes != metadata.icon.Size
+		missing := observed.Software == nil || observed.Software.IconObjectID == nil
+		result.icon = missing || metadata.refreshIcons && (observed.Software.IconFile == nil || observed.Software.IconFile.SHA256 != metadata.icon.SHA256 || observed.Software.IconFile.SizeBytes != metadata.icon.Size)
 		if result.icon {
 			result.changes = append(result.changes, plugin.Change{Kind: "content", Field: "software.icon", Action: "upload", After: raw(metadata.icon.SHA256)})
 		}
@@ -126,6 +127,8 @@ func diff(resource string, before, after any) []plugin.Change {
 	return changes
 }
 
-func changed(changes []plugin.Change, resource string) bool {
-	return slices.ContainsFunc(changes, func(change plugin.Change) bool { return strings.HasPrefix(change.Field, resource+".") })
+func metadataChanged(changes []plugin.Change, resource string) bool {
+	return slices.ContainsFunc(changes, func(change plugin.Change) bool {
+		return change.Kind != "content" && strings.HasPrefix(change.Field, resource+".")
+	})
 }
