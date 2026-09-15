@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.10.1](https://github.com/woodleighschool/woodstar/compare/0.10.0...0.10.1) (2026-09-15)
+
+
+### Features
+
+* **munki:** add PATCH for packages and software ([49dfc63](https://github.com/woodleighschool/woodstar/commit/49dfc63539830aa85798dd91d59141e9ec12df80))
+* **npm:** update dependency cn (0.2.6 → 0.3.0) ([#372](https://github.com/woodleighschool/woodstar/issues/372)) ([79f89f1](https://github.com/woodleighschool/woodstar/commit/79f89f114ef56764fe5326e6b9ee9445af72fd2d))
+* **npm:** update dependency oxlint (1.82.0 → 1.83.0) ([#378](https://github.com/woodleighschool/woodstar/issues/378)) ([b9f92c1](https://github.com/woodleighschool/woodstar/commit/b9f92c1f200e3a523f4efa009edab7605957abe3))
+
+
+### Bug Fixes
+
+* **munki:** render installs minimum OS version as minosversion ([c2275fa](https://github.com/woodleighschool/woodstar/commit/c2275fa736bb03f4b962ff1228774b19a274dbc4))
+* **npm:** update dependency cva (1.0.0-beta.9 → 1.0.0-beta.10) ([#374](https://github.com/woodleighschool/woodstar/issues/374)) ([6120bd1](https://github.com/woodleighschool/woodstar/commit/6120bd1aeb3fa5cbe57c51ca6fb4ab47fb1c7730))
+
+
+### Miscellaneous Chores
+
+* **npm:** lock file maintenance dependency (npm) ([#375](https://github.com/woodleighschool/woodstar/issues/375)) ([28c95d1](https://github.com/woodleighschool/woodstar/commit/28c95d1931a4ca33589b983b5e51132bf94298fc))
+
 ## [0.10.0](https://github.com/woodleighschool/woodstar/compare/0.9.7...0.10.0) (2026-09-15)
 
 
