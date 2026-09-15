@@ -56,6 +56,7 @@ func TestPkginfoProjectsMunkiTransportShape(t *testing.T) {
 				Path:                 "/Applications/Example.app",
 				BundleIdentifier:     "com.example.app",
 				MinimumUpdateVersion: "1.0",
+				MinimumOSVersion:     "13.0",
 			},
 		},
 		Receipts: []PackageReceipt{
@@ -132,6 +133,9 @@ func TestPkginfoProjectsMunkiTransportShape(t *testing.T) {
 	}
 	if installs[0]["type"] != "application" || installs[0]["minimum_update_version"] != "1.0" {
 		t.Fatalf("installs = %#v, want required type and minimum update version", installs)
+	}
+	if installs[0]["minosversion"] != "13.0" {
+		t.Fatalf("installs = %#v, want Munki minosversion key", installs)
 	}
 	receipts := mapSlice(t, got["receipts"])
 	if receipts[0][munkiReceiptPackageIDKey] != "com.example.pkg" ||

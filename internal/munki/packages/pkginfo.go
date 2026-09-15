@@ -101,7 +101,7 @@ type munkiPkginfoInstallItem struct {
 	VersionComparisonKey  string                 `plist:"version_comparison_key,omitempty"`
 	MinimumUpdateVersion  string                 `plist:"minimum_update_version,omitempty"`
 	MD5Checksum           string                 `plist:"md5checksum,omitempty"`
-	MinimumOSVersion      string                 `plist:"minimum_os_version,omitempty"`
+	MinimumOSVersion      string                 `plist:"minosversion,omitempty"`
 	InstallerItemLocation string                 `plist:"installer_item_location,omitempty"`
 }
 
