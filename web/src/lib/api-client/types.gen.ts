@@ -4152,6 +4152,151 @@ export type GetMunkiPackageResponses = {
 
 export type GetMunkiPackageResponse = GetMunkiPackageResponses[keyof GetMunkiPackageResponses];
 
+export type PatchMunkiPackageData = {
+    body: {
+        apple_item?: boolean;
+        autoremove?: boolean;
+        blocking_applications?: Array<string>;
+        blocking_applications_manual_quit_only?: boolean;
+        blocking_applications_none?: boolean;
+        blocking_applications_quit_script?: string | null;
+        force_install_after_date?: string | null;
+        installable_condition?: string | null;
+        installcheck_script?: string | null;
+        installed_size?: number;
+        installer_choices_xml?: Array<{
+            attribute_setting: number;
+            choice_attribute?: string | null;
+            choice_identifier?: string;
+        }>;
+        installer_environment?: Array<{
+            name: string;
+            value: string | null;
+        }>;
+        installer_object_id?: number | null;
+        installer_type?: 'pkg' | 'nopkg' | 'copy_from_dmg';
+        installs?: Array<{
+            bundle_identifier?: string | null;
+            bundle_name?: string | null;
+            bundle_short_version?: string | null;
+            bundle_version?: string | null;
+            installer_item_location?: string | null;
+            md5checksum?: string | null;
+            minimum_os_version?: string | null;
+            minimum_update_version?: string | null;
+            path: string;
+            type: 'application' | 'bundle' | 'plist' | 'file';
+            version_comparison_key?: string | null;
+        }>;
+        items_to_copy?: Array<{
+            destination_item?: string | null;
+            destination_path: string;
+            group?: string | null;
+            mode?: string | null;
+            source_item: string;
+            user?: string | null;
+        }>;
+        maximum_os_version?: string | null;
+        minimum_munki_version?: string | null;
+        minimum_os_version?: string | null;
+        notes?: string | null;
+        on_demand?: boolean;
+        package_path?: string | null;
+        postinstall_script?: string | null;
+        postuninstall_script?: string | null;
+        precache?: boolean;
+        preinstall_alert?: {
+            cancel_label?: string | null;
+            detail?: string | null;
+            enabled?: boolean;
+            ok_label?: string | null;
+            title?: string | null;
+        };
+        preinstall_script?: string | null;
+        preuninstall_alert?: {
+            cancel_label?: string | null;
+            detail?: string | null;
+            enabled?: boolean;
+            ok_label?: string | null;
+            title?: string | null;
+        };
+        preuninstall_script?: string | null;
+        receipts?: Array<{
+            installed_size?: number;
+            name?: string | null;
+            optional?: boolean;
+            package_id: string;
+            version?: string | null;
+        }>;
+        requires?: Array<{
+            package_id?: number;
+            software_id: number;
+        }>;
+        restart_action?: 'RequireLogout' | 'RecommendRestart' | 'RequireRestart' | 'RequireShutdown' | null;
+        supported_architectures?: Array<string>;
+        suppress_bundle_relocation?: boolean;
+        unattended_install?: boolean;
+        unattended_uninstall?: boolean;
+        uninstall_method?: 'removepackages' | 'remove_copied_items' | 'uninstall_script' | null;
+        uninstall_script?: string | null;
+        uninstallable?: boolean;
+        uninstallcheck_script?: string | null;
+        update_for?: Array<{
+            package_id?: number;
+            software_id: number;
+        }>;
+        version?: string;
+        version_script?: string | null;
+    };
+    path: {
+        id: number;
+    };
+    query?: never;
+    url: '/api/munki/packages/{id}';
+};
+
+export type PatchMunkiPackageErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorModel;
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Conflict
+     */
+    409: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type PatchMunkiPackageError = PatchMunkiPackageErrors[keyof PatchMunkiPackageErrors];
+
+export type PatchMunkiPackageResponses = {
+    /**
+     * OK
+     */
+    200: MunkiPackage;
+};
+
+export type PatchMunkiPackageResponse = PatchMunkiPackageResponses[keyof PatchMunkiPackageResponses];
+
 export type UpdateMunkiPackageData = {
     body: MunkiPackageMutation;
     path: {
@@ -4418,6 +4563,76 @@ export type GetMunkiSoftwareResponses = {
 };
 
 export type GetMunkiSoftwareResponse = GetMunkiSoftwareResponses[keyof GetMunkiSoftwareResponses];
+
+export type PatchMunkiSoftwareData = {
+    body: {
+        category?: string | null;
+        description?: string | null;
+        developer?: string | null;
+        display_name?: string | null;
+        icon_object_id?: number | null;
+        targets?: {
+            exclude?: Array<{
+                label_id: number;
+            }>;
+            include?: Array<{
+                actions: Array<'managed_installs' | 'managed_uninstalls' | 'managed_updates' | 'optional_installs' | 'featured_items' | 'default_installs'>;
+                label_id: number;
+                package: {
+                    package_id?: number | null;
+                    strategy: 'latest' | 'specific';
+                };
+            }>;
+        };
+    };
+    path: {
+        id: number;
+    };
+    query?: never;
+    url: '/api/munki/software/{id}';
+};
+
+export type PatchMunkiSoftwareErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorModel;
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Conflict
+     */
+    409: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type PatchMunkiSoftwareError = PatchMunkiSoftwareErrors[keyof PatchMunkiSoftwareErrors];
+
+export type PatchMunkiSoftwareResponses = {
+    /**
+     * OK
+     */
+    200: MunkiSoftwareDetail;
+};
+
+export type PatchMunkiSoftwareResponse = PatchMunkiSoftwareResponses[keyof PatchMunkiSoftwareResponses];
 
 export type UpdateMunkiSoftwareData = {
     body: MunkiUpdateMutation;

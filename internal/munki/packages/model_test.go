@@ -2,7 +2,9 @@ package packages
 
 import (
 	"errors"
+	"reflect"
 	"testing"
+	"time"
 
 	"github.com/woodleighschool/woodstar/internal/fault"
 )
@@ -182,5 +184,49 @@ func TestPackageCreateMutationRejectsInvalidSoftwareID(t *testing.T) {
 	}
 	if err := m.validate(); !errors.Is(err, fault.ErrInvalidInput) {
 		t.Fatalf("validate() error = %v, want ErrInvalidInput", err)
+	}
+}
+
+// PATCH merges into this projection, so an unprojected field would be reset.
+func TestPackageMutationProjectsEveryEditableField(t *testing.T) {
+	t.Parallel()
+
+	var pkg Package
+	fillNonZero(t, reflect.ValueOf(&pkg).Elem())
+	mutation := reflect.ValueOf(pkg.Mutation())
+	for i := range mutation.NumField() {
+		if mutation.Field(i).IsZero() {
+			t.Errorf("Mutation() does not project %s", mutation.Type().Field(i).Name)
+		}
+	}
+}
+
+func fillNonZero(t *testing.T, v reflect.Value) {
+	t.Helper()
+	switch v.Kind() { //nolint:exhaustive // The default fails on kinds editable fields do not use yet.
+	case reflect.Pointer:
+		v.Set(reflect.New(v.Type().Elem()))
+		fillNonZero(t, v.Elem())
+	case reflect.Slice:
+		v.Set(reflect.MakeSlice(v.Type(), 1, 1))
+		fillNonZero(t, v.Index(0))
+	case reflect.Struct:
+		if v.Type() == reflect.TypeFor[time.Time]() {
+			v.Set(reflect.ValueOf(time.Unix(1, 0)))
+			return
+		}
+		for i := range v.NumField() {
+			if v.Type().Field(i).IsExported() {
+				fillNonZero(t, v.Field(i))
+			}
+		}
+	case reflect.String:
+		v.SetString("x")
+	case reflect.Bool:
+		v.SetBool(true)
+	case reflect.Int32, reflect.Int64:
+		v.SetInt(1)
+	default:
+		t.Fatalf("fillNonZero: unsupported kind %s", v.Kind())
 	}
 }

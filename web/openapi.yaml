@@ -8083,6 +8083,433 @@ paths:
       x-authz:
         access: view
         resource: munki.packages
+    patch:
+      operationId: patch-munki-package
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                apple_item:
+                  type: boolean
+                autoremove:
+                  type: boolean
+                blocking_applications:
+                  items:
+                    type: string
+                  type: array
+                blocking_applications_manual_quit_only:
+                  type: boolean
+                blocking_applications_none:
+                  type: boolean
+                blocking_applications_quit_script:
+                  type:
+                    - string
+                    - "null"
+                force_install_after_date:
+                  format: date-time
+                  type:
+                    - string
+                    - "null"
+                installable_condition:
+                  type:
+                    - string
+                    - "null"
+                installcheck_script:
+                  type:
+                    - string
+                    - "null"
+                installed_size:
+                  format: int64
+                  minimum: 0
+                  type: integer
+                installer_choices_xml:
+                  items:
+                    additionalProperties: false
+                    properties:
+                      attribute_setting:
+                        format: int32
+                        type: integer
+                      choice_attribute:
+                        type:
+                          - string
+                          - "null"
+                      choice_identifier:
+                        minLength: 1
+                        type: string
+                    required:
+                      - attribute_setting
+                    type: object
+                  type: array
+                installer_environment:
+                  items:
+                    additionalProperties: false
+                    properties:
+                      name:
+                        minLength: 1
+                        type: string
+                      value:
+                        type:
+                          - string
+                          - "null"
+                    required:
+                      - name
+                      - value
+                    type: object
+                  type: array
+                installer_object_id:
+                  format: int64
+                  minimum: 1
+                  type:
+                    - integer
+                    - "null"
+                installer_type:
+                  enum:
+                    - pkg
+                    - nopkg
+                    - copy_from_dmg
+                  type: string
+                installs:
+                  items:
+                    additionalProperties: false
+                    properties:
+                      bundle_identifier:
+                        type:
+                          - string
+                          - "null"
+                      bundle_name:
+                        type:
+                          - string
+                          - "null"
+                      bundle_short_version:
+                        type:
+                          - string
+                          - "null"
+                      bundle_version:
+                        type:
+                          - string
+                          - "null"
+                      installer_item_location:
+                        type:
+                          - string
+                          - "null"
+                      md5checksum:
+                        type:
+                          - string
+                          - "null"
+                      minimum_os_version:
+                        type:
+                          - string
+                          - "null"
+                      minimum_update_version:
+                        type:
+                          - string
+                          - "null"
+                      path:
+                        minLength: 1
+                        type: string
+                      type:
+                        enum:
+                          - application
+                          - bundle
+                          - plist
+                          - file
+                        type: string
+                      version_comparison_key:
+                        type:
+                          - string
+                          - "null"
+                    required:
+                      - type
+                      - path
+                    type: object
+                  type: array
+                items_to_copy:
+                  items:
+                    additionalProperties: false
+                    properties:
+                      destination_item:
+                        type:
+                          - string
+                          - "null"
+                      destination_path:
+                        minLength: 1
+                        type: string
+                      group:
+                        type:
+                          - string
+                          - "null"
+                      mode:
+                        type:
+                          - string
+                          - "null"
+                      source_item:
+                        minLength: 1
+                        type: string
+                      user:
+                        type:
+                          - string
+                          - "null"
+                    required:
+                      - source_item
+                      - destination_path
+                    type: object
+                  type: array
+                maximum_os_version:
+                  type:
+                    - string
+                    - "null"
+                minimum_munki_version:
+                  type:
+                    - string
+                    - "null"
+                minimum_os_version:
+                  type:
+                    - string
+                    - "null"
+                notes:
+                  type:
+                    - string
+                    - "null"
+                on_demand:
+                  type: boolean
+                package_path:
+                  type:
+                    - string
+                    - "null"
+                postinstall_script:
+                  type:
+                    - string
+                    - "null"
+                postuninstall_script:
+                  type:
+                    - string
+                    - "null"
+                precache:
+                  type: boolean
+                preinstall_alert:
+                  additionalProperties: false
+                  properties:
+                    cancel_label:
+                      type:
+                        - string
+                        - "null"
+                    detail:
+                      type:
+                        - string
+                        - "null"
+                    enabled:
+                      type: boolean
+                    ok_label:
+                      type:
+                        - string
+                        - "null"
+                    title:
+                      type:
+                        - string
+                        - "null"
+                  type: object
+                preinstall_script:
+                  type:
+                    - string
+                    - "null"
+                preuninstall_alert:
+                  additionalProperties: false
+                  properties:
+                    cancel_label:
+                      type:
+                        - string
+                        - "null"
+                    detail:
+                      type:
+                        - string
+                        - "null"
+                    enabled:
+                      type: boolean
+                    ok_label:
+                      type:
+                        - string
+                        - "null"
+                    title:
+                      type:
+                        - string
+                        - "null"
+                  type: object
+                preuninstall_script:
+                  type:
+                    - string
+                    - "null"
+                receipts:
+                  items:
+                    additionalProperties: false
+                    properties:
+                      installed_size:
+                        format: int64
+                        minimum: 0
+                        type: integer
+                      name:
+                        type:
+                          - string
+                          - "null"
+                      optional:
+                        type: boolean
+                      package_id:
+                        minLength: 1
+                        type: string
+                      version:
+                        type:
+                          - string
+                          - "null"
+                    required:
+                      - package_id
+                    type: object
+                  type: array
+                requires:
+                  items:
+                    additionalProperties: false
+                    properties:
+                      package_id:
+                        format: int64
+                        minimum: 0
+                        type: integer
+                      software_id:
+                        format: int64
+                        minimum: 1
+                        type: integer
+                    required:
+                      - software_id
+                    type: object
+                  type: array
+                restart_action:
+                  enum:
+                    - RequireLogout
+                    - RecommendRestart
+                    - RequireRestart
+                    - RequireShutdown
+                    - null
+                  type:
+                    - string
+                    - "null"
+                supported_architectures:
+                  items:
+                    type: string
+                  type: array
+                suppress_bundle_relocation:
+                  type: boolean
+                unattended_install:
+                  type: boolean
+                unattended_uninstall:
+                  type: boolean
+                uninstall_method:
+                  enum:
+                    - removepackages
+                    - remove_copied_items
+                    - uninstall_script
+                    - null
+                  type:
+                    - string
+                    - "null"
+                uninstall_script:
+                  type:
+                    - string
+                    - "null"
+                uninstallable:
+                  type: boolean
+                uninstallcheck_script:
+                  type:
+                    - string
+                    - "null"
+                update_for:
+                  items:
+                    additionalProperties: false
+                    properties:
+                      package_id:
+                        format: int64
+                        minimum: 0
+                        type: integer
+                      software_id:
+                        format: int64
+                        minimum: 1
+                        type: integer
+                    required:
+                      - software_id
+                    type: object
+                  type: array
+                version:
+                  minLength: 1
+                  type: string
+                version_script:
+                  type:
+                    - string
+                    - "null"
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MunkiPackage"
+          description: OK
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      summary: Partially update a package
+      tags:
+        - Munki packages
+      x-authz:
+        access: edit
+        resource: munki.packages
     put:
       operationId: update-munki-package
       parameters:
@@ -8446,6 +8873,162 @@ paths:
         - Munki software
       x-authz:
         access: view
+        resource: munki.software
+    patch:
+      operationId: patch-munki-software
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                category:
+                  type:
+                    - string
+                    - "null"
+                description:
+                  type:
+                    - string
+                    - "null"
+                developer:
+                  type:
+                    - string
+                    - "null"
+                display_name:
+                  type:
+                    - string
+                    - "null"
+                icon_object_id:
+                  format: int64
+                  minimum: 1
+                  type:
+                    - integer
+                    - "null"
+                targets:
+                  additionalProperties: false
+                  properties:
+                    exclude:
+                      items:
+                        additionalProperties: false
+                        properties:
+                          label_id:
+                            format: int64
+                            minimum: 1
+                            type: integer
+                        required:
+                          - label_id
+                        type: object
+                      type: array
+                    include:
+                      items:
+                        additionalProperties: false
+                        properties:
+                          actions:
+                            items:
+                              enum:
+                                - managed_installs
+                                - managed_uninstalls
+                                - managed_updates
+                                - optional_installs
+                                - featured_items
+                                - default_installs
+                              type: string
+                            minItems: 1
+                            type: array
+                          label_id:
+                            format: int64
+                            minimum: 1
+                            type: integer
+                          package:
+                            additionalProperties: false
+                            properties:
+                              package_id:
+                                format: int64
+                                minimum: 1
+                                type:
+                                  - integer
+                                  - "null"
+                              strategy:
+                                enum:
+                                  - latest
+                                  - specific
+                                type: string
+                            required:
+                              - strategy
+                            type: object
+                        required:
+                          - label_id
+                          - package
+                          - actions
+                        type: object
+                      type: array
+                  type: object
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MunkiSoftwareDetail"
+          description: OK
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      summary: Partially update a software title
+      tags:
+        - Munki software
+      x-authz:
+        access: edit
         resource: munki.software
     put:
       operationId: update-munki-software

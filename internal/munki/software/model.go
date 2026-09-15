@@ -11,6 +11,7 @@ import (
 	"golang.org/x/text/unicode/norm"
 
 	"github.com/woodleighschool/woodstar/internal/fault"
+	"github.com/woodleighschool/woodstar/internal/patch"
 	"github.com/woodleighschool/woodstar/internal/validation"
 )
 
@@ -118,4 +119,16 @@ type IconFile struct {
 	Filename  string `json:"filename"`
 	SizeBytes int64  `json:"size_bytes"`
 	SHA256    string `json:"sha256"`
+}
+
+// Patch is a sparse update of a software title's editable fields.
+type Patch = patch.Document[UpdateMutation]
+
+// Mutation projects editable metadata and its separately loaded targets.
+func (s Software) Mutation(targets Targets) UpdateMutation {
+	m := UpdateMutation{Description: s.Description, Category: s.Category, Developer: s.Developer, IconObjectID: s.IconObjectID, Targets: targets}
+	if s.DisplayName != nil {
+		m.DisplayName = *s.DisplayName
+	}
+	return m
 }

@@ -12,6 +12,7 @@ type packageStore interface {
 	Create(ctx context.Context, mutation packages.PackageCreateMutation) (*packages.Package, error)
 	GetByID(ctx context.Context, packageID int64) (*packages.Package, error)
 	Update(ctx context.Context, packageID int64, mutation packages.PackageMutation) (*packages.Package, error)
+	Patch(ctx context.Context, packageID int64, document packages.Patch) (*packages.Package, error)
 	DeleteMany(ctx context.Context, packageIDs []int64) (int, error)
 }
 
@@ -85,6 +86,16 @@ func (s *PackageService) DeleteMany(ctx context.Context, ids []int64) (int, erro
 		s.deps.DesiredPackagesChanged()
 	}
 	return deleted, err
+}
+
+// Patch reconciles supplied fields and refreshes the distribution worker state.
+func (s *PackageService) Patch(ctx context.Context, id int64, document packages.Patch) (*packages.Package, error) {
+	pkg, err := s.deps.Packages.Patch(ctx, id, document)
+	s.notifyDesiredPackages(err)
+	if pkg != nil {
+		attachPackageSoftware(pkg)
+	}
+	return pkg, err
 }
 
 func (s *PackageService) notifyDesiredPackages(err error) {

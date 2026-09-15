@@ -20,7 +20,6 @@ import (
 const IconObjectPrefix = "munki/icons"
 
 type packageStore interface {
-	GetByID(ctx context.Context, packageID int64) (*packages.Package, error)
 	PackagesByID(ctx context.Context, packageIDs []int64) ([]packages.Package, error)
 }
 
@@ -39,12 +38,12 @@ func (s *Store) Create(ctx context.Context, params CreateMutation) (*Software, e
 	if err := params.validate(); err != nil {
 		return nil, err
 	}
-	if err := s.validateIcon(ctx, params.IconObjectID); err != nil {
-		return nil, err
-	}
 	write := newSoftwareWrite(params)
 	var id int64
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		if err := validateIcon(ctx, tx, params.IconObjectID); err != nil {
+			return err
+		}
 		if err := tx.QueryRow(ctx, `
 INSERT INTO munki_software (
 	name,
@@ -73,20 +72,42 @@ RETURNING id`, pgx.StructArgs(write)).Scan(&id); err != nil {
 }
 
 func (s *Store) Update(ctx context.Context, id int64, params UpdateMutation) (*Software, error) {
-	if err := params.validate(); err != nil {
-		return nil, err
-	}
-	if err := s.validateIcon(ctx, params.IconObjectID); err != nil {
-		return nil, err
-	}
-	var oldIconObjectID *int64
+	return s.update(ctx, id, func(*Software, pgx.Tx) (UpdateMutation, error) { return params, nil })
+}
+
+// Patch merges metadata and targets into the current software under its row lock.
+func (s *Store) Patch(ctx context.Context, id int64, document Patch) (*Software, error) {
+	return s.update(ctx, id, func(current *Software, tx pgx.Tx) (UpdateMutation, error) {
+		targets, err := targetsForSoftware(ctx, tx, id)
+		if err != nil {
+			return UpdateMutation{}, err
+		}
+		return document.Apply(current.Mutation(targets))
+	})
+}
+
+func (s *Store) update(ctx context.Context, id int64, mutate func(*Software, pgx.Tx) (UpdateMutation, error)) (*Software, error) {
+	var updated *Software
+	var replaced []int64
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
-		existing, err := getSoftwareByID(ctx, tx, id)
+		if err := tx.QueryRow(ctx, `SELECT id FROM munki_software WHERE id = $1 FOR UPDATE`, id).Scan(&id); err != nil {
+			return postgres.GetError(err)
+		}
+		current, err := getSoftwareByID(ctx, tx, id)
 		if err != nil {
 			return err
 		}
-		params.normalize(existing.Name)
-		oldIconObjectID = existing.IconObjectID
+		params, err := mutate(current, tx)
+		if err != nil {
+			return err
+		}
+		params.normalize(current.Name)
+		if err := params.validate(); err != nil {
+			return err
+		}
+		if err := validateIcon(ctx, tx, params.IconObjectID); err != nil {
+			return err
+		}
 		write := newSoftwareUpdateWrite(params)
 		write.ID = id
 		var updatedID int64
@@ -106,16 +127,14 @@ RETURNING id`, pgx.StructArgs(write)).Scan(&updatedID); err != nil {
 		if err := s.replaceTargets(ctx, tx, id, params.Targets); err != nil {
 			return err
 		}
-		return nil
+		replaced = replacedObjectID(current.IconObjectID, params.IconObjectID)
+		updated, err = getSoftwareByID(ctx, tx, id)
+		return err
 	})
 	if err != nil {
 		return nil, err
 	}
-	updated, err := s.GetByID(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	s.objects.DeleteUnreferenced(ctx, replacedObjectID(oldIconObjectID, params.IconObjectID)...)
+	s.objects.DeleteUnreferenced(ctx, replaced...)
 	return updated, nil
 }
 
@@ -203,20 +222,16 @@ func (s *Store) List(ctx context.Context, params listing.Params) ([]Software, in
 	return software, count, nil
 }
 
-func (s *Store) validateIcon(ctx context.Context, objectID *int64) error {
-	if objectID == nil {
-		return nil
-	}
-	return s.requireIcon(ctx, *objectID)
-}
-
 // SetIcon points software at an icon storage object.
 func (s *Store) SetIcon(ctx context.Context, softwareID, objectID int64) error {
-	if err := s.requireIcon(ctx, objectID); err != nil {
-		return err
-	}
 	var oldIconObjectID *int64
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		if err := tx.QueryRow(ctx, `SELECT id FROM munki_software WHERE id = $1 FOR UPDATE`, softwareID).Scan(&softwareID); err != nil {
+			return postgres.GetError(err)
+		}
+		if err := validateIcon(ctx, tx, &objectID); err != nil {
+			return err
+		}
 		existing, err := getSoftwareByID(ctx, tx, softwareID)
 		if err != nil {
 			return err
@@ -243,11 +258,19 @@ func (s *Store) SetIcon(ctx context.Context, softwareID, objectID int64) error {
 	return nil
 }
 
-func (s *Store) requireIcon(ctx context.Context, objectID int64) error {
-	object, err := s.objects.GetByID(ctx, objectID)
-	if err != nil {
-		return err
+func validateIcon(ctx context.Context, tx pgx.Tx, objectID *int64) error {
+	if objectID == nil {
+		return nil
 	}
+	var object bloby.Object
+	if err := tx.QueryRow(ctx, `
+SELECT prefix, content_type, available_at
+FROM storage_objects
+WHERE id = $1 AND expired_at IS NULL
+FOR KEY SHARE`, *objectID).Scan(&object.Prefix, &object.ContentType, &object.AvailableAt); err != nil {
+		return postgres.GetError(err)
+	}
+
 	if object.Prefix != IconObjectPrefix {
 		return fmt.Errorf("%w: icon_object_id must reference an icon", fault.ErrInvalidInput)
 	}

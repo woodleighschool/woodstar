@@ -27,7 +27,7 @@ func (s *Store) replaceTargets(
 	if err := targets.validate(); err != nil {
 		return err
 	}
-	if err := s.validatePackageSelectors(ctx, softwareID, targets.Include); err != nil {
+	if err := validatePackageSelectors(ctx, tx, softwareID, targets.Include); err != nil {
 		return err
 	}
 	if err := validateExcludedLabels(ctx, tx, targets.Exclude); err != nil {
@@ -73,8 +73,9 @@ VALUES (
 	return nil
 }
 
-func (s *Store) validatePackageSelectors(
+func validatePackageSelectors(
 	ctx context.Context,
+	tx pgx.Tx,
 	softwareID int64,
 	includes []Include,
 ) error {
@@ -82,11 +83,11 @@ func (s *Store) validatePackageSelectors(
 		if include.Package.Strategy != PackageSpecific {
 			continue
 		}
-		pkg, err := s.packages.GetByID(ctx, *include.Package.PackageID)
-		if err != nil {
-			return err
+		var ownerID int64
+		if err := tx.QueryRow(ctx, `SELECT software_id FROM munki_packages WHERE id = $1`, *include.Package.PackageID).Scan(&ownerID); err != nil {
+			return postgres.GetError(err)
 		}
-		if pkg.Software.ID != softwareID {
+		if ownerID != softwareID {
 			return fmt.Errorf("%w: package.package_id must belong to software", fault.ErrInvalidInput)
 		}
 	}
@@ -144,6 +145,10 @@ func (s *Store) TargetsForSoftware(ctx context.Context, softwareID int64) (Targe
 	if softwareID <= 0 {
 		return Targets{}, fault.ErrNotFound
 	}
+	return targetsForSoftware(ctx, s.pool, softwareID)
+}
+
+func targetsForSoftware(ctx context.Context, q postgres.Queryer, softwareID int64) (Targets, error) {
 	type targetRow struct {
 		Direction        string   `db:"direction"`
 		LabelID          int64    `db:"label_id"`
@@ -151,7 +156,7 @@ func (s *Store) TargetsForSoftware(ctx context.Context, softwareID int64) (Targe
 		PackageSelection string   `db:"package_selection"`
 		PinnedPackageID  *int64   `db:"pinned_package_id"`
 	}
-	qrows, err := s.pool.Query(
+	qrows, err := q.Query(
 		ctx,
 		`SELECT
 			direction::text AS direction,

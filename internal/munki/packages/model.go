@@ -10,6 +10,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/listing"
 	"github.com/woodleighschool/woodstar/internal/openapischema"
+	"github.com/woodleighschool/woodstar/internal/patch"
 	"github.com/woodleighschool/woodstar/internal/validation"
 )
 
@@ -172,7 +173,7 @@ type PackageAlert struct {
 // PackageMutation is the editable shape for a Munki package version.
 type PackageMutation struct {
 	Version                  string                                `json:"version"                                          minLength:"1" validate:"required,notblank"`
-	InstallerType            InstallerType                         `json:"installer_type,omitempty"                                       validate:"omitempty,oneof=pkg nopkg copy_from_dmg"`
+	InstallerType            InstallerType                         `json:"installer_type,omitempty" nullable:"false"                      validate:"omitempty,oneof=pkg nopkg copy_from_dmg"`
 	UnattendedInstall        bool                                  `json:"unattended_install,omitempty"`
 	UnattendedUninstall      bool                                  `json:"unattended_uninstall,omitempty"`
 	Uninstallable            bool                                  `json:"uninstallable,omitempty"`
@@ -385,8 +386,18 @@ func (m *PackageMutation) validateRelations() error {
 }
 
 func (m *PackageMutation) normalize() {
-	m.Version = strings.TrimSpace(m.Version)
 	m.InstallerType = InstallerType(strings.TrimSpace(string(m.InstallerType)))
+	if m.InstallerType == "" {
+		m.InstallerType = InstallerTypePkg
+	}
+	// supported_architectures is NOT NULL; nil means no architecture restriction.
+	if m.SupportedArchitectures == nil {
+		m.SupportedArchitectures = []string{}
+	}
+	if m.BlockingApplications == nil {
+		m.BlockingApplications = []string{}
+	}
+	m.Version = strings.TrimSpace(m.Version)
 	m.UninstallMethod = UninstallMethod(strings.TrimSpace(string(m.UninstallMethod)))
 	m.RestartAction = RestartAction(strings.TrimSpace(string(m.RestartAction)))
 	m.MinimumMunkiVersion = strings.TrimSpace(m.MinimumMunkiVersion)
@@ -416,4 +427,61 @@ func (m *PackageMutation) normalize() {
 		m.ItemsToCopy[i].SourceItem = strings.TrimSpace(m.ItemsToCopy[i].SourceItem)
 		m.ItemsToCopy[i].DestinationPath = strings.TrimSpace(m.ItemsToCopy[i].DestinationPath)
 	}
+}
+
+// Patch is a sparse update of a package's editable fields.
+type Patch = patch.Document[PackageMutation]
+
+// Mutation projects editable fields and relation IDs from a package response.
+func (p Package) Mutation() PackageMutation {
+	m := PackageMutation{
+		Version:                  p.Version,
+		InstallerType:            p.InstallerType,
+		UnattendedInstall:        p.UnattendedInstall,
+		UnattendedUninstall:      p.UnattendedUninstall,
+		Uninstallable:            p.Uninstallable,
+		UninstallMethod:          p.UninstallMethod,
+		RestartAction:            p.RestartAction,
+		MinimumMunkiVersion:      p.MinimumMunkiVersion,
+		MinimumOSVersion:         p.MinimumOSVersion,
+		MaximumOSVersion:         p.MaximumOSVersion,
+		SupportedArchitectures:   p.SupportedArchitectures,
+		BlockingApplications:     p.BlockingApplications,
+		BlockingApplicationsNone: p.BlockingApplicationsNone,
+		InstallableCondition:     p.InstallableCondition,
+		BlockingAppsManualQuit:   p.BlockingAppsManualQuit,
+		BlockingAppsQuitScript:   p.BlockingAppsQuitScript,
+		OnDemand:                 p.OnDemand,
+		Precache:                 p.Precache,
+		Autoremove:               p.Autoremove,
+		AppleItem:                p.AppleItem,
+		SuppressBundleRelocation: p.SuppressBundleRelocation,
+		ForceInstallAfterDate:    p.ForceInstallAfterDate,
+		InstalledSize:            p.InstalledSize,
+		PackagePath:              p.PackagePath,
+		InstallerChoicesXML:      p.InstallerChoicesXML,
+		InstallerEnvironment:     p.InstallerEnvironment,
+		Installs:                 p.Installs,
+		Receipts:                 p.Receipts,
+		ItemsToCopy:              p.ItemsToCopy,
+		Notes:                    p.Notes,
+		InstallcheckScript:       p.InstallcheckScript,
+		UninstallcheckScript:     p.UninstallcheckScript,
+		PreinstallScript:         p.PreinstallScript,
+		PostinstallScript:        p.PostinstallScript,
+		PreuninstallScript:       p.PreuninstallScript,
+		PostuninstallScript:      p.PostuninstallScript,
+		UninstallScript:          p.UninstallScript,
+		VersionScript:            p.VersionScript,
+		PreinstallAlert:          p.PreinstallAlert,
+		PreuninstallAlert:        p.PreuninstallAlert,
+		InstallerObjectID:        p.InstallerObjectID,
+	}
+	for _, ref := range p.Requires {
+		m.Requires = append(m.Requires, PackageReferenceMutation{SoftwareID: ref.SoftwareID, PackageID: ref.PackageID})
+	}
+	for _, ref := range p.UpdateFor {
+		m.UpdateFor = append(m.UpdateFor, PackageReferenceMutation{SoftwareID: ref.SoftwareID, PackageID: ref.PackageID})
+	}
+	return m
 }

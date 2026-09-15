@@ -76,8 +76,8 @@ type packageRelations struct {
 }
 
 // attachRelations loads requires and update_for references for package rows.
-func (s *Store) attachRelations(ctx context.Context, packages []Package) ([]Package, error) {
-	relations, err := s.packageRelationsByPackage(ctx, packageIDs(packages))
+func attachRelations(ctx context.Context, q postgres.Queryer, packages []Package) ([]Package, error) {
+	relations, err := packageRelationsByPackage(ctx, q, packageIDs(packages))
 	if err != nil {
 		return nil, err
 	}
@@ -89,14 +89,15 @@ func (s *Store) attachRelations(ctx context.Context, packages []Package) ([]Pack
 	return packages, nil
 }
 
-func (s *Store) packageRelationsByPackage(
+func packageRelationsByPackage(
 	ctx context.Context,
+	q postgres.Queryer,
 	packageIDs []int64,
 ) (map[int64]packageRelations, error) {
 	if len(packageIDs) == 0 {
 		return map[int64]packageRelations{}, nil
 	}
-	rows, err := s.pool.Query(ctx, `
+	rows, err := q.Query(ctx, `
 		SELECT
 			r.package_id,
 			r.relation_kind,

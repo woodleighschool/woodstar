@@ -11,11 +11,15 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Package, error) {
 	if id <= 0 {
 		return nil, fault.ErrNotFound
 	}
-	row, err := postgres.GetOne[packageRow](ctx, s.pool, packageSelectSQL()+"\nWHERE p.id = $1", id)
+	return getPackageByID(ctx, s.pool, id)
+}
+
+func getPackageByID(ctx context.Context, q postgres.Queryer, id int64) (*Package, error) {
+	row, err := postgres.GetOne[packageRow](ctx, q, packageSelectSQL()+"\nWHERE p.id = $1", id)
 	if err != nil {
 		return nil, err
 	}
-	packages, err := s.attachRelations(ctx, []Package{packageFromRow(row)})
+	packages, err := attachRelations(ctx, q, []Package{packageFromRow(row)})
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +48,7 @@ func (s *Store) List(ctx context.Context, params PackageListParams) ([]Package, 
 	if err != nil {
 		return nil, 0, err
 	}
-	packages, err := s.attachRelations(ctx, packagesFromRows(rows))
+	packages, err := attachRelations(ctx, s.pool, packagesFromRows(rows))
 	if err != nil {
 		return nil, 0, err
 	}
@@ -59,7 +63,7 @@ ORDER BY lower(s.name), s.id, p.id`)
 	if err != nil {
 		return nil, err
 	}
-	return s.attachRelations(ctx, packagesFromRows(records))
+	return attachRelations(ctx, s.pool, packagesFromRows(records))
 }
 
 // PackagesByID assembles the given packages with relations attached. The result
@@ -77,7 +81,7 @@ func (s *Store) PackagesByID(ctx context.Context, ids []int64) ([]Package, error
 	if err != nil {
 		return nil, err
 	}
-	return s.attachRelations(ctx, packagesFromRows(records))
+	return attachRelations(ctx, s.pool, packagesFromRows(records))
 }
 
 func packageListWhere(params PackageListParams) (string, []any) {

@@ -39,6 +39,11 @@ type munkiPackagePutInput struct {
 	Body packages.PackageMutation
 }
 
+type munkiPackagePatchInput struct {
+	ID   int64 `path:"id"`
+	Body packages.Patch
+}
+
 type munkiPackageListOutput struct {
 	Body api.Page[packages.Package]
 }
@@ -74,6 +79,7 @@ func registerMunkiPackages(
 	registerCreateMunkiPackage(humaAPI, store, logger)
 	registerGetMunkiPackage(humaAPI, store, logger)
 	registerPutMunkiPackage(humaAPI, store, logger)
+	registerPatchMunkiPackage(humaAPI, store, logger)
 	registerBulkDeleteMunkiPackages(humaAPI, store, logger)
 	registerPackageInstallerRoutes(humaAPI, longRunningAPI, objects, logger)
 }
@@ -165,6 +171,35 @@ func registerPutMunkiPackage(humaAPI huma.API, store *munki.PackageService, logg
 				ctx,
 				logger,
 				"update-munki-package",
+				munkiPackageLabel,
+				err,
+				"package_id",
+				input.ID,
+			)
+		}
+		return &munkiPackageOutput{Body: *pkg}, nil
+	})
+}
+
+func registerPatchMunkiPackage(humaAPI huma.API, store *munki.PackageService, logger *slog.Logger) {
+	huma.Register(humaAPI, huma.Operation{
+		OperationID: "patch-munki-package",
+		Method:      http.MethodPatch,
+		Path:        munkiPackageIDPath,
+		Tags:        []string{api.TagMunkiPackages},
+		Summary:     "Partially update a package",
+		Errors: []int{
+			http.StatusBadRequest,
+			http.StatusNotFound,
+			http.StatusConflict,
+		},
+	}, func(ctx context.Context, input *munkiPackagePatchInput) (*munkiPackageOutput, error) {
+		pkg, err := store.Patch(ctx, input.ID, input.Body)
+		if err != nil {
+			return nil, api.ResourceError(
+				ctx,
+				logger,
+				"patch-munki-package",
 				munkiPackageLabel,
 				err,
 				"package_id",

@@ -138,25 +138,39 @@ RETURNING id`, pgx.StructArgs(write)).Scan(&id); err != nil {
 }
 
 func (s *Store) Update(ctx context.Context, id int64, params PackageMutation) (*Package, error) {
-	params, err := prepareMutation(params)
-	if err != nil {
-		return nil, err
-	}
+	return s.update(ctx, id, func(Package) (PackageMutation, error) { return params, nil })
+}
 
-	var oldObjectID *int64
-	err = pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+// Patch merges editable fields into the current package while holding its row lock.
+func (s *Store) Patch(ctx context.Context, id int64, document Patch) (*Package, error) {
+	return s.update(ctx, id, func(current Package) (PackageMutation, error) {
+		return document.Apply(current.Mutation())
+	})
+}
+
+func (s *Store) update(ctx context.Context, id int64, mutate func(Package) (PackageMutation, error)) (*Package, error) {
+	var updated *Package
+	var replaced []int64
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		if err := tx.QueryRow(ctx, `SELECT id FROM munki_packages WHERE id = $1 FOR UPDATE`, id).Scan(&id); err != nil {
+			return postgres.GetError(err)
+		}
+		current, err := getPackageByID(ctx, tx, id)
+		if err != nil {
+			return err
+		}
+		params, err := mutate(*current)
+		if err != nil {
+			return err
+		}
+		params, err = prepareMutation(params)
+		if err != nil {
+			return err
+		}
 		if err := validateAndLockInstallerObject(ctx, tx, params.InstallerObjectID, id); err != nil {
 			return err
 		}
-		var softwareID int64
-		if err := tx.QueryRow(ctx, `
-SELECT software_id, installer_object_id
-FROM munki_packages
-WHERE id = $1
-FOR UPDATE`, id).Scan(&softwareID, &oldObjectID); err != nil {
-			return postgres.GetError(err)
-		}
-		write := newPackageWrite(softwareID, params)
+		write := newPackageWrite(current.Software.ID, params)
 		write.ID = id
 		var updatedID int64
 		if err := tx.QueryRow(ctx, `
@@ -219,16 +233,14 @@ RETURNING id`, pgx.StructArgs(write)).Scan(&updatedID); err != nil {
 		if err := writePackageRelations(ctx, tx, id, params); err != nil {
 			return err
 		}
-		return nil
+		replaced = replacedObjectID(current.InstallerObjectID, params.InstallerObjectID)
+		updated, err = getPackageByID(ctx, tx, id)
+		return err
 	})
 	if err != nil {
 		return nil, err
 	}
-	updated, err := s.GetByID(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	s.objects.DeleteUnreferenced(ctx, replacedObjectID(oldObjectID, params.InstallerObjectID)...)
+	s.objects.DeleteUnreferenced(ctx, replaced...)
 	return updated, nil
 }
 
@@ -271,7 +283,6 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 }
 
 func prepareMutation(params PackageMutation) (PackageMutation, error) {
-	params = applyDefaults(params)
 	params.normalize()
 	if err := params.validate(); err != nil {
 		return PackageMutation{}, err
@@ -280,26 +291,11 @@ func prepareMutation(params PackageMutation) (PackageMutation, error) {
 }
 
 func prepareCreateMutation(params PackageCreateMutation) (PackageMutation, error) {
-	params.PackageMutation = applyDefaults(params.PackageMutation)
 	params.normalize()
 	if err := params.validate(); err != nil {
 		return PackageMutation{}, err
 	}
 	return params.PackageMutation, nil
-}
-
-func applyDefaults(params PackageMutation) PackageMutation {
-	if params.InstallerType == "" {
-		params.InstallerType = InstallerTypePkg
-	}
-	// supported_architectures is NOT NULL; nil means no architecture restriction.
-	if params.SupportedArchitectures == nil {
-		params.SupportedArchitectures = []string{}
-	}
-	if params.BlockingApplications == nil {
-		params.BlockingApplications = []string{}
-	}
-	return params
 }
 
 type packageWrite struct {

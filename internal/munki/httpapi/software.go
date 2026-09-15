@@ -38,6 +38,11 @@ type munkiSoftwarePutInput struct {
 	Body munkisoftware.UpdateMutation
 }
 
+type munkiSoftwarePatchInput struct {
+	ID   int64 `path:"id"`
+	Body munkisoftware.Patch
+}
+
 type munkiSoftwareDeleteInput struct {
 	ID int64 `path:"id"`
 }
@@ -73,6 +78,7 @@ func registerMunkiSoftware(
 	registerCreateMunkiSoftware(humaAPI, store, packageService, logger)
 	registerGetMunkiSoftware(humaAPI, store, packageService, logger)
 	registerPutMunkiSoftware(humaAPI, store, packageService, logger)
+	registerPatchMunkiSoftware(humaAPI, store, packageService, logger)
 	registerDeleteMunkiSoftware(humaAPI, deletions, logger)
 	registerBulkDeleteMunkiSoftware(humaAPI, deletions, logger)
 	registerIconRoutes(humaAPI, store, objects, logger)
@@ -172,6 +178,40 @@ func registerPutMunkiSoftware(
 			)
 		}
 		return loadMunkiSoftwareDetail(ctx, title.ID, store, packageService, logger, "update-munki-software")
+	})
+}
+
+func registerPatchMunkiSoftware(
+	humaAPI huma.API,
+	store *munkisoftware.Store,
+	packageService *munki.PackageService,
+	logger *slog.Logger,
+) {
+	huma.Register(humaAPI, huma.Operation{
+		OperationID: "patch-munki-software",
+		Method:      http.MethodPatch,
+		Path:        munkiSoftwareIDPath,
+		Tags:        []string{api.TagMunkiSoftware},
+		Summary:     "Partially update a software title",
+		Errors: []int{
+			http.StatusBadRequest,
+			http.StatusNotFound,
+			http.StatusConflict,
+		},
+	}, func(ctx context.Context, input *munkiSoftwarePatchInput) (*munkiSoftwareDetailOutput, error) {
+		title, err := store.Patch(ctx, input.ID, input.Body)
+		if err != nil {
+			return nil, api.ResourceError(
+				ctx,
+				logger,
+				"patch-munki-software",
+				munkiSoftwareLabel,
+				err,
+				"software_id",
+				input.ID,
+			)
+		}
+		return loadMunkiSoftwareDetail(ctx, title.ID, store, packageService, logger, "patch-munki-software")
 	})
 }
 

@@ -2,6 +2,7 @@ package software
 
 import (
 	"errors"
+	"reflect"
 	"testing"
 
 	"github.com/woodleighschool/woodstar/internal/fault"
@@ -47,5 +48,24 @@ func TestCreateMutationNormalizesMunkiMetadata(t *testing.T) {
 	}
 	if mutation.DisplayName != "" {
 		t.Fatalf("display name = %q, want redundant value removed", mutation.DisplayName)
+	}
+}
+
+// PATCH merges into this projection, so an unprojected field would be reset.
+func TestSoftwareMutationProjectsEveryEditableField(t *testing.T) {
+	displayName := "Example"
+	iconObjectID := int64(1)
+	title := Software{
+		DisplayName:  &displayName,
+		Description:  "Description",
+		Category:     "Category",
+		Developer:    "Developer",
+		IconObjectID: &iconObjectID,
+	}
+	mutation := reflect.ValueOf(title.Mutation(Targets{Include: []Include{{LabelID: 1}}}))
+	for i := range mutation.NumField() {
+		if mutation.Field(i).IsZero() {
+			t.Errorf("Mutation() does not project %s", mutation.Type().Field(i).Name)
+		}
 	}
 }
