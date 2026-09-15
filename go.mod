@@ -32,7 +32,7 @@ require (
 	github.com/testcontainers/testcontainers-go v0.44.0
 	github.com/woodleighschool/goodies/auth v1.0.0
 	github.com/woodleighschool/goodies/bloby v1.0.0
-	github.com/woodleighschool/goodies/pglock v0.1.0
+	github.com/woodleighschool/goodies/pglock v0.1.1
 	golang.org/x/term v0.46.0
 	golang.org/x/text v0.42.0
 	google.golang.org/protobuf v1.36.12
