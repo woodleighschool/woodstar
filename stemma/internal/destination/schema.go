@@ -43,7 +43,7 @@ func pkginfoSchema() *jsonschema.Schema {
 	rename(schema, "on_demand", "OnDemand")
 	for field, names := range map[string]map[string]string{
 		"receipts":              {"package_id": "packageid"},
-		"installs":              {"bundle_identifier": "CFBundleIdentifier", "bundle_name": "CFBundleName", "bundle_short_version": "CFBundleShortVersionString", "bundle_version": "CFBundleVersion"},
+		"installs":              {"bundle_identifier": "CFBundleIdentifier", "bundle_name": "CFBundleName", "bundle_short_version": "CFBundleShortVersionString", "bundle_version": "CFBundleVersion", "minimum_os_version": "minosversion"},
 		"installer_choices_xml": {"choice_identifier": "choiceIdentifier", "choice_attribute": "choiceAttribute", "attribute_setting": "attributeSetting"},
 	} {
 		array, _ := schema.Properties.Get(field)

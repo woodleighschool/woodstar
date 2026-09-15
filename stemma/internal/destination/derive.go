@@ -1,12 +1,15 @@
 package destination
 
 import (
+	"cmp"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"maps"
 	"path"
+	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/woodleighschool/stemma/plugin"
@@ -136,7 +139,7 @@ func derive(request plugin.ReconcileRequest) (map[string]any, map[string]string,
 	if len(facts.Subjects) == 0 {
 		facts = request.Artifact.Facts
 	}
-	versions := d.receipts(facts, kind)
+	versions, installer := d.packageDefaults(facts, kind)
 	selected, versionKey, err := macEvidence(request.Artifact)
 	if err != nil {
 		return nil, nil, err
@@ -150,15 +153,31 @@ func derive(request plugin.ReconcileRequest) (map[string]any, map[string]string,
 	if err != nil {
 		return nil, nil, err
 	}
+	minimumOS, minimumOrigin := installer.MinimumOS, "installer.minimum_os"
 	if selected != nil {
 		if err := d.application(*selected, options, kind); err != nil {
 			return nil, nil, err
 		}
-	} else if len(versions) == 1 {
-		for version := range versions {
-			d.put("version", version, "installer.receipts")
+		// Munki takes the later of the installer and application requirements.
+		if compareVersions(selected.App.MinimumOS, minimumOS) > 0 {
+			minimumOS, minimumOrigin = selected.App.MinimumOS, "app.minimum_os"
+		}
+	} else if _, exists := d.values["version"]; !exists {
+		switch {
+		case installer.Version != "":
+			d.put("version", installer.Version, "installer.version")
+		case len(versions) == 1:
+			for version := range versions {
+				d.put("version", version, "installer.receipts")
+			}
+		case len(versions) > 1:
+			return nil, nil, errors.New("PKG components declare different versions; select an application or author pkginfo.version")
 		}
 	}
+	if minimumOS != "" {
+		d.put("minimum_os_version", minimumOS, minimumOrigin)
+	}
+	d.uninstall(kind)
 	return d.values, d.origins, nil
 }
 
@@ -207,10 +226,15 @@ func selectApplication(facts plugin.Facts, selectors map[string]plugin.SubjectSe
 	return selected, nil
 }
 
-func (d *nativeDefaults) receipts(facts plugin.Facts, kind string) map[string]bool {
+func (d *nativeDefaults) packageDefaults(facts plugin.Facts, kind string) (map[string]bool, plugin.InstallerFacts) {
 	var receipts []map[string]any
+	var installedSize int64
+	var installer plugin.InstallerFacts
 	versions := map[string]bool{}
 	for _, subject := range facts.Subjects {
+		if subject.Installer != nil {
+			installer = *subject.Installer
+		}
 		pkg := subject.Package
 		if pkg == nil {
 			continue
@@ -220,17 +244,73 @@ func (d *nativeDefaults) receipts(facts plugin.Facts, kind string) map[string]bo
 		}
 		if pkg.HasPayload && pkg.Identifier != "" {
 			receipts = append(receipts, map[string]any{"packageid": pkg.Identifier, "version": pkg.Version, "installed_size": pkg.InstalledSize})
+			installedSize += pkg.InstalledSize
 		}
 	}
-	if len(receipts) > 0 && kind == "pkg" {
-		d.put("receipts", receipts, "installer.receipts")
+	if kind == "pkg" {
+		if len(receipts) > 0 {
+			d.put("receipts", receipts, "installer.receipts")
+		}
+		if installedSize > 0 {
+			d.put("installed_size", installedSize, "installer.receipts")
+		}
+		if installer.RestartAction != "" {
+			d.put("RestartAction", installer.RestartAction, "installer.restart_action")
+		}
 	}
-	return versions
+	return versions, installer
+}
+
+func (d *nativeDefaults) uninstall(kind string) {
+	for _, key := range []string{"uninstallable", "uninstall_method"} {
+		if _, authored := d.explicit[key]; authored || slices.Contains(d.unmanaged, "pkginfo."+key) {
+			return
+		}
+	}
+	switch {
+	case kind == "pkg" && hasEntries(d.values["receipts"]):
+		d.put("uninstallable", true, "installer.receipts")
+		d.put("uninstall_method", "removepackages", "installer.receipts")
+	case kind == "copy_from_dmg" && hasEntries(d.values["items_to_copy"]):
+		d.put("uninstallable", true, "app.archive_path")
+		d.put("uninstall_method", "remove_copied_items", "app.archive_path")
+	}
+}
+
+func hasEntries(value any) bool {
+	list := reflect.ValueOf(value)
+	return list.Kind() == reflect.Slice && list.Len() > 0
+}
+
+// compareVersions orders dotted numeric versions such as macOS releases as Munki
+// does: empty components are ignored and missing components compare as zero.
+func compareVersions(a, b string) int {
+	dot := func(r rune) bool { return r == '.' }
+	left, right := strings.FieldsFunc(a, dot), strings.FieldsFunc(b, dot)
+	for i := range max(len(left), len(right)) {
+		x, y := "0", "0"
+		if i < len(left) {
+			x = left[i]
+		}
+		if i < len(right) {
+			y = right[i]
+		}
+		order := strings.Compare(x, y)
+		m, errM := strconv.ParseUint(x, 10, 64)
+		n, errN := strconv.ParseUint(y, 10, 64)
+		if errM == nil && errN == nil {
+			order = cmp.Compare(m, n)
+		}
+		if order != 0 {
+			return order
+		}
+	}
+	return 0
 }
 
 func (d *nativeDefaults) application(subject plugin.Subject, options *AppDerivation, kind string) error {
 	app := subject.App
-	version, versionKey, endpoint := app.Version, "CFBundleShortVersionString", subject.InstalledPath
+	version, versionKey, endpoint := app.Version, app.VersionKey(), subject.InstalledPath
 	if options != nil {
 		if options.VersionKey != "" {
 			versionKey = options.VersionKey
@@ -252,9 +332,6 @@ func (d *nativeDefaults) application(subject plugin.Subject, options *AppDerivat
 		}
 		endpoint = copied
 	}
-	if app.MinimumOS != "" {
-		d.put("minimum_os_version", app.MinimumOS, "app.minimum_os")
-	}
 	for _, key := range []string{"installcheck_script", "receipts", "installs"} {
 		if _, authored := d.explicit[key]; authored {
 			return nil
@@ -272,7 +349,7 @@ func (d *nativeDefaults) application(subject plugin.Subject, options *AppDerivat
 	if app.BundleID == "" || version == "" {
 		return errors.New("selected application requires a bundle identifier and comparison version")
 	}
-	d.put("installs", []map[string]any{{"type": "application", "path": endpoint, "CFBundleIdentifier": app.BundleID, "CFBundleName": app.Name, "CFBundleShortVersionString": app.Version, "CFBundleVersion": app.Build, "version_comparison_key": versionKey, "minimum_os_version": app.MinimumOS}}, "app.installed_path")
+	d.put("installs", []map[string]any{{"type": "application", "path": endpoint, "CFBundleIdentifier": app.BundleID, "CFBundleName": app.Name, "CFBundleShortVersionString": app.Version, "CFBundleVersion": app.Build, "version_comparison_key": versionKey, "minosversion": app.MinimumOS}}, "app.installed_path")
 	return nil
 }
 

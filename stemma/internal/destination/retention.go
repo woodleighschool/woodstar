@@ -7,6 +7,7 @@ import (
 	"maps"
 	"net/http"
 	"net/url"
+	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -16,23 +17,46 @@ import (
 	"github.com/woodleighschool/woodstar/internal/munki/software"
 )
 
+// apiFields maps the native pkginfo names that differ from the package API.
+var apiFields = map[string]string{"RestartAction": "restart_action", "OnDemand": "on_demand"}
+
 func (remote *client) manageDerived(metadata *metadata) error {
 	fields, err := object(metadata.pkg.Bytes())
 	if err != nil {
 		return err
 	}
 	for _, field := range remote.state.Packages[remote.fingerprint].Derived {
-		if _, exists := fields[field]; exists || slices.Contains(metadata.controls.Unmanaged, "pkginfo."+field) {
+		native := field
+		for name, api := range apiFields {
+			if api == field {
+				native = name
+			}
+		}
+		if _, exists := fields[field]; exists || slices.Contains(metadata.controls.Unmanaged, "pkginfo."+native) {
 			continue
 		}
-		switch field {
-		case "installs", "receipts", "items_to_copy":
-			fields[field] = raw([]any{})
-		default:
-			fields[field] = raw(nil)
-		}
+		fields[field] = released(field)
 	}
 	return json.Unmarshal(raw(fields), &metadata.pkg)
+}
+
+// released clears a previously derived field. Merge patches clear only optional
+// strings and pointers with null; other fields return to their zero value.
+func released(field string) json.RawMessage {
+	for column := range reflect.TypeFor[packages.PackageMutation]().Fields() {
+		if name, _, _ := strings.Cut(column.Tag.Get("json"), ","); name != field {
+			continue
+		}
+		kind := column.Type.Kind()
+		if kind == reflect.Slice {
+			return raw([]any{})
+		}
+		if kind == reflect.Bool || kind == reflect.Int64 {
+			return raw(reflect.Zero(column.Type).Interface())
+		}
+		break
+	}
+	return raw(nil)
 }
 
 func (remote *client) recordPackage(metadata metadata, pkg *packages.Package) {
@@ -43,6 +67,9 @@ func (remote *client) recordPackage(metadata metadata, pkg *packages.Package) {
 	fields, _ := object(metadata.pkg.Bytes())
 	for field, origin := range metadata.origins {
 		key := strings.TrimPrefix(field, "pkginfo.")
+		if api, renamed := apiFields[key]; renamed {
+			key = api
+		}
 		if origin != "authored" {
 			if _, present := fields[key]; present {
 				derived = append(derived, key)

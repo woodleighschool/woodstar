@@ -371,7 +371,8 @@ func checkPluginMetadata(t *testing.T, binary string, state *apiFixture, request
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(third.Changes) != 2 {
+	// Removing authored receipts also releases the removal method derived from them.
+	if len(third.Changes) != 4 {
 		t.Fatalf("metadata changes=%+v", third.Changes)
 	}
 	state.mu.Lock()
