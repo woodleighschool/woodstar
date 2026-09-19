@@ -7,8 +7,8 @@ require (
 	github.com/go-chi/chi/v5 v5.3.2
 	github.com/invopop/jsonschema v0.14.0
 	github.com/woodleighschool/goodies/auth v1.1.0
-	github.com/woodleighschool/stemma v0.0.0-20260919094316-b581b29fc2fe
-	github.com/woodleighschool/woodstar v0.0.0
+	github.com/woodleighschool/stemma v0.0.0-20260919104811-71ee3ca0da1d
+	github.com/woodleighschool/woodstar v0.1.8
 	resty.dev/v3 v3.0.0-rc.4
 )
 
@@ -17,8 +17,8 @@ require (
 	github.com/alexedwards/scs/v2 v2.9.0 // indirect
 	github.com/aws/aws-sdk-go-v2 v1.47.0 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.20 // indirect
-	github.com/aws/aws-sdk-go-v2/config v1.33.4 // indirect
-	github.com/aws/aws-sdk-go-v2/credentials v1.20.4 // indirect
+	github.com/aws/aws-sdk-go-v2/config v1.33.5 // indirect
+	github.com/aws/aws-sdk-go-v2/credentials v1.20.5 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.20.0 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.5.3 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.8.3 // indirect
@@ -31,8 +31,8 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/signin v1.10.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sso v1.38.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.43.0 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sts v1.50.0 // indirect
-	github.com/aws/smithy-go v1.28.1 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sts v1.51.0 // indirect
+	github.com/aws/smithy-go v1.28.2 // indirect
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
 	github.com/buger/jsonparser v1.6.1 // indirect
 	github.com/caarlos0/env/v11 v11.4.1 // indirect
@@ -75,5 +75,3 @@ require (
 
 // Use the API models from this repository checkout.
 replace github.com/woodleighschool/woodstar => ..
-
-replace github.com/woodleighschool/stemma => ../../stemma
