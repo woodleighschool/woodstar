@@ -12,6 +12,7 @@ import (
 	"github.com/woodleighschool/stemma/plugin"
 
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
+	"github.com/woodleighschool/woodstar/stemma/internal/destination/api"
 )
 
 // Register exposes the transport through Stemma's shared operation registry.
@@ -48,7 +49,7 @@ func Handle(ctx context.Context, request plugin.ReconcileRequest) (plugin.Reconc
 	if request.Method == "validate" {
 		return plugin.ReconcileResponse{Origins: metadata.origins, Requires: metadata.references()}, nil
 	}
-	remote, err := New(cfg)
+	remote, err := api.New(cfg)
 	if err != nil {
 		return plugin.ReconcileResponse{}, err
 	}
@@ -86,7 +87,7 @@ func Handle(ctx context.Context, request plugin.ReconcileRequest) (plugin.Reconc
 	return response, err
 }
 
-func apply(ctx context.Context, remote *Client, metadata metadata, planned desired, observed *Observation) (runErr error) {
+func apply(ctx context.Context, remote *api.Client, metadata metadata, planned desired, observed *api.Observation) (runErr error) {
 	if observed.Software == nil {
 		// Targets can select a package that does not exist until the next write,
 		// so the title starts with only its name.
@@ -142,7 +143,7 @@ func apply(ctx context.Context, remote *Client, metadata metadata, planned desir
 
 // savePackage creates the package with its whole desired state, or patches the
 // fields the declaration supplies onto the package the repository holds.
-func savePackage(ctx context.Context, remote *Client, metadata metadata, planned desired, objectID int64, observed *Observation) (runErr error) {
+func savePackage(ctx context.Context, remote *api.Client, metadata metadata, planned desired, objectID int64, observed *api.Observation) (runErr error) {
 	done := plugin.Stage(ctx, "Saving package")
 	defer func() { done(runErr) }()
 	var saved *packages.Package
@@ -188,7 +189,7 @@ func withInstaller(patch packages.Patch, objectID int64) (packages.Patch, error)
 	return patch, err
 }
 
-func saveSoftware(ctx context.Context, remote *Client, metadata metadata, observed *Observation) (runErr error) {
+func saveSoftware(ctx context.Context, remote *api.Client, metadata metadata, observed *api.Observation) (runErr error) {
 	done := plugin.Stage(ctx, "Saving software")
 	defer func() { done(runErr) }()
 	saved, err := remote.UpdateSoftware(ctx, observed.Software.ID, metadata.software)
@@ -199,7 +200,7 @@ func saveSoftware(ctx context.Context, remote *Client, metadata metadata, observ
 	return nil
 }
 
-func publishIcon(ctx context.Context, remote *Client, icon plugin.Artifact, softwareID int64) (runErr error) {
+func publishIcon(ctx context.Context, remote *api.Client, icon plugin.Artifact, softwareID int64) (runErr error) {
 	done := plugin.Stage(ctx, "Publishing icon")
 	defer func() { done(runErr) }()
 	var content bytes.Buffer
@@ -211,7 +212,7 @@ func publishIcon(ctx context.Context, remote *Client, icon plugin.Artifact, soft
 
 // recoverWrite accepts a write whose reply was lost once the repository holds
 // its result, which the publication's native identity finds again.
-func recoverWrite(ctx context.Context, remote *Client, metadata metadata, resource string, observed *Observation, writeErr error) error {
+func recoverWrite(ctx context.Context, remote *api.Client, metadata metadata, resource string, observed *api.Observation, writeErr error) error {
 	recovered, err := remote.Observe(ctx, metadata.name, metadata.version)
 	if err != nil || recovered.Software == nil {
 		return writeErr

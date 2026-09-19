@@ -1,4 +1,7 @@
-package destination
+// Package pkginfo translates native Munki pkginfo into the repository's
+// editable models. Stemma keeps its own Munki derivation internal, so this
+// package carries the rules that fill omitted fields from artifact evidence.
+package pkginfo
 
 import (
 	"bytes"
@@ -81,4 +84,9 @@ func splitReferences(values map[string]any, self string) (map[string][]CatalogRe
 		values[field] = names
 	}
 	return links, nil
+}
+
+func raw(value any) json.RawMessage {
+	data, _ := json.Marshal(value)
+	return data
 }

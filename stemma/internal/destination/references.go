@@ -10,6 +10,8 @@ import (
 	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	"github.com/woodleighschool/woodstar/internal/munki/software"
+	"github.com/woodleighschool/woodstar/stemma/internal/destination/api"
+	"github.com/woodleighschool/woodstar/stemma/internal/destination/pkginfo"
 )
 
 // references names the catalog resources the pkginfo links to, so Stemma
@@ -27,7 +29,7 @@ func (m metadata) references() []string {
 
 // resolveReferences replaces the pkginfo's relationships with the software and
 // packages the repository holds for them.
-func resolveReferences(ctx context.Context, remote *Client, metadata *metadata) error {
+func resolveReferences(ctx context.Context, remote *api.Client, metadata *metadata) error {
 	fields, err := object(metadata.pkg.Bytes())
 	if err != nil {
 		return err
@@ -69,7 +71,7 @@ func resolveReferences(ctx context.Context, remote *Client, metadata *metadata) 
 
 // linkedSoftware finds the software a catalog resource publishes here. Its
 // Munki name is its declared name for this destination, or its resource name.
-func linkedSoftware(ctx context.Context, remote *Client, link CatalogReference, peers map[string]json.RawMessage) (*SoftwareDetail, error) {
+func linkedSoftware(ctx context.Context, remote *api.Client, link pkginfo.CatalogReference, peers map[string]json.RawMessage) (*api.SoftwareDetail, error) {
 	declared, exists := peers[link.Software]
 	if !exists {
 		return nil, fmt.Errorf("catalog software %q does not publish to this destination", link.Software)

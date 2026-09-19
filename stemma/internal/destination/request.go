@@ -14,16 +14,18 @@ import (
 	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	"github.com/woodleighschool/woodstar/internal/munki/software"
+	"github.com/woodleighschool/woodstar/stemma/internal/destination/api"
+	"github.com/woodleighschool/woodstar/stemma/internal/destination/pkginfo"
 )
 
 // controls separates native pkginfo from provider-owned derivation and retention.
 type controls struct {
 	targets *targets
 
-	Targets   json.RawMessage   `json:"targets,omitempty"`
-	Derive    Derivation        `json:"derive,omitzero"`
-	Pkginfo   json.RawMessage   `json:"pkginfo,omitempty"`
-	Retention *plugin.Retention `json:"retention,omitempty"`
+	Targets   json.RawMessage    `json:"targets,omitempty"`
+	Derive    pkginfo.Derivation `json:"derive,omitzero"`
+	Pkginfo   json.RawMessage    `json:"pkginfo,omitempty"`
+	Retention *plugin.Retention  `json:"retention,omitempty"`
 }
 
 // metadata is a declaration resolved against its artifacts: the publication's
@@ -35,7 +37,7 @@ type metadata struct {
 	pkg       packages.Patch
 	requires  []munki.PkginfoReference
 	updateFor []munki.PkginfoReference
-	links     map[string][]CatalogReference
+	links     map[string][]pkginfo.CatalogReference
 	peers     map[string]json.RawMessage
 	icon      plugin.Artifact
 	installer plugin.Artifact
@@ -43,8 +45,8 @@ type metadata struct {
 	origins   map[string]string
 }
 
-func readRequest(ctx context.Context, request plugin.ReconcileRequest) (Config, metadata, error) {
-	var cfg Config
+func readRequest(ctx context.Context, request plugin.ReconcileRequest) (api.Config, metadata, error) {
+	var cfg api.Config
 	if err := decode(request.Config, &cfg); err != nil {
 		return cfg, metadata{}, fmt.Errorf("configuration: %w", err)
 	}
@@ -55,7 +57,7 @@ func readRequest(ctx context.Context, request plugin.ReconcileRequest) (Config, 
 	if err != nil {
 		return cfg, metadata{}, err
 	}
-	derived, err := Derive(request, settings.Pkginfo, settings.Derive)
+	derived, err := pkginfo.Derive(request, settings.Pkginfo, settings.Derive)
 	if err != nil {
 		return cfg, metadata{}, err
 	}
@@ -68,7 +70,7 @@ func readRequest(ctx context.Context, request plugin.ReconcileRequest) (Config, 
 			derived.Values["version"] = "0"
 		}
 	}
-	imported, err := Import(derived.Values, request.Identity.Software)
+	imported, err := pkginfo.Import(derived.Values, request.Identity.Software)
 	if err != nil {
 		return cfg, metadata{}, err
 	}
@@ -128,7 +130,7 @@ func metadataSchema() *jsonschema.Schema {
 	r := jsonschema.Reflector{DoNotReference: true, RequiredFromJSONSchemaTags: true}
 	schema := r.Reflect(controls{})
 	schema.ID = ""
-	schema.Properties.Set("pkginfo", Schema())
+	schema.Properties.Set("pkginfo", pkginfo.Schema())
 	declared := r.Reflect(targets{})
 	declared.ID = ""
 	if entries, ok := declared.Properties.Get("include"); ok {

@@ -11,6 +11,7 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	"github.com/woodleighschool/woodstar/internal/munki/software"
+	"github.com/woodleighschool/woodstar/stemma/internal/destination/api"
 )
 
 type desired struct {
@@ -21,7 +22,7 @@ type desired struct {
 	changes []plugin.Change
 }
 
-func plan(metadata metadata, observed Observation) (desired, error) {
+func plan(metadata metadata, observed api.Observation) (desired, error) {
 	var result desired
 	var currentSoftware software.UpdateMutation
 	var currentPackage packages.PackageMutation

@@ -1,4 +1,6 @@
-package destination
+// Package api calls the administrative API that holds Munki software, packages
+// and their content.
+package api
 
 import (
 	"context"

@@ -11,6 +11,7 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/munki/software"
 	"github.com/woodleighschool/woodstar/internal/targeting"
+	"github.com/woodleighschool/woodstar/stemma/internal/destination/api"
 )
 
 // targets is the declared form of label targeting: labels by name, with every
@@ -72,7 +73,7 @@ func decodeTargets(data json.RawMessage) (*targets, error) {
 }
 
 // resolveTargets replaces declared lists, resolving labels to the instance's ids.
-func resolveTargets(ctx context.Context, remote *Client, metadata *metadata) error {
+func resolveTargets(ctx context.Context, remote *api.Client, metadata *metadata) error {
 	declared := metadata.controls.targets
 	if declared == nil {
 		return nil
