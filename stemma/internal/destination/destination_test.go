@@ -21,6 +21,8 @@ import (
 	"time"
 
 	"github.com/woodleighschool/stemma/plugin"
+
+	"github.com/woodleighschool/woodstar/stemma/internal/destination/api"
 )
 
 func TestCompiledPluginReconcilesContentAndPresence(t *testing.T) {
@@ -239,7 +241,7 @@ func serveAPI(t *testing.T, handler http.Handler) (json.RawMessage, string) {
 	if err := os.WriteFile(caPath, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw}), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	return raw(Config{URL: server.URL, APIKey: "synthetic-key", CAFile: caPath}), server.URL
+	return raw(api.Config{URL: server.URL, APIKey: "synthetic-key", CAFile: caPath}), server.URL
 }
 
 // writes counts every request that could change the repository, refused or not.

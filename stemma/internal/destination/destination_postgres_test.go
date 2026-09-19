@@ -69,7 +69,7 @@ func TestStemmaAdapterPostgresLifecycle(t *testing.T) { //nolint:funlen,gocognit
 	cfg.OpenAPIPath, cfg.DocsPath, cfg.SchemasPath = "", "", ""
 	cfg.Components = &huma.Components{Schemas: huma.NewMapRegistry("#/components/schemas/", huma.DefaultSchemaNamer)}
 	humaAPI := humachi.New(router, cfg)
-	routes := AppRoutes{Protected: humaAPI, LongRunning: humaAPI, Router: router, Transfers: router}
+	routes := api.AppRoutes{Protected: humaAPI, LongRunning: humaAPI, Router: router, Transfers: router}
 	httpapi.RegisterAPI(routes, httpapi.Dependencies{
 		Software: softwareStore, Packages: service, Objects: objects,
 		Authorizer: testAuthorizer{}, Logger: slog.New(slog.DiscardHandler),

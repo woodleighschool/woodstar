@@ -11,13 +11,14 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	"github.com/woodleighschool/woodstar/internal/munki/software"
+	"github.com/woodleighschool/woodstar/stemma/internal/destination/api"
 )
 
 // prune applies retention to the software's whole family as the repository
 // holds it, newest first by creation. It keeps the current package and the
 // newest others, and leaves any package a target, requirement or update pins.
 // Native foreign keys protect reverse references this scope cannot enumerate.
-func prune(ctx context.Context, remote *Client, metadata metadata, observed Observation, apply bool) ([]plugin.Change, error) {
+func prune(ctx context.Context, remote *api.Client, metadata metadata, observed api.Observation, apply bool) ([]plugin.Change, error) {
 	retention := metadata.controls.Retention
 	if retention == nil || observed.Software == nil {
 		return nil, nil
@@ -39,7 +40,7 @@ func prune(ctx context.Context, remote *Client, metadata metadata, observed Obse
 		}
 		if apply {
 			err := remote.DeletePackage(ctx, old.ID)
-			var status StatusError
+			var status api.StatusError
 			if errors.As(err, &status) && status.Status == http.StatusConflict {
 				continue
 			}

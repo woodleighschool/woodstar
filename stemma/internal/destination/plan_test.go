@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/woodleighschool/stemma/plugin"
+
+	"github.com/woodleighschool/woodstar/stemma/internal/destination/api"
 )
 
 func TestPlanRejectsPaddedArtifactFilename(t *testing.T) {
@@ -13,7 +15,7 @@ func TestPlanRejectsPaddedArtifactFilename(t *testing.T) {
 	if err := json.Unmarshal(json.RawMessage(`{"version":"1.0","installer_type":"pkg"}`), &declared.pkg); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := plan(declared, Observation{}); err == nil {
+	if _, err := plan(declared, api.Observation{}); err == nil {
 		t.Fatal("accepted a filename that changes during upload")
 	}
 }

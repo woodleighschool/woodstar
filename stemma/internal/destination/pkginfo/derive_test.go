@@ -1,4 +1,4 @@
-package destination
+package pkginfo
 
 import (
 	"encoding/json"
