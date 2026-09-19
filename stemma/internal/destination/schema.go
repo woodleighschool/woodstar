@@ -2,24 +2,14 @@ package destination
 
 import (
 	"github.com/invopop/jsonschema"
+
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
-	"github.com/woodleighschool/woodstar/internal/munki/software"
 )
 
-func metadataSchema() *jsonschema.Schema {
-	r := jsonschema.Reflector{DoNotReference: true, RequiredFromJSONSchemaTags: true}
-	schema := r.Reflect(controls{})
-	schema.ID = ""
-	schema.Properties.Set("pkginfo", pkginfoSchema())
-	targets := r.Reflect(software.Targets{})
-	targets.ID = ""
-	schema.Properties.Set("targets", targets)
-	return schema
-}
-
-// The importer accepts native Munki names while the shared models describe the
-// editable API fields. Keep their schema translation at the plugin boundary.
-func pkginfoSchema() *jsonschema.Schema {
+// Schema describes the native pkginfo the importer accepts. The shared models
+// describe the editable API fields, so their schema is translated here at the
+// plugin boundary.
+func Schema() *jsonschema.Schema {
 	r := jsonschema.Reflector{DoNotReference: true, RequiredFromJSONSchemaTags: true}
 	schema := r.Reflect(packages.PackageMutation{})
 	schema.ID = ""
@@ -43,7 +33,7 @@ func pkginfoSchema() *jsonschema.Schema {
 	rename(schema, "on_demand", "OnDemand")
 	for field, names := range map[string]map[string]string{
 		"receipts":              {"package_id": "packageid"},
-		"installs":              {"bundle_identifier": "CFBundleIdentifier", "bundle_name": "CFBundleName", "bundle_short_version": "CFBundleShortVersionString", "bundle_version": "CFBundleVersion"},
+		"installs":              {"bundle_identifier": "CFBundleIdentifier", "bundle_name": "CFBundleName", "bundle_short_version": "CFBundleShortVersionString", "bundle_version": "CFBundleVersion", "minimum_os_version": "minosversion"},
 		"installer_choices_xml": {"choice_identifier": "choiceIdentifier", "choice_attribute": "choiceAttribute", "attribute_setting": "attributeSetting"},
 	} {
 		array, _ := schema.Properties.Get(field)
@@ -51,8 +41,10 @@ func pkginfoSchema() *jsonschema.Schema {
 			rename(array.Items, from, to)
 		}
 	}
+	link := r.Reflect(CatalogReference{})
+	link.ID = ""
 	for _, field := range []string{"requires", "update_for"} {
-		schema.Properties.Set(field, &jsonschema.Schema{Type: "array", Items: &jsonschema.Schema{Type: "string"}})
+		schema.Properties.Set(field, &jsonschema.Schema{Type: "array", Items: &jsonschema.Schema{AnyOf: []*jsonschema.Schema{{Type: "string"}, link}}})
 	}
 	schema.Properties.Set("installer_environment", &jsonschema.Schema{Type: "object", AdditionalProperties: &jsonschema.Schema{Type: "string"}})
 	for _, field := range []string{"preinstall_alert", "preuninstall_alert"} {

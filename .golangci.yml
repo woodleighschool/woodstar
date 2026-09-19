@@ -27,11 +27,11 @@ issues:
 linters:
   exclusions:
     rules:
-      # The plugin shares API models with the server module in this checkout.
+      # The plugin uses the local server models and Stemma SDK.
       - path: '^stemma/go\.mod$'
         linters:
           - gomoddirectives
-        text: '^local replacement are not allowed: github\.com/woodleighschool/woodstar$'
+        text: '^local replacement are not allowed: github\.com/woodleighschool/(woodstar|stemma)$'
   enable:
     - asasalint # checks for pass []any as any in variadic func(...any)
     - asciicheck # checks that your code does not contain non-ASCII identifiers

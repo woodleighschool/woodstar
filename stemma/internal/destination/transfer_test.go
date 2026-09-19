@@ -1,15 +1,15 @@
 package destination
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"encoding/pem"
 	"errors"
 	"io"
+	"log/slog"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -20,6 +20,53 @@ import (
 
 	"github.com/woodleighschool/stemma/plugin"
 )
+
+func TestFinalizationPreservesCallerDeadlineAndCancellation(t *testing.T) {
+	remote, err := New(Config{URL: "https://woodstar.test", APIKey: "synthetic-key"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = remote.Close() }()
+	deadline := time.Now().Add(30 * time.Minute)
+	ctx, cancel := context.WithDeadline(t.Context(), deadline)
+	defer cancel()
+	var attempts int
+	remote.api.SetTransport(roundTripFunc(func(request *http.Request) (*http.Response, error) {
+		attempts++
+		if got, ok := request.Context().Deadline(); !ok || !got.Equal(deadline) {
+			t.Errorf("finalization deadline=%v, want %v", got, deadline)
+		}
+		cancel()
+		return nil, request.Context().Err()
+	}))
+	if err := remote.finalizeUpload(ctx, plugin.Artifact{}, 42); !errors.Is(err, context.Canceled) || attempts != 1 {
+		t.Fatalf("finalization attempts=%d: %v", attempts, err)
+	}
+}
+
+func TestUploadCancellationStopsHashing(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "Example.pkg")
+	if err := os.WriteFile(file, []byte("body"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	remote, err := New(Config{URL: "https://woodstar.test", APIKey: "synthetic-key"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = remote.Close() }()
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	artifact := plugin.Artifact{Path: file, Filename: "Example.pkg", Size: 4, SHA256: strings.Repeat("0", 64)}
+	if _, err := remote.Upload(ctx, artifact); !errors.Is(err, context.Canceled) {
+		t.Fatalf("canceled hashing reached digest verification: %v", err)
+	}
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(request *http.Request) (*http.Response, error) {
+	return f(request)
+}
 
 func TestMultipartUploadRetriesWithoutChangingContent(t *testing.T) {
 	file, err := os.Create(filepath.Join(t.TempDir(), "Example.pkg"))
@@ -49,8 +96,9 @@ func TestMultipartUploadRetriesWithoutChangingContent(t *testing.T) {
 	var completions, finalizations, cleanups atomic.Int32
 	transfer := multipartPartHandler(t, partSize, partDigests, &partAttempts)
 	complete := multipartCompletionHandler(t, &completions)
+	var remote *Client
 	var origin string
-	remote := testClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	remote, origin = testClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		write := func(value any) {
 			if err := json.NewEncoder(w).Encode(value); err != nil {
@@ -83,14 +131,47 @@ func TestMultipartUploadRetriesWithoutChangingContent(t *testing.T) {
 			w.WriteHeader(http.StatusNotFound)
 		}
 	}))
-	origin = remote.config.URL
-	id, err := remote.upload(t.Context(), plugin.Artifact{Path: file.Name(), Filename: "Example.pkg", Size: size, SHA256: digest})
+	var logs bytes.Buffer
+	ctx := plugin.WithLogger(t.Context(), slog.New(slog.NewJSONHandler(&logs, nil)))
+	id, err := remote.Upload(ctx, plugin.Artifact{Path: file.Name(), Filename: "Example.pkg", Size: size, SHA256: digest})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if id != 42 || partAttempts[0].Load() != 2 || partAttempts[1].Load() != 1 || completions.Load() != 2 || finalizations.Load() != 1 || cleanups.Load() != 0 {
 		t.Fatalf("id=%d attempts=%d/%d completions=%d finalizations=%d cleanups=%d", id, partAttempts[0].Load(), partAttempts[1].Load(), completions.Load(), finalizations.Load(), cleanups.Load())
 	}
+	// Progress spans every part, and a retried part must not count twice.
+	if last := lastProgress(t, &logs, size); !last.Final || last.Current != size {
+		t.Fatalf("installer progress ended at %+v", last)
+	}
+}
+
+type progressRecord struct {
+	Progress bool  `json:"progress"`
+	Current  int64 `json:"current"`
+	Total    int64 `json:"total"`
+	Final    bool  `json:"progress_final"`
+}
+
+// lastProgress returns the final progress record after checking that none
+// counts beyond the installer.
+func lastProgress(t *testing.T, logs io.Reader, size int64) progressRecord {
+	t.Helper()
+	var last progressRecord
+	for decoder := json.NewDecoder(logs); decoder.More(); {
+		var record progressRecord
+		if err := decoder.Decode(&record); err != nil {
+			t.Fatal(err)
+		}
+		if !record.Progress {
+			continue
+		}
+		if record.Current > size || record.Total != size {
+			t.Fatalf("installer progress: %+v", record)
+		}
+		last = record
+	}
+	return last
 }
 
 func multipartPartHandler(t *testing.T, partSize int64, digests [2]string, attempts *[2]atomic.Int32) http.HandlerFunc {
@@ -158,72 +239,57 @@ func multipartCompletionHandler(t *testing.T, completions *atomic.Int32) http.Ha
 	}
 }
 
-func TestAPICreateDoesNotRetry(t *testing.T) {
-	var attempts atomic.Int32
-	remote := testClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		attempts.Add(1)
-		w.Header().Set("Retry-After", "0")
-		w.WriteHeader(http.StatusServiceUnavailable)
-	}))
-	if err := remote.request(t.Context(), http.MethodPost, "/api/munki/software", map[string]any{"name": "Example"}, nil); err == nil || attempts.Load() != 1 {
-		t.Fatalf("non-idempotent create attempts=%d err=%v", attempts.Load(), err)
-	}
-}
-
-func TestMultipartUploadWithoutETagCleansUp(t *testing.T) {
-	file := filepath.Join(t.TempDir(), "Example.pkg")
-	if err := os.WriteFile(file, []byte("body"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	var cleaned atomic.Bool
-	var origin string
-	remote := testClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		switch {
-		case r.Method == http.MethodPost && r.URL.Path == "/api/munki/package-installers":
-			_, _ = io.WriteString(w, `{"object_id":42,"upload":{"strategy":"multipart"}}`)
-		case r.Method == http.MethodPost && r.URL.Path == "/api/munki/package-installers/42/multipart/parts/1":
-			_ = json.NewEncoder(w).Encode(uploadTarget{URL: origin + "/transfer", Method: http.MethodPut})
-		case r.Method == http.MethodPut && r.URL.Path == "/transfer":
-			w.WriteHeader(http.StatusOK)
-		case r.Method == http.MethodDelete && r.URL.Path == "/api/munki/package-installers/42":
-			cleaned.Store(true)
-			w.WriteHeader(http.StatusNoContent)
-		default:
-			t.Errorf("unexpected request after missing ETag: %s %s", r.Method, r.URL.Path)
-			w.WriteHeader(http.StatusBadRequest)
-		}
-	}))
-	origin = remote.config.URL
-	digest := sha256.Sum256([]byte("body"))
-	_, err := remote.upload(t.Context(), plugin.Artifact{Path: file, Filename: "Example.pkg", Size: 4, SHA256: hex.EncodeToString(digest[:])})
-	if err == nil || !strings.Contains(err.Error(), "ETag") || !cleaned.Load() {
-		t.Fatalf("missing ETag: cleaned=%t err=%v", cleaned.Load(), err)
-	}
-}
-
-func TestAPIResponsePreservesLargeIDs(t *testing.T) {
-	remote := testClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = io.WriteString(w, `{"id":9007199254740993}`)
-	}))
-	var result map[string]any
-	if err := remote.request(t.Context(), http.MethodGet, "/api/munki/software/9007199254740993", nil, &result); err != nil {
-		t.Fatal(err)
-	}
-	if number(result["id"]) != 9007199254740993 {
-		t.Fatalf("ID lost precision: %v", result)
+func TestFailedUploadReleasesItsReservation(t *testing.T) {
+	for _, test := range []struct{ name, strategy, want string }{
+		{"multipart part without ETag", "multipart", "ETag"},
+		// Finalization belongs to the upload: no later run resumes the object.
+		{"finalized content differs", "direct-put", "does not match"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			file := filepath.Join(t.TempDir(), "Example.pkg")
+			if err := os.WriteFile(file, []byte("body"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			var cleaned atomic.Bool
+			var remote *Client
+			var origin string
+			remote, origin = testClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				target := uploadTarget{URL: origin + "/transfer", Method: http.MethodPut}
+				switch {
+				case r.Method == http.MethodPost && r.URL.Path == "/api/munki/package-installers":
+					_ = json.NewEncoder(w).Encode(map[string]any{"object_id": 42, "upload": map[string]any{"strategy": test.strategy, "target": target}})
+				case r.Method == http.MethodPost && r.URL.Path == "/api/munki/package-installers/42/multipart/parts/1":
+					_ = json.NewEncoder(w).Encode(target)
+				case r.Method == http.MethodPut && r.URL.Path == "/transfer":
+					w.WriteHeader(http.StatusOK)
+				case r.Method == http.MethodPut && r.URL.Path == "/api/munki/package-installers/42":
+					_, _ = io.WriteString(w, `{"id":42,"size_bytes":4,"sha256":"`+strings.Repeat("0", 64)+`"}`)
+				case r.Method == http.MethodDelete && r.URL.Path == "/api/munki/package-installers/42":
+					cleaned.Store(true)
+					w.WriteHeader(http.StatusNoContent)
+				default:
+					t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+					w.WriteHeader(http.StatusBadRequest)
+				}
+			}))
+			digest := sha256.Sum256([]byte("body"))
+			_, err := remote.Upload(t.Context(), plugin.Artifact{Path: file, Filename: "Example.pkg", Size: 4, SHA256: hex.EncodeToString(digest[:])})
+			if err == nil || !strings.Contains(err.Error(), test.want) || !cleaned.Load() {
+				t.Fatalf("cleaned=%t err=%v", cleaned.Load(), err)
+			}
+		})
 	}
 }
 
 func TestTransferRejectsRedirectsAndRedactsTargets(t *testing.T) {
 	var attempts atomic.Int32
-	remote := testClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	remote, origin := testClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		attempts.Add(1)
 		http.Redirect(w, r, "/redirected", http.StatusTemporaryRedirect)
 	}))
-	_, err := remote.transferBytes(t.Context(), uploadTarget{URL: remote.config.URL + "/signed?token=private", Method: http.MethodPut}, strings.NewReader("body"), 4)
-	if err == nil || strings.Contains(err.Error(), "private") || strings.Contains(err.Error(), remote.config.URL) || attempts.Load() != 1 {
+	_, err := remote.transferBytes(t.Context(), uploadTarget{URL: origin + "/signed?token=private", Method: http.MethodPut}, strings.NewReader("body"), 4)
+	if err == nil || strings.Contains(err.Error(), "private") || strings.Contains(err.Error(), origin) || attempts.Load() != 1 {
 		t.Fatalf("redirect attempts=%d err=%v", attempts.Load(), err)
 	}
 }
@@ -232,36 +298,17 @@ func TestTransferHonorsRetryAfterAndCancellation(t *testing.T) {
 	for _, retryAfter := range []string{"3600", time.Now().Add(time.Hour).UTC().Format(http.TimeFormat)} {
 		t.Run(retryAfter, func(t *testing.T) {
 			var attempts atomic.Int32
-			remote := testClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			remote, origin := testClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				attempts.Add(1)
 				w.Header().Set("Retry-After", retryAfter)
 				w.WriteHeader(http.StatusTooManyRequests)
 			}))
 			ctx, cancel := context.WithTimeout(t.Context(), 250*time.Millisecond)
 			defer cancel()
-			_, err := remote.transferBytes(ctx, uploadTarget{URL: remote.config.URL + "/signed?token=private", Method: http.MethodPut}, strings.NewReader("body"), 4)
+			_, err := remote.transferBytes(ctx, uploadTarget{URL: origin + "/signed?token=private", Method: http.MethodPut}, strings.NewReader("body"), 4)
 			if !errors.Is(err, context.DeadlineExceeded) || attempts.Load() != 1 {
 				t.Fatalf("rate-limited transfer attempts=%d err=%v", attempts.Load(), err)
 			}
 		})
 	}
-}
-
-func testClient(t *testing.T, handler http.Handler) *client {
-	t.Helper()
-	server := httptest.NewTLSServer(handler)
-	t.Cleanup(server.Close)
-	caPath := filepath.Join(t.TempDir(), "ca.pem")
-	if err := os.WriteFile(caPath, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw}), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	remote, err := newClient(config{URL: server.URL, APIKey: "synthetic-key", CAFile: caPath})
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		_ = remote.api.Close()
-		_ = remote.transfer.Close()
-	})
-	return remote
 }

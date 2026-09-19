@@ -2,19 +2,39 @@
 package destination
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
-	"net/url"
-	"strconv"
 
+	"github.com/invopop/jsonschema"
 	"github.com/woodleighschool/stemma/plugin"
 
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
-	"github.com/woodleighschool/woodstar/internal/munki/software"
 )
+
+// Register exposes the transport through Stemma's shared operation registry.
+func Register(registry *plugin.Registry) error {
+	reflector := jsonschema.Reflector{DoNotReference: true}
+	return registry.Register(plugin.Operation{
+		Name: "woodstar.munki", Kind: "reconcile", SideEffects: "remote", Methods: []string{"validate", "plan", "apply"},
+		RequiresInspection: true,
+		Content:            &plugin.ContentContract{Formats: []string{"pkg", "dmg"}, SourceFree: true},
+		ConfigSchema:       json.RawMessage(`{"type":"object","properties":{"url":{"type":"string","pattern":"^https://"},"api_key":{"type":"string","minLength":1,"writeOnly":true},"ca_file":{"type":"string"}},"required":["url","api_key"],"additionalProperties":false}`),
+		MetadataSchema:     raw(metadataSchema()),
+		InputSchema:        raw(reflector.Reflect(plugin.ReconcileRequest{})),
+		OutputSchema:       raw(reflector.Reflect(plugin.ReconcileResponse{})),
+	}, func(ctx context.Context, envelope plugin.Request) (plugin.Response, error) {
+		var request plugin.ReconcileRequest
+		if err := decode(envelope.Input, &request); err != nil {
+			return plugin.Response{}, err
+		}
+		request.Method = envelope.Method
+		result, err := Handle(ctx, request)
+		return plugin.Response{Output: raw(result)}, err
+	})
+}
 
 // Handle plans without writes or applies the fields supplied by a destination.
 func Handle(ctx context.Context, request plugin.ReconcileRequest) (plugin.ReconcileResponse, error) {
@@ -26,93 +46,91 @@ func Handle(ctx context.Context, request plugin.ReconcileRequest) (plugin.Reconc
 		return plugin.ReconcileResponse{}, err
 	}
 	if request.Method == "validate" {
-		return plugin.ReconcileResponse{Origins: metadata.origins}, nil
+		return plugin.ReconcileResponse{Origins: metadata.origins, Requires: metadata.references()}, nil
 	}
-	remote, err := newClient(cfg)
+	remote, err := New(cfg)
 	if err != nil {
 		return plugin.ReconcileResponse{}, err
 	}
-	defer func() { _ = remote.api.Close(); _ = remote.transfer.Close() }()
-	remote.fingerprint, remote.origins = metadata.installer.SHA256, metadata.origins
-	if cfg.InstallerType == "nopkg" {
-		remote.fingerprint = "nopkg:" + cfg.Version
-	}
+	defer func() { _ = remote.Close() }()
+	response := plugin.ReconcileResponse{Origins: metadata.origins}
 	done := plugin.Stage(ctx, "Observing destination")
-	observed, err := remote.observe(ctx, request.Binding)
+	observed, err := remote.Observe(ctx, metadata.name, metadata.version)
 	done(err)
 	if err != nil {
-		return remote.response(observed, nil), err
+		return response, err
 	}
-	if err := remote.resolveReferences(ctx, &metadata); err != nil {
-		return remote.response(observed, nil), err
+	if err := resolveReferences(ctx, remote, &metadata); err != nil {
+		return response, err
 	}
-	remote.recoverIcon(observed)
-	if err := remote.manageDerived(&metadata); err != nil {
-		return remote.response(observed, nil), err
+	if err := resolveTargets(ctx, remote, &metadata); err != nil {
+		return response, err
 	}
-	installer := metadata.installer
-	plan, err := remote.plan(installer, metadata, observed)
+	planned, err := plan(metadata, observed)
 	if err != nil {
-		return remote.response(observed, nil), err
+		return response, err
 	}
-	if request.Method == "apply" && len(plan.changes) != 0 {
-		if err := remote.apply(ctx, installer, metadata, plan, &observed); err != nil {
-			return remote.response(observed, nil), err
+	response.Changes = planned.changes
+	if request.Method == "apply" && len(planned.changes) != 0 {
+		if err := apply(ctx, remote, metadata, planned, &observed); err != nil {
+			return response, err
 		}
-	}
-	if request.Method == "apply" {
-		remote.recordPackage(metadata, observed.Package)
-		remote.state.Publications.Record(remote.fingerprint)
 	}
 	if request.Method == "plan" && observed.Software != nil {
 		prospective := *observed.Software
-		prospective.Targets = plan.targets
+		prospective.Targets = planned.targets
 		observed.Software = &prospective
 	}
-	pruned, err := remote.prune(ctx, metadata.controls.Retention, observed, request.Method == "apply")
-	return remote.response(observed, append(plan.changes, pruned...)), err
+	pruned, err := prune(ctx, remote, metadata, observed, request.Method == "apply")
+	response.Changes = append(response.Changes, pruned...)
+	return response, err
 }
 
-func (remote *client) apply(ctx context.Context, artifact plugin.Artifact, metadata metadata, plan desired, observed *observation) (runErr error) {
+func apply(ctx context.Context, remote *Client, metadata metadata, planned desired, observed *Observation) (runErr error) {
 	if observed.Software == nil {
-		if err := remote.createSoftware(ctx, observed); err != nil {
-			return err
-		}
-	}
-	var pendingObject int64
-	if plan.content {
-		object, err := remote.upload(ctx, artifact)
+		// Targets can select a package that does not exist until the next write,
+		// so the title starts with only its name.
+		created, err := remote.CreateSoftware(ctx, metadata.name)
 		if err != nil {
 			return err
 		}
-		pendingObject = object
+		observed.Software = created
 	}
-	if observed.Package == nil || plan.content || metadataChanged(plan.changes, "package") {
-		if err := remote.savePackage(ctx, artifact, metadata, plan, pendingObject, observed); err != nil {
+	var uploaded int64
+	if planned.content {
+		id, err := remote.Upload(ctx, metadata.installer)
+		if err != nil {
+			return err
+		}
+		uploaded = id
+	}
+	if observed.Package == nil || planned.content || metadataChanged(planned.changes, "package") {
+		if err := savePackage(ctx, remote, metadata, planned, uploaded, observed); err != nil {
+			// The repository refuses to delete an installer a package references.
+			if uploaded != 0 {
+				remote.ReleaseUpload(ctx, uploaded)
+			}
 			return err
 		}
 	}
-	if observed.Package != nil && observed.Package.InstallerObjectID != nil && *observed.Package.InstallerObjectID == pendingObject {
-		remote.state.Upload = nil
-	}
-	if metadataChanged(plan.changes, "software") {
-		if err := remote.saveSoftware(ctx, artifact, metadata, observed); err != nil {
+	if metadataChanged(planned.changes, "software") {
+		if err := saveSoftware(ctx, remote, metadata, observed); err != nil {
 			return err
 		}
 	}
-	if plan.icon {
-		if err := remote.saveIcon(ctx, metadata.icon, observed); err != nil {
+	if planned.icon {
+		if err := publishIcon(ctx, remote, metadata.icon, observed.Software.ID); err != nil {
 			return err
 		}
 	}
 	done := plugin.Stage(ctx, "Verifying publication")
 	defer func() { done(runErr) }()
-	readback, err := remote.observe(ctx, nil)
+	readback, err := remote.Observe(ctx, metadata.name, metadata.version)
 	if err != nil {
 		return err
 	}
 	*observed = readback
-	remaining, err := remote.plan(artifact, metadata, readback)
+	remaining, err := plan(metadata, readback)
 	if err != nil {
 		return err
 	}
@@ -122,125 +140,86 @@ func (remote *client) apply(ctx context.Context, artifact plugin.Artifact, metad
 	return nil
 }
 
-func (remote *client) createSoftware(ctx context.Context, observed *observation) error {
-	// Targets can select a package that does not exist until the next write.
-	body := software.CreateMutation{Name: remote.config.Name}
-	body.Normalize()
-	var created softwareDetail
-	remote.state.Creating = true
-	if err := remote.request(ctx, http.MethodPost, "/api/munki/software", body, &created); err != nil {
-		remote.creationFailed(err)
-		return err
-	}
-	if created.ID <= 0 || created.Name != remote.config.Name {
-		return errors.New("created software does not match its requested identity")
-	}
-	remote.state.Creating = false
-	remote.state.SoftwareID = created.ID
-	observed.Software = &created
-	return nil
-}
-
-func (remote *client) savePackage(ctx context.Context, artifact plugin.Artifact, metadata metadata, plan desired, objectID int64, observed *observation) (runErr error) {
+// savePackage creates the package with its whole desired state, or patches the
+// fields the declaration supplies onto the package the repository holds.
+func savePackage(ctx context.Context, remote *Client, metadata metadata, planned desired, objectID int64, observed *Observation) (runErr error) {
 	done := plugin.Stage(ctx, "Saving package")
 	defer func() { done(runErr) }()
-	method, endpoint := http.MethodPost, "/api/munki/packages"
-	var body any
+	var saved *packages.Package
+	var writeErr error
 	if observed.Package == nil {
-		mutation := plan.pkg
+		mutation := planned.pkg
 		if objectID != 0 {
 			mutation.InstallerObjectID = &objectID
 		}
-		body = packages.PackageCreateMutation{PackageMutation: mutation, SoftwareID: observed.Software.ID}
+		saved, writeErr = remote.CreatePackage(ctx, packages.PackageCreateMutation{PackageMutation: mutation, SoftwareID: observed.Software.ID})
 	} else {
-		fields := map[string]json.RawMessage{}
-		if err := decode(metadata.pkg.Bytes(), &fields); err != nil {
+		patch, err := withInstaller(metadata.pkg, objectID)
+		if err != nil {
 			return err
 		}
-		if objectID != 0 {
-			fields["installer_object_id"] = raw(objectID)
-		}
-		body = fields
-		method, endpoint = http.MethodPatch, "/api/munki/packages/"+strconv.FormatInt(observed.Package.ID, 10)
+		saved, writeErr = remote.UpdatePackage(ctx, observed.Package.ID, patch)
 	}
-	var saved packages.Package
-	if method == http.MethodPost {
-		remote.state.Creating = true
-	}
-	if err := remote.request(ctx, method, endpoint, body, &saved); err != nil {
-		if method == http.MethodPost {
-			remote.creationFailed(err)
-		}
-		if recovered, recoveryErr := remote.recoverPackage(ctx, observed, objectID); recoveryErr == nil {
-			saved = recovered
-		} else {
+	if writeErr != nil {
+		if err := recoverWrite(ctx, remote, metadata, "package", observed, writeErr); err != nil {
 			return err
 		}
+		saved = observed.Package
 	}
-	if saved.ID <= 0 || saved.Software.ID != observed.Software.ID || saved.Version != remote.config.Version || (artifact.SHA256 != "" && (saved.InstallerFile == nil || saved.InstallerFile.SHA256 != artifact.SHA256)) {
+	artifact := metadata.installer
+	if saved.ID <= 0 || saved.Software.ID != observed.Software.ID || saved.Version != metadata.version || (artifact.SHA256 != "" && (saved.InstallerFile == nil || saved.InstallerFile.SHA256 != artifact.SHA256)) {
 		return errors.New("saved package does not match the intended identity and installer")
 	}
-	remote.state.Creating = false
-	observed.Package = &saved
-	remote.recordPackage(metadata, &saved)
+	observed.Package = saved
 	return nil
 }
 
-func (remote *client) creationFailed(err error) {
-	var status httpError
-	if errors.As(err, &status) && status.status >= 400 && status.status < 500 && status.status != http.StatusRequestTimeout {
-		remote.state.Creating = false
-	}
-}
-
-func (remote *client) recoverPackage(ctx context.Context, observed *observation, objectID int64) (packages.Package, error) {
-	var result packages.Package
-	if observed.Package != nil {
-		err := remote.request(ctx, http.MethodGet, "/api/munki/packages/"+strconv.FormatInt(observed.Package.ID, 10), nil, &result)
-		return result, err
-	}
+// withInstaller points a package patch at a newly uploaded installer.
+func withInstaller(patch packages.Patch, objectID int64) (packages.Patch, error) {
 	if objectID == 0 {
-		return result, errors.New("uncertain package create has no owned installer evidence")
+		return patch, nil
 	}
-	items, err := list[packages.Package](ctx, remote, "/api/munki/packages", url.Values{"software_id": {strconv.FormatInt(observed.Software.ID, 10)}, "q": {remote.config.Version}})
+	fields, err := object(patch.Bytes())
 	if err != nil {
-		return result, err
+		return patch, err
 	}
-	for _, item := range items {
-		if item.Software.ID == observed.Software.ID && item.Version == remote.config.Version && item.InstallerObjectID != nil && *item.InstallerObjectID == objectID {
-			if result.ID != 0 {
-				return result, errors.New("ambiguous owned installer reference")
-			}
-			result = item
-		}
-	}
-	if result.ID == 0 {
-		return result, errors.New("owned installer has no package")
-	}
-	return result, nil
+	fields["installer_object_id"] = raw(objectID)
+	err = json.Unmarshal(raw(fields), &patch)
+	return patch, err
 }
 
-func (remote *client) saveSoftware(ctx context.Context, artifact plugin.Artifact, metadata metadata, observed *observation) (runErr error) {
+func saveSoftware(ctx context.Context, remote *Client, metadata metadata, observed *Observation) (runErr error) {
 	done := plugin.Stage(ctx, "Saving software")
 	defer func() { done(runErr) }()
-	var saved softwareDetail
-	endpoint := "/api/munki/software/" + strconv.FormatInt(observed.Software.ID, 10)
-	if err := remote.request(ctx, http.MethodPatch, endpoint, metadata.software, &saved); err != nil {
-		return remote.recoverWrite(ctx, artifact, metadata, "software", observed, err)
+	saved, err := remote.UpdateSoftware(ctx, observed.Software.ID, metadata.software)
+	if err != nil {
+		return recoverWrite(ctx, remote, metadata, "software", observed, err)
 	}
-	observed.Software = &saved
+	observed.Software = saved
 	return nil
 }
 
-func (remote *client) recoverWrite(ctx context.Context, artifact plugin.Artifact, metadata metadata, resource string, observed *observation, writeErr error) error {
-	recovered, err := remote.observe(ctx, nil)
-	if err != nil {
+func publishIcon(ctx context.Context, remote *Client, icon plugin.Artifact, softwareID int64) (runErr error) {
+	done := plugin.Stage(ctx, "Publishing icon")
+	defer func() { done(runErr) }()
+	var content bytes.Buffer
+	if err := verifyArtifact(ctx, icon, &content); err != nil {
+		return fmt.Errorf("icon: %w", err)
+	}
+	return remote.SetIcon(ctx, softwareID, icon.Filename, content.Bytes())
+}
+
+// recoverWrite accepts a write whose reply was lost once the repository holds
+// its result, which the publication's native identity finds again.
+func recoverWrite(ctx context.Context, remote *Client, metadata metadata, resource string, observed *Observation, writeErr error) error {
+	recovered, err := remote.Observe(ctx, metadata.name, metadata.version)
+	if err != nil || recovered.Software == nil {
+		return writeErr
+	}
+	remaining, err := plan(metadata, recovered)
+	if err != nil || metadataChanged(remaining.changes, resource) || resource == "package" && (recovered.Package == nil || remaining.content) {
 		return writeErr
 	}
 	*observed = recovered
-	remaining, err := remote.plan(artifact, metadata, recovered)
-	if err != nil || metadataChanged(remaining.changes, resource) {
-		return writeErr
-	}
 	return nil
 }

@@ -5,12 +5,9 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"encoding/pem"
-	"fmt"
 	"image"
 	"image/color"
 	"image/png"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -18,46 +15,62 @@ import (
 	"github.com/woodleighschool/stemma/plugin"
 )
 
-func TestIconUploadRecoveryAndOwnership(t *testing.T) {
-	state := &apiFixture{objects: map[int64][]byte{}, names: map[int64]string{}, dropIconReply: true}
-	server := httptest.NewTLSServer(state)
-	t.Cleanup(server.Close)
-	state.origin = server.URL
-	ca := filepath.Join(t.TempDir(), "ca.pem")
-	if err := os.WriteFile(ca, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw}), 0o600); err != nil {
-		t.Fatal(err)
+func TestInterruptedIconPublicationConverges(t *testing.T) {
+	for _, test := range []struct {
+		name          string
+		refused, lost bool
+		uploads       int
+	}{
+		// A refused attach publishes nothing, so the next run uploads again.
+		{name: "attach refused", refused: true, uploads: 2},
+		// A lost reply hides an attach the repository made, which the next run observes.
+		{name: "attach reply lost", lost: true, uploads: 1},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			state, connection := serveFixture(t)
+			icon := iconFixture(t, 10)
+			request := plugin.ReconcileRequest{Method: "plan", Prepared: true, Identity: plugin.Identity{Software: "Policy"}, Config: connection, Metadata: raw(map[string]any{"pkginfo": map[string]string{"installer_type": "nopkg", "version": "1"}}), Inputs: map[string]plugin.Artifact{"icon": icon}}
+			if _, err := Handle(t.Context(), request); err != nil {
+				t.Fatal(err)
+			}
+			if state.writes() != 0 {
+				t.Fatal("plan wrote icon")
+			}
+			fault := func(refused, lost bool) {
+				state.mu.Lock()
+				defer state.mu.Unlock()
+				state.failIconAttach, state.dropIconReply = refused, lost
+			}
+			fault(test.refused, test.lost)
+			request.Method = "apply"
+			if _, err := Handle(t.Context(), request); err == nil {
+				t.Fatal("reported an icon whose attach did not answer")
+			}
+			fault(false, false)
+			if _, err := Handle(t.Context(), request); err != nil {
+				t.Fatal(err)
+			}
+			state.mu.Lock()
+			attached, _ := state.software["icon_file"].(map[string]any)
+			state.mu.Unlock()
+			if attached["sha256"] != icon.SHA256 || state.uploadCount() != test.uploads {
+				t.Fatalf("icon=%v uploads=%d, want %d", attached, state.uploadCount(), test.uploads)
+			}
+			assertFixtureConverged(t, state, request)
+		})
 	}
-	icon := iconFixture(t, 10)
-	request := plugin.ReconcileRequest{Method: "plan", Prepared: true, Identity: plugin.Identity{Software: "Policy"}, Config: raw(map[string]string{"url": server.URL, "api_key": "synthetic-key", "ca_file": ca}), Metadata: raw(map[string]any{"pkginfo": map[string]string{"installer_type": "nopkg", "version": "1"}}), Inputs: map[string]plugin.Artifact{"icon": icon}}
+}
+
+func TestUndeclaredIconLeavesPublishedArtwork(t *testing.T) {
+	state, connection := serveFixture(t)
+	request := plugin.ReconcileRequest{Method: "apply", Prepared: true, Identity: plugin.Identity{Software: "Policy"}, Config: connection, Metadata: raw(map[string]any{"pkginfo": map[string]string{"installer_type": "nopkg", "version": "1"}}), Inputs: map[string]plugin.Artifact{"icon": iconFixture(t, 10)}}
 	if _, err := Handle(t.Context(), request); err != nil {
 		t.Fatal(err)
 	}
-	if state.writes() != 0 {
-		t.Fatal("plan wrote icon")
-	}
-	request.Method = "apply"
-	result, err := Handle(t.Context(), request)
-	if err == nil || len(result.Binding) == 0 {
-		t.Fatalf("lost response not retained: %v %s", err, result.Binding)
-	}
-	request.Binding = result.Binding
-	state.mu.Lock()
-	state.dropIconReply = false
-	state.mu.Unlock()
-	result, err = Handle(t.Context(), request)
-	if err != nil {
-		t.Fatal(err)
-	}
-	request.Binding = result.Binding
-	if state.uploadCount() != 1 {
-		t.Fatal("completed icon upload replayed")
-	}
 	request.Inputs = nil
-	result, err = Handle(t.Context(), request)
-	if err != nil {
+	if _, err := Handle(t.Context(), request); err != nil {
 		t.Fatal(err)
 	}
-	request.Binding = result.Binding
 	state.mu.Lock()
 	_, exists := state.software["icon_object_id"]
 	state.software["icon_object_id"] = json.Number("99")
@@ -91,35 +104,20 @@ func iconFixture(t *testing.T, value uint8) plugin.Artifact {
 	return plugin.Artifact{Path: name, Filename: "icon.png", Format: "png", Size: int64(data.Len()), SHA256: hex.EncodeToString(hash[:])}
 }
 
-func TestCompiledPluginIconBootstrapAndRefresh(t *testing.T) { //nolint:funlen // One publication lifecycle verifies icon writes against unchanged parent and installer state.
-	binary := buildPlugin(t)
-	state := &apiFixture{objects: map[int64][]byte{}, names: map[int64]string{}}
-	server := httptest.NewTLSServer(state)
-	t.Cleanup(server.Close)
-	state.origin = server.URL
-	ca := filepath.Join(t.TempDir(), "ca.pem")
-	if err := os.WriteFile(ca, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw}), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	data := []byte("synthetic installer bytes; never executed")
-	name := filepath.Join(t.TempDir(), "Example.pkg")
-	if err := os.WriteFile(name, data, 0o400); err != nil {
-		t.Fatal(err)
-	}
-	hash := sha256.Sum256(data)
-	request := plugin.ReconcileRequest{Method: "apply", Prepared: true, Identity: plugin.Identity{Software: "Example"}, Config: raw(map[string]string{"url": server.URL, "api_key": "synthetic-key", "ca_file": ca}), Metadata: raw(map[string]any{"pkginfo": map[string]string{"version": "1.0"}}), Artifact: plugin.Artifact{Path: name, Filename: "Example.pkg", Format: "pkg", Version: "1.0", Size: int64(len(data)), SHA256: hex.EncodeToString(hash[:])}}
+func TestIconBootstrapAndReplacement(t *testing.T) { //nolint:funlen // One publication lifecycle verifies icon writes against unchanged parent and installer state.
+	state, connection := serveFixture(t)
+	request := plugin.ReconcileRequest{Method: "apply", Prepared: true, Identity: plugin.Identity{Software: "Example"}, Config: connection, Metadata: raw(map[string]any{"pkginfo": map[string]string{"version": "1.0"}}), Artifact: installerFixture(t, "Example.pkg", "synthetic installer bytes; never executed", "1.0")}
 	call := func() plugin.ReconcileResponse {
 		t.Helper()
-		response, err := runPlugin(t, binary, request)
+		response, err := Handle(t.Context(), request)
 		if err != nil {
 			t.Fatal(err)
 		}
-		request.Binding = response.Binding
 		return response
 	}
 	call()
-	portable, native := iconFixture(t, 10), iconFixture(t, 200)
-	request.Inputs = map[string]plugin.Artifact{"icon": portable}
+	first, second := iconFixture(t, 10), iconFixture(t, 200)
+	request.Inputs = map[string]plugin.Artifact{"icon": first}
 	updates := state.updates
 	call()
 	if state.updates != updates {
@@ -133,110 +131,44 @@ func TestCompiledPluginIconBootstrapAndRefresh(t *testing.T) { //nolint:funlen /
 		if actual["sha256"] != want.SHA256 {
 			t.Fatalf("icon hash = %v, want %s", actual["sha256"], want.SHA256)
 		}
-		var saved binding
-		if err := json.Unmarshal(request.Binding, &saved); err != nil {
-			t.Fatal(err)
-		}
-		if saved.Icon != nil {
-			t.Fatal("completed icon remained in upload state")
-		}
 		installer, _ := state.pkg["installer_file"].(map[string]any)
 		if installer["sha256"] != request.Artifact.SHA256 || state.createdSoftware != 1 || state.createdPackages != 1 {
 			t.Fatal("icon publication changed parent or installer identity")
 		}
 	}
-	check(portable)
-	request.Inputs["icon"] = native
+	check(first)
 	before := state.writes()
 	if response := call(); len(response.Changes) != 0 || state.writes() != before {
-		t.Fatal("normal apply replaced an existing icon")
+		t.Fatal("unchanged icon planned or wrote changes")
 	}
-	request.RefreshIcons = true
+	// Changed bytes are ordinary drift: planning isolates them, applying replaces them.
+	request.Inputs["icon"] = second
 	request.Method = "plan"
 	if response := call(); len(response.Changes) != 1 || response.Changes[0].Field != "software.icon" || state.writes() != before {
-		t.Fatal("refresh plan did not isolate icon change")
+		t.Fatal("changed icon plan did not isolate the icon")
 	}
 	request.Method = "apply"
 	call()
-	check(native)
+	check(second)
 	if state.updates != updates || state.uploadCount() != 3 {
-		t.Fatal("refresh wrote unrelated metadata or reuploaded installer")
+		t.Fatal("icon replacement wrote unrelated metadata or reuploaded installer")
 	}
-	request.RefreshIcons = false
-	request.Inputs["icon"] = portable
+	// Without a declared icon the published artwork is left unchanged.
 	before = state.writes()
-	call()
-	check(native)
 	request.Inputs = nil
 	call()
-	check(native)
+	check(second)
 	if state.writes() != before {
-		t.Fatal("portable or iconless run changed retained icon")
+		t.Fatal("iconless run changed the published icon")
 	}
 	state.mu.Lock()
 	delete(state.software, "icon_object_id")
 	delete(state.software, "icon_file")
 	state.mu.Unlock()
-	request.Inputs = map[string]plugin.Artifact{"icon": portable}
+	request.Inputs = map[string]plugin.Artifact{"icon": second}
 	call()
-	check(portable)
+	check(second)
 	if state.uploadCount() != 4 {
 		t.Fatal("missing remote icon did not create one new upload")
-	}
-}
-
-func TestRefreshResumesSupersededIconUpload(t *testing.T) { //nolint:gocognit // Both interrupted-upload cases share the same sequential publication assertions.
-	for _, missing := range []bool{false, true} {
-		t.Run(fmt.Sprintf("pending-bytes-missing=%v", missing), func(t *testing.T) {
-			state := &apiFixture{objects: map[int64][]byte{}, names: map[int64]string{}}
-			server := httptest.NewTLSServer(state)
-			t.Cleanup(server.Close)
-			state.origin = server.URL
-			ca := filepath.Join(t.TempDir(), "ca.pem")
-			if err := os.WriteFile(ca, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw}), 0o600); err != nil {
-				t.Fatal(err)
-			}
-			first := iconFixture(t, 10)
-			request := plugin.ReconcileRequest{Method: "apply", Prepared: true, Identity: plugin.Identity{Software: "Policy"}, Config: raw(map[string]string{"url": server.URL, "api_key": "synthetic-key", "ca_file": ca}), Metadata: raw(map[string]any{"pkginfo": map[string]string{"installer_type": "nopkg", "version": "1"}}), Inputs: map[string]plugin.Artifact{"icon": first}}
-			response, err := Handle(t.Context(), request)
-			if err != nil {
-				t.Fatal(err)
-			}
-			request.Binding = response.Binding
-			previous := iconFixture(t, 20)
-			request.Inputs["icon"] = previous
-			request.RefreshIcons = true
-			state.failIconAttach = true
-			response, err = Handle(t.Context(), request)
-			if err == nil {
-				t.Fatal("expected interrupted attach")
-			}
-			request.Binding = response.Binding
-			var pending binding
-			if err := json.Unmarshal(response.Binding, &pending); err != nil || pending.Icon == nil {
-				t.Fatal("lost pending object")
-			}
-			if err := os.Remove(previous.Path); err != nil {
-				t.Fatal(err)
-			}
-			if missing {
-				delete(state.objects, pending.Icon.ObjectID)
-			}
-			state.failIconAttach = false
-			latest := iconFixture(t, 30)
-			request.Inputs["icon"] = latest
-			response, err = Handle(t.Context(), request)
-			if err != nil {
-				t.Fatal(err)
-			}
-			attached, _ := state.software["icon_file"].(map[string]any)
-			if attached["sha256"] != latest.SHA256 || state.uploadCount() != 3 {
-				t.Fatal("superseded pending artwork prevented current publication or replayed bytes")
-			}
-			pending = binding{}
-			if err := json.Unmarshal(response.Binding, &pending); err != nil || pending.Icon != nil {
-				t.Fatal("completed icon retained pending state")
-			}
-		})
 	}
 }

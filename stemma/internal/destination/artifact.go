@@ -1,28 +1,57 @@
 package destination
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/woodleighschool/stemma/plugin"
+
+	"github.com/woodleighschool/woodstar/internal/munki/packages"
 )
 
-func readPkginfo(ctx context.Context, artifact plugin.Artifact) (json.RawMessage, error) {
-	if artifact.Size > 8<<20 {
-		return nil, errors.New("pkginfo exceeds 8 MiB")
+// validateInstaller checks the installer against the pkginfo describing it.
+func validateInstaller(ctx context.Context, installer plugin.Artifact, installerType packages.InstallerType, installerItemHash string) error {
+	if installerType == packages.InstallerTypeNoPkg {
+		if installer.Path != "" || installer.SHA256 != "" {
+			return errors.New("nopkg must not include installer content")
+		}
+		return nil
 	}
-	var data bytes.Buffer
-	if err := verifyArtifact(ctx, artifact, &data); err != nil {
-		return nil, err
+	if installer.Path == "" {
+		return errors.New("installer is required")
 	}
-	return data.Bytes(), nil
+	if installerItemHash != "" && installerItemHash != installer.SHA256 {
+		return errors.New("pkginfo installer_item_hash does not match installer")
+	}
+	if err := verifyArtifact(ctx, installer, nil); err != nil {
+		return fmt.Errorf("installer: %w", err)
+	}
+	return nil
+}
+
+func validateIcon(ctx context.Context, artifact plugin.Artifact) error {
+	if artifact.Format != "png" || artifact.Size <= 0 || artifact.Size > 32<<20 {
+		return errors.New("icon input requires a PNG artifact no larger than 32 MiB")
+	}
+	return verifyArtifact(ctx, artifact, nil)
+}
+
+func validateArtifact(artifact plugin.Artifact) error {
+	digest, err := hex.DecodeString(artifact.SHA256)
+	if err != nil || len(digest) != 32 || strings.ToLower(artifact.SHA256) != artifact.SHA256 {
+		return errors.New("installer artifact requires a lowercase SHA-256 digest")
+	}
+	if artifact.Filename == "" || strings.TrimSpace(artifact.Filename) != artifact.Filename || filepath.Base(artifact.Filename) != artifact.Filename || artifact.Size < 0 {
+		return errors.New("installer artifact requires an unpadded base filename and nonnegative size")
+	}
+	return nil
 }
 
 func verifyArtifact(ctx context.Context, artifact plugin.Artifact, output io.Writer) error {

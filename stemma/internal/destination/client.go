@@ -9,23 +9,44 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
 	"resty.dev/v3"
 )
 
-type client struct {
-	state       binding
-	fingerprint string
-	origins     map[string]string
-	config      config
-	api         *resty.Client
-	transfer    *resty.Client
+// Config holds the destination's connection settings.
+type Config struct {
+	URL    string `json:"url"`
+	APIKey string `json:"api_key"`
+	CAFile string `json:"ca_file,omitempty"`
 }
 
-func newClient(cfg config) (*client, error) {
+// Validate requires an HTTPS origin and a key that fits in a header.
+func (cfg Config) Validate() error {
+	parsed, err := url.Parse(cfg.URL)
+	if err != nil || parsed.Scheme != "https" || parsed.Host == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" || (parsed.Path != "" && parsed.Path != "/") {
+		return errors.New("url must be an HTTPS origin without credentials, query or path")
+	}
+	if strings.TrimSpace(cfg.APIKey) == "" || strings.ContainsAny(cfg.APIKey, "\r\n\x00") {
+		return errors.New("api_key is required")
+	}
+	return nil
+}
+
+// Client authenticates API requests with the key. Content goes to the signed
+// targets the API issues, which never receive the key.
+type Client struct {
+	api      *resty.Client
+	transfer *resty.Client
+}
+
+// New connects to the configured origin, trusting a configured CA file in
+// addition to the system roots.
+func New(cfg Config) (*Client, error) {
 	defaultTransport, ok := http.DefaultTransport.(*http.Transport)
 	if !ok {
 		return nil, errors.New("default HTTP transport is not configurable")
@@ -59,13 +80,19 @@ func newClient(cfg config) (*client, error) {
 			decoder.UseNumber()
 			return decoder.Decode(value)
 		})
-	return &client{config: cfg, api: api, transfer: newHTTPClient().SetResponseBodyLimit(1 << 20)}, nil
+	return &Client{api: api, transfer: newHTTPClient().SetResponseBodyLimit(1 << 20)}, nil
 }
 
-func (remote *client) request(ctx context.Context, method, endpoint string, body, output any) error {
-	ctx, cancel := context.WithTimeout(ctx, time.Minute)
+// Close releases the connections of both HTTP clients.
+func (c *Client) Close() error {
+	return errors.Join(c.api.Close(), c.transfer.Close())
+}
+
+func (c *Client) request(ctx context.Context, method, endpoint string, body, output any) error {
+	// Finalization reads full stored installers, so API calls share the transfer budget.
+	ctx, cancel := context.WithTimeout(ctx, time.Hour)
 	defer cancel()
-	request := remote.api.R().SetContext(ctx).SetResult(output).SetResponseForceContentType("application/json")
+	request := c.api.R().SetContext(ctx).SetResult(output).SetResponseForceContentType("application/json")
 	if body != nil {
 		request.SetHeader("Content-Type", "application/json").SetBody(body)
 	}
@@ -77,16 +104,41 @@ func (remote *client) request(ctx context.Context, method, endpoint string, body
 		return fmt.Errorf("%s %s: request failed", method, endpoint)
 	}
 	if !response.IsStatusSuccess() {
-		return httpError{method, endpoint, response.StatusCode()}
+		return StatusError{Method: method, Path: endpoint, Status: response.StatusCode()}
 	}
 	return nil
 }
 
-type httpError struct {
-	method, path string
-	status       int
+func list[T any](ctx context.Context, c *Client, endpoint string, query url.Values) ([]T, error) {
+	var items []T
+	query.Set("per_page", "1000")
+	for page := 1; page <= 10000; page++ {
+		query.Set("page", strconv.Itoa(page))
+		var response struct {
+			Items []T `json:"items"`
+			Count int `json:"count"`
+		}
+		if err := c.request(ctx, http.MethodGet, endpoint+"?"+query.Encode(), nil, &response); err != nil {
+			return nil, err
+		}
+		items = append(items, response.Items...)
+		if len(items) >= response.Count {
+			return items, nil
+		}
+		if len(response.Items) == 0 {
+			return nil, errors.New("incomplete discovery page")
+		}
+	}
+	return nil, errors.New("discovery exceeds page limit")
 }
 
-func (err httpError) Error() string {
-	return fmt.Sprintf("%s %s: HTTP %d", err.method, err.path, err.status)
+// StatusError is an API reply outside the success range.
+type StatusError struct {
+	Method string
+	Path   string
+	Status int
+}
+
+func (err StatusError) Error() string {
+	return fmt.Sprintf("%s %s: HTTP %d", err.Method, err.Path, err.Status)
 }

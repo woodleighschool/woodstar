@@ -1,93 +1,87 @@
 package destination
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
-	"os"
-	"path/filepath"
+	"slices"
+	"strconv"
 	"testing"
+	"time"
 
 	"github.com/woodleighschool/stemma/plugin"
 )
 
-func TestNativeDerivationAndOwnedRetention(t *testing.T) {
-	fixture := &apiFixture{objects: map[int64][]byte{}, names: map[int64]string{}}
-	remote := testClient(t, fixture)
-	fixture.origin = remote.config.URL
-	request := plugin.ReconcileRequest{
-		Method: "apply", Prepared: true, Config: raw(remote.config),
-		Identity: plugin.Identity{Software: "Example"},
-		Subjects: map[string]plugin.SubjectSelector{"app": {Kind: "app", Path: "Example.app"}},
-		Facts:    plugin.Facts{Subjects: []plugin.Subject{{Kind: "app", Path: "Example.app", App: &plugin.AppFacts{BundleID: "test.example", Version: "1.0", Build: "100", MinimumOS: "14.0"}}}},
-		Metadata: raw(map[string]any{"derive": map[string]any{"app": map[string]any{"subject": "app"}}, "retention": plugin.Retention{Keep: 1}}),
+func TestRetentionCoversTheWholeRemoteFamily(t *testing.T) {
+	fixture, connection := serveFixture(t)
+	fixture.labels = map[string]int64{"Staff": 7}
+	// An operator pinned 1.1; omitted targets leave that pin unchanged.
+	fixture.software = map[string]any{"id": json.Number("1"), "name": "Example", "targets": map[string]any{
+		"include": []any{map[string]any{"label_id": 7, "package": map[string]any{"strategy": "specific", "package_id": 22}, "actions": []any{"managed_installs"}}},
+		"exclude": []any{},
+	}}
+	// The plugin published none of these. Creation orders the family, then id:
+	// 1.2 and 1.1 share a time, and the migrated 2.0 has the highest id and
+	// version yet is among the oldest.
+	for _, seeded := range []struct {
+		id      int
+		version string
+		hour    int
+	}{{20, "0.5", 6}, {21, "1.0", 9}, {22, "1.1", 10}, {23, "1.2", 10}, {24, "0.9", 11}, {25, "2.0", 8}, {26, "0.8", 7}} {
+		fixture.setPackage(map[string]any{"id": json.Number(strconv.Itoa(seeded.id)), "version": seeded.version, "installer_type": "nopkg", "created_at": time.Date(2026, time.March, 1, seeded.hour, 0, 0, 0, time.UTC).Format(time.RFC3339)})
 	}
-	setNativeInstaller(t, &request, "first installer", "1.0")
-	call := func() binding {
+	fixture.packages[23]["requires"] = []any{map[string]any{"software_id": 1, "package_id": 21}}
+	fixture.packages[23]["update_for"] = []any{map[string]any{"software_id": 1, "package_id": 20}}
+	// Another title requires 2.0, which only the repository's foreign key knows.
+	fixture.held = map[int64]bool{25: true}
+	metadata := map[string]any{"pkginfo": map[string]any{"installer_type": "nopkg", "version": "3.0"}, "retention": plugin.Retention{Keep: 3}}
+	request := plugin.ReconcileRequest{Method: "plan", Prepared: true, Config: connection, Identity: plugin.Identity{Software: "Example"}, Metadata: raw(metadata)}
+	run := func(method string) []string {
 		t.Helper()
+		request.Method = method
 		response, err := Handle(t.Context(), request)
 		if err != nil {
 			t.Fatal(err)
 		}
-		request.Binding = response.Binding
-		var saved binding
-		if err := json.Unmarshal(response.Binding, &saved); err != nil {
-			t.Fatal(err)
-		}
-		return saved
+		return prunedVersions(t, response.Changes)
 	}
-	first := call()
-	installs, _ := fixture.pkg["installs"].([]any)
-	if len(installs) != 1 {
-		t.Fatalf("installs=%v", installs)
+	family := []string{"0.5", "0.8", "0.9", "1.0", "1.1", "1.2", "2.0"}
+
+	// 3.0 keeps the two newest others, 0.9 and 1.2. Of the rest 1.1 is pinned and
+	// 1.0 and 0.5 are referenced by 1.2.
+	if planned := run("plan"); !slices.Equal(planned, []string{"2.0", "0.8"}) || fixture.writes() != 0 || !slices.Equal(fixture.versions(), family) {
+		t.Fatalf("planned=%v writes=%d versions=%v", planned, fixture.writes(), fixture.versions())
 	}
-	app, _ := installs[0].(map[string]any)
-	if app["path"] != "/Applications/Example.app" || app["bundle_identifier"] != "test.example" || app["bundle_version"] != "100" {
-		t.Fatalf("derived application=%v", app)
+	if pruned := run("apply"); !slices.Equal(pruned, []string{"0.8"}) || !slices.Equal(fixture.versions(), []string{"0.5", "0.9", "1.0", "1.1", "1.2", "2.0", "3.0"}) {
+		t.Fatalf("pruned=%v versions=%v", pruned, fixture.versions())
+	}
+	// The refused delete is neither reported nor an error, however often it recurs.
+	if pruned := run("apply"); len(pruned) != 0 {
+		t.Fatalf("repeated pruning=%v", pruned)
 	}
 
-	request.Metadata = raw(map[string]any{"pkginfo": map[string]any{"version": "1.1"}, "retention": plugin.Retention{Keep: 1}})
-	request.Facts.Subjects[0].App.MinimumOS = ""
-	second := call()
-	if second.Version != "1.1" || second.PackageID != first.PackageID || second.Publications.Sequence != 1 || fixture.uploadCount() != 1 || fixture.pkg["minimum_os_version"] != nil {
-		t.Fatalf("metadata-only change: binding=%+v package=%v uploads=%d", second, fixture.pkg, fixture.uploadCount())
+	// Declared targets follow the latest package, which releases the pinned one.
+	metadata["targets"] = map[string]any{"include": []any{map[string]any{"label_name": "Staff", "actions": []string{"managed_installs"}}}}
+	request.Metadata = raw(metadata)
+	if planned := run("plan"); !slices.Equal(planned, []string{"1.1", "2.0"}) || fixture.version("1.1") == nil {
+		t.Fatalf("planned=%v versions=%v", planned, fixture.versions())
 	}
-	fixture.pkg["minimum_os_version"] = "15.0"
-	request.Metadata = raw(map[string]any{"pkginfo": map[string]any{"version": "1.1"}, "unmanaged": []string{"pkginfo.minimum_os_version"}, "retention": plugin.Retention{Keep: 1}})
-	call()
-	if fixture.pkg["minimum_os_version"] != "15.0" {
-		t.Fatal("unmanaged value was changed")
-	}
-
-	setNativeInstaller(t, &request, "second installer", "2.0")
-	request.Metadata = raw(map[string]any{"retention": plugin.Retention{Keep: 1}, "targets": map[string]any{"include": []any{map[string]any{"label_id": 1, "package": map[string]any{"strategy": "specific", "package_id": first.PackageID}, "actions": []string{"optional_installs"}}}}})
-	third := call()
-	if third.Publications.Sequence != 2 || len(fixture.packages) != 2 {
-		t.Fatalf("pinned history: %+v packages=%d", third, len(fixture.packages))
-	}
-	request.Metadata = raw(map[string]any{"retention": plugin.Retention{Keep: 1}, "targets": map[string]any{"include": []any{}}})
-	pruned := call()
-	if len(pruned.Packages) != 1 || len(fixture.packages) != 1 || fixture.packages[pruned.PackageID] == nil {
-		t.Fatalf("retention=%+v packages=%v", pruned, fixture.packages)
-	}
-	if fixture.uploadCount() != 2 {
-		t.Fatal("metadata change replayed an upload")
-	}
-
-	request.Binding = nil
-	before := fixture.writes()
-	if _, err := Handle(t.Context(), request); err == nil || fixture.writes() != before {
-		t.Fatalf("lost binding: %v", err)
+	if pruned := run("apply"); !slices.Equal(pruned, []string{"1.1"}) || !slices.Equal(fixture.versions(), []string{"0.5", "0.9", "1.0", "1.2", "2.0", "3.0"}) {
+		t.Fatalf("pruned=%v versions=%v", pruned, fixture.versions())
 	}
 }
 
-func setNativeInstaller(t *testing.T, request *plugin.ReconcileRequest, body, version string) {
+// prunedVersions reads the versions a run reported under retention, in order.
+func prunedVersions(t *testing.T, changes []plugin.Change) []string {
 	t.Helper()
-	path := filepath.Join(t.TempDir(), "Example.dmg")
-	if err := os.WriteFile(path, []byte(body), 0o400); err != nil {
-		t.Fatal(err)
+	var versions []string
+	for _, change := range changes {
+		if change.Kind != "retention" {
+			continue
+		}
+		var version string
+		if err := json.Unmarshal(change.Before, &version); err != nil || change.Field != "package" || change.Action != "delete" {
+			t.Fatalf("retention change=%+v error=%v", change, err)
+		}
+		versions = append(versions, version)
 	}
-	hash := sha256.Sum256([]byte(body))
-	request.Facts.Subjects[0].App.Version = version
-	request.Artifact = plugin.Artifact{Path: path, Filename: "Example.dmg", Format: "dmg", Version: version, Size: int64(len(body)), SHA256: hex.EncodeToString(hash[:])}
+	return versions
 }
