@@ -192,7 +192,7 @@ func importPkginfoReferences(fields map[string]json.RawMessage, result *PkginfoI
 func importPkginfoLists(fields map[string]json.RawMessage) error {
 	for name, aliases := range map[string]map[string]string{
 		"receipts":              {"packageid": "package_id"},
-		"installs":              {"CFBundleIdentifier": "bundle_identifier", "CFBundleName": "bundle_name", "CFBundleShortVersionString": "bundle_short_version", "CFBundleVersion": "bundle_version"},
+		"installs":              {"CFBundleIdentifier": "bundle_identifier", "CFBundleName": "bundle_name", "CFBundleShortVersionString": "bundle_short_version", "CFBundleVersion": "bundle_version", "minosversion": "minimum_os_version"},
 		"installer_choices_xml": {"choiceIdentifier": "choice_identifier", "choiceAttribute": "choice_attribute", "attributeSetting": "attribute_setting"},
 	} {
 		if value, ok := fields[name]; ok {
