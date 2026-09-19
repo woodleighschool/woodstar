@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/woodleighschool/woodstar/stemma/internal/destination/api"
+
 	"github.com/woodleighschool/stemma/plugin"
 )
 
@@ -33,7 +35,7 @@ func TestRetentionCoversTheWholeRemoteFamily(t *testing.T) {
 	// Another title requires 2.0, which only the repository's foreign key knows.
 	fixture.held = map[int64]bool{25: true}
 	metadata := map[string]any{"pkginfo": map[string]any{"installer_type": "nopkg", "version": "3.0"}, "retention": plugin.Retention{Keep: 3}}
-	request := plugin.ReconcileRequest{Method: "plan", Prepared: true, Config: connection, Identity: plugin.Identity{Resource: plugin.ResourceReference{Kind: "MacSoftware", Name: "Example"}}, Metadata: raw(metadata)}
+	request := plugin.ReconcileRequest[api.Config]{Method: "plan", Prepared: true, Config: connection, Identity: plugin.Identity{Resource: plugin.ResourceReference{Kind: "MacSoftware", Name: "Example"}}, Metadata: raw(metadata)}
 	run := func(method string) []string {
 		t.Helper()
 		request.Method = method

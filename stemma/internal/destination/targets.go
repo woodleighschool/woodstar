@@ -17,8 +17,8 @@ import (
 // targets is the declared form of label targeting: labels by name, with every
 // include following the latest package.
 type targets struct {
-	Include []include `json:"include,omitempty"`
-	Exclude []exclude `json:"exclude,omitempty"`
+	Include []include `json:"include,omitempty" jsonschema_description:"Labels whose hosts receive these Munki actions. Each assignment follows the latest package."`
+	Exclude []exclude `json:"exclude,omitempty" jsonschema_description:"Labels whose hosts are excluded from this software. An empty list removes all exclusions."`
 }
 
 type include struct {

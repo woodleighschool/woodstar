@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/woodleighschool/woodstar/stemma/internal/destination/api"
+
 	"github.com/woodleighschool/stemma/plugin"
 )
 
@@ -29,7 +31,7 @@ func TestInterruptedIconPublicationConverges(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			state, connection := serveFixture(t)
 			icon := iconFixture(t, 10)
-			request := plugin.ReconcileRequest{Method: "plan", Prepared: true, Identity: plugin.Identity{Resource: plugin.ResourceReference{Kind: "MacSoftware", Name: "Policy"}}, Config: connection, Metadata: raw(map[string]any{"pkginfo": map[string]string{"installer_type": "nopkg", "version": "1"}}), Inputs: map[string]plugin.Artifact{"icon": icon}}
+			request := plugin.ReconcileRequest[api.Config]{Method: "plan", Prepared: true, Identity: plugin.Identity{Resource: plugin.ResourceReference{Kind: "MacSoftware", Name: "Policy"}}, Config: connection, Metadata: raw(map[string]any{"pkginfo": map[string]string{"installer_type": "nopkg", "version": "1"}}), Inputs: map[string]plugin.Artifact{"icon": icon}}
 			if _, err := Handle(t.Context(), request); err != nil {
 				t.Fatal(err)
 			}
@@ -63,7 +65,7 @@ func TestInterruptedIconPublicationConverges(t *testing.T) {
 
 func TestUndeclaredIconLeavesPublishedArtwork(t *testing.T) {
 	state, connection := serveFixture(t)
-	request := plugin.ReconcileRequest{Method: "apply", Prepared: true, Identity: plugin.Identity{Resource: plugin.ResourceReference{Kind: "MacSoftware", Name: "Policy"}}, Config: connection, Metadata: raw(map[string]any{"pkginfo": map[string]string{"installer_type": "nopkg", "version": "1"}}), Inputs: map[string]plugin.Artifact{"icon": iconFixture(t, 10)}}
+	request := plugin.ReconcileRequest[api.Config]{Method: "apply", Prepared: true, Identity: plugin.Identity{Resource: plugin.ResourceReference{Kind: "MacSoftware", Name: "Policy"}}, Config: connection, Metadata: raw(map[string]any{"pkginfo": map[string]string{"installer_type": "nopkg", "version": "1"}}), Inputs: map[string]plugin.Artifact{"icon": iconFixture(t, 10)}}
 	if _, err := Handle(t.Context(), request); err != nil {
 		t.Fatal(err)
 	}
@@ -106,7 +108,7 @@ func iconFixture(t *testing.T, value uint8) plugin.Artifact {
 
 func TestIconBootstrapAndReplacement(t *testing.T) { //nolint:funlen // One publication lifecycle verifies icon writes against unchanged parent and installer state.
 	state, connection := serveFixture(t)
-	request := plugin.ReconcileRequest{Method: "apply", Prepared: true, Identity: plugin.Identity{Resource: plugin.ResourceReference{Kind: "MacSoftware", Name: "Example"}}, Config: connection, Metadata: raw(map[string]any{"pkginfo": map[string]string{"version": "1.0"}}), Artifact: installerFixture(t, "Example.pkg", "synthetic installer bytes; never executed", "1.0")}
+	request := plugin.ReconcileRequest[api.Config]{Method: "apply", Prepared: true, Identity: plugin.Identity{Resource: plugin.ResourceReference{Kind: "MacSoftware", Name: "Example"}}, Config: connection, Metadata: raw(map[string]any{"pkginfo": map[string]string{"version": "1.0"}}), Artifact: installerFixture(t, "Example.pkg", "synthetic installer bytes; never executed", "1.0")}
 	call := func() plugin.ReconcileResponse {
 		t.Helper()
 		response, err := Handle(t.Context(), request)

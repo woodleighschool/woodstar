@@ -18,6 +18,8 @@ import (
 	"testing"
 	"time"
 
+	destinationapi "github.com/woodleighschool/woodstar/stemma/internal/destination/api"
+
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	"github.com/go-chi/chi/v5"
@@ -91,11 +93,8 @@ func TestStemmaAdapterPostgresLifecycle(t *testing.T) { //nolint:funlen,gocognit
 	if err := os.WriteFile(caPath, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw}), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	connection, err := json.Marshal(map[string]string{"url": server.URL, "api_key": "synthetic-api-key", "ca_file": caPath})
-	if err != nil {
-		t.Fatal(err)
-	}
-	request := plugin.ReconcileRequest{
+	connection := destinationapi.Config{URL: server.URL, APIKey: "synthetic-api-key", CAFile: caPath}
+	request := plugin.ReconcileRequest[destinationapi.Config]{
 		Identity: plugin.Identity{Project: "adapter-test", Resource: plugin.ResourceReference{Kind: "MacSoftware", Name: "AdapterApp"}, Destination: "woodstar"},
 		Config:   connection,
 		Metadata: json.RawMessage(fmt.Sprintf(`{"targets":{"include":[{"label_name":%q,"actions":["managed_installs"]}],"exclude":[{"label_name":%q}]}}`, included.Name, excluded.Name)),

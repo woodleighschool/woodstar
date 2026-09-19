@@ -28,7 +28,7 @@ import (
 func TestCompiledPluginReconcilesContentAndPresence(t *testing.T) {
 	binary := buildPlugin(t)
 	state, connection := serveFixture(t)
-	request := plugin.ReconcileRequest{Method: "plan", Identity: plugin.Identity{Project: "fixture", Resource: plugin.ResourceReference{Kind: "MacSoftware", Name: "Example"}, Destination: "woodstar"}, Config: connection, Artifact: installerFixture(t, "Example.pkg", "synthetic installer bytes; never executed", "1.0")}
+	request := plugin.ReconcileRequest[api.Config]{Method: "plan", Identity: plugin.Identity{Project: "fixture", Resource: plugin.ResourceReference{Kind: "MacSoftware", Name: "Example"}, Destination: "woodstar"}, Config: connection, Artifact: installerFixture(t, "Example.pkg", "synthetic installer bytes; never executed", "1.0")}
 	setPkginfo(t, &request, `{"name":"Example App","version":"1.0","description":"Managed description","unattended_install":true,"blocking_applications":[],"receipts":[{"packageid":"test.example","version":"1.0"}],"installs":[{"type":"application","path":"/Applications/Example.app","CFBundleIdentifier":"test.example","CFBundleShortVersionString":"1.0"}]}`)
 	described, err := plugin.Run(t.Context(), binary, plugin.Request{Method: "describe"})
 	if err != nil {
@@ -70,7 +70,7 @@ func TestApplyAdoptsAnExistingPublication(t *testing.T) {
 	fixture.software = map[string]any{"id": json.Number("1"), "name": "Example", "description": "Imported by hand", "category": "Utilities", "targets": map[string]any{"include": []any{}, "exclude": []any{}}}
 	fixture.objects[40], fixture.names[40] = []byte(imported), "Example-1.0.pkg"
 	fixture.setPackage(map[string]any{"id": json.Number("5"), "version": "1.0", "installer_type": "pkg", "notes": "Imported by hand", "installer_object_id": json.Number("40")})
-	request := plugin.ReconcileRequest{
+	request := plugin.ReconcileRequest[api.Config]{
 		Method: "plan", Prepared: true, Config: connection, Identity: plugin.Identity{Resource: plugin.ResourceReference{Kind: "MacSoftware", Name: "Example"}},
 		Metadata: json.RawMessage(`{"pkginfo":{"description":"Managed description"}}`),
 		Artifact: installerFixture(t, "Example.pkg", imported, "1.0"),
@@ -118,7 +118,7 @@ func TestApplyAdoptsAnExistingPublication(t *testing.T) {
 func TestLostCreateRepliesAreFoundByNativeIdentity(t *testing.T) {
 	fixture, connection := serveFixture(t)
 	fixture.dropSoftwareReply, fixture.dropPackageReply = true, true
-	request := plugin.ReconcileRequest{Method: "apply", Prepared: true, Config: connection, Identity: plugin.Identity{Resource: plugin.ResourceReference{Kind: "MacSoftware", Name: "Example"}}, Artifact: installerFixture(t, "Example.pkg", "synthetic installer bytes", "1.0")}
+	request := plugin.ReconcileRequest[api.Config]{Method: "apply", Prepared: true, Config: connection, Identity: plugin.Identity{Resource: plugin.ResourceReference{Kind: "MacSoftware", Name: "Example"}}, Artifact: installerFixture(t, "Example.pkg", "synthetic installer bytes", "1.0")}
 	if _, err := Handle(t.Context(), request); err != nil {
 		t.Fatalf("committed creates lost their replies: %v", err)
 	}
@@ -131,7 +131,7 @@ func TestLostCreateRepliesAreFoundByNativeIdentity(t *testing.T) {
 func TestRefusedPackageReleasesItsUploadAndTheNextRunConverges(t *testing.T) {
 	fixture, connection := serveFixture(t)
 	fixture.failPackageSave = true
-	request := plugin.ReconcileRequest{Method: "apply", Prepared: true, Config: connection, Identity: plugin.Identity{Resource: plugin.ResourceReference{Kind: "MacSoftware", Name: "Example"}}, Artifact: installerFixture(t, "Example.pkg", "synthetic installer bytes", "1.0")}
+	request := plugin.ReconcileRequest[api.Config]{Method: "apply", Prepared: true, Config: connection, Identity: plugin.Identity{Resource: plugin.ResourceReference{Kind: "MacSoftware", Name: "Example"}}, Artifact: installerFixture(t, "Example.pkg", "synthetic installer bytes", "1.0")}
 	if _, err := Handle(t.Context(), request); err == nil {
 		t.Fatal("reported a publication whose package was refused")
 	}
@@ -152,7 +152,7 @@ func TestRefusedPackageReleasesItsUploadAndTheNextRunConverges(t *testing.T) {
 	assertFixtureConverged(t, fixture, request)
 }
 
-func setPkginfo(t *testing.T, request *plugin.ReconcileRequest, document string) {
+func setPkginfo(t *testing.T, request *plugin.ReconcileRequest[api.Config], document string) {
 	t.Helper()
 	fields, err := object(request.Metadata)
 	if err != nil {
@@ -163,7 +163,7 @@ func setPkginfo(t *testing.T, request *plugin.ReconcileRequest, document string)
 	request.Prepared = true
 }
 
-func runPlugin(t *testing.T, binary string, request plugin.ReconcileRequest) (plugin.ReconcileResponse, error) {
+func runPlugin(t *testing.T, binary string, request plugin.ReconcileRequest[api.Config]) (plugin.ReconcileResponse, error) {
 	t.Helper()
 	response, err := plugin.Run(t.Context(), binary, plugin.Request{Operation: "woodstar.munki", Method: request.Method, Input: raw(request)})
 	var result plugin.ReconcileResponse
@@ -177,7 +177,7 @@ func runPlugin(t *testing.T, binary string, request plugin.ReconcileRequest) (pl
 
 // assertFixtureConverged replans and reapplies an unchanged declaration. Nothing
 // passes between runs, so each must find the repository already as declared.
-func assertFixtureConverged(t *testing.T, fixture *apiFixture, request plugin.ReconcileRequest) {
+func assertFixtureConverged(t *testing.T, fixture *apiFixture, request plugin.ReconcileRequest[api.Config]) {
 	t.Helper()
 	before := fixture.writes()
 	for _, method := range []string{"plan", "apply"} {
@@ -223,7 +223,7 @@ type apiFixture struct {
 }
 
 // serveFixture starts the fake API and returns its connection settings.
-func serveFixture(t *testing.T) (*apiFixture, json.RawMessage) {
+func serveFixture(t *testing.T) (*apiFixture, api.Config) {
 	t.Helper()
 	fixture := &apiFixture{objects: map[int64][]byte{}, names: map[int64]string{}}
 	connection, origin := serveAPI(t, fixture)
@@ -233,7 +233,7 @@ func serveFixture(t *testing.T) (*apiFixture, json.RawMessage) {
 
 // serveAPI starts a TLS server for handler and returns connection settings that
 // trust it, with the server's origin.
-func serveAPI(t *testing.T, handler http.Handler) (json.RawMessage, string) {
+func serveAPI(t *testing.T, handler http.Handler) (api.Config, string) {
 	t.Helper()
 	server := httptest.NewTLSServer(handler)
 	t.Cleanup(server.Close)
@@ -241,7 +241,7 @@ func serveAPI(t *testing.T, handler http.Handler) (json.RawMessage, string) {
 	if err := os.WriteFile(caPath, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw}), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	return raw(api.Config{URL: server.URL, APIKey: "synthetic-key", CAFile: caPath}), server.URL
+	return api.Config{URL: server.URL, APIKey: "synthetic-key", CAFile: caPath}, server.URL
 }
 
 // writes counts every request that could change the repository, refused or not.
@@ -533,7 +533,7 @@ func (fixture *apiFixture) serveTransfer(response http.ResponseWriter, request *
 	response.WriteHeader(http.StatusNoContent)
 }
 
-func checkPluginCreation(t *testing.T, binary string, state *apiFixture, request *plugin.ReconcileRequest) {
+func checkPluginCreation(t *testing.T, binary string, state *apiFixture, request *plugin.ReconcileRequest[api.Config]) {
 	t.Helper()
 	plan, err := runPlugin(t, binary, *request)
 	if err != nil {
@@ -564,7 +564,7 @@ func checkPluginCreation(t *testing.T, binary string, state *apiFixture, request
 	}
 }
 
-func checkPluginMetadata(t *testing.T, binary string, state *apiFixture, request *plugin.ReconcileRequest) {
+func checkPluginMetadata(t *testing.T, binary string, state *apiFixture, request *plugin.ReconcileRequest[api.Config]) {
 	t.Helper()
 	state.mu.Lock()
 	state.software["description"] = "Manual description"
@@ -619,7 +619,7 @@ func checkPluginMetadata(t *testing.T, binary string, state *apiFixture, request
 	state.mu.Unlock()
 }
 
-func checkPluginRecovery(t *testing.T, binary string, state *apiFixture, request *plugin.ReconcileRequest) {
+func checkPluginRecovery(t *testing.T, binary string, state *apiFixture, request *plugin.ReconcileRequest[api.Config]) {
 	t.Helper()
 	changeInstaller(t, request, "version two installer")
 	setPkginfo(t, request, `{"name":"Example App","version":"2.0"}`)
@@ -759,7 +759,7 @@ func installerFixture(t *testing.T, filename, body, version string) plugin.Artif
 	return plugin.Artifact{Path: path, Filename: filename, Format: strings.TrimPrefix(filepath.Ext(filename), "."), Version: version, Size: int64(len(body)), SHA256: hex.EncodeToString(hash[:])}
 }
 
-func changeInstaller(t *testing.T, request *plugin.ReconcileRequest, body string) {
+func changeInstaller(t *testing.T, request *plugin.ReconcileRequest[api.Config], body string) {
 	t.Helper()
 	request.Artifact = installerFixture(t, "Example.pkg", body, "")
 }

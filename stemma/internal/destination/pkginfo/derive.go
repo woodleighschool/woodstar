@@ -17,14 +17,14 @@ import (
 
 // Derivation selects observed evidence used to fill omitted native fields.
 type Derivation struct {
-	App *AppDerivation `json:"app,omitempty"`
+	App *AppDerivation `json:"app,omitempty" jsonschema_description:"Application evidence used to derive detection, version and minimum macOS fields."`
 }
 
 // AppDerivation selects a named application subject and its endpoint detection path.
 type AppDerivation struct {
-	Subject       string `json:"subject" jsonschema:"minLength=1"`
-	InstalledPath string `json:"installed_path,omitempty"`
-	VersionKey    string `json:"version_key,omitempty" jsonschema:"enum=CFBundleShortVersionString,enum=CFBundleVersion"`
+	Subject       string `json:"subject" jsonschema:"minLength=1" jsonschema_description:"Name of the application subject exposed by the preparing resource."`
+	InstalledPath string `json:"installed_path,omitempty" jsonschema_description:"Absolute application path on managed devices. Omit to use the selected installation path."`
+	VersionKey    string `json:"version_key,omitempty" jsonschema:"enum=CFBundleShortVersionString,enum=CFBundleVersion" jsonschema_description:"Info.plist key for the managed version. Omit to use the resource selection."`
 }
 
 // Validate checks the selection without requiring prepared artifacts.
@@ -54,7 +54,7 @@ type Derived struct {
 // Derive fills omitted native fields from artifact evidence. Declared values
 // win; owned fields without evidence clear. Detection requires an established
 // installed path, not just a location inside an archive.
-func Derive(request plugin.ReconcileRequest, declared json.RawMessage, derivation Derivation) (Derived, error) {
+func Derive[C any](request plugin.ReconcileRequest[C], declared json.RawMessage, derivation Derivation) (Derived, error) {
 	var explicit map[string]any
 	if err := json.Unmarshal(declared, &explicit); err != nil {
 		return Derived{}, err

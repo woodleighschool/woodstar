@@ -213,7 +213,7 @@ stemma apply
 
 Stages and diagnostics go to stderr, including the plugin's upload, publication, and verification stages. Terminals show live progress and uploaded bytes; CI and redirected output use ordinary lines. `--verbose` (`-v`) enables debug diagnostics, `--quiet` (`-q`) keeps warnings and errors, and `--log-level debug|info|warn|error` selects an explicit threshold. `--no-progress` disables animation. Use `--json` for the final stdout report and `--log-format json` for structured stderr logs. Log levels leave reports intact.
 
-Generate a project editor schema with `stemma schema --project --offline` for field validation and help from the configured plugins.
+Generate a project editor schema with `stemma schema --offline --output-file stemma.schema.json` for field validation and help from the configured plugins.
 
 ## Identity and retention
 
