@@ -2,10 +2,7 @@ package destination
 
 import (
 	"bytes"
-	"encoding/hex"
-	"errors"
 	"fmt"
-	"path/filepath"
 	"reflect"
 	"slices"
 	"strings"
@@ -24,7 +21,7 @@ type desired struct {
 	changes []plugin.Change
 }
 
-func (remote *client) plan(artifact plugin.Artifact, metadata metadata, observed observation) (desired, error) {
+func plan(metadata metadata, observed Observation) (desired, error) {
 	var result desired
 	var currentSoftware software.UpdateMutation
 	var currentPackage packages.PackageMutation
@@ -38,7 +35,7 @@ func (remote *client) plan(artifact plugin.Artifact, metadata metadata, observed
 	if err != nil {
 		return result, err
 	}
-	nextSoftware.Normalize(remote.config.Name)
+	nextSoftware.Normalize(metadata.name)
 	result.targets = nextSoftware.Targets
 	if err := nextSoftware.Validate(); err != nil {
 		return result, fmt.Errorf("software: %w", err)
@@ -51,19 +48,22 @@ func (remote *client) plan(artifact plugin.Artifact, metadata metadata, observed
 	if err := result.pkg.ValidateMetadata(); err != nil {
 		return result, fmt.Errorf("package: %w", err)
 	}
-	currentSoftware.Normalize(remote.config.Name)
+	currentSoftware.Normalize(metadata.name)
 	currentPackage.Normalize()
 	if observed.Software == nil {
-		result.changes = append(result.changes, plugin.Change{Kind: "metadata", Field: "software.name", Action: "create", After: raw(remote.config.Name)})
+		result.changes = append(result.changes, plugin.Change{Kind: "metadata", Field: "software.name", Action: "create", After: raw(metadata.name)})
 	}
 	if observed.Package == nil {
-		result.changes = append(result.changes, plugin.Change{Kind: "metadata", Field: "package.version", Action: "create", After: raw(remote.config.Version)})
+		result.changes = append(result.changes, plugin.Change{Kind: "metadata", Field: "package.version", Action: "create", After: raw(metadata.version)})
 	}
 	result.changes = append(result.changes, diff("software", currentSoftware, nextSoftware)...)
 	result.changes = append(result.changes, diff("package", currentPackage, result.pkg)...)
 	if metadata.icon.Path != "" {
-		missing := observed.Software == nil || observed.Software.IconObjectID == nil
-		result.icon = missing || metadata.refreshIcons && (observed.Software.IconFile == nil || observed.Software.IconFile.SHA256 != metadata.icon.SHA256 || observed.Software.IconFile.SizeBytes != metadata.icon.Size)
+		current := (*software.IconFile)(nil)
+		if observed.Software != nil && observed.Software.IconObjectID != nil {
+			current = observed.Software.IconFile
+		}
+		result.icon = current == nil || current.SHA256 != metadata.icon.SHA256 || current.SizeBytes != metadata.icon.Size
 		if result.icon {
 			result.changes = append(result.changes, plugin.Change{Kind: "content", Field: "software.icon", Action: "upload", After: raw(metadata.icon.SHA256)})
 		}
@@ -71,6 +71,7 @@ func (remote *client) plan(artifact plugin.Artifact, metadata metadata, observed
 	if result.pkg.InstallerType == packages.InstallerTypeNoPkg {
 		return result, nil
 	}
+	artifact := metadata.installer
 	if err := validateArtifact(artifact); err != nil {
 		return result, err
 	}
@@ -87,17 +88,6 @@ func (remote *client) plan(artifact plugin.Artifact, metadata metadata, observed
 		result.changes = append(result.changes, change)
 	}
 	return result, nil
-}
-
-func validateArtifact(artifact plugin.Artifact) error {
-	digest, err := hex.DecodeString(artifact.SHA256)
-	if err != nil || len(digest) != 32 || strings.ToLower(artifact.SHA256) != artifact.SHA256 {
-		return errors.New("installer artifact requires a lowercase SHA-256 digest")
-	}
-	if artifact.Filename == "" || strings.TrimSpace(artifact.Filename) != artifact.Filename || filepath.Base(artifact.Filename) != artifact.Filename || artifact.Size < 0 {
-		return errors.New("installer artifact requires an unpadded base filename and nonnegative size")
-	}
-	return nil
 }
 
 // Both inputs are the same editable API type. Comparing field values retains

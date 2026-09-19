@@ -1,18 +1,33 @@
 package destination
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"net/url"
-	"strconv"
+	"slices"
 
 	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
+	"github.com/woodleighschool/woodstar/internal/munki/software"
 )
 
-func (remote *client) resolveReferences(ctx context.Context, metadata *metadata) error {
+// references names the catalog resources the pkginfo links to, so Stemma
+// reconciles them on this connection first.
+func (m metadata) references() []string {
+	var names []string
+	for _, refs := range m.links {
+		for _, ref := range refs {
+			names = append(names, ref.Software)
+		}
+	}
+	slices.Sort(names)
+	return slices.Compact(names)
+}
+
+// resolveReferences replaces the pkginfo's relationships with the software and
+// packages the repository holds for them.
+func resolveReferences(ctx context.Context, remote *Client, metadata *metadata) error {
 	fields, err := object(metadata.pkg.Bytes())
 	if err != nil {
 		return err
@@ -21,9 +36,27 @@ func (remote *client) resolveReferences(ctx context.Context, metadata *metadata)
 		if names == nil {
 			continue
 		}
-		values := make([]packages.PackageReferenceMutation, 0, len(names))
+		values := make([]packages.PackageReferenceMutation, 0, len(names)+len(metadata.links[field]))
 		for _, reference := range names {
-			value, err := remote.resolveReference(ctx, reference)
+			found, err := remote.FindSoftware(ctx, reference.Name)
+			if err != nil {
+				return fmt.Errorf("%s: %w", field, err)
+			}
+			if found == nil {
+				return fmt.Errorf("%s: unknown software %q", field, reference.Name)
+			}
+			value, err := remote.PackageReference(ctx, found, reference.Version)
+			if err != nil {
+				return fmt.Errorf("%s: %w", field, err)
+			}
+			values = append(values, value)
+		}
+		for _, link := range metadata.links[field] {
+			found, err := linkedSoftware(ctx, remote, link, metadata.peers)
+			if err != nil {
+				return fmt.Errorf("%s: %w", field, err)
+			}
+			value, err := remote.PackageReference(ctx, found, link.Version)
 			if err != nil {
 				return fmt.Errorf("%s: %w", field, err)
 			}
@@ -34,34 +67,31 @@ func (remote *client) resolveReferences(ctx context.Context, metadata *metadata)
 	return json.Unmarshal(raw(fields), &metadata.pkg)
 }
 
-func (remote *client) resolveReference(ctx context.Context, reference munki.PkginfoReference) (packages.PackageReferenceMutation, error) {
-	var result packages.PackageReferenceMutation
-	found, err := remote.findSoftware(ctx, 0, reference.Name)
+// linkedSoftware finds the software a catalog resource publishes here. Its
+// Munki name is its declared name for this destination, or its resource name.
+func linkedSoftware(ctx context.Context, remote *Client, link CatalogReference, peers map[string]json.RawMessage) (*SoftwareDetail, error) {
+	declared, exists := peers[link.Software]
+	if !exists {
+		return nil, fmt.Errorf("catalog software %q does not publish to this destination", link.Software)
+	}
+	var peer struct {
+		Pkginfo struct {
+			Name string `json:"name"`
+		} `json:"pkginfo"`
+	}
+	if err := json.Unmarshal(declared, &peer); err != nil {
+		return nil, fmt.Errorf("catalog software %q: %w", link.Software, err)
+	}
+	// The peer publishes under the name the importer normalizes, not the one typed.
+	identity := software.CreateMutation{Name: cmp.Or(peer.Pkginfo.Name, link.Software)}
+	identity.Normalize()
+	name := identity.Name
+	found, err := remote.FindSoftware(ctx, name)
 	if err != nil {
-		return result, err
+		return nil, err
 	}
 	if found == nil {
-		return result, fmt.Errorf("unknown software %q", reference.Name)
+		return nil, fmt.Errorf("catalog software %q is not published on this connection as %q", link.Software, name)
 	}
-	result.SoftwareID = found.ID
-	if reference.Version == "" {
-		return result, nil
-	}
-	items, err := list[packages.Package](ctx, remote, "/api/munki/packages", url.Values{"software_id": {strconv.FormatInt(found.ID, 10)}, "q": {reference.Version}})
-	if err != nil {
-		return result, err
-	}
-	for _, item := range items {
-		if item.Software.ID != found.ID || item.Version != reference.Version {
-			continue
-		}
-		if result.PackageID != 0 {
-			return result, errors.New("ambiguous dependency package discovery")
-		}
-		result.PackageID = item.ID
-	}
-	if result.PackageID == 0 {
-		return result, fmt.Errorf("unknown package %q", packages.MunkiVersionedSoftwareName(reference.Name, reference.Version))
-	}
-	return result, nil
+	return found, nil
 }

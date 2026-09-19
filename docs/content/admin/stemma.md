@@ -88,38 +88,30 @@ resource output.
 For PKGs, inspection supplies payload receipts and an unambiguous version. An app
 selection supplies its version, minimum OS, and detection facts. For a DMG app,
 the plugin derives `items_to_copy` and detection at the selected installed path.
-Authored native values take precedence. Use `stemma inspect FILE` to examine
+Native values you set take precedence. Use `stemma inspect FILE` to examine
 application evidence when a source needs an explicit selection.
 
 `pkginfo` uses supported native Munki fields, including `RestartAction`,
 `receipts[].packageid`, `installs[].CFBundleIdentifier`, `items_to_copy`, scripts,
 alerts, and installer environment variables. Typed `$fact` references retain their
-native value type. A JSON pkginfo artifact can also be supplied with its installer
-through `inputs.installer`.
+native value type.
 
-## Application icons
+## Icons
 
-`MacSoftware` automatically prepares an `icon` PNG when a selected application
-provides one. macOS uses the native system renderer for current system styling;
-Linux and Windows use supported portable application icon resources. A catalog
-can therefore bootstrap in CI without icon-specific configuration. Native rendering
-is an enhancement; unsupported applications and installers can remain iconless.
-A PKG without a selected application directory is not rendered as an app icon.
+A resource that declares `spec.icon` supplies the committed PNG from the catalog's
+`icons/` directory. Create it from the software with `stemma icon`, or commit your
+own artwork for software that carries none:
 
-The plugin creates a missing icon independently of software or package creation.
-It retains existing artwork across normal runs and software updates, including runs
-that provide no icon. A later portable run does not replace a native icon.
-To intentionally improve artwork across the catalog, run on a current Mac:
-
-```sh
-stemma apply --refresh-icons
-stemma apply MacSoftware/example-editor-amd64 --refresh-icons
+```yaml
+spec:
+  icon: example-editor
 ```
 
-`stemma plan --refresh-icons` previews the icon changes. Refresh reuses installer
-preparation and changes only icon content when the software is otherwise current.
-The plugin uploads and attaches a new storage object through the existing icon API;
-it does not create another package version or reupload the installer.
+The plugin publishes those exact bytes. It creates a missing icon independently of
+software or package creation, replaces the icon when the file's content changes and
+keeps published artwork when the resource declares none. It uploads and
+attaches a storage object through the existing icon API; it does not create another
+package version or reupload the installer.
 
 ## Targets and native settings
 
@@ -128,18 +120,17 @@ Targets belong to the destination alongside `pkginfo`. To offer the latest packa
 ```yaml
 targets:
   include:
-    - label_id: 123
-      package:
-        strategy: latest
+    - label_name: All Hosts
       actions:
         - optional_installs
         - managed_updates
-  exclude: []
+  exclude:
+    - label_name: Exam MacBooks
 ```
 
-Use `strategy: specific` with an existing `package_id` to pin a version. See [Targets](munki#targets) for the available actions. Omitted target lists remain unmanaged; an empty list clears that list. A newly created software title without targets has no deployment labels.
+Labels are written by their exact name; an unknown label fails before writing. Every include follows the software's latest package. See [Targets](munki#targets) for the available actions. Omitted target lists stay unchanged. Each supplied `include` or `exclude` list replaces that collection; setting both to `[]` leaves an item unassigned. A newly created software title without targets has no deployment labels.
 
-The shared importer converts native fields to sparse API PATCH requests. Omitted native fields remain unmanaged, supplied lists replace their collections, and explicit `false`, empty lists, and supported `null` clears retain their meaning. For example:
+The shared importer converts native fields to sparse API PATCH requests. Omitted native fields are left unchanged, supplied lists replace their collections, and explicit `false`, empty lists, and supported `null` clears retain their meaning. For example:
 
 ```yaml
 pkginfo:
@@ -148,9 +139,20 @@ pkginfo:
   unattended_install: false
 ```
 
-Previously derived optional fields clear when the corresponding evidence disappears. To suppress derivation and relinquish ownership of a field, list it under `unmanaged`, such as `pkginfo.minimum_os_version`; that field cannot also be authored in `pkginfo`.
+Explicit fields override derived values. Installer evidence supplies receipts, installed size, restart action, DMG copy details, minimum OS, detection and removal settings. Missing derived values clear those fields; other omitted fields stay unchanged.
 
-Native `requires` and `update_for` entries identify software by its Munki name, optionally followed by `--version` for a specific package. Unknown or ambiguous references fail before writing; `[]` clears the relationship list. Deployment uses targets in place of repository catalogs.
+Native `requires` and `update_for` entries identify software by its Munki name, optionally followed by `--version` for a specific package, and resolve against software already in Woodstar. An entry may instead name a catalog resource published to the same connection; it links through the Munki name that resource declares, its declared `pkginfo.name` or else its own name, and Stemma reconciles the resource first:
+
+```yaml
+pkginfo:
+  requires:
+    - software: rosetta
+    - software: microsoft-365-business-pro-suite
+      version: "16.113"
+    - EPSON Drivers
+```
+
+Unknown or ambiguous references fail before writing; `[]` clears the relationship list. Deployment uses targets in place of repository catalogs.
 
 ## Source-free items
 
@@ -175,16 +177,13 @@ spec:
         postinstall_script: |
           #!/bin/sh
           touch /Library/ManagedMarker
-      targets:
-        include: []
-        exclude: []
       retention:
         keep: 1
 ```
 
 Munki evaluates the scripts on targeted clients according to its installation checks. Stemma stores them without executing them. The native version identifies a `nopkg` publication; script or metadata edits at the same version update its existing package.
 
-## Publish and retain versions
+## Publish
 
 Run from the project directory:
 
@@ -200,10 +199,14 @@ stemma apply
 
 `plugins install` locks the release index and fetches the runner's bundle. `validate` checks configuration and plugin contracts before acquisition. `prepare` records new inputs and local changes, reuses existing remote pins, and prepares installers. `update` explicitly refreshes upstream sources. `plan` and `apply` require reviewed locks; `plan` reads remote state, and `apply` publishes changed content, metadata, and supplied targets. Metadata edits reuse cached acquisition and installer preparation.
 
-Stages and diagnostics go to stderr, including the plugin's upload, publication, and verification stages. Terminals show live progress; CI and redirected output use ordinary lines. `--verbose` (`-v`) enables debug diagnostics, `--quiet` (`-q`) keeps warnings and errors, and `--log-level debug|info|warn|error` selects an explicit threshold. `--no-progress` disables animation. Use `--output json` for the final stdout report and `--log-format json` for structured stderr logs. Log levels leave reports intact.
+Stages and diagnostics go to stderr, including the plugin's upload, publication, and verification stages. Terminals show live progress and uploaded bytes; CI and redirected output use ordinary lines. `--verbose` (`-v`) enables debug diagnostics, `--quiet` (`-q`) keeps warnings and errors, and `--log-level debug|info|warn|error` selects an explicit threshold. `--no-progress` disables animation. Use `--json` for the final stdout report and `--log-format json` for structured stderr logs. Log levels leave reports intact.
 
 Generate a project editor schema with `stemma schema --project --offline` for field validation and help from the configured plugins.
 
-`retention.keep` retains the current publication plus the most recent successfully published distinct payloads up to the requested count. Pinned or referenced packages remain protected and may exceed that count. Cleanup runs after publication and targeting succeed, and only deletes package IDs recorded as owned with a durable publication order. Metadata-only changes do not advance that order.
+## Identity and retention
 
-Commit the configuration and reviewed lockfile. Preserve `.stemma/state` between runs, or set `STEMMA_STATE_DIR` to a persistent directory; the content cache is disposable. An existing software name or package version does not establish ownership when a binding is missing. Restore the durable binding before publishing again. To update the plugin, change its image reference, run `stemma plugins update`, and review the lockfile.
+The plugin keeps nothing between runs. Software names are unique and so is a version within its software, so it finds the declared title by exact name and its package by version, plans ordinary drift against them and converges on `apply`. Publishing over software that already exists is how a catalog takes it on: there is no separate adoption step. A package with the declared version but different installer bytes is drift, reported by `plan` and replaced in place. An interrupted run is simply run again; it uploads whatever the repository does not yet hold.
+
+`retention.keep` applies to every package under the software, including versions published before Stemma. It retains the declared version plus the most recently created others up to the requested count. Packages pinned by a target or referenced by another package's `requires` or `update_for` remain protected and may exceed that count. Cleanup runs after publication and targeting succeed.
+
+Commit the configuration and reviewed lockfile; the content cache is disposable and there is no other local state. To update the plugin, change its image reference, run `stemma plugins update`, and review the lockfile.

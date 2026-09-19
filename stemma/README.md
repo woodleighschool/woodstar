@@ -6,22 +6,15 @@ Publish installers and native Munki settings through the administrative API.
 
 See the [Stemma guide](https://woodleighschool.github.io/woodstar/docs/admin/stemma) for configuration, acquisition, and publication.
 
-The standalone plugin exposes `woodstar.munki` through Stemma's operation protocol.
-MacSoftware supplies its installer, selected application evidence, and optional icon.
-Author native `pkginfo`, deployment `targets`, and `retention.keep` on the destination. Source-free `nopkg`
-items publish scripts and metadata without an installer.
+The plugin exposes `woodstar.munki`. MacSoftware supplies the installer,
+application evidence and optional icon. Destination settings contain native
+`pkginfo`, deployment `targets` and `retention.keep`. Source-free `nopkg` items
+publish scripts and metadata.
 
-The shared server importer maps native fields to sparse PATCH requests. Supplied
-values remain explicit; omitted fields stay unmanaged unless owned by derivation.
-Durable bindings track published payloads and protect against adopting unrelated
-software by name. Retention removes only owned package versions after publication
-succeeds and preserves pinned or referenced packages.
-
-Application icons are created when missing and retained on normal runs, even if
-later preparation has no icon. Run `stemma apply --refresh-icons` on macOS to
-replace artwork using the native renderer. Resource selection composes with the
-flag; `stemma plan --refresh-icons` previews changes. Icon publication does not
-reupload installers or create package versions.
+Software names and package versions identify remote objects; the plugin keeps no
+local publication state. Explicit settings override derived values, and other
+omitted fields remain unchanged. Retention preserves pinned or referenced packages.
+Icons update independently of installers.
 
 ## 🧑‍💻 Development
 
@@ -36,9 +29,7 @@ mise run lint
 
 The binary is written to `build/plugin`. This directory is a separate Go
 module using the server models from the parent checkout and Stemma's public
-`plugin` SDK. The operation advertises `ConfigSchema`, `MetadataSchema`, and
-`RequiresInspection`; Stemma discovers the contract through the trusted plugin.
-Use `mise run test-postgres` for the PostgreSQL integration test.
+`plugin` SDK. Use `mise run test-postgres` for the PostgreSQL integration test.
 
 ## 📦 Packaging
 

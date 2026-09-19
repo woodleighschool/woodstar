@@ -2,189 +2,83 @@ package destination
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io"
-	"maps"
-	"net/url"
 	"strings"
-
-	"github.com/woodleighschool/stemma/plugin"
 
 	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
-	"github.com/woodleighschool/woodstar/internal/munki/software"
 )
 
-type config struct {
-	URL           string `json:"url"`
-	APIKey        string `json:"api_key"`
-	CAFile        string `json:"ca_file,omitempty"`
-	Name          string `json:"-"`
-	Version       string `json:"-"`
-	InstallerType string `json:"-"`
+// CatalogReference points a native relationship at a resource the catalog
+// publishes to the same connection. It links through the Munki name that
+// resource declares, so it needs no name of its own and survives one changing.
+type CatalogReference struct {
+	Software string `json:"software"          jsonschema:"required,description=Name of a resource published to this connection."`
+	Version  string `json:"version,omitempty" jsonschema:"description=Version of that resource's package to reference instead of the software title."`
 }
 
-type metadata struct {
-	software     software.Patch
-	pkg          packages.Patch
-	requires     []munki.PkginfoReference
-	updateFor    []munki.PkginfoReference
-	icon         plugin.Artifact
-	refreshIcons bool
-	installer    plugin.Artifact
-	controls     controls
-	origins      map[string]string
+// Imported is a native pkginfo in the repository's terms.
+type Imported struct {
+	munki.PkginfoImport
+
+	// Links holds the catalog references under requires and update_for.
+	Links map[string][]CatalogReference
 }
 
-func readRequest(ctx context.Context, request plugin.ReconcileRequest) (config, metadata, error) {
-	var cfg config
-	if err := decode(request.Config, &cfg); err != nil {
-		return cfg, metadata{}, fmt.Errorf("configuration: %w", err)
-	}
-	if err := cfg.validate(); err != nil {
-		return cfg, metadata{}, err
-	}
-	settings, err := decodeControls(request.Metadata)
+// Import parses the native document with the shared importer after setting
+// aside catalog references. A nopkg package releases any installer it held.
+// No reference may name self, the resource being published.
+func Import(values map[string]any, self string) (Imported, error) {
+	links, err := splitReferences(values, self)
 	if err != nil {
-		return cfg, metadata{}, err
+		return Imported{}, err
 	}
-	if request.Artifact.Format == "json" {
-		document, err := readPkginfo(ctx, request.Artifact)
-		if err != nil {
-			return cfg, metadata{}, err
-		}
-		fields, err := object(document)
-		if err != nil {
-			return cfg, metadata{}, err
-		}
-		overrides, _ := object(settings.Pkginfo)
-		maps.Copy(fields, overrides)
-		settings.Pkginfo = raw(fields)
-		request.Artifact = request.Inputs["installer"]
-		request.Facts = request.Artifact.Facts
-		request.Prepared = true
-		request.Metadata = raw(settings)
-	}
-	values, origins, err := derive(request)
-	if err != nil {
-		return cfg, metadata{}, err
-	}
-	static := !request.Prepared && request.Artifact.Path == ""
-	if static {
-		if _, ok := values["name"]; !ok {
-			values["name"] = "PendingSoftware"
-		}
-		if _, ok := values["version"]; !ok {
-			values["version"] = "0"
-		}
-	}
-	imported, err := importPkginfo(values, settings.Targets)
-	if err != nil {
-		return cfg, metadata{}, err
-	}
-	identity, err := imported.Package.Apply(packages.PackageMutation{})
-	if err != nil {
-		return cfg, metadata{}, err
-	}
-	identity.Normalize()
-	cfg.Name, cfg.Version, cfg.InstallerType = imported.Name, identity.Version, string(identity.InstallerType)
-	if !static {
-		if err := validateInstaller(ctx, request, &imported, identity.InstallerType); err != nil {
-			return cfg, metadata{}, err
-		}
-	}
-	icon := request.Inputs["icon"]
-	if !static && icon.Path != "" {
-		if err := validateIcon(ctx, icon); err != nil {
-			return cfg, metadata{}, fmt.Errorf("icon: %w", err)
-		}
-		origins["software.icon"] = "input.icon"
-	}
-	return cfg, metadata{icon: icon, refreshIcons: request.RefreshIcons, installer: request.Artifact, controls: settings, origins: origins, software: imported.Software, pkg: imported.Package, requires: imported.Requires, updateFor: imported.UpdateFor}, nil
-}
-
-func validateInstaller(ctx context.Context, request plugin.ReconcileRequest, imported *munki.PkginfoImport, installerType packages.InstallerType) error {
-	if installerType == packages.InstallerTypeNoPkg {
-		if request.Artifact.Path != "" || request.Artifact.SHA256 != "" {
-			return errors.New("nopkg must not include installer content")
-		}
-		fields, _ := object(imported.Package.Bytes())
-		fields["installer_object_id"] = raw(nil)
-		return json.Unmarshal(raw(fields), &imported.Package)
-	}
-	installer := request.Artifact
-	if installer.Path == "" {
-		return errors.New("installer is required")
-	}
-	if imported.InstallerItemHash != "" && imported.InstallerItemHash != installer.SHA256 {
-		return errors.New("pkginfo installer_item_hash does not match installer")
-	}
-	if err := verifyArtifact(ctx, installer, nil); err != nil {
-		return fmt.Errorf("installer: %w", err)
-	}
-	return nil
-}
-
-func (cfg *config) validate() error {
-	parsed, err := url.Parse(cfg.URL)
-	if err != nil || parsed.Scheme != "https" || parsed.Host == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" || (parsed.Path != "" && parsed.Path != "/") {
-		return errors.New("url must be an HTTPS origin without credentials, query or path")
-	}
-	if strings.TrimSpace(cfg.APIKey) == "" || strings.ContainsAny(cfg.APIKey, "\r\n\x00") {
-		return errors.New("api_key is required")
-	}
-	return nil
-}
-
-func object(data json.RawMessage) (map[string]json.RawMessage, error) {
-	if len(data) == 0 {
-		return map[string]json.RawMessage{}, nil
-	}
-	var fields map[string]json.RawMessage
-	if err := decode(data, &fields); err != nil {
-		return nil, err
-	}
-	return fields, nil
-}
-
-func decode(data json.RawMessage, target any) error {
-	if bytes.Equal(bytes.TrimSpace(data), []byte("null")) {
-		return errors.New("null is not allowed")
-	}
-	decoder := json.NewDecoder(bytes.NewReader(data))
-	decoder.DisallowUnknownFields()
-	decoder.UseNumber()
-	if err := decoder.Decode(target); err != nil {
-		return err
-	}
-	if err := decoder.Decode(new(any)); !errors.Is(err, io.EOF) {
-		return errors.New("expected a single JSON value")
-	}
-	return nil
-}
-
-func raw(value any) json.RawMessage {
-	data, _ := json.Marshal(value)
-	return data
-}
-
-func importPkginfo(values map[string]any, targets json.RawMessage) (munki.PkginfoImport, error) {
 	imported, err := munki.ImportPkginfo(raw(values))
 	if err != nil {
-		return munki.PkginfoImport{}, fmt.Errorf("pkginfo: %w", err)
+		return Imported{}, fmt.Errorf("pkginfo: %w", err)
 	}
-	if len(targets) > 0 {
-		fields, err := object(imported.Software.Bytes())
-		if err != nil {
-			return munki.PkginfoImport{}, err
+	if kind, _ := values["installer_type"].(string); strings.TrimSpace(kind) == string(packages.InstallerTypeNoPkg) {
+		var fields map[string]json.RawMessage
+		if err := json.Unmarshal(imported.Package.Bytes(), &fields); err != nil {
+			return Imported{}, err
 		}
-		fields["targets"] = targets
-		if err := json.Unmarshal(raw(fields), &imported.Software); err != nil {
-			return munki.PkginfoImport{}, fmt.Errorf("targets: %w", err)
+		fields["installer_object_id"] = raw(nil)
+		if err := json.Unmarshal(raw(fields), &imported.Package); err != nil {
+			return Imported{}, err
 		}
 	}
-	return imported, nil
+	return Imported{PkginfoImport: imported, Links: links}, nil
+}
+
+// splitReferences separates catalog references from the Munki names the shared
+// importer parses. A list left with no names stays managed and clears the field.
+func splitReferences(values map[string]any, self string) (map[string][]CatalogReference, error) {
+	links := map[string][]CatalogReference{}
+	for _, field := range []string{"requires", "update_for"} {
+		items, ok := values[field].([]any)
+		if !ok {
+			continue
+		}
+		names := make([]any, 0, len(items))
+		for _, item := range items {
+			object, ok := item.(map[string]any)
+			if !ok {
+				names = append(names, item)
+				continue
+			}
+			var reference CatalogReference
+			decoder := json.NewDecoder(bytes.NewReader(raw(object)))
+			decoder.DisallowUnknownFields()
+			if err := decoder.Decode(&reference); err != nil || strings.TrimSpace(reference.Software) == "" {
+				return nil, fmt.Errorf("%s reference must be a Munki name or name a catalog resource under software", field)
+			}
+			if reference.Software == self {
+				return nil, fmt.Errorf("%s reference cannot name the resource itself", field)
+			}
+			links[field] = append(links[field], reference)
+		}
+		values[field] = names
+	}
+	return links, nil
 }
