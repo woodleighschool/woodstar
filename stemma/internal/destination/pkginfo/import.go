@@ -9,30 +9,32 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/woodleighschool/stemma/plugin"
+
 	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 )
 
-// CatalogReference points a native relationship at a resource the catalog
+// ResourceRelationship points a native relationship at a resource the catalog
 // publishes to the same connection. It links through the Munki name that
 // resource declares, so it needs no name of its own and survives one changing.
-type CatalogReference struct {
-	Software string `json:"software"          jsonschema:"required,description=Name of a resource published to this connection."`
-	Version  string `json:"version,omitempty" jsonschema:"description=Version of that resource's package to reference instead of the software title."`
+type ResourceRelationship struct {
+	Resource plugin.ResourceReference `json:"resource" jsonschema:"required"`
+	Version  string                   `json:"version,omitempty" jsonschema:"description=Version of that resource's package to reference instead of the software title."`
 }
 
 // Imported is a native pkginfo in the repository's terms.
 type Imported struct {
 	munki.PkginfoImport
 
-	// Links holds the catalog references under requires and update_for.
-	Links map[string][]CatalogReference
+	// Links holds the resource references under requires and update_for.
+	Links map[string][]ResourceRelationship
 }
 
 // Import parses the native document with the shared importer after setting
-// aside catalog references. A nopkg package releases any installer it held.
+// aside resource references. A nopkg package releases any installer it held.
 // No reference may name self, the resource being published.
-func Import(values map[string]any, self string) (Imported, error) {
+func Import(values map[string]any, self plugin.ResourceReference) (Imported, error) {
 	links, err := splitReferences(values, self)
 	if err != nil {
 		return Imported{}, err
@@ -54,10 +56,10 @@ func Import(values map[string]any, self string) (Imported, error) {
 	return Imported{PkginfoImport: imported, Links: links}, nil
 }
 
-// splitReferences separates catalog references from the Munki names the shared
+// splitReferences separates resource references from the Munki names the shared
 // importer parses. A list left with no names stays managed and clears the field.
-func splitReferences(values map[string]any, self string) (map[string][]CatalogReference, error) {
-	links := map[string][]CatalogReference{}
+func splitReferences(values map[string]any, self plugin.ResourceReference) (map[string][]ResourceRelationship, error) {
+	links := map[string][]ResourceRelationship{}
 	for _, field := range []string{"requires", "update_for"} {
 		items, ok := values[field].([]any)
 		if !ok {
@@ -70,13 +72,13 @@ func splitReferences(values map[string]any, self string) (map[string][]CatalogRe
 				names = append(names, item)
 				continue
 			}
-			var reference CatalogReference
+			var reference ResourceRelationship
 			decoder := json.NewDecoder(bytes.NewReader(raw(object)))
 			decoder.DisallowUnknownFields()
-			if err := decoder.Decode(&reference); err != nil || strings.TrimSpace(reference.Software) == "" {
-				return nil, fmt.Errorf("%s reference must be a Munki name or name a catalog resource under software", field)
+			if err := decoder.Decode(&reference); err != nil || reference.Resource.Validate() != nil {
+				return nil, fmt.Errorf("%s reference must be a Munki name or identify a resource by kind and name", field)
 			}
-			if reference.Software == self {
+			if reference.Resource.Key() == self.Key() {
 				return nil, fmt.Errorf("%s reference cannot name the resource itself", field)
 			}
 			links[field] = append(links[field], reference)

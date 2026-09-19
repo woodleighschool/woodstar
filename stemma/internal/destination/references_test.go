@@ -15,18 +15,14 @@ import (
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 )
 
-func TestValidationDeclaresCatalogReferences(t *testing.T) {
-	request := plugin.ReconcileRequest{Method: "validate", Identity: plugin.Identity{Software: "example"}, Config: raw(map[string]any{"url": "https://woodstar.test", "api_key": "synthetic-key"})}
-	setPkginfo(t, &request, `{"name":"Example","version":"1.0","installer_type":"nopkg","requires":["Rosetta",{"software":"office","version":"16.1"}],"update_for":[{"software":"office"}]}`)
-	response, err := Handle(t.Context(), request)
+func TestValidationAcceptsResourceReferences(t *testing.T) {
+	request := plugin.ReconcileRequest{Method: "validate", Identity: plugin.Identity{Resource: plugin.ResourceReference{Kind: "MacSoftware", Name: "example"}}, Config: raw(map[string]any{"url": "https://woodstar.test", "api_key": "synthetic-key"})}
+	setPkginfo(t, &request, `{"name":"Example","version":"1.0","installer_type":"nopkg","requires":["Rosetta",{"resource":{"kind":"MacSoftware","name":"office"},"version":"16.1"}],"update_for":[{"resource":{"kind":"MacSoftware","name":"office"}}]}`)
+	_, err := Handle(t.Context(), request)
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Munki names stay the repository's concern; catalog resources order the run.
-	if strings.Join(response.Requires, ", ") != "office" {
-		t.Fatalf("declared references: %+v", response)
-	}
-	for _, entry := range []string{`{"name":"Rosetta"}`, `{"software":""}`, `{"software":"example"}`, `{"software":"office","version":1}`} {
+	for _, entry := range []string{`{"software":"office"}`, `{"resource":{"name":"office"}}`, `{"resource":{"kind":"MacSoftware","name":"office","output":"installer"}}`, `{"name":"Rosetta"}`, `{"resource":{"kind":"MacSoftware","name":""}}`, `{"resource":{"kind":"MacSoftware","name":"example"}}`, `{"resource":{"kind":"MacSoftware","name":"office"},"version":1}`} {
 		t.Run(entry, func(t *testing.T) {
 			invalid := request
 			setPkginfo(t, &invalid, `{"name":"Example","version":"1.0","installer_type":"nopkg","requires":[`+entry+`]}`)
@@ -37,7 +33,7 @@ func TestValidationDeclaresCatalogReferences(t *testing.T) {
 	}
 }
 
-func TestPlanLinksCatalogReferencesThroughPeers(t *testing.T) {
+func TestPlanLinksResourceReferencesThroughPeers(t *testing.T) {
 	// The repository's search is a substring match, so a name also finds its neighbours.
 	titles := map[int64]string{7: "Rosetta", 8: "office", 9: "Rosetta 2 Updater"}
 	var writes atomic.Int32
@@ -68,19 +64,19 @@ func TestPlanLinksCatalogReferencesThroughPeers(t *testing.T) {
 	}))
 	request := plugin.ReconcileRequest{
 		Method:   "plan",
-		Identity: plugin.Identity{Project: "fixture", Software: "example", Destination: "woodstar"},
+		Identity: plugin.Identity{Project: "fixture", Resource: plugin.ResourceReference{Kind: "MacSoftware", Name: "example"}, Destination: "woodstar"},
 		Config:   connection,
 		// A peer is found under the Munki name it declares here, normalized as its own
 		// publication is, else under its own name.
-		Peers: map[string]json.RawMessage{"rosetta": json.RawMessage(`{"pkginfo":{"name":" Rosetta "}}`), "office": json.RawMessage(`{"pkginfo":{"version":"16.1"}}`)},
+		Peers: map[string]json.RawMessage{"stemma/v1alpha1/MacSoftware/rosetta": json.RawMessage(`{"pkginfo":{"name":" Rosetta "}}`), "stemma/v1alpha1/MacSoftware/office": json.RawMessage(`{"pkginfo":{"version":"16.1"}}`)},
 	}
-	setPkginfo(t, &request, `{"name":"Example","version":"1.0","installer_type":"nopkg","requires":[{"software":"rosetta","version":"1.0"}],"update_for":[{"software":"office"}]}`)
+	setPkginfo(t, &request, `{"name":"Example","version":"1.0","installer_type":"nopkg","requires":["office",{"resource":{"kind":"MacSoftware","name":"rosetta"},"version":"1.0"}],"update_for":[{"resource":{"kind":"MacSoftware","name":"office"}}]}`)
 	response, err := Handle(t.Context(), request)
 	if err != nil {
 		t.Fatal(err)
 	}
 	want := map[string][]packages.PackageReferenceMutation{
-		"package.requires":   {{SoftwareID: 7, PackageID: 70}},
+		"package.requires":   {{SoftwareID: 8}, {SoftwareID: 7, PackageID: 70}},
 		"package.update_for": {{SoftwareID: 8}},
 	}
 	for _, change := range response.Changes {
@@ -98,14 +94,14 @@ func TestPlanLinksCatalogReferencesThroughPeers(t *testing.T) {
 		t.Fatalf("references not planned: %v writes=%d", want, writes.Load())
 	}
 	for _, test := range []struct{ name, peer, want string }{
-		{"resource without this destination", "", `catalog software "rosetta" does not publish to this destination`},
-		{"resource not yet published", `{"pkginfo":{"name":"Rosetta 2"}}`, `catalog software "rosetta" is not published on this connection as "Rosetta 2"`},
+		{"resource without this destination", "", `resource stemma/v1alpha1/MacSoftware/rosetta does not publish to this destination`},
+		{"resource not yet published", `{"pkginfo":{"name":"Rosetta 2"}}`, `resource stemma/v1alpha1/MacSoftware/rosetta is not published on this connection as "Rosetta 2"`},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			unlinked := request
-			unlinked.Peers = map[string]json.RawMessage{"office": request.Peers["office"]}
+			unlinked.Peers = map[string]json.RawMessage{"stemma/v1alpha1/MacSoftware/office": request.Peers["stemma/v1alpha1/MacSoftware/office"]}
 			if test.peer != "" {
-				unlinked.Peers["rosetta"] = json.RawMessage(test.peer)
+				unlinked.Peers["stemma/v1alpha1/MacSoftware/rosetta"] = json.RawMessage(test.peer)
 			}
 			if _, err := Handle(t.Context(), unlinked); err == nil || !strings.Contains(err.Error(), test.want) || writes.Load() != 0 {
 				t.Fatalf("error=%v writes=%d", err, writes.Load())
