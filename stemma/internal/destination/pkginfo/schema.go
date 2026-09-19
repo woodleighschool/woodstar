@@ -41,7 +41,7 @@ func Schema() *jsonschema.Schema {
 			rename(array.Items, from, to)
 		}
 	}
-	link := r.Reflect(CatalogReference{})
+	link := r.Reflect(ResourceRelationship{})
 	link.ID = ""
 	for _, field := range []string{"requires", "update_for"} {
 		schema.Properties.Set(field, &jsonschema.Schema{Type: "array", Items: &jsonschema.Schema{AnyOf: []*jsonschema.Schema{{Type: "string"}, link}}})

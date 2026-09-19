@@ -37,7 +37,7 @@ type metadata struct {
 	pkg       packages.Patch
 	requires  []munki.PkginfoReference
 	updateFor []munki.PkginfoReference
-	links     map[string][]pkginfo.CatalogReference
+	links     map[string][]pkginfo.ResourceRelationship
 	peers     map[string]json.RawMessage
 	icon      plugin.Artifact
 	installer plugin.Artifact
@@ -70,7 +70,7 @@ func readRequest(ctx context.Context, request plugin.ReconcileRequest) (api.Conf
 			derived.Values["version"] = "0"
 		}
 	}
-	imported, err := pkginfo.Import(derived.Values, request.Identity.Software)
+	imported, err := pkginfo.Import(derived.Values, request.Identity.Resource)
 	if err != nil {
 		return cfg, metadata{}, err
 	}

@@ -141,18 +141,30 @@ pkginfo:
 
 Explicit fields override derived values. Installer evidence supplies receipts, installed size, restart action, DMG copy details, minimum OS, detection and removal settings. Missing derived values clear those fields; other omitted fields stay unchanged.
 
-Native `requires` and `update_for` entries identify software by its Munki name, optionally followed by `--version` for a specific package, and resolve against software already in Woodstar. An entry may instead name a catalog resource published to the same connection; it links through the Munki name that resource declares, its declared `pkginfo.name` or else its own name, and Stemma reconciles the resource first:
+Native `requires` and `update_for` entries identify software by its Munki name, optionally followed by `--version` for a specific package, and resolve against software already in Woodstar. An entry may instead name a catalog resource published to the same connection; it links through the Munki name that resource declares, its declared `pkginfo.name` or else its own name, and Stemma reconciles selected peers first:
 
 ```yaml
 pkginfo:
   requires:
-    - software: rosetta
-    - software: microsoft-365-business-pro-suite
+    - resource:
+        kind: MacSoftware
+        name: rosetta
+    - resource:
+        kind: MacSoftware
+        name: microsoft-365-business-pro-suite
       version: "16.113"
     - EPSON Drivers
 ```
 
-Unknown or ambiguous references fail before writing; `[]` clears the relationship list. Deployment uses targets in place of repository catalogs.
+This is the same union used by built-in Munki. Strings always mean native Munki
+names. Resource references use exact `apiVersion/kind/name` identity; `apiVersion`
+defaults to `stemma/v1alpha1`. Missing resources or resources without this named
+connection fail validation, and never fall back to native names. Unselected peers
+supply metadata to find existing publications without being selected or mutated.
+
+Publication relationships order reconciliation independently of the immutable
+resource-output graph used by `source.resource`. Publication cycles are errors.
+Unknown or ambiguous remote references fail before writing; `[]` clears the relationship list. Deployment uses targets in place of repository catalogs.
 
 ## Source-free items
 

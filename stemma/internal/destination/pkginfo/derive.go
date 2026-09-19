@@ -66,7 +66,7 @@ func Derive(request plugin.ReconcileRequest, declared json.RawMessage, derivatio
 	if !request.Prepared && request.Artifact.Path == "" {
 		return d.result(""), nil
 	}
-	d.put("name", request.Identity.Software, "software.name")
+	d.put("name", request.Identity.Resource.Name, "software.name")
 	if request.Artifact.Version != "" {
 		d.put("version", request.Artifact.Version, "installer.version")
 	}

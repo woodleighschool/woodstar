@@ -96,11 +96,11 @@ func TestStemmaAdapterPostgresLifecycle(t *testing.T) { //nolint:funlen,gocognit
 		t.Fatal(err)
 	}
 	request := plugin.ReconcileRequest{
-		Identity: plugin.Identity{Project: "adapter-test", Software: "AdapterApp", Destination: "woodstar"},
+		Identity: plugin.Identity{Project: "adapter-test", Resource: plugin.ResourceReference{Kind: "MacSoftware", Name: "AdapterApp"}, Destination: "woodstar"},
 		Config:   connection,
 		Metadata: json.RawMessage(fmt.Sprintf(`{"targets":{"include":[{"label_name":%q,"actions":["managed_installs"]}],"exclude":[{"label_name":%q}]}}`, included.Name, excluded.Name)),
 		// The peer is found under the Munki name it declares for this destination.
-		Peers: map[string]json.RawMessage{"dependency": json.RawMessage(fmt.Sprintf(`{"pkginfo":{"name":%q}}`, dependency.Name))},
+		Peers: map[string]json.RawMessage{"stemma/v1alpha1/MacSoftware/dependency": json.RawMessage(fmt.Sprintf(`{"pkginfo":{"name":%q}}`, dependency.Name))},
 	}
 	setPkginfo(t, &request, fmt.Sprintf(`{
 		"name":"AdapterApp", "version":"1.0", "installer_type":"nopkg",
@@ -108,7 +108,7 @@ func TestStemmaAdapterPostgresLifecycle(t *testing.T) { //nolint:funlen,gocognit
 		"minimum_os_version":"  14.0  ","notes":"Keep notes","unattended_install":true,"supported_architectures":["arm64"],
 		"force_install_after_date":"2026-10-01T10:00:00.123456789+10:00",
 		"preinstall_alert":{"alert_title":"Keep title","alert_detail":"Original detail","ok_label":"Continue"},
-		"requires":["%s--%s"],"update_for":[{"software":"dependency","version":"%s"}]
+		"requires":["%s--%s"],"update_for":[{"resource":{"kind":"MacSoftware","name":"dependency"},"version":"%s"}]
 	}`, dependency.Name, dependencyPackage.Version, dependencyPackage.Version))
 	call := func(method string) plugin.ReconcileResponse {
 		t.Helper()

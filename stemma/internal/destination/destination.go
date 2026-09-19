@@ -47,7 +47,7 @@ func Handle(ctx context.Context, request plugin.ReconcileRequest) (plugin.Reconc
 		return plugin.ReconcileResponse{}, err
 	}
 	if request.Method == "validate" {
-		return plugin.ReconcileResponse{Origins: metadata.origins, Requires: metadata.references()}, nil
+		return plugin.ReconcileResponse{Origins: metadata.origins}, nil
 	}
 	remote, err := api.New(cfg)
 	if err != nil {

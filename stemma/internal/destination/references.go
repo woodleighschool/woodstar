@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"slices"
 
 	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
@@ -13,19 +12,6 @@ import (
 	"github.com/woodleighschool/woodstar/stemma/internal/destination/api"
 	"github.com/woodleighschool/woodstar/stemma/internal/destination/pkginfo"
 )
-
-// references names the catalog resources the pkginfo links to, so Stemma
-// reconciles them on this connection first.
-func (m metadata) references() []string {
-	var names []string
-	for _, refs := range m.links {
-		for _, ref := range refs {
-			names = append(names, ref.Software)
-		}
-	}
-	slices.Sort(names)
-	return slices.Compact(names)
-}
 
 // resolveReferences replaces the pkginfo's relationships with the software and
 // packages the repository holds for them.
@@ -71,10 +57,10 @@ func resolveReferences(ctx context.Context, remote *api.Client, metadata *metada
 
 // linkedSoftware finds the software a catalog resource publishes here. Its
 // Munki name is its declared name for this destination, or its resource name.
-func linkedSoftware(ctx context.Context, remote *api.Client, link pkginfo.CatalogReference, peers map[string]json.RawMessage) (*api.SoftwareDetail, error) {
-	declared, exists := peers[link.Software]
+func linkedSoftware(ctx context.Context, remote *api.Client, link pkginfo.ResourceRelationship, peers map[string]json.RawMessage) (*api.SoftwareDetail, error) {
+	declared, exists := peers[link.Resource.Key()]
 	if !exists {
-		return nil, fmt.Errorf("catalog software %q does not publish to this destination", link.Software)
+		return nil, fmt.Errorf("resource %s does not publish to this destination", link.Resource.Key())
 	}
 	var peer struct {
 		Pkginfo struct {
@@ -82,10 +68,10 @@ func linkedSoftware(ctx context.Context, remote *api.Client, link pkginfo.Catalo
 		} `json:"pkginfo"`
 	}
 	if err := json.Unmarshal(declared, &peer); err != nil {
-		return nil, fmt.Errorf("catalog software %q: %w", link.Software, err)
+		return nil, fmt.Errorf("resource %s: %w", link.Resource.Key(), err)
 	}
 	// The peer publishes under the name the importer normalizes, not the one typed.
-	identity := software.CreateMutation{Name: cmp.Or(peer.Pkginfo.Name, link.Software)}
+	identity := software.CreateMutation{Name: cmp.Or(peer.Pkginfo.Name, link.Resource.Name)}
 	identity.Normalize()
 	name := identity.Name
 	found, err := remote.FindSoftware(ctx, name)
@@ -93,7 +79,7 @@ func linkedSoftware(ctx context.Context, remote *api.Client, link pkginfo.Catalo
 		return nil, err
 	}
 	if found == nil {
-		return nil, fmt.Errorf("catalog software %q is not published on this connection as %q", link.Software, name)
+		return nil, fmt.Errorf("resource %s is not published on this connection as %q", link.Resource.Key(), name)
 	}
 	return found, nil
 }

@@ -40,7 +40,7 @@ func TestDerivedFieldsFollowTheCurrentEvidence(t *testing.T) {
 	derive := map[string]any{"app": map[string]any{"subject": "app"}}
 	request := plugin.ReconcileRequest{
 		Method: "apply", Prepared: true, Config: connection,
-		Identity: plugin.Identity{Software: "Example"},
+		Identity: plugin.Identity{Resource: plugin.ResourceReference{Kind: "MacSoftware", Name: "Example"}},
 		Subjects: map[string]plugin.SubjectSelector{"app": {Kind: "app", Path: "Example.app"}},
 		Facts:    plugin.Facts{Subjects: []plugin.Subject{{Kind: "app", Path: "Example.app", App: &plugin.AppFacts{BundleID: "test.example", Version: "1.0", Build: "100", MinimumOS: "14.0"}}}},
 		Metadata: raw(map[string]any{"derive": derive}),
@@ -124,7 +124,7 @@ func TestDerivationClearsOnlyTheFieldsItOwns(t *testing.T) {
 				"uninstallable": true, "uninstall_method": "removepackages",
 				"notes": "Operator note", "unattended_install": true,
 			})
-			response, err := Handle(t.Context(), plugin.ReconcileRequest{Method: "plan", Prepared: true, Config: connection, Identity: plugin.Identity{Software: "Example"}, Metadata: json.RawMessage(test.metadata), Artifact: installer})
+			response, err := Handle(t.Context(), plugin.ReconcileRequest{Method: "plan", Prepared: true, Config: connection, Identity: plugin.Identity{Resource: plugin.ResourceReference{Kind: "MacSoftware", Name: "Example"}}, Metadata: json.RawMessage(test.metadata), Artifact: installer})
 			if err != nil {
 				t.Fatal(err)
 			}
