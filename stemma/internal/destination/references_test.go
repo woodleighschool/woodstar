@@ -10,13 +10,15 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/woodleighschool/woodstar/stemma/internal/destination/api"
+
 	"github.com/woodleighschool/stemma/plugin"
 
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 )
 
 func TestValidationAcceptsResourceReferences(t *testing.T) {
-	request := plugin.ReconcileRequest{Method: "validate", Identity: plugin.Identity{Resource: plugin.ResourceReference{Kind: "MacSoftware", Name: "example"}}, Config: raw(map[string]any{"url": "https://woodstar.test", "api_key": "synthetic-key"})}
+	request := plugin.ReconcileRequest[api.Config]{Method: "validate", Identity: plugin.Identity{Resource: plugin.ResourceReference{Kind: "MacSoftware", Name: "example"}}, Config: api.Config{URL: "https://woodstar.test", APIKey: "synthetic-key"}}
 	setPkginfo(t, &request, `{"name":"Example","version":"1.0","installer_type":"nopkg","requires":["Rosetta",{"resource":{"kind":"MacSoftware","name":"office"},"version":"16.1"}],"update_for":[{"resource":{"kind":"MacSoftware","name":"office"}}]}`)
 	_, err := Handle(t.Context(), request)
 	if err != nil {
@@ -62,7 +64,7 @@ func TestPlanLinksResourceReferencesThroughPeers(t *testing.T) {
 			http.NotFound(response, request)
 		}
 	}))
-	request := plugin.ReconcileRequest{
+	request := plugin.ReconcileRequest[api.Config]{
 		Method:   "plan",
 		Identity: plugin.Identity{Project: "fixture", Resource: plugin.ResourceReference{Kind: "MacSoftware", Name: "example"}, Destination: "woodstar"},
 		Config:   connection,

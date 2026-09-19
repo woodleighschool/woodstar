@@ -5,11 +5,13 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/woodleighschool/woodstar/stemma/internal/destination/api"
+
 	"github.com/woodleighschool/stemma/plugin"
 )
 
 func TestValidationDoesNotContactDestination(t *testing.T) {
-	request := plugin.ReconcileRequest{Method: "validate", Config: raw(map[string]any{"url": "https://woodstar.test", "api_key": "synthetic-key"})}
+	request := plugin.ReconcileRequest[api.Config]{Method: "validate", Config: api.Config{URL: "https://woodstar.test", APIKey: "synthetic-key"}}
 	// Validation never contacts the destination, so label names are only checked for shape.
 	request.Metadata = json.RawMessage(`{"targets":{"include":[{"label_name":"Staff","actions":["optional_installs","managed_updates"]}],"exclude":[{"label_name":"Loaners"}]}}`)
 	if _, err := Handle(t.Context(), request); err != nil {
@@ -38,7 +40,7 @@ func TestValidationDoesNotContactDestination(t *testing.T) {
 func TestDerivedFieldsFollowTheCurrentEvidence(t *testing.T) {
 	fixture, connection := serveFixture(t)
 	derive := map[string]any{"app": map[string]any{"subject": "app"}}
-	request := plugin.ReconcileRequest{
+	request := plugin.ReconcileRequest[api.Config]{
 		Method: "apply", Prepared: true, Config: connection,
 		Identity: plugin.Identity{Resource: plugin.ResourceReference{Kind: "MacSoftware", Name: "Example"}},
 		Subjects: map[string]plugin.SubjectSelector{"app": {Kind: "app", Path: "Example.app"}},
@@ -124,7 +126,7 @@ func TestDerivationClearsOnlyTheFieldsItOwns(t *testing.T) {
 				"uninstallable": true, "uninstall_method": "removepackages",
 				"notes": "Operator note", "unattended_install": true,
 			})
-			response, err := Handle(t.Context(), plugin.ReconcileRequest{Method: "plan", Prepared: true, Config: connection, Identity: plugin.Identity{Resource: plugin.ResourceReference{Kind: "MacSoftware", Name: "Example"}}, Metadata: json.RawMessage(test.metadata), Artifact: installer})
+			response, err := Handle(t.Context(), plugin.ReconcileRequest[api.Config]{Method: "plan", Prepared: true, Config: connection, Identity: plugin.Identity{Resource: plugin.ResourceReference{Kind: "MacSoftware", Name: "Example"}}, Metadata: json.RawMessage(test.metadata), Artifact: installer})
 			if err != nil {
 				t.Fatal(err)
 			}

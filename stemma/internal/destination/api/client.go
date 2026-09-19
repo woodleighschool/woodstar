@@ -22,9 +22,9 @@ import (
 
 // Config holds the destination's connection settings.
 type Config struct {
-	URL    string `json:"url"`
-	APIKey string `json:"api_key"`
-	CAFile string `json:"ca_file,omitempty"`
+	URL    string `json:"url" jsonschema:"pattern=^https://" jsonschema_description:"HTTPS origin of the administrative API, without a path, query or credentials."`
+	APIKey string `json:"api_key" jsonschema:"minLength=1,writeOnly=true" jsonschema_description:"API key with software and package management access. Supply it through an environment reference."`
+	CAFile string `json:"ca_file,omitempty" jsonschema_description:"PEM certificate file to trust in addition to the system certificate authorities."`
 }
 
 // Validate requires an HTTPS origin and a key that fits in a header.

@@ -6,12 +6,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/woodleighschool/woodstar/stemma/internal/destination/api"
+
 	"github.com/woodleighschool/stemma/plugin"
 )
 
 func TestValidationVerifiesLeasedArtifacts(t *testing.T) {
-	request := plugin.ReconcileRequest{
-		Method: "validate", Config: raw(map[string]any{"url": "https://woodstar.test", "api_key": "synthetic-key"}),
+	request := plugin.ReconcileRequest[api.Config]{
+		Method: "validate", Config: api.Config{URL: "https://woodstar.test", APIKey: "synthetic-key"},
 		Artifact: installerFixture(t, "Example.pkg", "synthetic installer bytes", "1.0"),
 		Inputs:   map[string]plugin.Artifact{"icon": iconFixture(t, 10)},
 	}

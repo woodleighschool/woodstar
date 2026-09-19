@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/woodleighschool/woodstar/stemma/internal/destination/api"
+
 	"github.com/woodleighschool/stemma/plugin"
 
 	"github.com/woodleighschool/woodstar/internal/munki/software"
@@ -17,7 +19,7 @@ func TestTargetsResolveLabelNamesOnTheInstance(t *testing.T) {
 	// The repository lists labels by name and searches by substring, so "Staff"
 	// finds "All Staff" first.
 	fixture.labels = map[string]int64{"Staff": 7, "All Staff": 8, "Loaners": 9}
-	request := plugin.ReconcileRequest{Method: "apply", Prepared: true, Config: connection, Identity: plugin.Identity{Resource: plugin.ResourceReference{Kind: "MacSoftware", Name: "Policy"}}}
+	request := plugin.ReconcileRequest[api.Config]{Method: "apply", Prepared: true, Config: connection, Identity: plugin.Identity{Resource: plugin.ResourceReference{Kind: "MacSoftware", Name: "Policy"}}}
 	declare := func(description, targets string) {
 		request.Metadata = json.RawMessage(`{"pkginfo":{"installer_type":"nopkg","version":"1","description":"` + description + `"}` + targets + `}`)
 	}
@@ -96,7 +98,7 @@ func TestTargetsRejectLabelsTheInstanceDoesNotName(t *testing.T) {
 		{`{"exclude":[{"label_name":"staff"}]}`, `targets: unknown label "staff"`},
 	} {
 		for _, method := range []string{"plan", "apply"} {
-			request := plugin.ReconcileRequest{Method: method, Prepared: true, Config: connection, Identity: plugin.Identity{Resource: plugin.ResourceReference{Kind: "MacSoftware", Name: "Policy"}}, Metadata: json.RawMessage(`{"pkginfo":{"installer_type":"nopkg","version":"1"},"targets":` + test.targets + `}`)}
+			request := plugin.ReconcileRequest[api.Config]{Method: method, Prepared: true, Config: connection, Identity: plugin.Identity{Resource: plugin.ResourceReference{Kind: "MacSoftware", Name: "Policy"}}, Metadata: json.RawMessage(`{"pkginfo":{"installer_type":"nopkg","version":"1"},"targets":` + test.targets + `}`)}
 			if _, err := Handle(t.Context(), request); err == nil || !strings.Contains(err.Error(), test.want) || fixture.writes() != 0 {
 				t.Fatalf("%s %s: error=%v writes=%d", method, test.targets, err, fixture.writes())
 			}

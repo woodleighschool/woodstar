@@ -22,10 +22,10 @@ import (
 type controls struct {
 	targets *targets
 
-	Targets   json.RawMessage    `json:"targets,omitempty"`
-	Derive    pkginfo.Derivation `json:"derive,omitzero"`
-	Pkginfo   json.RawMessage    `json:"pkginfo,omitempty"`
-	Retention *plugin.Retention  `json:"retention,omitempty"`
+	Targets   json.RawMessage    `json:"targets,omitempty" jsonschema_description:"Assign software to labels by exact name. Omitted lists remain unchanged; empty lists clear their assignments."`
+	Derive    pkginfo.Derivation `json:"derive,omitzero" jsonschema_description:"Select artifact evidence used to fill omitted native pkginfo fields. Explicit pkginfo values take precedence."`
+	Pkginfo   json.RawMessage    `json:"pkginfo,omitempty" jsonschema_description:"Native Munki pkginfo imported into software and packages. Only supported writable fields are accepted."`
+	Retention *plugin.Retention  `json:"retention,omitempty" jsonschema_description:"Prune older versions of this software after publication. Referenced packages remain protected."`
 }
 
 // metadata is a declaration resolved against its artifacts: the publication's
@@ -45,14 +45,8 @@ type metadata struct {
 	origins   map[string]string
 }
 
-func readRequest(ctx context.Context, request plugin.ReconcileRequest) (api.Config, metadata, error) {
-	var cfg api.Config
-	if err := decode(request.Config, &cfg); err != nil {
-		return cfg, metadata{}, fmt.Errorf("configuration: %w", err)
-	}
-	if err := cfg.Validate(); err != nil {
-		return cfg, metadata{}, err
-	}
+func readRequest(ctx context.Context, request plugin.ReconcileRequest[api.Config]) (api.Config, metadata, error) {
+	cfg := request.Config
 	settings, err := decodeControls(request.Metadata)
 	if err != nil {
 		return cfg, metadata{}, err
@@ -130,7 +124,10 @@ func metadataSchema() *jsonschema.Schema {
 	r := jsonschema.Reflector{DoNotReference: true, RequiredFromJSONSchemaTags: true}
 	schema := r.Reflect(controls{})
 	schema.ID = ""
-	schema.Properties.Set("pkginfo", pkginfo.Schema())
+	native := pkginfo.Schema()
+	field, _ := schema.Properties.Get("pkginfo")
+	native.Description = field.Description
+	schema.Properties.Set("pkginfo", native)
 	declared := r.Reflect(targets{})
 	declared.ID = ""
 	if entries, ok := declared.Properties.Get("include"); ok {
@@ -141,6 +138,8 @@ func metadataSchema() *jsonschema.Schema {
 			}
 		}
 	}
+	field, _ = schema.Properties.Get("targets")
+	declared.Description = field.Description
 	schema.Properties.Set("targets", declared)
 	return schema
 }

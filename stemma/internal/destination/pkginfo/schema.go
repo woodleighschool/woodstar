@@ -1,6 +1,9 @@
 package pkginfo
 
 import (
+	"maps"
+	"slices"
+
 	"github.com/invopop/jsonschema"
 
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
@@ -16,11 +19,19 @@ func Schema() *jsonschema.Schema {
 	for _, key := range []string{"installer_object_id", "blocking_applications_none"} {
 		schema.Properties.Delete(key)
 	}
-	for _, key := range []string{"name", "display_name", "description", "category", "developer"} {
+	for _, property := range []struct{ name, description string }{
+		{"name", "Stable Munki software identity shared by all versions."},
+		{"display_name", "Software name shown to users in Managed Software Center."},
+		{"description", "User-facing description of this software."},
+		{"category", "Managed Software Center category."},
+		{"developer", "Publisher or developer shown to users."},
+	} {
+		key, description := property.name, property.description
 		field := &jsonschema.Schema{Type: "string"}
 		if key != "name" {
 			field = &jsonschema.Schema{AnyOf: []*jsonschema.Schema{field, {Type: "null"}}}
 		}
+		field.Description = description
 		schema.Properties.Set(key, field)
 	}
 	rename := func(target *jsonschema.Schema, from, to string) {
@@ -37,16 +48,16 @@ func Schema() *jsonschema.Schema {
 		"installer_choices_xml": {"choice_identifier": "choiceIdentifier", "choice_attribute": "choiceAttribute", "attribute_setting": "attributeSetting"},
 	} {
 		array, _ := schema.Properties.Get(field)
-		for from, to := range names {
-			rename(array.Items, from, to)
+		for _, from := range slices.Sorted(maps.Keys(names)) {
+			rename(array.Items, from, names[from])
 		}
 	}
 	link := r.Reflect(ResourceRelationship{})
 	link.ID = ""
 	for _, field := range []string{"requires", "update_for"} {
-		schema.Properties.Set(field, &jsonschema.Schema{Type: "array", Items: &jsonschema.Schema{AnyOf: []*jsonschema.Schema{{Type: "string"}, link}}})
+		schema.Properties.Set(field, &jsonschema.Schema{Description: "Munki software names or references to other catalog resources.", Type: "array", Items: &jsonschema.Schema{AnyOf: []*jsonschema.Schema{{Type: "string"}, link}}})
 	}
-	schema.Properties.Set("installer_environment", &jsonschema.Schema{Type: "object", AdditionalProperties: &jsonschema.Schema{Type: "string"}})
+	schema.Properties.Set("installer_environment", &jsonschema.Schema{Description: "Environment variables supplied to the installer process.", Type: "object", AdditionalProperties: &jsonschema.Schema{Type: "string"}})
 	for _, field := range []string{"preinstall_alert", "preuninstall_alert"} {
 		alert, _ := schema.Properties.Get(field)
 		alert.Properties.Delete("enabled")
@@ -56,7 +67,7 @@ func Schema() *jsonschema.Schema {
 	}
 	for name, field := range schema.Properties.FromOldest() {
 		if field.Type == "string" && name != "name" && name != "version" && name != "installer_type" {
-			schema.Properties.Set(name, &jsonschema.Schema{AnyOf: []*jsonschema.Schema{field, {Type: "null"}}})
+			schema.Properties.Set(name, &jsonschema.Schema{AnyOf: []*jsonschema.Schema{field, {Type: "null"}}, Description: field.Description})
 		}
 	}
 	return schema
