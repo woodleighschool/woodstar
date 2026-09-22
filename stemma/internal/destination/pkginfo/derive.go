@@ -1,13 +1,11 @@
 package pkginfo
 
 import (
-	"cmp"
 	"encoding/json"
 	"errors"
 	"maps"
 	"path"
 	"reflect"
-	"strconv"
 	"strings"
 
 	"github.com/woodleighschool/stemma/plugin"
@@ -15,46 +13,15 @@ import (
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 )
 
-// Derivation selects observed evidence used to fill omitted native fields.
-type Derivation struct {
-	App *AppDerivation `json:"app,omitempty" jsonschema_description:"Application evidence used to derive detection, version and minimum macOS fields."`
-}
-
-// AppDerivation selects a named application subject and its endpoint detection path.
-type AppDerivation struct {
-	Subject       string `json:"subject" jsonschema:"minLength=1" jsonschema_description:"Name of the application subject exposed by the preparing resource."`
-	InstalledPath string `json:"installed_path,omitempty" jsonschema_description:"Absolute application path on managed devices. Omit to use the selected installation path."`
-	VersionKey    string `json:"version_key,omitempty" jsonschema:"enum=CFBundleShortVersionString,enum=CFBundleVersion" jsonschema_description:"Info.plist key for the managed version. Omit to use the resource selection."`
-}
-
-// Validate checks the selection without requiring prepared artifacts.
-func (d Derivation) Validate() error {
-	app := d.App
-	if app == nil {
-		return nil
-	}
-	if app.Subject == "" {
-		return errors.New("derive.app.subject is required")
-	}
-	if app.InstalledPath != "" && !path.IsAbs(app.InstalledPath) {
-		return errors.New("derive.app.installed_path must be absolute")
-	}
-	if app.VersionKey != "" && app.VersionKey != "CFBundleVersion" && app.VersionKey != "CFBundleShortVersionString" {
-		return errors.New("unsupported derive.app.version_key")
-	}
-	return nil
-}
-
 // Derived is the pkginfo a declaration manages for one artifact.
 type Derived struct {
 	Values  map[string]any
 	Origins map[string]string
 }
 
-// Derive fills omitted native fields from artifact evidence. Declared values
-// win; owned fields without evidence clear. Detection requires an established
-// installed path, not just a location inside an archive.
-func Derive[C any](request plugin.ReconcileRequest[C], declared json.RawMessage, derivation Derivation) (Derived, error) {
+// Derive maps prepared evidence to native fields. Declared values win; owned
+// fields without evidence clear. Detection requires an installed path.
+func Derive[C any](request plugin.ReconcileRequest[C], declared json.RawMessage) (Derived, error) {
 	var explicit map[string]any
 	if err := json.Unmarshal(declared, &explicit); err != nil {
 		return Derived{}, err
@@ -68,7 +35,12 @@ func Derive[C any](request plugin.ReconcileRequest[C], declared json.RawMessage,
 	}
 	d.put("name", request.Identity.Resource.Name, "software.name")
 	if request.Artifact.Version != "" {
-		d.put("version", request.Artifact.Version, "installer.version")
+		d.put("version", request.Artifact.Version, "artifact.version")
+	}
+	if minimum := request.MinimumOS; minimum != nil {
+		d.put("minimum_os_version", minimum.Version, minimum.Origin)
+	} else {
+		d.values["minimum_os_version"] = nil
 	}
 	kind := d.installerType(request.Artifact)
 	if kind == "nopkg" {
@@ -77,47 +49,18 @@ func Derive[C any](request plugin.ReconcileRequest[C], declared json.RawMessage,
 		}
 		return d.result(kind), nil
 	}
-	facts := request.Facts
-	if len(facts.Subjects) == 0 {
-		facts = request.Artifact.Facts
-	}
-	versions, installer := d.packageDefaults(facts, kind)
+	d.packageDefaults(request.Artifact.Facts, kind)
 	selected, versionKey, err := macEvidence(request.Artifact)
 	if err != nil {
 		return Derived{}, err
 	}
-	options := derivation.App
-	if options != nil || selected == nil {
-		selected, err = selectApplication(facts, request.Subjects, options)
-	} else {
-		options = &AppDerivation{VersionKey: versionKey}
-	}
-	if err != nil {
-		return Derived{}, err
-	}
-	minimumOS, minimumOrigin := installer.MinimumOS, "installer.minimum_os"
 	if selected != nil {
-		if err := d.application(*selected, options, kind); err != nil {
+		if err := d.application(*selected, versionKey, kind); err != nil {
 			return Derived{}, err
 		}
-		// Munki takes the later of the installer and application requirements.
-		if compareVersions(selected.App.MinimumOS, minimumOS) > 0 {
-			minimumOS, minimumOrigin = selected.App.MinimumOS, "app.minimum_os"
-		}
-	} else if _, exists := d.values["version"]; !exists {
-		switch {
-		case installer.Version != "":
-			d.put("version", installer.Version, "installer.version")
-		case len(versions) == 1:
-			for version := range versions {
-				d.put("version", version, "installer.receipts")
-			}
-		case len(versions) > 1:
-			return Derived{}, errors.New("PKG components declare different versions; select an application or author pkginfo.version")
-		}
 	}
-	if minimumOS != "" {
-		d.put("minimum_os_version", minimumOS, minimumOrigin)
+	if _, exists := d.values["version"]; !exists && (kind == "pkg" || kind == "copy_from_dmg") {
+		return Derived{}, errors.New("the prepared installer has no managed version; select an application or set pkginfo.version")
 	}
 	d.uninstall(kind)
 	return d.result(kind), nil
@@ -155,7 +98,7 @@ func (d *nativeDefaults) result(kind string) Derived {
 	case "pkg", "copy_from_dmg":
 		defaults = map[string]any{
 			"receipts": []any{}, "installed_size": int64(0), "RestartAction": nil, "items_to_copy": []any{},
-			"minimum_os_version": nil, "uninstallable": false, "uninstall_method": nil,
+			"uninstallable": false, "uninstall_method": nil,
 		}
 	}
 	if len(defaults) > 0 && d.detects() {
@@ -186,11 +129,10 @@ func (d *nativeDefaults) installerType(artifact plugin.Artifact) string {
 	return kind
 }
 
-func (d *nativeDefaults) packageDefaults(facts plugin.Facts, kind string) (map[string]bool, plugin.InstallerFacts) {
+func (d *nativeDefaults) packageDefaults(facts plugin.Facts, kind string) {
 	var receipts []map[string]any
 	var installedSize int64
 	var installer plugin.InstallerFacts
-	versions := map[string]bool{}
 	for _, subject := range facts.Subjects {
 		if subject.Installer != nil {
 			installer = *subject.Installer
@@ -198,9 +140,6 @@ func (d *nativeDefaults) packageDefaults(facts plugin.Facts, kind string) (map[s
 		pkg := subject.Package
 		if pkg == nil {
 			continue
-		}
-		if pkg.Version != "" {
-			versions[pkg.Version] = true
 		}
 		if pkg.HasPayload && pkg.Identifier != "" {
 			receipts = append(receipts, map[string]any{"packageid": pkg.Identifier, "version": pkg.Version, "installed_size": pkg.InstalledSize})
@@ -218,7 +157,6 @@ func (d *nativeDefaults) packageDefaults(facts plugin.Facts, kind string) (map[s
 			d.put("RestartAction", installer.RestartAction, "installer.restart_action")
 		}
 	}
-	return versions, installer
 }
 
 // uninstall settles each removal field on its own: the method follows the
@@ -246,48 +184,14 @@ func hasEntries(value any) bool {
 	return list.Kind() == reflect.Slice && list.Len() > 0
 }
 
-// compareVersions orders dotted numeric versions such as macOS releases as Munki
-// does: empty components are ignored and missing components compare as zero.
-func compareVersions(a, b string) int {
-	dot := func(r rune) bool { return r == '.' }
-	left, right := strings.FieldsFunc(a, dot), strings.FieldsFunc(b, dot)
-	for i := range max(len(left), len(right)) {
-		x, y := "0", "0"
-		if i < len(left) {
-			x = left[i]
-		}
-		if i < len(right) {
-			y = right[i]
-		}
-		order := strings.Compare(x, y)
-		m, errM := strconv.ParseUint(x, 10, 64)
-		n, errN := strconv.ParseUint(y, 10, 64)
-		if errM == nil && errN == nil {
-			order = cmp.Compare(m, n)
-		}
-		if order != 0 {
-			return order
-		}
-	}
-	return 0
-}
-
-func (d *nativeDefaults) application(subject plugin.Subject, options *AppDerivation, kind string) error {
+func (d *nativeDefaults) application(subject plugin.Subject, versionKey, kind string) error {
 	app := subject.App
-	version, versionKey, endpoint := app.Version, app.VersionKey(), subject.InstalledPath
-	if options != nil {
-		if options.VersionKey != "" {
-			versionKey = options.VersionKey
-		}
-		if options.InstalledPath != "" {
-			endpoint = options.InstalledPath
-		}
+	version, endpoint := app.Version, subject.InstalledPath
+	if versionKey == "" {
+		versionKey = app.VersionKey()
 	}
 	if versionKey == "CFBundleVersion" {
 		version = app.Build
-	}
-	if version != "" {
-		d.put("version", version, "app."+versionKey)
 	}
 	if kind == "copy_from_dmg" {
 		copied, err := d.copyDestination(subject.Path, endpoint)
@@ -300,10 +204,7 @@ func (d *nativeDefaults) application(subject plugin.Subject, options *AppDerivat
 		return nil
 	}
 	if endpoint == "" {
-		if options != nil || kind == "copy_from_dmg" {
-			return errors.New("selected application has no known installed path; author derive.app.installed_path or installs")
-		}
-		return nil
+		return errors.New("selected application has no known installed path; set application.installed_path or installs")
 	}
 	if app.BundleID == "" || version == "" {
 		return errors.New("selected application requires a bundle identifier and comparison version")
@@ -336,7 +237,7 @@ func (d *nativeDefaults) copyDestination(source, endpoint string) (string, error
 			continue
 		}
 		if copied != "" {
-			return "", errors.New("selected app has multiple copy destinations; author installs explicitly")
+			return "", errors.New("selected app has multiple copy destinations; set installs explicitly")
 		}
 		item := action.DestinationItem
 		if item == "" {
@@ -345,7 +246,7 @@ func (d *nativeDefaults) copyDestination(source, endpoint string) (string, error
 		copied = path.Join(action.DestinationPath, item)
 	}
 	if endpoint != "" && copied != "" && endpoint != copied {
-		return "", errors.New("derive.app.installed_path disagrees with items_to_copy")
+		return "", errors.New("application.installed_path disagrees with items_to_copy")
 	}
 	if copied != "" {
 		return copied, nil

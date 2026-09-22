@@ -55,7 +55,7 @@ func TestRegistryPublishesAndEnforcesTypedConnection(t *testing.T) {
 	if err := json.Unmarshal(operation.MetadataSchema, &metadata); err != nil {
 		t.Fatal(err)
 	}
-	for _, field := range []string{"targets", "pkginfo", "derive", "retention"} {
+	for _, field := range []string{"targets", "pkginfo", "retention"} {
 		if metadata.Properties[field].Description == "" {
 			t.Fatalf("missing hover description for %s", field)
 		}

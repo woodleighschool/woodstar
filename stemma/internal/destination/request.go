@@ -18,14 +18,13 @@ import (
 	"github.com/woodleighschool/woodstar/stemma/internal/destination/pkginfo"
 )
 
-// controls separates native pkginfo from provider-owned derivation and retention.
+// controls separates native pkginfo from provider-owned targets and retention.
 type controls struct {
 	targets *targets
 
-	Targets   json.RawMessage    `json:"targets,omitempty" jsonschema_description:"Assign software to labels by exact name. Omitted lists remain unchanged; empty lists clear their assignments."`
-	Derive    pkginfo.Derivation `json:"derive,omitzero" jsonschema_description:"Select artifact evidence used to fill omitted native pkginfo fields. Explicit pkginfo values take precedence."`
-	Pkginfo   json.RawMessage    `json:"pkginfo,omitempty" jsonschema_description:"Native Munki pkginfo imported into software and packages. Only supported writable fields are accepted."`
-	Retention *plugin.Retention  `json:"retention,omitempty" jsonschema_description:"Prune older versions of this software after publication. Referenced packages remain protected."`
+	Targets   json.RawMessage   `json:"targets,omitempty" jsonschema_description:"Assign software to labels by exact name. Omitted lists remain unchanged; empty lists clear their assignments."`
+	Pkginfo   json.RawMessage   `json:"pkginfo,omitempty" jsonschema_description:"Native Munki pkginfo imported into software and packages. Only supported writable fields are accepted."`
+	Retention *plugin.Retention `json:"retention,omitempty" jsonschema_description:"Prune older versions of this software after publication. Referenced packages remain protected."`
 }
 
 // metadata is a declaration resolved against its artifacts: the publication's
@@ -51,7 +50,7 @@ func readRequest(ctx context.Context, request plugin.ReconcileRequest[api.Config
 	if err != nil {
 		return cfg, metadata{}, err
 	}
-	derived, err := pkginfo.Derive(request, settings.Pkginfo, settings.Derive)
+	derived, err := pkginfo.Derive(request, settings.Pkginfo)
 	if err != nil {
 		return cfg, metadata{}, err
 	}
@@ -105,10 +104,13 @@ func decodeControls(data json.RawMessage) (controls, error) {
 	if len(metadata.Pkginfo) == 0 {
 		metadata.Pkginfo = json.RawMessage(`{}`)
 	}
-	if _, err := object(metadata.Pkginfo); err != nil {
+	declared, err := object(metadata.Pkginfo)
+	if err != nil {
 		return metadata, err
 	}
-	var err error
+	if _, exists := declared["minimum_os_version"]; exists {
+		return metadata, errors.New("pkginfo.minimum_os_version derives from the software; set minimum_os")
+	}
 	if metadata.targets, err = decodeTargets(metadata.Targets); err != nil {
 		return metadata, err
 	}
@@ -117,7 +119,7 @@ func decodeControls(data json.RawMessage) (controls, error) {
 			return metadata, err
 		}
 	}
-	return metadata, metadata.Derive.Validate()
+	return metadata, nil
 }
 
 func metadataSchema() *jsonschema.Schema {

@@ -27,6 +27,9 @@ func TestValidationDoesNotContactDestination(t *testing.T) {
 		`{"targets":{"include":[{"label_name":"Staff"}]}}`,
 		`{"targets":{"include":[{"label_name":"Staff","actions":["install"]}]}}`,
 		`{"targets":{"exclude":[{"label_name":" "}]}}`,
+		// The minimum derives from the software, and preparation selects the application.
+		`{"pkginfo":{"minimum_os_version":"13.0"}}`,
+		`{"derive":{"app":{"subject":"app"}}}`,
 	} {
 		t.Run(metadata, func(t *testing.T) {
 			request.Metadata = json.RawMessage(metadata)
@@ -39,14 +42,12 @@ func TestValidationDoesNotContactDestination(t *testing.T) {
 
 func TestDerivedFieldsFollowTheCurrentEvidence(t *testing.T) {
 	fixture, connection := serveFixture(t)
-	derive := map[string]any{"app": map[string]any{"subject": "app"}}
+	selected := plugin.Subject{Kind: "app", Path: "Example.app", App: &plugin.AppFacts{BundleID: "test.example", Version: "1.0", Build: "100", MinimumOS: "14.0"}}
 	request := plugin.ReconcileRequest[api.Config]{
 		Method: "apply", Prepared: true, Config: connection,
-		Identity: plugin.Identity{Resource: plugin.ResourceReference{Kind: "MacSoftware", Name: "Example"}},
-		Subjects: map[string]plugin.SubjectSelector{"app": {Kind: "app", Path: "Example.app"}},
-		Facts:    plugin.Facts{Subjects: []plugin.Subject{{Kind: "app", Path: "Example.app", App: &plugin.AppFacts{BundleID: "test.example", Version: "1.0", Build: "100", MinimumOS: "14.0"}}}},
-		Metadata: raw(map[string]any{"derive": derive}),
-		Artifact: installerFixture(t, "Example.dmg", "first installer", "1.0"),
+		Identity:  plugin.Identity{Resource: plugin.ResourceReference{Kind: "MacSoftware", Name: "Example"}},
+		Artifact:  withApplication(installerFixture(t, "Example.dmg", "first installer", "1.0"), selected),
+		MinimumOS: &plugin.MinimumOS{Version: "14.0", Origin: "app.minimum_os"},
 	}
 	apply := func() map[string]any {
 		t.Helper()
@@ -66,22 +67,15 @@ func TestDerivedFieldsFollowTheCurrentEvidence(t *testing.T) {
 	}
 
 	// No run remembers what an earlier one derived, so a field derivation owns
-	// is cleared as soon as the evidence stops supplying it.
-	request.Facts.Subjects[0].App.MinimumOS = ""
+	// is cleared as soon as the software stops supplying it.
+	request.MinimumOS = nil
 	if pkg = apply(); pkg["minimum_os_version"] != nil || fixture.uploadCount() != 1 || fixture.packageCount() != 1 {
 		t.Fatalf("withdrawn evidence: package=%v uploads=%d packages=%d", pkg, fixture.uploadCount(), fixture.packageCount())
 	}
 	assertFixtureConverged(t, fixture, request)
-	request.Facts.Subjects[0].App.MinimumOS = "14.0"
-	request.Metadata = raw(map[string]any{"derive": derive, "pkginfo": map[string]any{"minimum_os_version": "13.0"}})
-	if pkg = apply(); pkg["minimum_os_version"] != "13.0" {
-		t.Fatalf("declared value lost to evidence: %v", pkg["minimum_os_version"])
-	}
-	assertFixtureConverged(t, fixture, request)
 
-	request.Metadata, request.Subjects = nil, nil
 	request.Artifact = installerFixture(t, "Example.pkg", "package installer", "1.0")
-	request.Facts.Subjects = []plugin.Subject{
+	request.Artifact.Facts.Subjects = []plugin.Subject{
 		{Kind: "container", Installer: &plugin.InstallerFacts{RestartAction: "RequireRestart"}},
 		{Kind: "package", Package: &plugin.PackageFacts{Identifier: "test.example", Version: "1.0", InstalledSize: 128, HasPayload: true}},
 	}
@@ -91,8 +85,7 @@ func TestDerivedFieldsFollowTheCurrentEvidence(t *testing.T) {
 	if len(copies) != 0 || len(receipts) != 1 || number(pkg["installed_size"]) != 128 || pkg["restart_action"] != "RequireRestart" {
 		t.Fatalf("DMG to PKG metadata: %v", pkg)
 	}
-	request.Artifact = installerFixture(t, "Example.dmg", "disk image installer", "1.0")
-	request.Facts.Subjects = []plugin.Subject{{Kind: "app", Path: "Example.app", App: &plugin.AppFacts{BundleID: "test.example", Version: "1.0"}}}
+	request.Artifact = withApplication(installerFixture(t, "Example.dmg", "disk image installer", "1.0"), plugin.Subject{Kind: "app", Path: "Example.app", App: &plugin.AppFacts{BundleID: "test.example", Version: "1.0"}})
 	pkg = apply()
 	copies, _ = pkg["items_to_copy"].([]any)
 	receipts, _ = pkg["receipts"].([]any)
@@ -135,4 +128,12 @@ func TestDerivationClearsOnlyTheFieldsItOwns(t *testing.T) {
 			}
 		})
 	}
+}
+
+// withApplication records the application a MacSoftware preparation selected.
+func withApplication(artifact plugin.Artifact, app plugin.Subject) plugin.Artifact {
+	evidence, _ := json.Marshal(app)
+	artifact.Evidence = map[string]json.RawMessage{"macos.application": evidence}
+	artifact.Facts = plugin.Facts{Subjects: []plugin.Subject{app}}
+	return artifact
 }

@@ -16,7 +16,9 @@ func Schema() *jsonschema.Schema {
 	r := jsonschema.Reflector{DoNotReference: true, RequiredFromJSONSchemaTags: true}
 	schema := r.Reflect(packages.PackageMutation{})
 	schema.ID = ""
-	for _, key := range []string{"installer_object_id", "blocking_applications_none"} {
+	// The minimum derives from the software's minimum_os, so a declaration can
+	// never lower the installer's requirement.
+	for _, key := range []string{"installer_object_id", "blocking_applications_none", "minimum_os_version"} {
 		schema.Properties.Delete(key)
 	}
 	for _, property := range []struct{ name, description string }{
