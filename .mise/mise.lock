@@ -153,9 +153,9 @@ checksum = "sha256:6f3de7ed853ee283b4bf24b6e426618f1d357401ce5815db1866eb85eb4b0
 url = "https://nodejs.org/dist/v26.9.0/node-v26.9.0-darwin-arm64.tar.gz"
 
 [[tools."npm:@commitlint/cli"]]
-version = "21.2.2"
+version = "21.2.3"
 backend = "npm:@commitlint/cli"
-specifiers = ["21.2.2"]
+specifiers = ["21.2.3"]
 
 [[tools.oxfmt]]
 version = "0.68.0"
