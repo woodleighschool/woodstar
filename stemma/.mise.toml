@@ -1,6 +1,5 @@
 [tools]
 oras = "1.3.4"
-goreleaser = "2.18.0"
 
 [tasks.release-check]
 description = "Validate the plugin release configuration"

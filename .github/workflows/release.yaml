@@ -77,26 +77,23 @@ jobs:
         if: ${{ matrix.workdir == 'stemma' }}
         working-directory: stemma
         run: |
-          mise install --locked oras goreleaser
+          mise install --locked oras
           printf '%s' "$REGISTRY_TOKEN" | mise exec -- oras login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
         env:
           REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Resolve GoReleaser version
+        id: goreleaser-version
+        working-directory: ${{ matrix.workdir }}
+        run: echo "version=$(mise tool goreleaser --requested)" >> "$GITHUB_OUTPUT"
+
       - name: Run GoReleaser
-        if: ${{ matrix.workdir == '.' }}
         uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
         with:
           distribution: goreleaser
-          version: "~> v2"
+          version: ${{ steps.goreleaser-version.outputs.version }}
           args: release --clean --parallelism=2
           workdir: ${{ matrix.workdir }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Release plugin bundles
-        if: ${{ matrix.workdir == 'stemma' }}
-        working-directory: stemma
-        run: mise exec -- goreleaser release --clean --parallelism=2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
