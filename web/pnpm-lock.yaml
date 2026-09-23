@@ -227,8 +227,8 @@ importers:
         specifier: ^1.2.0
         version: 1.2.0(react@19.3.0)
       '@woodleighschool/bloby-client':
-        specifier: ^1.1.0
-        version: 1.1.0
+        specifier: ^1.2.0
+        version: 1.2.0
       cn:
         specifier: ^0.3.2
         version: 0.3.2
@@ -1507,8 +1507,8 @@ packages:
       react:
         optional: true
 
-  '@woodleighschool/bloby-client@1.1.0':
-    resolution: {integrity: sha512-WnPfnB0m6CuGCnbknN/rg9ZITUdVAky79wnracU6UgshG8o+qQFiEPrlPSUpGCWtjvSCbSMNz0EBMVpauwruJw==}
+  '@woodleighschool/bloby-client@1.2.0':
+    resolution: {integrity: sha512-seOiDxKLANiqhFcCu1pL0z4WOzHNrP/GLAM7oJUiReQxzzi6HriUieDov5QCz/4uXwU5waVHOMdGbekKvHYSJg==}
 
   accepts@2.0.0:
     resolution: {integrity: sha512-5cvg6CtKwfgdmVqY1WIiXKc3Q1bkRqGLi+2W/6ao+6Y7gu/RCwRuAhGEzh5B4KlszSuTLgZYuqFqo5bImjNKng==}
@@ -4858,7 +4858,7 @@ snapshots:
     optionalDependencies:
       react: 19.3.0
 
-  '@woodleighschool/bloby-client@1.1.0': {}
+  '@woodleighschool/bloby-client@1.2.0': {}
 
   accepts@2.0.0:
     dependencies:
