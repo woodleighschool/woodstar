@@ -7,8 +7,8 @@ require (
 	github.com/go-chi/chi/v5 v5.3.2
 	github.com/invopop/jsonschema v0.14.0
 	github.com/woodleighschool/goodies/auth v1.1.0
-	github.com/woodleighschool/stemma v0.0.0-20260922233048-804c82e648e1
-	github.com/woodleighschool/woodstar v0.1.8
+	github.com/woodleighschool/stemma v0.0.0-20260923115219-f94e5cf8c1f6
+	github.com/woodleighschool/woodstar v0.1.9-0.20260920015957-7a2af5f20fbc
 	resty.dev/v3 v3.0.0-rc.4
 )
 
@@ -76,8 +76,3 @@ require (
 	golang.org/x/time v0.16.0 // indirect
 	howett.net/plist v1.0.1 // indirect
 )
-
-// Use the API models from this repository checkout.
-replace github.com/woodleighschool/woodstar => ..
-
-replace github.com/woodleighschool/stemma => ../../stemma
