@@ -637,6 +637,13 @@ func storageConfig(cfg config.Config) bloby.Config {
 	return bloby.Config{
 		Kind:        bloby.Kind(cfg.StorageKind),
 		TransferTTL: cfg.StorageTransferTTL,
+		// Every munki object is attached by a foreign key, so cleanup can drop the ones never attached.
+		ReferencedPrefixes: []string{
+			packages.ObjectPrefix,
+			munkisoftware.IconObjectPrefix,
+			clientresources.BannerObjectPrefix,
+			clientresources.ArchiveObjectPrefix,
+		},
 		File: bloby.FileConfig{
 			Root:             cfg.StorageFileRoot,
 			BaseURL:          cfg.ServerURL,
