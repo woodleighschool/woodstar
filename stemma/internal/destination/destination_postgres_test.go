@@ -104,11 +104,12 @@ func TestStemmaAdapterPostgresLifecycle(t *testing.T) { //nolint:funlen,gocognit
 	setPkginfo(t, &request, fmt.Sprintf(`{
 		"name":"AdapterApp", "version":"1.0", "installer_type":"nopkg",
 		"description":"  Managed description  ","category":"Keep category","developer":"Keep publisher",
-		"minimum_os_version":"  14.0  ","notes":"Keep notes","unattended_install":true,"supported_architectures":["arm64"],
+		"notes":"Keep notes","unattended_install":true,"supported_architectures":["arm64"],
 		"force_install_after_date":"2026-10-01T10:00:00.123456789+10:00",
 		"preinstall_alert":{"alert_title":"Keep title","alert_detail":"Original detail","ok_label":"Continue"},
 		"requires":["%s--%s"],"update_for":[{"resource":{"kind":"MacSoftware","name":"dependency"},"version":"%s"}]
 	}`, dependency.Name, dependencyPackage.Version, dependencyPackage.Version))
+	request.MinimumOS = &plugin.MinimumOS{Version: "14.0", Origin: "software.minimum_os"}
 	call := func(method string) plugin.ReconcileResponse {
 		t.Helper()
 		request.Method = method
@@ -220,9 +221,11 @@ func TestStemmaAdapterPostgresLifecycle(t *testing.T) { //nolint:funlen,gocognit
 	setPkginfo(t, &request, `{
 		"name":"AdapterApp","version":"1.0","installer_type":"nopkg",
 		"description":null,"category":"","unattended_install":false,"notes":null,
-		"minimum_os_version":"","force_install_after_date":null,
+		"force_install_after_date":null,
 		"requires":[],"update_for":[],"supported_architectures":[],"preinstall_alert":null
 	}`)
+	// Software without a minimum clears the derived field.
+	request.MinimumOS = nil
 	call("apply")
 	title, pkg, targets = read()
 	if title.Description != "" || title.Category != "" || title.Developer != "Keep publisher" || len(targets.Include)+len(targets.Exclude) != 0 {
