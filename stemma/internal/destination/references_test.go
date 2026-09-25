@@ -77,23 +77,19 @@ func TestPlanLinksResourceReferencesThroughPeers(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := map[string][]packages.PackageReferenceMutation{
-		"package.requires":   {{SoftwareID: 8}, {SoftwareID: 7, PackageID: 70}},
-		"package.update_for": {{SoftwareID: 8}},
-	}
+	var initial packages.PackageMutation
 	for _, change := range response.Changes {
-		expected, linked := want[change.Field]
-		if !linked {
+		if change.Field != "package" || change.Action != "create" {
 			continue
 		}
-		var got []packages.PackageReferenceMutation
-		if err := json.Unmarshal(change.After, &got); err != nil || !reflect.DeepEqual(got, expected) {
-			t.Fatalf("%s = %s, want %+v (%v)", change.Field, change.After, expected, err)
+		if err := json.Unmarshal(change.After, &initial); err != nil {
+			t.Fatal(err)
 		}
-		delete(want, change.Field)
 	}
-	if len(want) != 0 || writes.Load() != 0 {
-		t.Fatalf("references not planned: %v writes=%d", want, writes.Load())
+	requires := []packages.PackageReferenceMutation{{SoftwareID: 8}, {SoftwareID: 7, PackageID: 70}}
+	updates := []packages.PackageReferenceMutation{{SoftwareID: 8}}
+	if !reflect.DeepEqual(initial.Requires, requires) || !reflect.DeepEqual(initial.UpdateFor, updates) || writes.Load() != 0 {
+		t.Fatalf("references not planned: requires=%v update_for=%v writes=%d", initial.Requires, initial.UpdateFor, writes.Load())
 	}
 	for _, test := range []struct{ name, peer, want string }{
 		{"resource without this destination", "", `resource stemma/v1alpha1/MacSoftware/rosetta does not publish to this destination`},

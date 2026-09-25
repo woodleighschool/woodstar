@@ -146,7 +146,7 @@ func TestIconBootstrapAndReplacement(t *testing.T) { //nolint:funlen // One publ
 	// Changed bytes are ordinary drift: planning isolates them, applying replaces them.
 	request.Inputs["icon"] = second
 	request.Method = "plan"
-	if response := call(); len(response.Changes) != 1 || response.Changes[0].Field != "software.icon" || state.writes() != before {
+	if response := call(); len(response.Changes) != 1 || response.Changes[0].Field != "software.icon" || !bytes.Equal(response.Changes[0].Before, raw(first.SHA256)) || !bytes.Equal(response.Changes[0].After, raw(second.SHA256)) || state.writes() != before {
 		t.Fatal("changed icon plan did not isolate the icon")
 	}
 	request.Method = "apply"

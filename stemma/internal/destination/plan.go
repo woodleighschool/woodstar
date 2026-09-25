@@ -2,6 +2,7 @@ package destination
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"slices"
@@ -52,22 +53,20 @@ func plan(metadata metadata, observed api.Observation) (desired, error) {
 	currentSoftware.Normalize(metadata.name)
 	currentPackage.Normalize()
 	if observed.Software == nil {
-		result.changes = append(result.changes, plugin.Change{Kind: "metadata", Field: "software.name", Action: "create", After: raw(metadata.name)})
+		initial := initialMetadata(nextSoftware, metadata.software.Bytes())
+		initial["name"] = raw(metadata.name)
+		result.changes = append(result.changes, plugin.Change{Kind: "metadata", Field: "software", Action: "create", After: raw(initial)})
+	} else {
+		result.changes = append(result.changes, diff("software", currentSoftware, nextSoftware)...)
 	}
 	if observed.Package == nil {
-		result.changes = append(result.changes, plugin.Change{Kind: "metadata", Field: "package.version", Action: "create", After: raw(metadata.version)})
+		result.changes = append(result.changes, plugin.Change{Kind: "metadata", Field: "package", Action: "create", After: raw(initialMetadata(result.pkg, metadata.pkg.Bytes()))})
+	} else {
+		result.changes = append(result.changes, diff("package", currentPackage, result.pkg)...)
 	}
-	result.changes = append(result.changes, diff("software", currentSoftware, nextSoftware)...)
-	result.changes = append(result.changes, diff("package", currentPackage, result.pkg)...)
-	if metadata.icon.Path != "" {
-		current := (*software.IconFile)(nil)
-		if observed.Software != nil && observed.Software.IconObjectID != nil {
-			current = observed.Software.IconFile
-		}
-		result.icon = current == nil || current.SHA256 != metadata.icon.SHA256 || current.SizeBytes != metadata.icon.Size
-		if result.icon {
-			result.changes = append(result.changes, plugin.Change{Kind: "content", Field: "software.icon", Action: "upload", After: raw(metadata.icon.SHA256)})
-		}
+	if change, ok := iconChange(metadata.icon, observed); ok {
+		result.icon = true
+		result.changes = append(result.changes, change)
 	}
 	if result.pkg.InstallerType == packages.InstallerTypeNoPkg {
 		return result, nil
@@ -89,6 +88,42 @@ func plan(metadata metadata, observed api.Observation) (desired, error) {
 		result.changes = append(result.changes, change)
 	}
 	return result, nil
+}
+
+// iconChange reports a declared icon whose bytes the software does not
+// publish, naming the icon it replaces.
+func iconChange(icon plugin.Artifact, observed api.Observation) (plugin.Change, bool) {
+	if icon.Path == "" {
+		return plugin.Change{}, false
+	}
+	var current *software.IconFile
+	if observed.Software != nil && observed.Software.IconObjectID != nil {
+		current = observed.Software.IconFile
+	}
+	if current != nil && current.SHA256 == icon.SHA256 && current.SizeBytes == icon.Size {
+		return plugin.Change{}, false
+	}
+	change := plugin.Change{Kind: "content", Field: "software.icon", Action: "upload", After: raw(icon.SHA256)}
+	if current != nil {
+		change.Before = raw(current.SHA256)
+	}
+	return change, true
+}
+
+func initialMetadata(mutation any, supplied json.RawMessage) map[string]json.RawMessage {
+	fields, _ := object(raw(mutation))
+	declared, _ := object(supplied)
+	// Restore declared fields that omitempty hides, using their normalized values.
+	value := reflect.ValueOf(mutation)
+	for i := range value.NumField() {
+		key, _, _ := strings.Cut(value.Type().Field(i).Tag.Get("json"), ",")
+		if _, ok := declared[key]; ok {
+			fields[key] = raw(value.Field(i).Interface())
+		}
+	}
+	delete(fields, "installer_object_id")
+	delete(fields, "icon_object_id")
+	return fields
 }
 
 // Both inputs are the same editable API type. Comparing field values retains
@@ -120,6 +155,6 @@ func diff(resource string, before, after any) []plugin.Change {
 
 func metadataChanged(changes []plugin.Change, resource string) bool {
 	return slices.ContainsFunc(changes, func(change plugin.Change) bool {
-		return change.Kind != "content" && strings.HasPrefix(change.Field, resource+".")
+		return change.Kind != "content" && (change.Field == resource || strings.HasPrefix(change.Field, resource+"."))
 	})
 }
