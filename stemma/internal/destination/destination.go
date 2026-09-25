@@ -42,7 +42,7 @@ func Handle(ctx context.Context, request plugin.ReconcileRequest[api.Config]) (p
 	}
 	defer func() { _ = remote.Close() }()
 	response := plugin.ReconcileResponse{Origins: metadata.origins}
-	done := plugin.Stage(ctx, "Observing destination")
+	done := plugin.Stage(ctx, "Observing destination", plugin.Detail(metadata.name+" "+metadata.version))
 	observed, err := remote.Observe(ctx, metadata.name, metadata.version)
 	done(err)
 	if err != nil {
@@ -111,7 +111,7 @@ func apply(ctx context.Context, remote *api.Client, metadata metadata, planned d
 			return err
 		}
 	}
-	done := plugin.Stage(ctx, "Verifying publication")
+	done := plugin.Stage(ctx, "Verifying publication", plugin.Detail(metadata.name+" "+metadata.version))
 	defer func() { done(runErr) }()
 	readback, err := remote.Observe(ctx, metadata.name, metadata.version)
 	if err != nil {
@@ -131,7 +131,7 @@ func apply(ctx context.Context, remote *api.Client, metadata metadata, planned d
 // savePackage creates the package with its whole desired state, or patches the
 // fields the declaration supplies onto the package the repository holds.
 func savePackage(ctx context.Context, remote *api.Client, metadata metadata, planned desired, objectID int64, observed *api.Observation) (runErr error) {
-	done := plugin.Stage(ctx, "Saving package")
+	done := plugin.Stage(ctx, "Saving package", plugin.Detail(metadata.version))
 	defer func() { done(runErr) }()
 	var saved *packages.Package
 	var writeErr error
@@ -177,7 +177,7 @@ func withInstaller(patch packages.Patch, objectID int64) (packages.Patch, error)
 }
 
 func saveSoftware(ctx context.Context, remote *api.Client, metadata metadata, observed *api.Observation) (runErr error) {
-	done := plugin.Stage(ctx, "Saving software")
+	done := plugin.Stage(ctx, "Saving software", plugin.Detail(metadata.name))
 	defer func() { done(runErr) }()
 	saved, err := remote.UpdateSoftware(ctx, observed.Software.ID, metadata.software)
 	if err != nil {
@@ -188,7 +188,7 @@ func saveSoftware(ctx context.Context, remote *api.Client, metadata metadata, ob
 }
 
 func publishIcon(ctx context.Context, remote *api.Client, icon plugin.Artifact, softwareID int64) (runErr error) {
-	done := plugin.Stage(ctx, "Publishing icon")
+	done := plugin.Stage(ctx, "Publishing icon", plugin.Detail(icon.Filename))
 	defer func() { done(runErr) }()
 	var content bytes.Buffer
 	if err := verifyArtifact(ctx, icon, &content); err != nil {

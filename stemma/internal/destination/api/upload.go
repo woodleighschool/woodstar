@@ -46,7 +46,7 @@ type uploadTarget struct {
 func (c *Client) Upload(ctx context.Context, artifact plugin.Artifact) (_ int64, runErr error) {
 	ctx, cancel := context.WithTimeout(ctx, time.Hour)
 	defer cancel()
-	done := plugin.Stage(ctx, "Uploading installer")
+	done := plugin.Stage(ctx, "Uploading installer", plugin.Detail(artifact.Filename))
 	defer func() { done(runErr) }()
 	if !filepath.IsAbs(artifact.Path) {
 		return 0, errors.New("artifact path must be an absolute leased path")
@@ -112,7 +112,7 @@ func (c *Client) ReleaseUpload(ctx context.Context, objectID int64) {
 }
 
 func (c *Client) finalizeUpload(ctx context.Context, artifact plugin.Artifact, objectID int64) (runErr error) {
-	done := plugin.Stage(ctx, "Finalizing upload")
+	done := plugin.Stage(ctx, "Finalizing upload", plugin.Detail(artifact.Filename))
 	defer func() { done(runErr) }()
 	var finalized storedObject
 	endpoint := "/api/munki/package-installers/" + strconv.FormatInt(objectID, 10)
