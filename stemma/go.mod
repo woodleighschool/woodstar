@@ -7,8 +7,8 @@ require (
 	github.com/go-chi/chi/v5 v5.3.2
 	github.com/invopop/jsonschema v0.14.0
 	github.com/woodleighschool/goodies/auth v1.1.0
-	github.com/woodleighschool/stemma v0.0.0-20260925132959-f345a45dc807
-	github.com/woodleighschool/woodstar v0.1.9-0.20260920015957-7a2af5f20fbc
+	github.com/woodleighschool/stemma v0.0.0-20260926074926-b89f0f9ba903
+	github.com/woodleighschool/woodstar v0.1.9-0.20260926072928-a2c10d61cd48
 	resty.dev/v3 v3.0.0-rc.4
 )
 
@@ -41,7 +41,7 @@ require (
 	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
-	github.com/go-playground/validator/v10 v10.30.4 // indirect
+	github.com/go-playground/validator/v10 v10.30.5 // indirect
 	github.com/goccy/go-yaml v1.19.2 // indirect
 	github.com/jackc/pgerrcode v0.0.0-20250907135507-afb5586c32a6 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
@@ -62,7 +62,7 @@ require (
 	github.com/rs/cors v1.11.1 // indirect
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3 // indirect
 	github.com/sethvargo/go-retry v0.4.0 // indirect
-	github.com/woodleighschool/goodies/bloby v1.1.0 // indirect
+	github.com/woodleighschool/goodies/bloby v1.2.0 // indirect
 	github.com/woodleighschool/goodies/pglock v0.1.1 // indirect
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
