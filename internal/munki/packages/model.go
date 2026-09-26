@@ -183,7 +183,7 @@ type PackageMutation struct {
 	MinimumOSVersion         string                                `json:"minimum_os_version,omitempty" jsonschema_description:"Oldest macOS version eligible for this package."`
 	MaximumOSVersion         string                                `json:"maximum_os_version,omitempty" jsonschema_description:"Newest macOS version eligible for this package."`
 	SupportedArchitectures   []string                              `json:"supported_architectures,omitempty"                              validate:"dive,oneof=arm64 x86_64" jsonschema_description:"CPU architectures eligible for installation."`
-	BlockingApplications     []string                              `json:"blocking_applications,omitempty"                                validate:"dive,required,notblank" jsonschema_description:"Applications that must quit before installation."`
+	BlockingApplications     []string                              `json:"blocking_applications,omitempty"                                validate:"dive,required,notblank" jsonschema_description:"Applications that block installation or removal while they run. Munki uses the applications in installs when this is absent; an empty list blocks nothing."`
 	BlockingApplicationsNone bool                                  `json:"blocking_applications_none,omitempty"`
 	InstallableCondition     string                                `json:"installable_condition,omitempty" jsonschema_description:"NSPredicate expression determining whether installation is allowed."`
 	BlockingAppsManualQuit   bool                                  `json:"blocking_applications_manual_quit_only,omitempty"`
