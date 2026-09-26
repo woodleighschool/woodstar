@@ -98,7 +98,7 @@ jobs:
 
       - name: Publish plugin
         if: ${{ matrix.workdir == 'stemma' }}
-        uses: woodleighschool/stemma/actions/publish-plugin@87fd3b4de9f99a0ec4ec632571865277b77e134e
+        uses: woodleighschool/stemma/actions/publish-plugin@65c604b143dcddc35309538b672004809e27451b # 0.3.0
         with:
           dist: stemma/dist
           image: ghcr.io/woodleighschool/woodstar/stemma:${{ github.ref_name }}
