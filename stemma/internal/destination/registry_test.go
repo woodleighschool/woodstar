@@ -20,19 +20,26 @@ func TestRegistryPublishesAndEnforcesTypedConnection(t *testing.T) {
 			t.Fatalf("connection contract missing %s: %s", fragment, operation.ConfigSchema)
 		}
 	}
-	for _, test := range []struct{ config, message string }{
-		{`{"url":"https://unused.invalid","api_key":"test-key"}`, ""},
-		{`{"url":"https://unused.invalid"}`, "api_key"},
-		{`{"url":"https://unused.invalid","api_key":"test-key","unknown":true}`, "unknown"},
-		{`{"url":"https://unused.invalid/api","api_key":"test-key"}`, "HTTPS origin"},
-	} {
-		request := plugin.ReconcileRequest[json.RawMessage]{Identity: plugin.Identity{Project: "fixture", Destination: "woodstar", Resource: plugin.ResourceReference{APIVersion: "stemma/v1alpha1", Kind: "MacSoftware", Name: "app"}}, Config: json.RawMessage(test.config), Metadata: json.RawMessage(`{"pkginfo":{"name":"Fixture","version":"1","installer_type":"nopkg"}}`)}
+	call := func(method, config string) error {
+		t.Helper()
+		request := plugin.ReconcileRequest[json.RawMessage]{Identity: plugin.Identity{Project: "fixture", Destination: "woodstar", Resource: plugin.ResourceReference{APIVersion: "stemma/v1alpha1", Kind: "MacSoftware", Name: "app"}}, Config: json.RawMessage(config), Metadata: json.RawMessage(`{"pkginfo":{"name":"Fixture","version":"1","installer_type":"nopkg"}}`)}
 		data, err := json.Marshal(request)
 		if err != nil {
 			t.Fatal(err)
 		}
-		_, err = registry.Handle(t.Context(), plugin.Request{Protocol: plugin.ProtocolVersion, Method: "validate", Operation: operation.Name, Input: data})
-		if test.message == "" && err != nil || test.message != "" && (err == nil || !strings.Contains(err.Error(), test.message)) {
+		_, err = registry.Handle(t.Context(), plugin.Request{Protocol: plugin.ProtocolVersion, Method: method, Operation: operation.Name, Input: data})
+		return err
+	}
+	// Validation checks desired state without connecting, so it carries no connection.
+	if err := call("validate", ""); err != nil {
+		t.Fatalf("validation needed a connection: %v", err)
+	}
+	for _, test := range []struct{ config, message string }{
+		{`{"url":"https://unused.invalid"}`, "api_key"},
+		{`{"url":"https://unused.invalid","api_key":"test-key","unknown":true}`, "unknown"},
+		{`{"url":"https://unused.invalid/api","api_key":"test-key"}`, "HTTPS origin"},
+	} {
+		if err := call("plan", test.config); err == nil || !strings.Contains(err.Error(), test.message) {
 			t.Fatalf("config %s: %v", test.config, err)
 		}
 	}
