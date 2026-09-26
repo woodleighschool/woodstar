@@ -37,9 +37,8 @@ GoReleaser builds static `plugin` executables (`plugin.exe` on Windows) and
 deterministic tar.zst bundles for Darwin, Linux, and Windows on amd64 and arm64.
 Each bundle contains the executable and licence at its root.
 
-ORAS publishes the bundles to `ghcr.io/woodleighschool/woodstar/stemma` using
-Stemma’s OCI artifact contract. The release workflow publishes one platform index
-under the release tag after every bundle succeeds. Registry authentication uses
-the standard credential store; no container runtime is required.
+The release workflow publishes the bundles with Stemma's publish-plugin action as
+one OCI platform index at `ghcr.io/woodleighschool/woodstar/stemma`, tagged with
+the release.
 
 Run `mise run snapshot` to build all release bundles locally.

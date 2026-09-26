@@ -73,14 +73,13 @@ jobs:
           experimental: true
           install_args: --locked go node pnpm
 
-      - name: Setup plugin publisher
+      - name: Log in to GHCR
         if: ${{ matrix.workdir == 'stemma' }}
-        working-directory: stemma
-        run: |
-          mise install --locked oras
-          printf '%s' "$REGISTRY_TOKEN" | mise exec -- oras login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
-        env:
-          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Resolve GoReleaser version
         id: goreleaser-version
@@ -97,8 +96,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Publish plugin index
+      - name: Publish plugin
         if: ${{ matrix.workdir == 'stemma' }}
-        run: mise run //stemma:publish-index "$RELEASE_TAG"
-        env:
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        uses: woodleighschool/stemma/actions/publish-plugin@87fd3b4de9f99a0ec4ec632571865277b77e134e
+        with:
+          dist: stemma/dist
+          image: ghcr.io/woodleighschool/woodstar/stemma:${{ github.ref_name }}
