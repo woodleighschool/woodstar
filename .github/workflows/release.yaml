@@ -47,11 +47,16 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
   goreleaser:
-    name: GoReleaser
+    name: GoReleaser (${{ matrix.workdir }})
     if: ${{ github.event_name == 'release' }}
     runs-on: ubuntu-26.04
+    strategy:
+      fail-fast: false
+      matrix:
+        workdir: [".", "stemma"]
     permissions:
       contents: write
+      packages: write
     env:
       MISE_NO_HOOKS: "1"
     steps:
@@ -72,11 +77,32 @@ jobs:
         id: goreleaser-version
         run: echo "version=$(mise tool goreleaser --requested)" >> "$GITHUB_OUTPUT"
 
+      - name: Log in to GHCR
+        if: ${{ matrix.workdir == 'stemma' }}
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve GoReleaser version
+        id: goreleaser-version
+        working-directory: ${{ matrix.workdir }}
+        run: echo "version=$(mise tool goreleaser --requested)" >> "$GITHUB_OUTPUT"
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
         with:
           distribution: goreleaser
           version: ${{ steps.goreleaser-version.outputs.version }}
           args: release --clean --parallelism=2
+          workdir: ${{ matrix.workdir }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish plugin
+        if: ${{ matrix.workdir == 'stemma' }}
+        uses: woodleighschool/stemma/actions/publish-plugin@971d98b107619aab412d600dc574350034d58e26 # 0.3.0
+        with:
+          workdir: stemma
+          image: ghcr.io/woodleighschool/woodstar/stemma:${{ github.ref_name }}
