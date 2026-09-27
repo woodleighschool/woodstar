@@ -1,0 +1,80 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: Stemma Release
+
+on:
+  release:
+    types:
+      - published
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  MISE_NO_HOOKS: "1"
+
+jobs:
+  release:
+    name: Stemma
+    if: startsWith(github.event.release.tag_name, 'stemma-')
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Mise
+        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+        with:
+          cache: false
+          experimental: true
+          install_args: --locked go
+
+      - name: Resolve release version
+        id: release-version
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: echo "version=${RELEASE_TAG#stemma-}" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve GoReleaser version
+        id: goreleaser-version
+        working-directory: stemma
+        run: echo "version=$(mise tool goreleaser --requested)" >> "$GITHUB_OUTPUT"
+
+      - name: Build plugin bundles
+        uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
+        with:
+          distribution: goreleaser
+          version: ${{ steps.goreleaser-version.outputs.version }}
+          args: release --snapshot --clean --skip=publish --parallelism=2
+          workdir: stemma
+        env:
+          GORELEASER_CURRENT_TAG: ${{ steps.release-version.outputs.version }}
+
+      - name: Upload release bundles
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: gh release upload "$RELEASE_TAG" stemma/dist/*.tar.zst stemma/dist/*_checksums.txt --clobber
+
+      - name: Log in to GHCR
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish plugin
+        uses: woodleighschool/stemma/actions/publish-plugin@971d98b107619aab412d600dc574350034d58e26 # 0.3.0
+        with:
+          workdir: stemma
+          image: ghcr.io/woodleighschool/woodstar/stemma:${{ steps.release-version.outputs.version }}

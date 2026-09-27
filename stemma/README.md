@@ -39,6 +39,10 @@ Each bundle contains the executable and licence at its root.
 
 The release workflow publishes the bundles with Stemma's publish-plugin action as
 one OCI platform index at `ghcr.io/woodleighschool/woodstar/stemma`, tagged with
-the release.
+the plugin version. Plugin releases have independent `stemma-<version>` Git tags
+and a changelog in this directory; they do not release the server.
+
+The workflow builds bundles with GoReleaser, attaches them to the component
+release, and publishes the OCI image with the unprefixed version.
 
 Run `mise run snapshot` to build all release bundles locally.

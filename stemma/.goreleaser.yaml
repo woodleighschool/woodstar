@@ -53,8 +53,8 @@ checksum:
   name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"
   algorithm: sha256
 
-release:
-  mode: keep-existing
+snapshot:
+  version_template: "{{ if .Env.GORELEASER_CURRENT_TAG }}{{ .Version }}{{ else }}0.0.0-SNAPSHOT-{{ .ShortCommit }}{{ end }}"
 
 changelog:
   disable: true
