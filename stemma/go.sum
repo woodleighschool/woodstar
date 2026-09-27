@@ -132,10 +132,10 @@ github.com/woodleighschool/goodies/bloby v1.2.0 h1:641lJI6tA/sR4Q1pptFWfXq5ODG10
 github.com/woodleighschool/goodies/bloby v1.2.0/go.mod h1:q6A8gSqUQWMGP/jGoTrZ0Bwc/JNuaO5j/BAX9GHA4jQ=
 github.com/woodleighschool/goodies/pglock v0.1.1 h1:qiueWQw5yf24TgPfqZsI5p0wjVnVZujjptWInZiPeWA=
 github.com/woodleighschool/goodies/pglock v0.1.1/go.mod h1:QD/YUBlFEX7wE/eqHLqOda5rUlV1fbz0/al2rN/iQkM=
-github.com/woodleighschool/stemma v0.3.1-0.20260927014057-f029a477be92 h1:dGbyoxI8hVHUQSGgs10B96NnZONXSlTsbkuCUoQlmtw=
-github.com/woodleighschool/stemma v0.3.1-0.20260927014057-f029a477be92/go.mod h1:LVLTGEQyatESB5NgkHW1nlrWpyDaiqL54QTpDn3l6oE=
-github.com/woodleighschool/woodstar v0.1.9-0.20260927021335-f6142f7f0ca9 h1:SjOkK6xzKla20z2/Lb3KE3hNkKMRotcgAlimo6LGj4I=
-github.com/woodleighschool/woodstar v0.1.9-0.20260927021335-f6142f7f0ca9/go.mod h1:Wxxq32FtrrxnemtGfZg5TD0jwhUyhaMylVbBnOs/fVg=
+github.com/woodleighschool/stemma v0.0.0-20260927014057-f029a477be92 h1:odF85GPt84ZD6M3S7Hp+FC8ZJykM84qY/uFnaPG+6qg=
+github.com/woodleighschool/stemma v0.0.0-20260927014057-f029a477be92/go.mod h1:LVLTGEQyatESB5NgkHW1nlrWpyDaiqL54QTpDn3l6oE=
+github.com/woodleighschool/woodstar v0.1.9-0.20260927021821-9bcfeec114ec h1:52kbFnm6xQ4TgU7x7v1J6v6UmKOh+z9G5FJ28tFC+qk=
+github.com/woodleighschool/woodstar v0.1.9-0.20260927021821-9bcfeec114ec/go.mod h1:Wxxq32FtrrxnemtGfZg5TD0jwhUyhaMylVbBnOs/fVg=
 github.com/x448/float16 v0.8.4 h1:qLwI1I70+NjRFUR3zs1JPUCgaCXSh3SW62uAKT1mSBM=
 github.com/x448/float16 v0.8.4/go.mod h1:14CWIYCyZA/cWjXOioeEpHeN/83MdbZDRQHoFcYsOfg=
 github.com/yosida95/uritemplate/v3 v3.0.2 h1:Ed3Oyj9yrmi9087+NczuL5BwkIc4wvTb5zIM+UJPGz4=
