@@ -25,6 +25,10 @@ WOODSTAR_TEST_DATABASE_URL="${WOODSTAR_TEST_DATABASE_URL:-postgres://woodstar:wo
   go test -race -count=1 -tags=postgres ./...
 '''
 
+[tasks.notices]
+description = "Collect dependency licenses and notices"
+run = "go-licenses save ./cmd/plugin --save_path third_party_licenses --ignore github.com/woodleighschool/woodstar/stemma --force"
+
 [tasks.tidy]
 description = "Tidy the Stemma destination module"
 run = "go mod tidy"

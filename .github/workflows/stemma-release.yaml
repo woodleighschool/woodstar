@@ -37,7 +37,7 @@ jobs:
         with:
           cache: false
           experimental: true
-          install_args: --locked go
+          install_args: --locked go go:github.com/google/go-licenses/v2
 
       - name: Resolve release version
         id: release-version
