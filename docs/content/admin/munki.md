@@ -18,7 +18,7 @@ A package contains the Munki metadata for one version. The server supports `pkg`
 
 `pkg` and `copy_from_dmg` packages require an uploaded installer. A `nopkg` item has no installer file. The package form includes Munki settings such as restart behaviour, supported architectures, blocking applications, requirements, update relationships, install checks, and uninstall methods.
 
-Most packages are created through [AutoPkg](../autopkg/overview), but they can also be entered or imported in the web app.
+Packages can be published through [Stemma](stemma), or entered or imported in the web app.
 
 ## Targets
 

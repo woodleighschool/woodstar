@@ -172,20 +172,20 @@ type PackageAlert struct {
 
 // PackageMutation is the editable shape for a Munki package version.
 type PackageMutation struct {
-	Version                  string                                `json:"version"                                          minLength:"1" validate:"required,notblank"`
-	InstallerType            InstallerType                         `json:"installer_type,omitempty" nullable:"false"                      validate:"omitempty,oneof=pkg nopkg copy_from_dmg"`
-	UnattendedInstall        bool                                  `json:"unattended_install,omitempty"`
-	UnattendedUninstall      bool                                  `json:"unattended_uninstall,omitempty"`
-	Uninstallable            bool                                  `json:"uninstallable,omitempty"`
-	UninstallMethod          UninstallMethod                       `json:"uninstall_method,omitempty"                                     validate:"omitempty,oneof=removepackages remove_copied_items uninstall_script"`
-	RestartAction            RestartAction                         `json:"restart_action,omitempty"                                       validate:"omitempty,oneof=RequireLogout RecommendRestart RequireRestart RequireShutdown"`
+	Version                  string                                `json:"version"                                          minLength:"1" validate:"required,notblank" jsonschema_description:"Version of this package publication."`
+	InstallerType            InstallerType                         `json:"installer_type,omitempty" nullable:"false"                      validate:"omitempty,oneof=pkg nopkg copy_from_dmg" jsonschema_description:"Installer format or nopkg for a script-only policy."`
+	UnattendedInstall        bool                                  `json:"unattended_install,omitempty" jsonschema_description:"Allow installation without user interaction."`
+	UnattendedUninstall      bool                                  `json:"unattended_uninstall,omitempty" jsonschema_description:"Allow removal without user interaction."`
+	Uninstallable            bool                                  `json:"uninstallable,omitempty" jsonschema_description:"Whether Munki may remove this software."`
+	UninstallMethod          UninstallMethod                       `json:"uninstall_method,omitempty"                                     validate:"omitempty,oneof=removepackages remove_copied_items uninstall_script" jsonschema_description:"Method Munki uses to remove the installed software."`
+	RestartAction            RestartAction                         `json:"restart_action,omitempty"                                       validate:"omitempty,oneof=RequireLogout RecommendRestart RequireRestart RequireShutdown" jsonschema_description:"Logout, restart or shutdown requested after installation."`
 	MinimumMunkiVersion      string                                `json:"minimum_munki_version,omitempty"`
-	MinimumOSVersion         string                                `json:"minimum_os_version,omitempty"`
-	MaximumOSVersion         string                                `json:"maximum_os_version,omitempty"`
-	SupportedArchitectures   []string                              `json:"supported_architectures,omitempty"                              validate:"dive,oneof=arm64 x86_64"`
-	BlockingApplications     []string                              `json:"blocking_applications,omitempty"                                validate:"dive,required,notblank"`
+	MinimumOSVersion         string                                `json:"minimum_os_version,omitempty" jsonschema_description:"Oldest macOS version eligible for this package."`
+	MaximumOSVersion         string                                `json:"maximum_os_version,omitempty" jsonschema_description:"Newest macOS version eligible for this package."`
+	SupportedArchitectures   []string                              `json:"supported_architectures,omitempty"                              validate:"dive,oneof=arm64 x86_64" jsonschema_description:"CPU architectures eligible for installation."`
+	BlockingApplications     []string                              `json:"blocking_applications,omitempty"                                validate:"dive,required,notblank" jsonschema_description:"Applications that block installation or removal while they run. Munki uses the applications in installs when this is absent; an empty list blocks nothing."`
 	BlockingApplicationsNone bool                                  `json:"blocking_applications_none,omitempty"`
-	InstallableCondition     string                                `json:"installable_condition,omitempty"`
+	InstallableCondition     string                                `json:"installable_condition,omitempty" jsonschema_description:"NSPredicate expression determining whether installation is allowed."`
 	BlockingAppsManualQuit   bool                                  `json:"blocking_applications_manual_quit_only,omitempty"`
 	BlockingAppsQuitScript   string                                `json:"blocking_applications_quit_script,omitempty"`
 	Requires                 []PackageReferenceMutation            `json:"requires,omitempty"                                             validate:"dive"`
@@ -195,25 +195,25 @@ type PackageMutation struct {
 	Autoremove               bool                                  `json:"autoremove,omitempty"`
 	AppleItem                bool                                  `json:"apple_item,omitempty"`
 	SuppressBundleRelocation bool                                  `json:"suppress_bundle_relocation,omitempty"`
-	ForceInstallAfterDate    *time.Time                            `json:"force_install_after_date,omitempty"`
-	InstalledSize            int64                                 `json:"installed_size,omitempty"                                       validate:"gte=0"                                                                         minimum:"0"`
-	PackagePath              string                                `json:"package_path,omitempty"`
-	InstallerChoicesXML      []PackageInstallerChoice              `json:"installer_choices_xml,omitempty"                                validate:"dive"`
+	ForceInstallAfterDate    *time.Time                            `json:"force_install_after_date,omitempty" jsonschema_description:"Deadline after which Munki requires installation."`
+	InstalledSize            int64                                 `json:"installed_size,omitempty"                                       validate:"gte=0"                                                                         minimum:"0" jsonschema_description:"Estimated installed size in KiB."`
+	PackagePath              string                                `json:"package_path,omitempty" jsonschema_description:"Relative path to the installer package within a disk image."`
+	InstallerChoicesXML      []PackageInstallerChoice              `json:"installer_choices_xml,omitempty"                                validate:"dive" jsonschema_description:"Installer choice selections applied to a package installation."`
 	InstallerEnvironment     []PackageInstallerEnvironmentVariable `json:"installer_environment,omitempty"                                validate:"dive"`
-	Installs                 []PackageInstallItem                  `json:"installs,omitempty"                                             validate:"dive"`
-	Receipts                 []PackageReceipt                      `json:"receipts,omitempty"                                             validate:"dive"`
-	ItemsToCopy              []PackageItemToCopy                   `json:"items_to_copy,omitempty"                                        validate:"dive"`
+	Installs                 []PackageInstallItem                  `json:"installs,omitempty"                                             validate:"dive" jsonschema_description:"Installed filesystem items used to detect the installed version."`
+	Receipts                 []PackageReceipt                      `json:"receipts,omitempty"                                             validate:"dive" jsonschema_description:"Package receipts used to determine whether installation is needed."`
+	ItemsToCopy              []PackageItemToCopy                   `json:"items_to_copy,omitempty"                                        validate:"dive" jsonschema_description:"Files copied from a disk image and their destination settings."`
 	Notes                    string                                `json:"notes,omitempty"`
-	InstallcheckScript       string                                `json:"installcheck_script,omitempty"`
-	UninstallcheckScript     string                                `json:"uninstallcheck_script,omitempty"`
-	PreinstallScript         string                                `json:"preinstall_script,omitempty"`
-	PostinstallScript        string                                `json:"postinstall_script,omitempty"`
-	PreuninstallScript       string                                `json:"preuninstall_script,omitempty"`
-	PostuninstallScript      string                                `json:"postuninstall_script,omitempty"`
-	UninstallScript          string                                `json:"uninstall_script,omitempty"`
-	VersionScript            string                                `json:"version_script,omitempty"`
-	PreinstallAlert          PackageAlert                          `json:"preinstall_alert,omitzero"`
-	PreuninstallAlert        PackageAlert                          `json:"preuninstall_alert,omitzero"`
+	InstallcheckScript       string                                `json:"installcheck_script,omitempty" jsonschema_description:"Script whose exit status determines whether installation is needed."`
+	UninstallcheckScript     string                                `json:"uninstallcheck_script,omitempty" jsonschema_description:"Script whose exit status determines whether removal is needed."`
+	PreinstallScript         string                                `json:"preinstall_script,omitempty" jsonschema_description:"Script Munki runs before installation."`
+	PostinstallScript        string                                `json:"postinstall_script,omitempty" jsonschema_description:"Script Munki runs after installation."`
+	PreuninstallScript       string                                `json:"preuninstall_script,omitempty" jsonschema_description:"Script Munki runs before removal."`
+	PostuninstallScript      string                                `json:"postuninstall_script,omitempty" jsonschema_description:"Script Munki runs after removal."`
+	UninstallScript          string                                `json:"uninstall_script,omitempty" jsonschema_description:"Script used by the uninstall_script removal method."`
+	VersionScript            string                                `json:"version_script,omitempty" jsonschema_description:"Script that reports the installed version."`
+	PreinstallAlert          PackageAlert                          `json:"preinstall_alert,omitzero" jsonschema_description:"User-facing alert before installation."`
+	PreuninstallAlert        PackageAlert                          `json:"preuninstall_alert,omitzero" jsonschema_description:"User-facing alert before removal."`
 	InstallerObjectID        *int64                                `json:"installer_object_id,omitempty"                                  validate:"omitempty,gt=0"                                                                minimum:"1"`
 }
 
@@ -315,7 +315,20 @@ func (p *PackageListParams) validate() error {
 	return nil
 }
 
-func (m *PackageMutation) validate() error {
+// Validate checks a normalized mutation, including installer attachment requirements.
+func (m *PackageMutation) Validate() error {
+	if err := m.ValidateMetadata(); err != nil {
+		return err
+	}
+	if m.InstallerType != InstallerTypeNoPkg && m.InstallerObjectID == nil {
+		return fmt.Errorf("%w: %s requires installer_object_id", fault.ErrInvalidInput, m.InstallerType)
+	}
+	return nil
+}
+
+// ValidateMetadata checks normalized metadata before an installer is uploaded.
+// It permits a missing installer ID; supplied IDs and all other rules still apply.
+func (m *PackageMutation) ValidateMetadata() error {
 	if err := validation.Struct(m); err != nil {
 		return fmt.Errorf("%w: %w", fault.ErrInvalidInput, err)
 	}
@@ -326,20 +339,12 @@ func (m PackageCreateMutation) validate() error {
 	if err := validation.Struct(m); err != nil {
 		return fmt.Errorf("%w: %w", fault.ErrInvalidInput, err)
 	}
-	return m.validateRelations()
+	return m.Validate()
 }
 
 func (m *PackageMutation) validateRelations() error {
-	hasInstaller := m.InstallerObjectID != nil
-	switch m.InstallerType {
-	case InstallerTypeNoPkg:
-		if hasInstaller {
-			return fmt.Errorf("%w: nopkg must not reference installer_object_id", fault.ErrInvalidInput)
-		}
-	case InstallerTypePkg, InstallerTypeCopyFromDMG:
-		if !hasInstaller {
-			return fmt.Errorf("%w: %s requires installer_object_id", fault.ErrInvalidInput, m.InstallerType)
-		}
+	if m.InstallerType == InstallerTypeNoPkg && m.InstallerObjectID != nil {
+		return fmt.Errorf("%w: nopkg must not reference installer_object_id", fault.ErrInvalidInput)
 	}
 	if m.InstallerType == InstallerTypeCopyFromDMG && len(m.ItemsToCopy) == 0 {
 		return fmt.Errorf("%w: copy_from_dmg requires items_to_copy entries", fault.ErrInvalidInput)
@@ -385,7 +390,8 @@ func (m *PackageMutation) validateRelations() error {
 	return nil
 }
 
-func (m *PackageMutation) normalize() {
+// Normalize applies server defaults and canonicalizes editable package metadata.
+func (m *PackageMutation) Normalize() {
 	m.InstallerType = InstallerType(strings.TrimSpace(string(m.InstallerType)))
 	if m.InstallerType == "" {
 		m.InstallerType = InstallerTypePkg
@@ -404,6 +410,11 @@ func (m *PackageMutation) normalize() {
 	m.MinimumOSVersion = strings.TrimSpace(m.MinimumOSVersion)
 	m.MaximumOSVersion = strings.TrimSpace(m.MaximumOSVersion)
 	m.PackagePath = strings.TrimSpace(m.PackagePath)
+	if m.ForceInstallAfterDate != nil {
+		// PostgreSQL timestamps retain microseconds; canonicalize before comparing or storing.
+		date := m.ForceInstallAfterDate.UTC().Truncate(time.Microsecond)
+		m.ForceInstallAfterDate = &date
+	}
 	for i := range m.SupportedArchitectures {
 		m.SupportedArchitectures[i] = strings.TrimSpace(m.SupportedArchitectures[i])
 	}

@@ -71,7 +71,7 @@ func TestPackageMutationValidateInstallerRelationship(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			err := tc.mutation.validate()
+			err := tc.mutation.Validate()
 			if tc.wantErr && !errors.Is(err, fault.ErrInvalidInput) {
 				t.Fatalf("validate() error = %v, want ErrInvalidInput", err)
 			}
@@ -91,7 +91,7 @@ func TestPackageMutationValidateAccepts(t *testing.T) {
 	m.InstallerEnvironment = []PackageInstallerEnvironmentVariable{{Name: "LANG", Value: "C"}}
 	m.BlockingApplications = []string{"Foo"}
 	m.InstallerChoicesXML = []PackageInstallerChoice{{ChoiceIdentifier: "choice"}}
-	if err := m.validate(); err != nil {
+	if err := m.Validate(); err != nil {
 		t.Fatalf("Validate() = %v, want nil", err)
 	}
 }
@@ -100,7 +100,7 @@ func TestPackageMutationValidateAllowsDisabledUninstallWithConfiguredMethod(t *t
 	t.Parallel()
 	m := validPackageMutation()
 	m.UninstallMethod = UninstallMethodUninstallScript
-	if err := m.validate(); err != nil {
+	if err := m.Validate(); err != nil {
 		t.Fatalf("Validate() = %v, want disabled uninstall policy to retain its method", err)
 	}
 }
@@ -167,7 +167,7 @@ func TestPackageMutationValidateRejects(t *testing.T) {
 			t.Parallel()
 			m := validPackageMutation()
 			mutate(&m)
-			if err := m.validate(); !errors.Is(err, fault.ErrInvalidInput) {
+			if err := m.Validate(); !errors.Is(err, fault.ErrInvalidInput) {
 				t.Fatalf("Validate() = %v, want ErrInvalidInput", err)
 			}
 		})
@@ -228,5 +228,23 @@ func fillNonZero(t *testing.T, v reflect.Value) {
 		v.SetInt(1)
 	default:
 		t.Fatalf("fillNonZero: unsupported kind %s", v.Kind())
+	}
+}
+
+func TestPackageMetadataValidationBeforeUpload(t *testing.T) {
+	m := PackageMutation{Version: " 1.0 "}
+	m.Normalize()
+	if m.InstallerType != InstallerTypePkg || m.Version != "1.0" {
+		t.Fatalf("normalized package = %+v", m)
+	}
+	if err := m.ValidateMetadata(); err != nil {
+		t.Fatalf("metadata without an uploaded installer: %v", err)
+	}
+	if err := m.Validate(); !errors.Is(err, fault.ErrInvalidInput) {
+		t.Fatalf("full mutation without installer error = %v", err)
+	}
+	m.Uninstallable = true
+	if err := m.ValidateMetadata(); !errors.Is(err, fault.ErrInvalidInput) {
+		t.Fatalf("invalid uninstall metadata error = %v", err)
 	}
 }

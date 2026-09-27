@@ -27,8 +27,8 @@ func TestCreateMutationRejectsAmbiguousMunkiNames(t *testing.T) {
 	for _, name := range []string{"App/Installer", "App-1", "App--1.2.3"} {
 		t.Run(name, func(t *testing.T) {
 			mutation := CreateMutation{Name: name}
-			mutation.normalize()
-			if err := mutation.validate(); !errors.Is(err, fault.ErrInvalidInput) {
+			mutation.Normalize()
+			if err := mutation.Validate(); !errors.Is(err, fault.ErrInvalidInput) {
 				t.Fatalf("validate() error = %v, want invalid input", err)
 			}
 		})
@@ -41,7 +41,7 @@ func TestCreateMutationNormalizesMunkiMetadata(t *testing.T) {
 		DisplayName: "Caf\u00e9",
 	}
 
-	mutation.normalize()
+	mutation.Normalize()
 
 	if mutation.Name != "Caf\u00e9" {
 		t.Fatalf("name = %q, want NFC-normalized name", mutation.Name)
