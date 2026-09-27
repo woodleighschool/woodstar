@@ -6,6 +6,7 @@ go = "1.27.1"
 node = "26.10.0"
 pnpm = "12.6.0"
 golangci-lint = "2.13.2"
+goreleaser = "2.18.0"
 air = "1.67.4"
 lefthook = "2.1.14"
 actionlint = "1.7.12"
@@ -21,7 +22,7 @@ pin = true
 lockfile = true
 
 [monorepo]
-config_roots = ["web", "docs"]
+config_roots = ["web", "docs", "stemma"]
 
 [tasks.go-deps]
 description = "Download Go dependencies"
