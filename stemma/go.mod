@@ -8,7 +8,7 @@ require (
 	github.com/invopop/jsonschema v0.14.0
 	github.com/woodleighschool/goodies/auth v1.1.0
 	github.com/woodleighschool/stemma v0.0.0-20260927014057-f029a477be92
-	github.com/woodleighschool/woodstar v0.1.9-0.20260927021821-9bcfeec114ec
+	github.com/woodleighschool/woodstar v0.1.9-0.20260927022708-58a247142724
 	resty.dev/v3 v3.0.0-rc.4
 )
 
