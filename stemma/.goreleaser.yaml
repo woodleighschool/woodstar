@@ -5,7 +5,7 @@ project_name: stemma
 
 before:
   hooks:
-    - mise run //stemma:tidy-check
+    - go mod tidy
     - mkdir -p build
     - cp ../LICENSE build/LICENSE
 
