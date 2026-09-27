@@ -39,6 +39,7 @@ WORKDIR /workspace
 # Cache module downloads before copying source.
 COPY go.mod go.sum ./
 RUN go mod download
+RUN go install github.com/google/go-licenses/v2@v2.0.1
 
 COPY cmd/ cmd/
 COPY internal/ internal/
@@ -46,6 +47,9 @@ COPY web/ web/
 
 # Overlay the freshly built frontend bundle so go:embed uses the real assets.
 COPY --from=web /workspace/web/dist web/dist
+
+RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} \
+    go-licenses save ./cmd/woodstar --save_path third_party_licenses --ignore github.com/woodleighschool/woodstar --force
 
 RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} \
     go build -trimpath -ldflags "-s -w -X github.com/woodleighschool/woodstar/internal/buildinfo.Version=${VERSION}" -o woodstar ./cmd/woodstar
@@ -56,6 +60,9 @@ RUN mkdir /data
 FROM gcr.io/distroless/static:nonroot
 
 WORKDIR /
+COPY LICENSE /LICENSE
+COPY --from=builder /workspace/third_party_licenses /third_party_licenses
+COPY --from=builder /usr/local/go/LICENSE /third_party_licenses/go/LICENSE
 COPY --from=builder /workspace/woodstar /woodstar
 COPY --from=geoip /geoip/dbip-city-lite.mmdb /share/geoip/dbip-city-lite.mmdb
 COPY --from=geoip /geoip/dbip-asn-lite.mmdb /share/geoip/dbip-asn-lite.mmdb

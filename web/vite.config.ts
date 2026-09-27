@@ -9,6 +9,9 @@ const projectDirectory = import.meta.dirname;
 const workspaceRoot = path.resolve(projectDirectory, "..");
 
 export default defineConfig({
+  build: {
+    license: { fileName: "THIRD_PARTY_NOTICES.md" },
+  },
   plugins: [
     tanstackRouter({
       target: "react",

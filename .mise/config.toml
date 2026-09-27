@@ -2,10 +2,12 @@ monorepo_root = true
 
 [tools]
 go = "1.27.1"
+"go:github.com/google/go-licenses/v2" = "v2.0.1"
 "go:golang.org/x/vuln/cmd/govulncheck" = "v1.8.0"
 node = "26.10.0"
 pnpm = "12.6.0"
 golangci-lint = "2.13.2"
+goreleaser = "2.18.2"
 air = "1.67.4"
 lefthook = "2.1.14"
 actionlint = "1.7.12"
@@ -76,6 +78,10 @@ run = "go build -o woodstar ./cmd/woodstar"
 [tasks.geoip]
 description = "Download the current DB-IP Lite databases"
 run = "go run ./tools/geoipdb --output .local/geoip"
+
+[tasks.notices]
+description = "Collect dependency licenses and notices"
+run = "go-licenses save ./cmd/woodstar --save_path third_party_licenses --ignore github.com/woodleighschool/woodstar --force"
 
 [tasks.tidy]
 description = "Tidy the Go module"

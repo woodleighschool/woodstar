@@ -5,7 +5,8 @@ project_name: woodstar
 
 before:
   hooks:
-    - mise run tidy-check
+    - go mod tidy
+    - mise run notices
     - mise run //web:build
 
 builds:
@@ -33,6 +34,13 @@ archives:
     formats:
       - tar.gz
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE
+      - README.md
+      - third_party_licenses/**/*
+      - src: "{{ .Env.GOROOT }}/LICENSE"
+        dst: third_party_licenses/go
+        strip_parent: true
 
 checksum:
   name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"

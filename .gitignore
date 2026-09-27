@@ -31,3 +31,6 @@ __pycache__/
 .AppleDouble
 .LSOverride
 ._*
+
+# Generated dependency licenses
+/third_party_licenses/

@@ -22,3 +22,5 @@ web/vite.config.js
 web/vite.config.d.ts
 
 .DS_Store
+
+/third_party_licenses/
