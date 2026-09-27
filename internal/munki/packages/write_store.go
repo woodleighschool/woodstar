@@ -283,15 +283,15 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 }
 
 func prepareMutation(params PackageMutation) (PackageMutation, error) {
-	params.normalize()
-	if err := params.validate(); err != nil {
+	params.Normalize()
+	if err := params.Validate(); err != nil {
 		return PackageMutation{}, err
 	}
 	return params, nil
 }
 
 func prepareCreateMutation(params PackageCreateMutation) (PackageMutation, error) {
-	params.normalize()
+	params.Normalize()
 	if err := params.validate(); err != nil {
 		return PackageMutation{}, err
 	}
