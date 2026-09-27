@@ -41,7 +41,7 @@ Uploads from the web app go directly to the bucket. Allow the server origin to u
 ]
 ```
 
-AutoPkg does not need this browser CORS rule.
+Stemma does not need this browser CORS rule.
 
 ## Package uploads
 
