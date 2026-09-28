@@ -9,7 +9,7 @@ on:
     paths-ignore:
       - "**.md"
       - "docs/**"
-      - ".release-please-manifest.json"
+      - ".release-please/manifest.json"
   pull_request:
     branches:
       - main
