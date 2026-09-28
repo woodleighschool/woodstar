@@ -31,7 +31,7 @@ func TestCompiledPluginReconcilesContentAndPresence(t *testing.T) {
 	request := plugin.ReconcileRequest[api.Config]{Method: "plan", Identity: plugin.Identity{Project: "fixture", Resource: plugin.ResourceReference{Kind: "MacSoftware", Name: "Example"}, Destination: "woodstar"}, Config: connection, Artifact: installerFixture(t, "Example.pkg", "synthetic installer bytes; never executed", "1.0")}
 	setPkginfo(t, &request, `{"name":"Example App","version":"1.0","description":"Managed description","unattended_install":true,"blocking_applications":[],"receipts":[{"packageid":"test.example","version":"1.0"}],"installs":[{"type":"application","path":"/Applications/Example.app","CFBundleIdentifier":"test.example","CFBundleShortVersionString":"1.0"}]}`)
 	description, err := plugin.Describe(t.Context(), binary)
-	if err != nil || len(description.Operations) != 1 || description.Operations[0].Name != "woodstar.munki" || len(description.Unavailable) != 0 {
+	if err != nil || len(description.Operations) != 1 || description.Operations[0].Name != "woodstar" || len(description.Unavailable) != 0 {
 		t.Fatalf("description=%+v err=%v", description, err)
 	}
 	if !t.Run("create and converge", func(t *testing.T) {
@@ -161,7 +161,7 @@ func setPkginfo(t *testing.T, request *plugin.ReconcileRequest[api.Config], docu
 
 func runPlugin(t *testing.T, binary string, request plugin.ReconcileRequest[api.Config]) (plugin.ReconcileResponse, error) {
 	t.Helper()
-	response, err := plugin.Run(t.Context(), binary, plugin.Request{Operation: "woodstar.munki", Method: request.Method, Input: raw(request)})
+	response, err := plugin.Run(t.Context(), binary, plugin.Request{Operation: "woodstar", Method: request.Method, Input: raw(request)})
 	var result plugin.ReconcileResponse
 	if len(response.Output) > 0 {
 		if decodeErr := json.Unmarshal(response.Output, &result); decodeErr != nil {

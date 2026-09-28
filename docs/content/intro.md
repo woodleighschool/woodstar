@@ -34,7 +34,7 @@ The server implements the Fleet-compatible endpoints used by Orbit and osquery. 
 - [Concepts](./concepts/capability-boundaries) explains hosts, labels, accounts, and agent credentials.
 - [Using the app](./admin/hosts-and-inventory) covers the main areas of the web app.
 - [Agent Protocols](./agent-protocols/overview) documents client configuration and routes.
-- [Stemma](./admin/stemma) covers publishing software from a Stemma catalog with the `woodstar.munki` plugin.
+- [Stemma](./admin/stemma) covers publishing software from a Stemma catalog with the Woodstar plugin.
 - [Configuration](./configuration/environment) lists server settings.
 - [Development](./development/setup) covers a source checkout and repository commands.
 - [API Reference](./api/overview) documents the JSON API used by the web app and scripts.

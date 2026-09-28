@@ -6,7 +6,7 @@ Publish installers and native Munki settings through the administrative API.
 
 See the [Stemma guide](https://woodleighschool.github.io/woodstar/docs/admin/stemma) for configuration and publication.
 
-The plugin exposes `woodstar.munki`. MacSoftware supplies the installer,
+The plugin exposes the `woodstar` operation. MacSoftware supplies the installer,
 application evidence and optional icon. Destination settings contain native
 `pkginfo`, deployment `targets` and `retention.keep`. Source-free `nopkg` items
 publish scripts and metadata.

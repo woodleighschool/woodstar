@@ -1,4 +1,4 @@
-// Plugin serves the woodstar.munki reconciliation operation.
+// Plugin serves the woodstar reconciliation operation.
 package main
 
 import (

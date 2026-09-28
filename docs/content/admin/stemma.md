@@ -6,7 +6,7 @@ description: Publish software to Woodstar from a Stemma catalog.
 
 # Stemma
 
-The `woodstar.munki` plugin for [Stemma](https://woodleighschool.github.io/stemma/) publishes prepared installers and native Munki settings through the administrative API. This page covers what the plugin adds; Stemma's documentation covers catalogs, sources and commands.
+The Woodstar plugin for [Stemma](https://woodleighschool.github.io/stemma/) publishes prepared installers and native Munki settings through the administrative API. This page covers what the plugin adds; Stemma's documentation covers catalogs, sources and commands.
 
 ## Connect
 
@@ -17,10 +17,9 @@ spec:
   plugins:
     woodstar:
       image: ghcr.io/woodleighschool/woodstar/stemma:TAG@sha256:DIGEST
-      trusted: true
   destinations:
     woodstar:
-      operation: woodstar.munki
+      operation: woodstar
       config:
         url: https://woodstar.example.com
         api_key: "{{ env.WOODSTAR_API_KEY }}"

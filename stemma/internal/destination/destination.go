@@ -17,7 +17,7 @@ import (
 // Register exposes the transport through Stemma's shared operation registry.
 func Register(registry *plugin.Registry) error {
 	return plugin.Register(registry, plugin.Operation{
-		Name: "woodstar.munki", Kind: "reconcile", SideEffects: "remote", Methods: []string{"validate", "plan", "apply"},
+		Name: "woodstar", Kind: "reconcile", SideEffects: "remote", Methods: []string{"validate", "plan", "apply"},
 		RequiresInspection: true,
 		Content:            &plugin.ContentContract{Formats: []string{"pkg", "dmg"}, SourceFree: true},
 		MetadataSchema:     raw(metadataSchema()),
