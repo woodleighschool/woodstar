@@ -31,6 +31,7 @@ jobs:
   docs:
     if: >-
       ${{ github.event_name != 'push'
+      && !(github.event_name == 'push' && startsWith(github.event.head_commit.message, 'chore(release):'))
       && !(startsWith(github.head_ref, 'release-please--')
       && github.event.pull_request.head.repo.full_name == github.repository) }}
     name: Docs
@@ -42,7 +43,8 @@ jobs:
 
   workflow-lint:
     if: >-
-      ${{ !(startsWith(github.head_ref, 'release-please--')
+      ${{ !(github.event_name == 'push' && startsWith(github.event.head_commit.message, 'chore(release):'))
+      && !(startsWith(github.head_ref, 'release-please--')
       && github.event.pull_request.head.repo.full_name == github.repository) }}
     name: Workflow Lint
     runs-on: ubuntu-26.04
@@ -73,7 +75,8 @@ jobs:
 
   backend:
     if: >-
-      ${{ !(startsWith(github.head_ref, 'release-please--')
+      ${{ !(github.event_name == 'push' && startsWith(github.event.head_commit.message, 'chore(release):'))
+      && !(startsWith(github.head_ref, 'release-please--')
       && github.event.pull_request.head.repo.full_name == github.repository) }}
     name: Backend
     runs-on: ubuntu-26.04
@@ -136,7 +139,8 @@ jobs:
 
   frontend:
     if: >-
-      ${{ !(startsWith(github.head_ref, 'release-please--')
+      ${{ !(github.event_name == 'push' && startsWith(github.event.head_commit.message, 'chore(release):'))
+      && !(startsWith(github.head_ref, 'release-please--')
       && github.event.pull_request.head.repo.full_name == github.repository) }}
     name: Frontend
     runs-on: ubuntu-26.04
@@ -199,7 +203,8 @@ jobs:
 
   e2e:
     if: >-
-      ${{ !(startsWith(github.head_ref, 'release-please--')
+      ${{ !(github.event_name == 'push' && startsWith(github.event.head_commit.message, 'chore(release):'))
+      && !(startsWith(github.head_ref, 'release-please--')
       && github.event.pull_request.head.repo.full_name == github.repository) }}
     name: E2E
     runs-on: ubuntu-26.04
@@ -244,7 +249,8 @@ jobs:
 
   go-vulncheck:
     if: >-
-      ${{ !(startsWith(github.head_ref, 'release-please--')
+      ${{ !(github.event_name == 'push' && startsWith(github.event.head_commit.message, 'chore(release):'))
+      && !(startsWith(github.head_ref, 'release-please--')
       && github.event.pull_request.head.repo.full_name == github.repository) }}
     name: Go Vulncheck
     runs-on: ubuntu-26.04
