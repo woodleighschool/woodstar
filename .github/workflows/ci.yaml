@@ -139,7 +139,8 @@ jobs:
 
   stemma:
     if: >-
-      ${{ !(startsWith(github.head_ref, 'release-please--')
+      ${{ !(github.event_name == 'push' && startsWith(github.event.head_commit.message, 'chore(release):'))
+      && !(startsWith(github.head_ref, 'release-please--')
       && github.event.pull_request.head.repo.full_name == github.repository) }}
     name: Stemma
     runs-on: ubuntu-24.04
