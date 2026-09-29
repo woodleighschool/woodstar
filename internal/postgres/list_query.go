@@ -155,12 +155,12 @@ func parseSortColumn(sort string) (sortColumn, bool, error) {
 	if strings.Contains(trimmed, ",") {
 		return sortColumn{}, false, fmt.Errorf("%w: multi-column sort is not supported", fault.ErrInvalidInput)
 	}
-	dot := strings.LastIndex(trimmed, ".")
-	if dot == -1 {
+	before, after, ok := strings.CutLast(trimmed, ".")
+	if !ok {
 		return sortColumn{ID: trimmed}, true, nil
 	}
 
-	key, direction := trimmed[:dot], trimmed[dot+1:]
+	key, direction := before, after
 	switch direction {
 	case "asc":
 		return sortColumn{ID: key}, true, nil
