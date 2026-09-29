@@ -221,7 +221,7 @@ func existingExecutable(path string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("resolve %s: %w", testBinaryEnvironment, err)
 	}
-	info, err := os.Stat(absolutePath)
+	info, err := os.Stat(absolutePath) //nolint:gosec // The path is the prebuilt binary the test runner chose.
 	if err != nil {
 		return "", fmt.Errorf("stat %s: %w", testBinaryEnvironment, err)
 	}
