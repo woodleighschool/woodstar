@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -24,17 +25,32 @@ var databases = []struct {
 }
 
 func main() {
-	release := flag.String("release", time.Now().UTC().Format("2006-01"), "DB-IP release in YYYY-MM format")
+	var release string
+	flag.Func("release", "DB-IP release in YYYY-MM format (default: latest published for City and ASN)", func(value string) error {
+		if _, err := time.Parse("2006-01", value); err != nil {
+			return fmt.Errorf("invalid DB-IP release %q: %w", value, err)
+		}
+		release = value
+		return nil
+	})
 	output := flag.String("output", ".local/geoip", "directory for decompressed MMDB files")
 	flag.Parse()
 
-	if err := run(context.Background(), *release, *output); err != nil {
+	client := &http.Client{Timeout: 10 * time.Minute}
+	if err := run(context.Background(), client, release, *output); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
 
-func run(ctx context.Context, release, output string) error {
+func run(ctx context.Context, client *http.Client, release, output string) error {
+	if release == "" {
+		var err error
+		release, err = latestRelease(ctx, client)
+		if err != nil {
+			return err
+		}
+	}
 	if _, err := time.Parse("2006-01", release); err != nil {
 		return fmt.Errorf("invalid DB-IP release %q: %w", release, err)
 	}
@@ -45,7 +61,6 @@ func run(ctx context.Context, release, output string) error {
 		return nil
 	}
 
-	client := &http.Client{Timeout: 10 * time.Minute}
 	for _, database := range databases {
 		if err := download(ctx, client, release, output, database.kind, database.filename); err != nil {
 			return err
@@ -55,6 +70,58 @@ func run(ctx context.Context, release, output string) error {
 		return err
 	}
 	return nil
+}
+
+func latestRelease(ctx context.Context, client *http.Client) (string, error) {
+	city, err := publishedReleases(ctx, client, "city")
+	if err != nil {
+		return "", err
+	}
+	asn, err := publishedReleases(ctx, client, "asn")
+	if err != nil {
+		return "", err
+	}
+	var latest string
+	for release := range city {
+		if asn[release] && release > latest {
+			latest = release
+		}
+	}
+	if latest == "" {
+		return "", fmt.Errorf("DB-IP Lite: no common published City and ASN MMDB release")
+	}
+	return latest, nil
+}
+
+func publishedReleases(ctx context.Context, client *http.Client, kind string) (map[string]bool, error) {
+	url := "https://db-ip.com/db/download/ip-to-" + kind + "-lite"
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create DB-IP %s release request: %w", kind, err)
+	}
+	request.Header.Set("User-Agent", "Woodstar GeoIP database downloader")
+	response, err := client.Do(request)
+	if err != nil {
+		return nil, fmt.Errorf("discover DB-IP %s releases: %w", kind, err)
+	}
+	defer func() { _ = response.Body.Close() }()
+	if response.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("discover DB-IP %s releases: HTTP %s", kind, response.Status)
+	}
+	page, err := io.ReadAll(response.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read DB-IP %s releases: %w", kind, err)
+	}
+	// Match only the official MMDB download links, not CSV releases or page dates.
+	links := regexp.MustCompile(`href\s*=\s*["']https://download\.db-ip\.com/free/dbip-` + kind + `-lite-([0-9]{4}-[0-9]{2})\.mmdb\.gz["']`)
+	releases := make(map[string]bool)
+	for _, match := range links.FindAllSubmatch(page, -1) {
+		release := string(match[1])
+		if _, err := time.Parse("2006-01", release); err == nil {
+			releases[release] = true
+		}
+	}
+	return releases, nil
 }
 
 func currentRelease(output string) string {
