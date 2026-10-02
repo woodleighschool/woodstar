@@ -4,15 +4,12 @@ package api
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -24,7 +21,6 @@ import (
 type Config struct {
 	URL    string `json:"url" jsonschema:"pattern=^https://" jsonschema_description:"HTTPS origin of the administrative API, without a path, query or credentials."`
 	APIKey string `json:"api_key" jsonschema:"minLength=1,writeOnly=true" jsonschema_description:"API key with software and package management access. Supply it through an environment reference."`
-	CAFile string `json:"ca_file,omitempty" jsonschema_description:"PEM certificate file to trust in addition to the system certificate authorities."`
 }
 
 // Validate requires an HTTPS origin and a key that fits in a header.
@@ -46,30 +42,10 @@ type Client struct {
 	transfer *resty.Client
 }
 
-// New connects to the configured origin, trusting a configured CA file in
-// addition to the system roots.
-func New(cfg Config) (*Client, error) {
-	defaultTransport, ok := http.DefaultTransport.(*http.Transport)
-	if !ok {
-		return nil, errors.New("default HTTP transport is not configurable")
-	}
-	transport := defaultTransport.Clone()
-	if cfg.CAFile != "" {
-		pem, err := os.ReadFile(cfg.CAFile)
-		if err != nil {
-			return nil, errors.New("read configured CA certificate")
-		}
-		roots, err := x509.SystemCertPool()
-		if err != nil {
-			roots = x509.NewCertPool()
-		}
-		if !roots.AppendCertsFromPEM(pem) {
-			return nil, errors.New("configured CA file contains no certificates")
-		}
-		transport.TLSClientConfig = &tls.Config{RootCAs: roots, MinVersion: tls.VersionTLS12}
-	}
+// New connects to the configured origin using the runner's HTTPS trust.
+func New(cfg Config) *Client {
 	newHTTPClient := func() *resty.Client {
-		return resty.NewWithClient(&http.Client{Transport: transport}).
+		return resty.New().
 			SetRedirectPolicy(resty.RedirectNoPolicy()).
 			SetRetryCount(2).
 			AddRetryConditions(resty.RetryConditionStatusTooManyRequests, resty.RetryConditionStatus5XX, resty.RetryConditionStatusZero).
@@ -82,7 +58,7 @@ func New(cfg Config) (*Client, error) {
 			decoder.UseNumber()
 			return decoder.Decode(value)
 		})
-	return &Client{api: api, transfer: newHTTPClient().SetResponseBodyLimit(1 << 20)}, nil
+	return &Client{api: api, transfer: newHTTPClient().SetResponseBodyLimit(1 << 20)}
 }
 
 // Close releases the connections of both HTTP clients.

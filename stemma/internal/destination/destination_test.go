@@ -227,8 +227,8 @@ func serveFixture(t *testing.T) (*apiFixture, api.Config) {
 	return fixture, connection
 }
 
-// serveAPI starts a TLS server for handler and returns connection settings that
-// trust it, with the server's origin.
+// serveAPI starts a TLS server and trusts it through the runner environment,
+// including in compiled plugins.
 func serveAPI(t *testing.T, handler http.Handler) (api.Config, string) {
 	t.Helper()
 	server := httptest.NewTLSServer(handler)
@@ -237,7 +237,10 @@ func serveAPI(t *testing.T, handler http.Handler) (api.Config, string) {
 	if err := os.WriteFile(caPath, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw}), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	return api.Config{URL: server.URL, APIKey: "synthetic-key", CAFile: caPath}, server.URL
+	// httptest TLS servers share a certificate, including after Go caches roots.
+	t.Setenv("SSL_CERT_FILE", caPath)
+	t.Setenv("SSL_CERT_DIR", t.TempDir())
+	return api.Config{URL: server.URL, APIKey: "synthetic-key"}, server.URL
 }
 
 // writes counts every request that could change the repository, refused or not.

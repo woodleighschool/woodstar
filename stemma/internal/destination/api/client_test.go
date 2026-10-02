@@ -47,10 +47,10 @@ func testClient(t *testing.T, handler http.Handler) (*Client, string) {
 	if err := os.WriteFile(caPath, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw}), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	remote, err := New(Config{URL: server.URL, APIKey: "synthetic-key", CAFile: caPath})
-	if err != nil {
-		t.Fatal(err)
-	}
+	// httptest TLS servers share a certificate, including after Go caches roots.
+	t.Setenv("SSL_CERT_FILE", caPath)
+	t.Setenv("SSL_CERT_DIR", t.TempDir())
+	remote := New(Config{URL: server.URL, APIKey: "synthetic-key"})
 	t.Cleanup(func() { _ = remote.Close() })
 	return remote, server.URL
 }

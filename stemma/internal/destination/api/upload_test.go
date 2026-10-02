@@ -22,10 +22,7 @@ import (
 )
 
 func TestFinalizationPreservesCallerDeadlineAndCancellation(t *testing.T) {
-	remote, err := New(Config{URL: "https://woodstar.test", APIKey: "synthetic-key"})
-	if err != nil {
-		t.Fatal(err)
-	}
+	remote := New(Config{URL: "https://woodstar.test", APIKey: "synthetic-key"})
 	defer func() { _ = remote.Close() }()
 	deadline := time.Now().Add(30 * time.Minute)
 	ctx, cancel := context.WithDeadline(t.Context(), deadline)
@@ -49,10 +46,7 @@ func TestUploadCancellationStopsHashing(t *testing.T) {
 	if err := os.WriteFile(file, []byte("body"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	remote, err := New(Config{URL: "https://woodstar.test", APIKey: "synthetic-key"})
-	if err != nil {
-		t.Fatal(err)
-	}
+	remote := New(Config{URL: "https://woodstar.test", APIKey: "synthetic-key"})
 	defer func() { _ = remote.Close() }()
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()

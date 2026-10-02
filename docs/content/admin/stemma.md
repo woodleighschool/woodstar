@@ -25,7 +25,7 @@ spec:
         api_key: "{{ env.WOODSTAR_API_KEY }}"
 ```
 
-Each release publishes the plugin at `ghcr.io/woodleighschool/woodstar/stemma`, tagged with the release; see [using plugins](https://woodleighschool.github.io/stemma/plugins) for pinning and updates. `url` is the server's HTTPS origin. For a private CA, add `ca_file` with an absolute path to the PEM certificate.
+Each release publishes the plugin at `ghcr.io/woodleighschool/woodstar/stemma`, tagged with the release; see [using plugins](https://woodleighschool.github.io/stemma/plugins) for pinning and updates. `url` is the server's HTTPS origin.
 
 ## Software settings
 

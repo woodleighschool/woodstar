@@ -93,7 +93,9 @@ func TestStemmaAdapterPostgresLifecycle(t *testing.T) { //nolint:funlen,gocognit
 	if err := os.WriteFile(caPath, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw}), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	connection := destinationapi.Config{URL: server.URL, APIKey: "synthetic-api-key", CAFile: caPath}
+	t.Setenv("SSL_CERT_FILE", caPath)
+	t.Setenv("SSL_CERT_DIR", t.TempDir())
+	connection := destinationapi.Config{URL: server.URL, APIKey: "synthetic-api-key"}
 	request := plugin.ReconcileRequest[destinationapi.Config]{
 		Identity: plugin.Identity{Project: "adapter-test", Resource: plugin.ResourceReference{Kind: "MacSoftware", Name: "AdapterApp"}, Destination: "woodstar"},
 		Config:   connection,

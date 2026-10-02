@@ -1,13 +1,13 @@
 module github.com/woodleighschool/woodstar/stemma
 
-go 1.27.0
+go 1.27.1
 
 require (
 	github.com/danielgtaylor/huma/v2 v2.39.1
 	github.com/go-chi/chi/v5 v5.3.2
 	github.com/invopop/jsonschema v0.14.0
 	github.com/woodleighschool/goodies/auth v1.1.0
-	github.com/woodleighschool/stemma v0.0.0-20260927014057-f029a477be92
+	github.com/woodleighschool/stemma v0.8.3-0.20261002133053-74f01f02c676
 	github.com/woodleighschool/woodstar v0.1.9-0.20260927022708-58a247142724
 	resty.dev/v3 v3.0.0-rc.4
 )
@@ -52,7 +52,8 @@ require (
 	github.com/kaptinlin/jsonschema v0.9.10 // indirect
 	github.com/leodido/go-urn v1.5.0 // indirect
 	github.com/mfridman/interpolate v0.0.2 // indirect
-	github.com/pb33f/ordered-map/v2 v2.3.1 // indirect
+	github.com/pb33f/go-yaml v0.1.0 // indirect
+	github.com/pb33f/ordered-map/v2 v2.3.2 // indirect
 	github.com/pressly/goose/v3 v3.28.0 // indirect
 	github.com/riverqueue/river v0.48.0 // indirect
 	github.com/riverqueue/river/riverdriver v0.48.0 // indirect

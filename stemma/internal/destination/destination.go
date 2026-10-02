@@ -36,10 +36,7 @@ func Handle(ctx context.Context, request plugin.ReconcileRequest[api.Config]) (p
 	if request.Method == "validate" {
 		return plugin.ReconcileResponse{Origins: metadata.origins}, nil
 	}
-	remote, err := api.New(cfg)
-	if err != nil {
-		return plugin.ReconcileResponse{}, err
-	}
+	remote := api.New(cfg)
 	defer func() { _ = remote.Close() }()
 	response := plugin.ReconcileResponse{Origins: metadata.origins}
 	done := plugin.Stage(ctx, "Observing destination", plugin.Detail(metadata.name+" "+metadata.version))
