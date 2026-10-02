@@ -29,9 +29,6 @@ linters:
     - wastedassign
     - whitespace
   settings:
-    gomoddirectives:
-      # The plugin builds against the server models in the parent module.
-      replace-local: true
     govet:
       enable-all: true
       disable:

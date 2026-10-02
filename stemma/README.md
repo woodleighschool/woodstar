@@ -28,7 +28,7 @@ mise run lint
 ```
 
 The binary is written to `build/plugin`. This directory is a separate Go
-module using the server models from the parent checkout and Stemma's public
+module using the released server models and Stemma's public
 `plugin` SDK. Use `mise run test-postgres` for the PostgreSQL integration test.
 
 ## 📦 Packaging

@@ -8,7 +8,7 @@ require (
 	github.com/invopop/jsonschema v0.14.0
 	github.com/woodleighschool/goodies/auth v1.1.0
 	github.com/woodleighschool/stemma v0.8.3-0.20261002133053-74f01f02c676
-	github.com/woodleighschool/woodstar v0.1.9-0.20260927022708-58a247142724
+	github.com/woodleighschool/woodstar v0.10.3
 	resty.dev/v3 v3.0.0-rc.4
 )
 
@@ -77,5 +77,3 @@ require (
 	golang.org/x/time v0.16.0 // indirect
 	howett.net/plist v1.0.1 // indirect
 )
-
-replace github.com/woodleighschool/woodstar => ..
