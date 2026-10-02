@@ -1,5 +1,49 @@
 # Changelog
 
+## [0.10.3](https://github.com/woodleighschool/woodstar/compare/0.10.2...0.10.3) (2026-10-02)
+
+
+### Features
+
+* **go:** update river monorepo (v0.47.0 → v0.48.0) ([#450](https://github.com/woodleighschool/woodstar/issues/450)) ([edf1868](https://github.com/woodleighschool/woodstar/commit/edf186814d649a30889de348ffd65bac3480ee36))
+* **munki:** import native pkginfo metadata ([0362737](https://github.com/woodleighschool/woodstar/commit/03627373b0bb595dc8de719f56d533da8607bc49))
+* **npm:** update dependency lucide-react (1.48.0 → 1.49.0) ([#447](https://github.com/woodleighschool/woodstar/issues/447)) ([f6fb9b5](https://github.com/woodleighschool/woodstar/commit/f6fb9b55cb49126303cf7034aee10cf7e0e664ae))
+* **stemma:** add publishing plugin ([06d1952](https://github.com/woodleighschool/woodstar/commit/06d1952b7bfa8d0050847a15ec6d438fd85b5e33))
+
+
+### Bug Fixes
+
+* **go:** update module buf.build/gen/go/northpolesec/protos/protocolbuffers/go (v1.36.12-20260925201459-be7fb260496c.2 → v1.36.12-20261001164304-786973e556bd.2) ([#453](https://github.com/woodleighschool/woodstar/issues/453)) ([aaec25a](https://github.com/woodleighschool/woodstar/commit/aaec25ad4b42c08adf09dd44a69fd9b14f67530f))
+* **npm:** update dependency @lezer/highlight (1.2.4 → 1.2.5) ([#441](https://github.com/woodleighschool/woodstar/issues/441)) ([d35d199](https://github.com/woodleighschool/woodstar/commit/d35d1997a84ff0e279036041e9ed5e6940536a97))
+* **npm:** update dependency @tanstack/react-store (0.11.1 → 0.11.2) ([#445](https://github.com/woodleighschool/woodstar/issues/445)) ([0a06a8c](https://github.com/woodleighschool/woodstar/commit/0a06a8cb04b40c95c57c8576f49846410b1d8bbd))
+* **npm:** update dependency react-day-picker (10.0.1 → 10.0.2) ([#451](https://github.com/woodleighschool/woodstar/issues/451)) ([7279af3](https://github.com/woodleighschool/woodstar/commit/7279af32743700e46bc4f192793dcf2312b053b9))
+* **npm:** update dependency sass (1.105.0 → 1.105.1) ([#446](https://github.com/woodleighschool/woodstar/issues/446)) ([778b4a0](https://github.com/woodleighschool/woodstar/commit/778b4a0b03e93cffd836a3266daef10ff853e103))
+* **npm:** update dependency shadcn (4.21.0 → 4.21.1) ([#456](https://github.com/woodleighschool/woodstar/issues/456)) ([1555753](https://github.com/woodleighschool/woodstar/commit/1555753722b73e56d79722f8f553633112670935))
+* **npm:** update dependency vite (8.3.1 → 8.3.2) ([#457](https://github.com/woodleighschool/woodstar/issues/457)) ([7b7e23f](https://github.com/woodleighschool/woodstar/commit/7b7e23f8bf0de4b10fdbc6dca773066d0353aecd))
+* **npm:** update tanstack-router monorepo ([#454](https://github.com/woodleighschool/woodstar/issues/454)) ([8f4d051](https://github.com/woodleighschool/woodstar/commit/8f4d0514904c60d34078af6b23da8b65de3a8269))
+* resolve published DB-IP Lite releases ([b5534f2](https://github.com/woodleighschool/woodstar/commit/b5534f2597e6fb64ec36aa5408caa2cbadc5a08c))
+
+
+### Code Refactoring
+
+* **stemma:** use runner HTTPS trust ([f84c174](https://github.com/woodleighschool/woodstar/commit/f84c174d91dc652f6b0467ee1125ea6ed431eced))
+
+
+### Continuous Integration
+
+* start renovate and release please runs in .github ([4fe1d4c](https://github.com/woodleighschool/woodstar/commit/4fe1d4ccf32b2e7298ff102c4dd476ee5b6ddf03))
+
+
+### Miscellaneous Chores
+
+* **mise:** lock file maintenance tool (mise) ([#448](https://github.com/woodleighschool/woodstar/issues/448)) ([c0824f2](https://github.com/woodleighschool/woodstar/commit/c0824f209d856df2d87eef3fad09e12b867bbaca))
+* **mise:** update tool golangci-lint (2.13.2 → 2.14.0) ([#436](https://github.com/woodleighschool/woodstar/issues/436)) ([834221e](https://github.com/woodleighschool/woodstar/commit/834221e2c0db86462124c4b21add638b0205b508))
+* **mise:** update tool oxfmt (0.70.0 → 0.71.0) ([#452](https://github.com/woodleighschool/woodstar/issues/452)) ([7b38b89](https://github.com/woodleighschool/woodstar/commit/7b38b89cd30968835695d462c0e15f3366b77cc8))
+* move AutoPkg processors to autopkg repo ([5de9c7f](https://github.com/woodleighschool/woodstar/commit/5de9c7f1d77382f24ad15f28177b5c2c2fee6383))
+* **npm:** lock file maintenance dependency (npm) ([#449](https://github.com/woodleighschool/woodstar/issues/449)) ([28bed26](https://github.com/woodleighschool/woodstar/commit/28bed26070fd0a84286f05ce22ba0fc0a2d09f43))
+* **npm:** update dependency pnpm (12.6.0 → 12.8.0) ([#443](https://github.com/woodleighschool/woodstar/issues/443)) ([8055f32](https://github.com/woodleighschool/woodstar/commit/8055f32afa12096546188ca9537946b604d3fd5c))
+* **npm:** update dependency pnpm (12.8.0 → 12.8.1) ([#444](https://github.com/woodleighschool/woodstar/issues/444)) ([cd97242](https://github.com/woodleighschool/woodstar/commit/cd97242c10b76aad003d15275f111dea48968c8d))
+
 ## [0.10.2](https://github.com/woodleighschool/woodstar/compare/0.10.1...0.10.2) (2026-09-28)
 
 
