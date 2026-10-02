@@ -1,0 +1,5 @@
+/build/
+/dist/
+
+# Generated dependency licenses
+/third_party_licenses/

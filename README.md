@@ -20,6 +20,7 @@ Manages macOS devices with Munki, Santa, and Orbit/osquery.
 - osquery reports, policies, live queries, and dynamic labels
 - Entra directory sync for people, groups, and user affinity
 - Distribution-point workers for local package delivery
+- Stemma plugin for publishing installers and Munki metadata
 
 ## 🚀 Usage
 
@@ -55,7 +56,7 @@ The [getting started guide](https://woodleighschool.github.io/woodstar/docs/gett
 
 ## ⚙️ Configuration
 
-The [documentation](https://woodleighschool.github.io/woodstar/) covers configuration, storage, client protocols, AutoPkg, and the API.
+The [documentation](https://woodleighschool.github.io/woodstar/) covers configuration, storage, client protocols, AutoPkg, Stemma, and the API.
 
 ## 🧑‍💻 Development
 

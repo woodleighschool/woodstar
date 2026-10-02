@@ -1,6 +1,6 @@
 ---
 # yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
-name: Release
+name: Server Release
 
 on:
   push:
@@ -8,6 +8,8 @@ on:
       - main
     paths-ignore:
       - "**.md"
+      - "stemma/**"
+      - ".release-please-manifest.json"
   release:
     types:
       - published
@@ -18,7 +20,10 @@ concurrency:
 
 jobs:
   release:
-    name: Release
+    if: >-
+      github.event_name == 'push' ||
+      !startsWith(github.event.release.tag_name, 'stemma-')
+    name: Server
     permissions:
       contents: read
       id-token: write
@@ -48,7 +53,9 @@ jobs:
 
   goreleaser:
     name: GoReleaser
-    if: ${{ github.event_name == 'release' }}
+    if: >-
+      github.event_name == 'release' &&
+      !startsWith(github.event.release.tag_name, 'stemma-')
     runs-on: ubuntu-26.04
     permissions:
       contents: write
@@ -80,3 +87,4 @@ jobs:
           args: release --clean --parallelism=2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GORELEASER_CURRENT_TAG: ${{ github.event.release.tag_name }}
