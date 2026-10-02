@@ -34,17 +34,19 @@ type CreateMutation struct {
 	Targets      Targets `json:"targets"                                                                         nullable:"false"`
 }
 
-func (m *CreateMutation) validate() error {
+// Validate checks software identity, metadata, and target rules without database access.
+func (m *CreateMutation) Validate() error {
 	if err := validation.Struct(m); err != nil {
 		return fmt.Errorf("%w: %w", fault.ErrInvalidInput, err)
 	}
 	if err := validateName(m.Name); err != nil {
 		return fmt.Errorf("%w: %w", fault.ErrInvalidInput, err)
 	}
-	return nil
+	return m.Targets.validate()
 }
 
-func (m *CreateMutation) normalize() {
+// Normalize canonicalizes software identity, display metadata, and targets.
+func (m *CreateMutation) Normalize() {
 	m.Name = norm.NFC.String(strings.TrimSpace(m.Name))
 	m.DisplayName = strings.TrimSpace(m.DisplayName)
 	if m.DisplayName == m.Name {
@@ -66,14 +68,16 @@ type UpdateMutation struct {
 	Targets      Targets `json:"targets"                                                        nullable:"false"`
 }
 
-func (m *UpdateMutation) validate() error {
+// Validate checks editable metadata and target rules without database access.
+func (m *UpdateMutation) Validate() error {
 	if err := validation.Struct(m); err != nil {
 		return fmt.Errorf("%w: %w", fault.ErrInvalidInput, err)
 	}
-	return nil
+	return m.Targets.validate()
 }
 
-func (m *UpdateMutation) normalize(name string) {
+// Normalize canonicalizes display metadata against the immutable software name.
+func (m *UpdateMutation) Normalize(name string) {
 	m.DisplayName = strings.TrimSpace(m.DisplayName)
 	if m.DisplayName == name {
 		m.DisplayName = ""
