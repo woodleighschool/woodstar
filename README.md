@@ -56,7 +56,7 @@ The [getting started guide](https://woodleighschool.github.io/woodstar/docs/gett
 
 ## ⚙️ Configuration
 
-The [documentation](https://woodleighschool.github.io/woodstar/) covers configuration, storage, client protocols, AutoPkg, Stemma, and the API.
+The [documentation](https://woodleighschool.github.io/woodstar/) covers configuration, storage, client protocols, Stemma, and the API.
 
 ## 🧑‍💻 Development
 
@@ -81,7 +81,6 @@ Licensed under the [Apache License 2.0](LICENSE).
 
 - **[Munki](https://github.com/munki/munki)** - Managed software installation for macOS
 - **[MunkiAdmin](https://github.com/hjuutilainen/munkiadmin)** - Graphical editor for Munki repositories
-- **[AutoPkg](https://github.com/autopkg/autopkg)** - Automation framework for macOS software packaging
 - **[Santa](https://github.com/northpolesec/santa)** - Binary authorization and endpoint security for macOS
 - **[osquery](https://github.com/osquery/osquery)** - SQL-powered operating system instrumentation
 - **[Fleet](https://github.com/fleetdm/fleet)** - Open-source device management platform and home of Orbit
