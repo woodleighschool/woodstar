@@ -7,7 +7,7 @@ require (
 	github.com/go-chi/chi/v5 v5.3.2
 	github.com/invopop/jsonschema v0.14.0
 	github.com/woodleighschool/goodies/auth v1.1.0
-	github.com/woodleighschool/stemma v0.9.0
+	github.com/woodleighschool/stemma v0.9.1
 	github.com/woodleighschool/woodstar v0.10.3
 	resty.dev/v3 v3.0.0-rc.4
 )
