@@ -43,7 +43,7 @@ jobs:
         id: release-version
         env:
           RELEASE_TAG: ${{ github.event.release.tag_name }}
-        run: echo "version=${RELEASE_TAG#stemma-}" >> "$GITHUB_OUTPUT"
+        run: echo "version=${RELEASE_TAG#stemma-v}" >> "$GITHUB_OUTPUT"
 
       - name: Resolve GoReleaser version
         id: goreleaser-version
