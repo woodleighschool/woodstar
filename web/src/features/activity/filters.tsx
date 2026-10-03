@@ -1,5 +1,6 @@
 import { format, isValid, parseISO, subMonths } from "date-fns";
 import { X } from "lucide-react";
+import { useState } from "react";
 import type { DateRange } from "react-day-picker";
 
 import { DataTableSearchInput } from "@components/data-table/data-table-search-input";
@@ -45,6 +46,8 @@ export function ActivityFilters({
   onChange: (next: Partial<ActivityFilterState>) => void;
   onReset: () => void;
 }) {
+  const [calendarToday, setCalendarToday] = useState(() => new Date());
+
   return (
     <div className="flex flex-wrap items-center gap-2" aria-busy={loading || undefined}>
       <DataTableSearchInput
@@ -88,8 +91,11 @@ export function ActivityFilters({
       />
       <DateRangePicker
         value={parseDateRange(value.from, value.to)}
-        defaultMonth={subMonths(new Date(), 1)}
-        disabled={{ after: new Date() }}
+        defaultMonth={subMonths(calendarToday, 1)}
+        disabled={{ after: calendarToday }}
+        onOpenChange={(open) => {
+          if (open) setCalendarToday(new Date());
+        }}
         onValueChange={(range) =>
           onChange({
             from: range?.from ? format(range.from, "yyyy-MM-dd") : undefined,
