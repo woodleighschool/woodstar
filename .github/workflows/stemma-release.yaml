@@ -33,7 +33,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup Mise
-        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+        uses: jdx/mise-action@9149ea85001c7435d5a66bb127d6a1b6227cb0a5 # v5.0.0
         with:
           cache: false
           experimental: true
@@ -74,7 +74,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish plugin
-        uses: woodleighschool/stemma/actions/publish-plugin@971d98b107619aab412d600dc574350034d58e26 # 0.3.0
+        uses: woodleighschool/stemma/actions/publish-plugin@394efcac8b53d42b75da447ab02a0d0b935730e5 # v0.8.2
         with:
           workdir: stemma
           image: ghcr.io/woodleighschool/woodstar/stemma:${{ steps.release-version.outputs.version }}
