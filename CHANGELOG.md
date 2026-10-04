@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.10.4](https://github.com/woodleighschool/woodstar/compare/v0.10.3...v0.10.4) (2026-10-04)
+
+
+### Features
+
+* **npm:** update dependency oxlint (1.85.0 → 1.86.0) ([#442](https://github.com/woodleighschool/woodstar/issues/442)) ([f03f6ff](https://github.com/woodleighschool/woodstar/commit/f03f6ff9853f671447feeea1e24d09f46557c824))
+
+
+### Bug Fixes
+
+* **npm:** update dependency @types/node (26.6.3 → 26.6.4) ([#471](https://github.com/woodleighschool/woodstar/issues/471)) ([43127b3](https://github.com/woodleighschool/woodstar/commit/43127b3620087bc4caf3090bee7f9ea05643b9b4))
+* **npm:** update dependency docusaurus-plugin-llms (0.6.0 → 0.6.1) ([#480](https://github.com/woodleighschool/woodstar/issues/480)) ([520296d](https://github.com/woodleighschool/woodstar/commit/520296d5a881ffbb0d02c07b67791b675cdf0fa8))
+* **npm:** update dependency lucide-react (1.49.0 → 1.50.0) ([#476](https://github.com/woodleighschool/woodstar/issues/476)) ([6e9088a](https://github.com/woodleighschool/woodstar/commit/6e9088a5e017328fe8c151870885f4cdd2e52a0b))
+* **npm:** update tanstack-query monorepo (5.104.0 → 5.104.1) ([#475](https://github.com/woodleighschool/woodstar/issues/475)) ([e9db028](https://github.com/woodleighschool/woodstar/commit/e9db0282621d67bb3b57b6e478648820c315debd))
+
 ## [0.10.3](https://github.com/woodleighschool/woodstar/compare/0.10.2...0.10.3) (2026-10-02)
 
 
