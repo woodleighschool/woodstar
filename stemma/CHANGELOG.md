@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.1.0](https://github.com/woodleighschool/woodstar/compare/stemma-1.0.0...stemma-v1.1.0) (2026-10-05)
+
+
+### Features
+
+* **stemma:** describe package creation and uploaded artifacts ([dd45f58](https://github.com/woodleighschool/woodstar/commit/dd45f58da01f1afa8c40cbaf8e1d27f5fdbfa415))
+
+
+### Bug Fixes
+
+* **go:** update module github.com/woodleighschool/stemma (v0.9.0 → v0.9.1) ([#473](https://github.com/woodleighschool/woodstar/issues/473)) ([d4ec069](https://github.com/woodleighschool/woodstar/commit/d4ec0692a75fa22d3b3530e54b5b0fbdd4a91cae))
+* **go:** update module github.com/woodleighschool/stemma (v0.9.2-0.20261005092845-51feb8606347 → v0.10.0) ([#460](https://github.com/woodleighschool/woodstar/issues/460)) ([dd2ac31](https://github.com/woodleighschool/woodstar/commit/dd2ac316fec17f0ad7306d4f95580f15d8656390))
+
 ## 1.0.0 (2026-10-03)
 
 
