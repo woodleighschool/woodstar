@@ -39,6 +39,7 @@ func TestCreationReportsInitialMetadataAndAppliesIt(t *testing.T) {
 	if len(planned.Changes) != 2 || fixture.writes() != 0 {
 		t.Fatalf("initial plan=%+v writes=%d", planned.Changes, fixture.writes())
 	}
+	reviews := map[string]string{}
 	initial := make(map[string]map[string]json.RawMessage)
 	for _, change := range planned.Changes {
 		if change.Action != "create" || len(change.Before) != 0 || change.Kind != "metadata" {
@@ -49,6 +50,14 @@ func TestCreationReportsInitialMetadataAndAppliesIt(t *testing.T) {
 			t.Fatal(err)
 		}
 		initial[change.Field] = fields
+		reviews[change.Field] = strings.Join(change.Review, "\n")
+	}
+	for field, wants := range map[string][]string{"software": {"Software", "name: Example", "Targeting", "include Staff: managed_installs (latest)", "exclude: none"}, "package": {"Package", "version: 1.0", "installer_type: nopkg", "unattended_install: false", "supported_architectures: []"}} {
+		for _, want := range wants {
+			if !strings.Contains(reviews[field], want) {
+				t.Errorf("%s review missing %q: %s", field, want, reviews[field])
+			}
+		}
 	}
 	for field, want := range map[string]string{"name": `"Example"`, "display_name": `""`, "description": `"Managed description"`} {
 		if got := string(initial["software"][field]); got != want {

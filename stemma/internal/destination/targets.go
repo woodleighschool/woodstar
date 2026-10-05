@@ -89,6 +89,10 @@ func resolveTargets(ctx context.Context, remote *api.Client, metadata *metadata)
 	if err != nil {
 		return fmt.Errorf("targets: %w", err)
 	}
+	metadata.labelNames = make(map[int64]string, len(ids))
+	for name, id := range ids {
+		metadata.labelNames[id] = name
+	}
 	native := map[string]any{}
 	if declared.Include != nil {
 		entries := make([]software.Include, 0, len(declared.Include))

@@ -20,6 +20,7 @@ func resolveReferences(ctx context.Context, remote *api.Client, metadata *metada
 	if err != nil {
 		return err
 	}
+	metadata.referenceNames = map[packages.PackageReferenceMutation]string{}
 	for field, names := range map[string][]munki.PkginfoReference{"requires": metadata.requires, "update_for": metadata.updateFor} {
 		if names == nil {
 			continue
@@ -37,6 +38,11 @@ func resolveReferences(ctx context.Context, remote *api.Client, metadata *metada
 			if err != nil {
 				return fmt.Errorf("%s: %w", field, err)
 			}
+			name := found.Name
+			if reference.Version != "" {
+				name += " · " + reference.Version
+			}
+			metadata.referenceNames[value] = name
 			values = append(values, value)
 		}
 		for _, link := range metadata.links[field] {
@@ -48,6 +54,11 @@ func resolveReferences(ctx context.Context, remote *api.Client, metadata *metada
 			if err != nil {
 				return fmt.Errorf("%s: %w", field, err)
 			}
+			name := found.Name
+			if link.Version != "" {
+				name += " · " + link.Version
+			}
+			metadata.referenceNames[value] = name
 			values = append(values, value)
 		}
 		fields[field] = raw(values)

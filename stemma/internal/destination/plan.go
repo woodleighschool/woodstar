@@ -55,12 +55,13 @@ func plan(metadata metadata, observed api.Observation) (desired, error) {
 	if observed.Software == nil {
 		initial := initialMetadata(nextSoftware, metadata.software.Bytes())
 		initial["name"] = raw(metadata.name)
-		result.changes = append(result.changes, plugin.Change{Kind: "metadata", Field: "software", Action: "create", After: raw(initial)})
+		result.changes = append(result.changes, plugin.Change{Kind: "metadata", Field: "software", Action: "create", After: raw(initial), Review: creationReview("Software", initial, metadata)})
 	} else {
 		result.changes = append(result.changes, diff("software", currentSoftware, nextSoftware)...)
 	}
 	if observed.Package == nil {
-		result.changes = append(result.changes, plugin.Change{Kind: "metadata", Field: "package", Action: "create", After: raw(initialMetadata(result.pkg, metadata.pkg.Bytes()))})
+		initial := initialMetadata(result.pkg, metadata.pkg.Bytes())
+		result.changes = append(result.changes, plugin.Change{Kind: "metadata", Field: "package", Action: "create", After: raw(initial), Review: creationReview("Package", initial, metadata)})
 	} else {
 		result.changes = append(result.changes, diff("package", currentPackage, result.pkg)...)
 	}
@@ -81,7 +82,7 @@ func plan(metadata metadata, observed api.Observation) (desired, error) {
 	}
 	result.content = file == nil || file.SHA256 != artifact.SHA256 || file.SizeBytes != artifact.Size
 	if result.content {
-		change := plugin.Change{Kind: "content", Field: "package.installer", Action: "upload", After: raw(artifact.SHA256)}
+		change := plugin.Change{Kind: "content", Field: "package.installer", Action: "upload", Filename: artifact.Filename, After: raw(artifact.SHA256)}
 		if file != nil {
 			change.Before = raw(file.SHA256)
 		}
@@ -103,7 +104,7 @@ func iconChange(icon plugin.Artifact, observed api.Observation) (plugin.Change, 
 	if current != nil && current.SHA256 == icon.SHA256 && current.SizeBytes == icon.Size {
 		return plugin.Change{}, false
 	}
-	change := plugin.Change{Kind: "content", Field: "software.icon", Action: "upload", After: raw(icon.SHA256)}
+	change := plugin.Change{Kind: "content", Field: "software.icon", Action: "upload", Filename: icon.Filename, After: raw(icon.SHA256)}
 	if current != nil {
 		change.Before = raw(current.SHA256)
 	}

@@ -30,18 +30,20 @@ type controls struct {
 // metadata is a declaration resolved against its artifacts: the publication's
 // native identity and the sparse changes it makes to the software and package.
 type metadata struct {
-	name      string
-	version   string
-	software  software.Patch
-	pkg       packages.Patch
-	requires  []munki.PkginfoReference
-	updateFor []munki.PkginfoReference
-	links     map[string][]pkginfo.ResourceRelationship
-	peers     map[string]json.RawMessage
-	icon      plugin.Artifact
-	installer plugin.Artifact
-	controls  controls
-	origins   map[string]string
+	labelNames     map[int64]string
+	referenceNames map[packages.PackageReferenceMutation]string
+	name           string
+	version        string
+	software       software.Patch
+	pkg            packages.Patch
+	requires       []munki.PkginfoReference
+	updateFor      []munki.PkginfoReference
+	links          map[string][]pkginfo.ResourceRelationship
+	peers          map[string]json.RawMessage
+	icon           plugin.Artifact
+	installer      plugin.Artifact
+	controls       controls
+	origins        map[string]string
 }
 
 func readRequest(ctx context.Context, request plugin.ReconcileRequest[api.Config]) (api.Config, metadata, error) {

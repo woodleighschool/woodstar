@@ -96,7 +96,7 @@ func TestApplyAdoptsAnExistingPublication(t *testing.T) {
 	if planned, err = Handle(t.Context(), request); err != nil {
 		t.Fatal(err)
 	}
-	want := plugin.Change{Kind: "content", Field: "package.installer", Action: "upload", Before: raw(before), After: raw(request.Artifact.SHA256)}
+	want := plugin.Change{Kind: "content", Field: "package.installer", Action: "upload", Filename: request.Artifact.Filename, Before: raw(before), After: raw(request.Artifact.SHA256)}
 	if len(planned.Changes) != 1 || !reflect.DeepEqual(planned.Changes[0], want) {
 		t.Fatalf("changed bytes plan=%+v", planned.Changes)
 	}
