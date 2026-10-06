@@ -52,7 +52,7 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} \
     go-licenses save ./cmd/woodstar --save_path third_party_licenses --ignore github.com/woodleighschool/woodstar --force
 
 RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} \
-    go build -trimpath -ldflags "-s -w -X github.com/woodleighschool/woodstar/internal/buildinfo.Version=${VERSION}" -o woodstar ./cmd/woodstar
+    go build -trimpath -ldflags "-s -w -X github.com/woodleighschool/woodstar/internal/buildinfo.Version=${VERSION#v}" -o woodstar ./cmd/woodstar
 RUN upx --best --lzma woodstar
 RUN mkdir /data
 
