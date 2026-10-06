@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.10.3](https://github.com/woodleighschool/woodstar/compare/0.10.2...0.10.3) (2026-10-02)
+## [0.10.3](https://github.com/woodleighschool/woodstar/compare/v0.10.2...v0.10.3) (2026-10-02)
 
 
 ### Features
@@ -44,7 +44,7 @@
 * **npm:** update dependency pnpm (12.6.0 → 12.8.0) ([#443](https://github.com/woodleighschool/woodstar/issues/443)) ([8055f32](https://github.com/woodleighschool/woodstar/commit/8055f32afa12096546188ca9537946b604d3fd5c))
 * **npm:** update dependency pnpm (12.8.0 → 12.8.1) ([#444](https://github.com/woodleighschool/woodstar/issues/444)) ([cd97242](https://github.com/woodleighschool/woodstar/commit/cd97242c10b76aad003d15275f111dea48968c8d))
 
-## [0.10.2](https://github.com/woodleighschool/woodstar/compare/0.10.1...0.10.2) (2026-09-28)
+## [0.10.2](https://github.com/woodleighschool/woodstar/compare/v0.10.1...v0.10.2) (2026-09-28)
 
 
 ### Features
@@ -121,7 +121,7 @@
 * **npm:** update dependency pnpm (12.4.2 → 12.5.1) ([#400](https://github.com/woodleighschool/woodstar/issues/400)) ([a55a5db](https://github.com/woodleighschool/woodstar/commit/a55a5db4ae009be12b60b2d2f7aae0339d0ea96b))
 * **npm:** update dependency pnpm (12.5.1 → 12.6.0) ([#415](https://github.com/woodleighschool/woodstar/issues/415)) ([6437a2f](https://github.com/woodleighschool/woodstar/commit/6437a2f126ca30891a10838c55c00e90a3cd52ff))
 
-## [0.10.1](https://github.com/woodleighschool/woodstar/compare/0.10.0...0.10.1) (2026-09-15)
+## [0.10.1](https://github.com/woodleighschool/woodstar/compare/v0.10.0...v0.10.1) (2026-09-15)
 
 
 ### Features
@@ -141,7 +141,7 @@
 
 * **npm:** lock file maintenance dependency (npm) ([#375](https://github.com/woodleighschool/woodstar/issues/375)) ([28c95d1](https://github.com/woodleighschool/woodstar/commit/28c95d1931a4ca33589b983b5e51132bf94298fc))
 
-## [0.10.0](https://github.com/woodleighschool/woodstar/compare/0.9.7...0.10.0) (2026-09-15)
+## [0.10.0](https://github.com/woodleighschool/woodstar/compare/v0.9.7...v0.10.0) (2026-09-15)
 
 
 ### ⚠ BREAKING CHANGES
@@ -217,7 +217,7 @@
 * **npm:** update dependency pnpm (12.3.4 → 12.4.1) ([#362](https://github.com/woodleighschool/woodstar/issues/362)) ([29f9cd9](https://github.com/woodleighschool/woodstar/commit/29f9cd9abafc4ebc771bfa82cf03263182d411d8))
 * remove redundant workflow lint task ([d311542](https://github.com/woodleighschool/woodstar/commit/d3115425c16bebdd56531b5b464507df82653b96))
 
-## [0.9.7](https://github.com/woodleighschool/woodstar/compare/0.9.6...0.9.7) (2026-09-05)
+## [0.9.7](https://github.com/woodleighschool/woodstar/compare/v0.9.6...v0.9.7) (2026-09-05)
 
 
 ### Features
@@ -268,7 +268,7 @@
 * **mise:** update tool pnpm (11.24.0 → 11.25.0) ([#308](https://github.com/woodleighschool/woodstar/issues/308)) ([fa91305](https://github.com/woodleighschool/woodstar/commit/fa913058dad374713c07380e51cda31ffc9f5b0c))
 * **npm:** lock file maintenance dependency (npm) ([#304](https://github.com/woodleighschool/woodstar/issues/304)) ([9ea27c6](https://github.com/woodleighschool/woodstar/commit/9ea27c6d8b1b5faff28af316cc2f23015f7441f7))
 
-## [0.9.6](https://github.com/woodleighschool/woodstar/compare/0.9.5...0.9.6) (2026-08-31)
+## [0.9.6](https://github.com/woodleighschool/woodstar/compare/v0.9.5...v0.9.6) (2026-08-31)
 
 
 ### Features
@@ -310,7 +310,7 @@
 * **mise:** update tool golangci-lint (2.13.1 → 2.13.2) ([#298](https://github.com/woodleighschool/woodstar/issues/298)) ([152ed1d](https://github.com/woodleighschool/woodstar/commit/152ed1dfbc72858f0f685394f40968bd726b8e91))
 * **mise:** update tool lefthook (2.1.11 → 2.1.12) ([#299](https://github.com/woodleighschool/woodstar/issues/299)) ([2fcce2c](https://github.com/woodleighschool/woodstar/commit/2fcce2ceacece14832b2e9496c7f94c26a39e7fd))
 
-## [0.9.5](https://github.com/woodleighschool/woodstar/compare/0.9.4...0.9.5) (2026-08-28)
+## [0.9.5](https://github.com/woodleighschool/woodstar/compare/v0.9.4...v0.9.5) (2026-08-28)
 
 
 ### Features
@@ -353,7 +353,7 @@
 * **mise:** update tool pnpm (11.23.0 → 11.24.0) ([#265](https://github.com/woodleighschool/woodstar/issues/265)) ([27ee6b6](https://github.com/woodleighschool/woodstar/commit/27ee6b611d5c47aec677a08af78eb816522d83c7))
 * **renovate:** drop redundant protobuf rule ([3704b29](https://github.com/woodleighschool/woodstar/commit/3704b29b025a93b4281af0a984548e0336b1823a))
 
-## [0.9.4](https://github.com/woodleighschool/woodstar/compare/0.9.3...0.9.4) (2026-08-25)
+## [0.9.4](https://github.com/woodleighschool/woodstar/compare/v0.9.3...v0.9.4) (2026-08-25)
 
 
 ### Features
@@ -383,7 +383,7 @@
 * **mise:** update tool oxfmt (0.64.0 → 0.65.0) ([#257](https://github.com/woodleighschool/woodstar/issues/257)) ([9ae0736](https://github.com/woodleighschool/woodstar/commit/9ae0736c8474a13828337da803dc54e0cf670c0a))
 * **renovate:** inherit AWS changelog policy ([98a3a8a](https://github.com/woodleighschool/woodstar/commit/98a3a8a5868c736f6274f1805ab7e0f2540f3cbd))
 
-## [0.9.3](https://github.com/woodleighschool/woodstar/compare/0.9.2...0.9.3) (2026-08-24)
+## [0.9.3](https://github.com/woodleighschool/woodstar/compare/v0.9.2...v0.9.3) (2026-08-24)
 
 
 ### Features
@@ -412,7 +412,7 @@
 * **npm:** lock file maintenance dependency (npm) ([#248](https://github.com/woodleighschool/woodstar/issues/248)) ([8855450](https://github.com/woodleighschool/woodstar/commit/8855450ba76da6bcc16cfe36f5fc84c3a5db25cf))
 * **release-please:** sync configuration ([de04e00](https://github.com/woodleighschool/woodstar/commit/de04e007ecb3c387466f3dc9aeb2715700791b43))
 
-## [0.9.2](https://github.com/woodleighschool/woodstar/compare/0.9.1...0.9.2) (2026-08-22)
+## [0.9.2](https://github.com/woodleighschool/woodstar/compare/v0.9.1...v0.9.2) (2026-08-22)
 
 
 ### Features
@@ -437,7 +437,7 @@
 
 * **deps:** replace stale direct dependencies ([4cb2206](https://github.com/woodleighschool/woodstar/commit/4cb2206c2da05b62d3f157bcb86e7cda89cf23a2))
 
-## [0.9.1](https://github.com/woodleighschool/woodstar/compare/0.9.0...0.9.1) (2026-08-20)
+## [0.9.1](https://github.com/woodleighschool/woodstar/compare/v0.9.0...v0.9.1) (2026-08-20)
 
 
 ### Features
@@ -457,7 +457,7 @@
 * **pnpm:** regenerate mature lockfiles ([9b838a7](https://github.com/woodleighschool/woodstar/commit/9b838a7f9da003b126b30741257fd001f79f81d6))
 * **pnpm:** restore default release cooldown ([31bb7f9](https://github.com/woodleighschool/woodstar/commit/31bb7f91065f7e4fe00185d6f43505afcf953032))
 
-## [0.9.0](https://github.com/woodleighschool/woodstar/compare/0.8.18...0.9.0) (2026-08-19)
+## [0.9.0](https://github.com/woodleighschool/woodstar/compare/v0.8.18...v0.9.0) (2026-08-19)
 
 
 ### ⚠ BREAKING CHANGES
@@ -474,7 +474,7 @@
 * **npm:** update tanstack-router monorepo ([#214](https://github.com/woodleighschool/woodstar/issues/214)) ([0cfafc0](https://github.com/woodleighschool/woodstar/commit/0cfafc0f67baf4e6476567f3b0dc991c7886bd37))
 * **osquery:** redeliver queued remediations ([2cdfd64](https://github.com/woodleighschool/woodstar/commit/2cdfd6433f6c7d070f3e736e88874abb735d485b))
 
-## [0.8.18](https://github.com/woodleighschool/woodstar/compare/0.8.17...0.8.18) (2026-08-18)
+## [0.8.18](https://github.com/woodleighschool/woodstar/compare/v0.8.17...v0.8.18) (2026-08-18)
 
 
 ### Features
@@ -493,7 +493,7 @@
 * **docs:** formatting nag ([93f946c](https://github.com/woodleighschool/woodstar/commit/93f946cc4b2c435ca315bcff333b010ea92c7f5a))
 * **lefthook:** allow ignored formatter inputs ([438e3a6](https://github.com/woodleighschool/woodstar/commit/438e3a660f69224a5f27d366ede72c571adbf620))
 
-## [0.8.17](https://github.com/woodleighschool/woodstar/compare/0.8.16...0.8.17) (2026-08-16)
+## [0.8.17](https://github.com/woodleighschool/woodstar/compare/v0.8.16...v0.8.17) (2026-08-16)
 
 
 ### Features
@@ -505,7 +505,7 @@
 
 * **osquery:** restore sorting and show remediation ([e733ad3](https://github.com/woodleighschool/woodstar/commit/e733ad3b915f4c64bfc050316cc636ff072a58b7))
 
-## [0.8.16](https://github.com/woodleighschool/woodstar/compare/0.8.15...0.8.16) (2026-08-16)
+## [0.8.16](https://github.com/woodleighschool/woodstar/compare/v0.8.15...v0.8.16) (2026-08-16)
 
 
 ### Features
@@ -520,7 +520,7 @@
 * **deps:** update tanstack-router monorepo ([#200](https://github.com/woodleighschool/woodstar/issues/200)) ([ae9ddb9](https://github.com/woodleighschool/woodstar/commit/ae9ddb9b43fd5583189ee81d5183c279ec913b0e))
 * **hosts:** preserve identity on re-enrollment ([5bb938c](https://github.com/woodleighschool/woodstar/commit/5bb938cbda41f4a5428c9b2f9e20d822da6d705f))
 
-## [0.8.15](https://github.com/woodleighschool/woodstar/compare/0.8.14...0.8.15) (2026-08-14)
+## [0.8.15](https://github.com/woodleighschool/woodstar/compare/v0.8.14...v0.8.15) (2026-08-14)
 
 
 ### Features
@@ -539,7 +539,7 @@
 * **web:** remove unused exports ([01cf7c1](https://github.com/woodleighschool/woodstar/commit/01cf7c1c21d1b1872d62eef25761729a09378a0a))
 * **web:** reuse host status indicators ([36d5724](https://github.com/woodleighschool/woodstar/commit/36d572495b213fcfa73a822771e127191828859c))
 
-## [0.8.14](https://github.com/woodleighschool/woodstar/compare/0.8.13...0.8.14) (2026-08-14)
+## [0.8.14](https://github.com/woodleighschool/woodstar/compare/v0.8.13...v0.8.14) (2026-08-14)
 
 
 ### Features
@@ -558,7 +558,7 @@
 * **osquery:** forward scheduled report errors ([f46b530](https://github.com/woodleighschool/woodstar/commit/f46b53058f47c0136c5df7df01ea4be27f19d6e1))
 * **tooling:** group toolchain updates ([2d2fa8e](https://github.com/woodleighschool/woodstar/commit/2d2fa8e246ca56771ea38ae9ef850b9bb19ffc28))
 
-## [0.8.13](https://github.com/woodleighschool/woodstar/compare/0.8.12...0.8.13) (2026-08-13)
+## [0.8.13](https://github.com/woodleighschool/woodstar/compare/v0.8.12...v0.8.13) (2026-08-13)
 
 
 ### Features
@@ -573,7 +573,7 @@
 * **osquery:** normalize reported primary IPs ([72114e2](https://github.com/woodleighschool/woodstar/commit/72114e2bf8152cdf972fa24d9f5c3aad13e17abc))
 * **osquery:** quiet client query failures ([c39a4b2](https://github.com/woodleighschool/woodstar/commit/c39a4b2b932deba73249a3c5fa7574458d55b94f))
 
-## [0.8.12](https://github.com/woodleighschool/woodstar/compare/0.8.11...0.8.12) (2026-08-13)
+## [0.8.12](https://github.com/woodleighschool/woodstar/compare/v0.8.11...v0.8.12) (2026-08-13)
 
 
 ### Features
@@ -592,7 +592,7 @@
 
 * persist authoritative snapshots set-wise ([597256c](https://github.com/woodleighschool/woodstar/commit/597256c75b0f716ca50d59fc75524b6eaa927379))
 
-## [0.8.11](https://github.com/woodleighschool/woodstar/compare/0.8.10...0.8.11) (2026-08-12)
+## [0.8.11](https://github.com/woodleighschool/woodstar/compare/v0.8.10...v0.8.11) (2026-08-12)
 
 
 ### Features
@@ -615,7 +615,7 @@
 * **api:** give capabilities HTTP ownership ([4fad4b3](https://github.com/woodleighschool/woodstar/commit/4fad4b3398ef6e81837b3561fb4207966d4a9494))
 * **labels:** scope derived membership refreshes ([ca19fe0](https://github.com/woodleighschool/woodstar/commit/ca19fe0f733c2d45f2014bfbb20b21c13d500848))
 
-## [0.8.10](https://github.com/woodleighschool/woodstar/compare/0.8.9...0.8.10) (2026-08-10)
+## [0.8.10](https://github.com/woodleighschool/woodstar/compare/v0.8.9...v0.8.10) (2026-08-10)
 
 
 ### Bug Fixes
@@ -628,7 +628,7 @@
 
 * **web:** standardize compact value presentation ([09dc132](https://github.com/woodleighschool/woodstar/commit/09dc1323998c3161724432fccfb995fa8e353c92))
 
-## [0.8.9](https://github.com/woodleighschool/woodstar/compare/0.8.8...0.8.9) (2026-08-10)
+## [0.8.9](https://github.com/woodleighschool/woodstar/compare/v0.8.8...v0.8.9) (2026-08-10)
 
 
 ### Features
@@ -647,7 +647,7 @@
 
 * **web:** separate text link styling ([6d0b22b](https://github.com/woodleighschool/woodstar/commit/6d0b22b613dffe017cf475a5145675cf42b4e989))
 
-## [0.8.8](https://github.com/woodleighschool/woodstar/compare/0.8.7...0.8.8) (2026-08-10)
+## [0.8.8](https://github.com/woodleighschool/woodstar/compare/v0.8.7...v0.8.8) (2026-08-10)
 
 
 ### Bug Fixes
@@ -656,7 +656,7 @@
 * **directory:** reconcile Entra identities by object ID ([#169](https://github.com/woodleighschool/woodstar/issues/169)) ([a1811ca](https://github.com/woodleighschool/woodstar/commit/a1811ca20e7733150c367075b315cb82784ed491))
 * **web:** rebalance wide table layouts ([df9a278](https://github.com/woodleighschool/woodstar/commit/df9a2789216ebde8b3e9c1bb362121f453ad2710))
 
-## [0.8.7](https://github.com/woodleighschool/woodstar/compare/0.8.6...0.8.7) (2026-08-10)
+## [0.8.7](https://github.com/woodleighschool/woodstar/compare/v0.8.6...v0.8.7) (2026-08-10)
 
 
 ### Features
@@ -671,7 +671,7 @@
 * **mdp:** share worker sessions across replicas ([#155](https://github.com/woodleighschool/woodstar/issues/155)) ([718ffbe](https://github.com/woodleighschool/woodstar/commit/718ffbe3065721c9b56a378704227d6943be640d))
 * **osquery:** share live queries across replicas ([#163](https://github.com/woodleighschool/woodstar/issues/163)) ([a7f2948](https://github.com/woodleighschool/woodstar/commit/a7f29483ab0b1f95070a212971728fc570d0cf1c))
 
-## [0.8.6](https://github.com/woodleighschool/woodstar/compare/0.8.5...0.8.6) (2026-08-09)
+## [0.8.6](https://github.com/woodleighschool/woodstar/compare/v0.8.5...v0.8.6) (2026-08-09)
 
 
 ### Features
@@ -704,7 +704,7 @@
 * **postgres:** pass pgx pools directly ([657dffe](https://github.com/woodleighschool/woodstar/commit/657dffefd35b379d92d736a2dc341241c9a7e68e))
 * **stores:** make persistence ownership explicit ([ced7e13](https://github.com/woodleighschool/woodstar/commit/ced7e133ef77efb0f4defd82701eb16dd30a75c6))
 
-## [0.8.5](https://github.com/woodleighschool/woodstar/compare/0.8.4...0.8.5) (2026-08-09)
+## [0.8.5](https://github.com/woodleighschool/woodstar/compare/v0.8.4...v0.8.5) (2026-08-09)
 
 
 ### Features
@@ -732,14 +732,14 @@
 * **web:** simplify state presentation ([eeca73a](https://github.com/woodleighschool/woodstar/commit/eeca73ab2f724dc0f37758daced3b611d7f27dbc))
 * **web:** standardize detail actions ([ad14979](https://github.com/woodleighschool/woodstar/commit/ad14979adc415a42b60e111cecb96a1cf6ab4607))
 
-## [0.8.4](https://github.com/woodleighschool/woodstar/compare/0.8.3...0.8.4) (2026-08-08)
+## [0.8.4](https://github.com/woodleighschool/woodstar/compare/v0.8.3...v0.8.4) (2026-08-08)
 
 
 ### Bug Fixes
 
 * **geoip:** require explicit database paths ([c26343d](https://github.com/woodleighschool/woodstar/commit/c26343dad92594841fe8db19cb6c97420fc430c2))
 
-## [0.8.3](https://github.com/woodleighschool/woodstar/compare/0.8.2...0.8.3) (2026-08-08)
+## [0.8.3](https://github.com/woodleighschool/woodstar/compare/v0.8.2...v0.8.3) (2026-08-08)
 
 
 ### Features
@@ -757,7 +757,7 @@
 
 * **config:** document GeoIP databases ([f1213fc](https://github.com/woodleighschool/woodstar/commit/f1213fcd5786cde3034f2d2621cc48d5f41e5fe0))
 
-## [0.8.2](https://github.com/woodleighschool/woodstar/compare/0.8.1...0.8.2) (2026-08-08)
+## [0.8.2](https://github.com/woodleighschool/woodstar/compare/v0.8.1...v0.8.2) (2026-08-08)
 
 
 ### Features
@@ -781,7 +781,7 @@
 * **hosts:** expand persisted host search ([82d5033](https://github.com/woodleighschool/woodstar/commit/82d5033ac20e645653906530e2c0cecc98d4f5fd))
 * **renovate:** wait for complete toolchain groups ([abfa2a4](https://github.com/woodleighschool/woodstar/commit/abfa2a4d6e0a1de133715f2c5b196b8017882405))
 
-## [0.8.1](https://github.com/woodleighschool/woodstar/compare/0.8.0...0.8.1) (2026-08-05)
+## [0.8.1](https://github.com/woodleighschool/woodstar/compare/v0.8.0...v0.8.1) (2026-08-05)
 
 
 ### Features
@@ -795,7 +795,7 @@
 * **deps:** update aws-sdk-go-v2 monorepo ([#133](https://github.com/woodleighschool/woodstar/issues/133)) ([3423ab9](https://github.com/woodleighschool/woodstar/commit/3423ab93200c3c85d2f490ee55d5a828991b20f0))
 * **web:** stabilise table refreshes ([f2cccd4](https://github.com/woodleighschool/woodstar/commit/f2cccd4eef75beb2f597a00ab8239c2c33395f21))
 
-## [0.8.0](https://github.com/woodleighschool/woodstar/compare/0.7.9...0.8.0) (2026-08-05)
+## [0.8.0](https://github.com/woodleighschool/woodstar/compare/v0.7.9...v0.8.0) (2026-08-05)
 
 
 ### ⚠ BREAKING CHANGES
@@ -819,14 +819,14 @@
 
 * **web:** migrate tables to TanStack v9 ([33d852d](https://github.com/woodleighschool/woodstar/commit/33d852d08e747d227ea8efa01971fe9f13022783))
 
-## [0.7.9](https://github.com/woodleighschool/woodstar/compare/0.7.8...0.7.9) (2026-08-04)
+## [0.7.9](https://github.com/woodleighschool/woodstar/compare/v0.7.8...v0.7.9) (2026-08-04)
 
 
 ### Bug Fixes
 
 * **ci:** disable automatic mise installs ([c4d6e0c](https://github.com/woodleighschool/woodstar/commit/c4d6e0c01fb97ec3845850374bfa09dc3358cfe5))
 
-## [0.7.8](https://github.com/woodleighschool/woodstar/compare/0.7.7...0.7.8) (2026-08-04)
+## [0.7.8](https://github.com/woodleighschool/woodstar/compare/v0.7.7...v0.7.8) (2026-08-04)
 
 
 ### Features
@@ -860,7 +860,7 @@
 
 * **munki:** configure serial request identity ([c62b3c5](https://github.com/woodleighschool/woodstar/commit/c62b3c5712f8289daecdfc7fd383cb7a9e9e0b69))
 
-## [0.7.7](https://github.com/woodleighschool/woodstar/compare/0.7.6...0.7.7) (2026-08-03)
+## [0.7.7](https://github.com/woodleighschool/woodstar/compare/v0.7.6...v0.7.7) (2026-08-03)
 
 
 ### Bug Fixes
@@ -870,7 +870,7 @@
 * **osquery:** link check result counts ([5ab915a](https://github.com/woodleighschool/woodstar/commit/5ab915a52e1ce9762a374d25dbcf41099a5e4457))
 * **software:** link host counts directly ([dbe42ee](https://github.com/woodleighschool/woodstar/commit/dbe42eeb95368f7efa76b34f034f858b49d60ae6))
 
-## [0.7.6](https://github.com/woodleighschool/woodstar/compare/0.7.5...0.7.6) (2026-08-03)
+## [0.7.6](https://github.com/woodleighschool/woodstar/compare/v0.7.5...v0.7.6) (2026-08-03)
 
 
 ### Features
@@ -878,7 +878,7 @@
 * **deps:** update dependency simple-icons (16.27.1 → 16.28.0) ([#114](https://github.com/woodleighschool/woodstar/issues/114)) ([568e7b4](https://github.com/woodleighschool/woodstar/commit/568e7b44532de13a1b34b90d1d44d7cbbd1712bd))
 * modernize data tables and facets ([4b28d3a](https://github.com/woodleighschool/woodstar/commit/4b28d3ab482ef485574c9abf7cf4388734f76695))
 
-## [0.7.5](https://github.com/woodleighschool/woodstar/compare/0.7.4...0.7.5) (2026-08-02)
+## [0.7.5](https://github.com/woodleighschool/woodstar/compare/v0.7.4...v0.7.5) (2026-08-02)
 
 
 ### Features
@@ -900,7 +900,7 @@
 
 * **directory:** use Microsoft Graph SDK ([625ae11](https://github.com/woodleighschool/woodstar/commit/625ae11ff1a44ce83be771c8bce9c35c9da48a82))
 
-## [0.7.4](https://github.com/woodleighschool/woodstar/compare/0.7.3...0.7.4) (2026-07-30)
+## [0.7.4](https://github.com/woodleighschool/woodstar/compare/v0.7.3...v0.7.4) (2026-07-30)
 
 
 ### Features
@@ -914,7 +914,7 @@
 * **docker:** update postgres image to use alpine variant ([61d4d46](https://github.com/woodleighschool/woodstar/commit/61d4d46e65d2e2a4501c5a164547183175471814))
 * **osquery:** preserve result table focus ([c149172](https://github.com/woodleighschool/woodstar/commit/c149172098416b680ce41fa66895f07ae7b0aa68))
 
-## [0.7.3](https://github.com/woodleighschool/woodstar/compare/0.7.2...0.7.3) (2026-07-30)
+## [0.7.3](https://github.com/woodleighschool/woodstar/compare/v0.7.2...v0.7.3) (2026-07-30)
 
 
 ### Features
@@ -948,7 +948,7 @@
 
 * **web:** move descriptions into overviews ([8f41cc7](https://github.com/woodleighschool/woodstar/commit/8f41cc7ccc7ece019c8aad0596595a5ff946fb9a))
 
-## [0.7.2](https://github.com/woodleighschool/woodstar/compare/0.7.1...0.7.2) (2026-07-29)
+## [0.7.2](https://github.com/woodleighschool/woodstar/compare/v0.7.1...v0.7.2) (2026-07-29)
 
 
 ### Features
@@ -963,7 +963,7 @@
 * **osquery:** validate minimum report versions ([4a2c06c](https://github.com/woodleighschool/woodstar/commit/4a2c06c216af0bcb0239b2477d1b2501362d7c4f))
 * **web:** persist table state in routes ([d7c8d35](https://github.com/woodleighschool/woodstar/commit/d7c8d35034b8beee83e730577667147c03e665d9))
 
-## [0.7.1](https://github.com/woodleighschool/woodstar/compare/0.7.0...0.7.1) (2026-07-29)
+## [0.7.1](https://github.com/woodleighschool/woodstar/compare/v0.7.0...v0.7.1) (2026-07-29)
 
 
 ### Features
@@ -976,7 +976,7 @@
 * **deps:** update dependency @codemirror/view (6.43.6 → 6.43.7) ([#82](https://github.com/woodleighschool/woodstar/issues/82)) ([803661c](https://github.com/woodleighschool/woodstar/commit/803661c5adf1817102c5377cd4d1cb6fc882ea5d))
 * **deps:** update module buf.build/gen/go/northpolesec/protos/protocolbuffers/go (v1.36.11-20260723221051-096a321dccc8.1 → v1.36.11-20260728193839-8b5e5470fb86.1) ([#77](https://github.com/woodleighschool/woodstar/issues/77)) ([437a623](https://github.com/woodleighschool/woodstar/commit/437a623b57313543b3a217ecef2ae0df014b6c78))
 
-## [0.7.0](https://github.com/woodleighschool/woodstar/compare/0.6.5...0.7.0) (2026-07-29)
+## [0.7.0](https://github.com/woodleighschool/woodstar/compare/v0.6.5...v0.7.0) (2026-07-29)
 
 
 ### ⚠ BREAKING CHANGES
@@ -987,7 +987,7 @@
 
 * **osquery:** store report results as host snapshots ([5942573](https://github.com/woodleighschool/woodstar/commit/5942573eee804b3e2b37c3f577fafc5864eb4079))
 
-## [0.6.5](https://github.com/woodleighschool/woodstar/compare/0.6.4...0.6.5) (2026-07-29)
+## [0.6.5](https://github.com/woodleighschool/woodstar/compare/v0.6.4...v0.6.5) (2026-07-29)
 
 
 ### Features
@@ -1005,7 +1005,7 @@
 * **renovate:** dedupe pnpm lockfiles ([6335f21](https://github.com/woodleighschool/woodstar/commit/6335f21f9e9fdaeea9b560019a4897292c80357b))
 * **web:** submit forms explicitly ([5b22784](https://github.com/woodleighschool/woodstar/commit/5b22784e8bebf5edd71eb8b11ae82a8b193bfce1))
 
-## [0.6.4](https://github.com/woodleighschool/woodstar/compare/0.6.3...0.6.4) (2026-07-28)
+## [0.6.4](https://github.com/woodleighschool/woodstar/compare/v0.6.3...v0.6.4) (2026-07-28)
 
 
 ### Bug Fixes
@@ -1013,21 +1013,21 @@
 * **osquery:** resolve results against current scope ([b9b97f5](https://github.com/woodleighschool/woodstar/commit/b9b97f51e2d83e107acb0f7e46572c66be3d3f5b))
 * **query-client:** set retry count to 2 for query retries ([1bfd75c](https://github.com/woodleighschool/woodstar/commit/1bfd75cf0bae27c64b94f800e5f92fdca5fc4cce))
 
-## [0.6.3](https://github.com/woodleighschool/woodstar/compare/0.6.2...0.6.3) (2026-07-27)
+## [0.6.3](https://github.com/woodleighschool/woodstar/compare/v0.6.2...v0.6.3) (2026-07-27)
 
 
 ### Bug Fixes
 
 * **santa:** order event ingestion writes ([28c9a67](https://github.com/woodleighschool/woodstar/commit/28c9a6746962e81bb2ce5e880f748ac788e46bb4))
 
-## [0.6.2](https://github.com/woodleighschool/woodstar/compare/0.6.1...0.6.2) (2026-07-27)
+## [0.6.2](https://github.com/woodleighschool/woodstar/compare/v0.6.1...v0.6.2) (2026-07-27)
 
 
 ### Bug Fixes
 
 * **munki:** handle encoded repository paths ([a49e0f3](https://github.com/woodleighschool/woodstar/commit/a49e0f344d13dcf8d7278ce56bfd59f719fffb56))
 
-## [0.6.1](https://github.com/woodleighschool/woodstar/compare/0.6.0...0.6.1) (2026-07-26)
+## [0.6.1](https://github.com/woodleighschool/woodstar/compare/v0.6.0...v0.6.1) (2026-07-26)
 
 
 ### Features
@@ -1042,7 +1042,7 @@
 * **hosts:** align software filter scope ([7600618](https://github.com/woodleighschool/woodstar/commit/7600618c8d91ad80943a3ef3b6914c1c0f3067af))
 * **munki:** clarify package references ([49383eb](https://github.com/woodleighschool/woodstar/commit/49383ebd13d8de455a8d7634030bc6de8ff87aa6))
 
-## [0.6.0](https://github.com/woodleighschool/woodstar/compare/0.5.1...0.6.0) (2026-07-26)
+## [0.6.0](https://github.com/woodleighschool/woodstar/compare/v0.5.1...v0.6.0) (2026-07-26)
 
 
 ### ⚠ BREAKING CHANGES
@@ -1096,7 +1096,7 @@
 * **web:** replace Sonner with Base UI toast ([5cda1ec](https://github.com/woodleighschool/woodstar/commit/5cda1ec225f9c75e63857b3fd8e3c300e0e6e158))
 * **web:** standardize user account forms ([38b95e9](https://github.com/woodleighschool/woodstar/commit/38b95e99d611adcf204949e2dc1f5743b23f9299))
 
-## [0.5.1](https://github.com/woodleighschool/woodstar/compare/0.5.0...0.5.1) (2026-07-24)
+## [0.5.1](https://github.com/woodleighschool/woodstar/compare/v0.5.0...v0.5.1) (2026-07-24)
 
 
 ### Features
@@ -1109,7 +1109,7 @@
 * **deps:** update dependency shadcn (4.14.0 → 4.14.1) ([#62](https://github.com/woodleighschool/woodstar/issues/62)) ([375f262](https://github.com/woodleighschool/woodstar/commit/375f262451c29bac4139fbd4f82c7fdf2f2f891c))
 * **web:** make routes own list search state ([09bcdf9](https://github.com/woodleighschool/woodstar/commit/09bcdf9560c956478d4d0f2bd73d7ba9beaf30a4))
 
-## [0.5.0](https://github.com/woodleighschool/woodstar/compare/0.4.0...0.5.0) (2026-07-24)
+## [0.5.0](https://github.com/woodleighschool/woodstar/compare/v0.4.0...v0.5.0) (2026-07-24)
 
 
 ### ⚠ BREAKING CHANGES
@@ -1125,7 +1125,7 @@
 
 * **deps:** update github.com/leodido/go-urn to v1.5.0 ([9044b26](https://github.com/woodleighschool/woodstar/commit/9044b264479edafdca644190671ff037b1e76588))
 
-## [0.4.0](https://github.com/woodleighschool/woodstar/compare/0.3.3...0.4.0) (2026-07-23)
+## [0.4.0](https://github.com/woodleighschool/woodstar/compare/v0.3.3...v0.4.0) (2026-07-23)
 
 
 ### ⚠ BREAKING CHANGES
@@ -1161,7 +1161,7 @@
 * **storage:** use one S3 endpoint ([35b4f42](https://github.com/woodleighschool/woodstar/commit/35b4f42207ee27d4a6de85ffa288ea5cac292122))
 * **web:** use generic route IDs ([4bd17f9](https://github.com/woodleighschool/woodstar/commit/4bd17f9ba07e69d535a0c0431e8166c31d02b4f4))
 
-## [0.3.3](https://github.com/woodleighschool/woodstar/compare/0.3.2...0.3.3) (2026-07-23)
+## [0.3.3](https://github.com/woodleighschool/woodstar/compare/v0.3.2...v0.3.3) (2026-07-23)
 
 
 ### Features
@@ -1173,7 +1173,7 @@
 
 * **web:** make page titles action-oriented ([177c715](https://github.com/woodleighschool/woodstar/commit/177c7154d60062fae8f01f2f076de6937b42252b))
 
-## [0.3.2](https://github.com/woodleighschool/woodstar/compare/0.3.1...0.3.2) (2026-07-23)
+## [0.3.2](https://github.com/woodleighschool/woodstar/compare/v0.3.1...v0.3.2) (2026-07-23)
 
 
 ### Bug Fixes
@@ -1189,7 +1189,7 @@
 * **labels:** use shared data table ([317de9c](https://github.com/woodleighschool/woodstar/commit/317de9c2ca78c99f958910c9c3f8eef30a1daef2))
 * **web:** use the native sidebar shell ([b78a65c](https://github.com/woodleighschool/woodstar/commit/b78a65cef2f2f749d36f440c9194933ade0db432))
 
-## [0.3.1](https://github.com/woodleighschool/woodstar/compare/0.3.0...0.3.1) (2026-07-23)
+## [0.3.1](https://github.com/woodleighschool/woodstar/compare/v0.3.0...v0.3.1) (2026-07-23)
 
 
 ### Features
@@ -1203,7 +1203,7 @@
 * **deps:** update module github.com/gabriel-vasile/mimetype (v1.4.13 → v1.4.14) ([#44](https://github.com/woodleighschool/woodstar/issues/44)) ([3ff07cc](https://github.com/woodleighschool/woodstar/commit/3ff07ccb62031a83eafbcb539783d3e8ffd8a55b))
 * **web:** constrain client resources preview ([0a90b4d](https://github.com/woodleighschool/woodstar/commit/0a90b4d3fe9da2be040881362b05531610060afc))
 
-## [0.3.0](https://github.com/woodleighschool/woodstar/compare/0.2.0...0.3.0) (2026-07-22)
+## [0.3.0](https://github.com/woodleighschool/woodstar/compare/v0.2.0...v0.3.0) (2026-07-22)
 
 
 ### ⚠ BREAKING CHANGES
@@ -1238,7 +1238,7 @@
 
 * **handlers:** remove missing message parameters from host state registration ([451aadf](https://github.com/woodleighschool/woodstar/commit/451aadf61617deec6ec21836e2e9e13184db333b))
 
-## [0.2.0](https://github.com/woodleighschool/woodstar/compare/v0.1.8...0.2.0) (2026-07-22)
+## [0.2.0](https://github.com/woodleighschool/woodstar/compare/v0.1.8...v0.2.0) (2026-07-22)
 
 
 ### ⚠ BREAKING CHANGES

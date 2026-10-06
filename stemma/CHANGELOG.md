@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.1.0](https://github.com/woodleighschool/woodstar/compare/stemma-1.0.0...stemma-v1.1.0) (2026-10-05)
+## [1.1.0](https://github.com/woodleighschool/woodstar/compare/stemma-v1.0.0...stemma-v1.1.0) (2026-10-05)
 
 
 ### Features
