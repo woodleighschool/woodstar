@@ -26,6 +26,17 @@ jobs:
       contents: write
       packages: write
     steps:
+      # Release Please publishes every release as latest and has no per-package
+      # opt-out (googleapis/release-please#2317).
+      - name: Mark the server release as latest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          server_tag="$(gh release list --exclude-drafts --exclude-pre-releases --json tagName \
+            --jq 'first(.[].tagName | select(startswith("stemma-") | not))')"
+          gh release edit "$server_tag" --latest
+
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
