@@ -4,11 +4,20 @@
   postUpdateOptions: ["gomodTidy", "gomodUpdateImportPaths", "pnpmDedupe"],
   packageRules: [
     {
+      description: "Docusaurus OpenAPI Group",
       matchManagers: ["npm"],
       matchPackageNames: ["docusaurus-plugin-openapi-docs", "docusaurus-theme-openapi-docs"],
       matchFileNames: ["docs/package.json"],
       groupName: "Docusaurus OpenAPI",
       groupSlug: "docusaurus-openapi",
+    },
+    {
+      description: "Stemma Group",
+      matchPackageNames: ["woodleighschool/stemma", "github.com/woodleighschool/stemma"],
+      groupName: "Stemma",
+      // One upgrade per pin: the publish action and the plugin module.
+      minimumGroupSize: 2,
+      minimumReleaseAge: null,
     },
   ],
 }
