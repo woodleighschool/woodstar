@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.1](https://github.com/woodleighschool/woodstar/compare/stemma-v1.1.0...stemma-v1.1.1) (2026-10-08)
+
+
+### Bug Fixes
+
+* **go:** update stemma (v0.10.0 → v0.10.1) ([#493](https://github.com/woodleighschool/woodstar/issues/493)) ([6e2c1bf](https://github.com/woodleighschool/woodstar/commit/6e2c1bf52f21b7cc610a0130fa882cd95497f2cf))
+* **stemma:** align review version labels ([0078925](https://github.com/woodleighschool/woodstar/commit/007892503fec23be656319251fe6c4ad9b727e43))
+
 ## [1.1.0](https://github.com/woodleighschool/woodstar/compare/stemma-v1.0.0...stemma-v1.1.0) (2026-10-05)
 
 
