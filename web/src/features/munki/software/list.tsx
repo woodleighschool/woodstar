@@ -39,7 +39,7 @@ function SoftwareNameCell({ row }: DataTableCellContext<MunkiSoftware>) {
       <SoftwareArtwork src={row.original.icon_url} />
       <TextLink
         to="/munki/software/$id"
-        params={{ id: String(row.original.id) }}
+        params={{ id: row.original.id }}
         className="min-w-0 truncate font-medium"
         title={row.original.name}
       >
@@ -223,7 +223,7 @@ function SoftwareRowActions({
       <DropdownMenuContent align="end">
         <DropdownMenuGroup>
           <DropdownMenuItem
-            render={<Link to="/munki/software/$id/edit" params={{ id: String(software.id) }} />}
+            render={<Link to="/munki/software/$id/edit" params={{ id: software.id }} />}
           >
             Edit
           </DropdownMenuItem>

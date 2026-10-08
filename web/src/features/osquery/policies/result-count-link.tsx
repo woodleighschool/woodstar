@@ -15,7 +15,7 @@ export function PolicyResultCountLink({
   return (
     <TextLink
       to="/osquery/policies/$id"
-      params={{ id: String(policyId) }}
+      params={{ id: policyId }}
       search={{ tab: "results", status: [status] }}
       className="w-fit"
     >

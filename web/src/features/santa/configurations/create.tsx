@@ -31,7 +31,7 @@ export function ConfigurationCreatePage() {
         if (id !== undefined) {
           void navigate({
             to: "/santa/configurations/$id",
-            params: { id: String(id) },
+            params: { id },
           });
         }
       }}

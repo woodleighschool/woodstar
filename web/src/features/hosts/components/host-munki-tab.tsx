@@ -166,7 +166,7 @@ function MunkiSoftwareCell({ software }: { software: MunkiHostManifestSoftware }
       <SoftwareArtwork src={software.software.icon_url} />
       <TextLink
         to="/munki/software/$id"
-        params={{ id: String(software.software.id) }}
+        params={{ id: software.software.id }}
         className="min-w-0 truncate font-medium"
         title={label}
       >

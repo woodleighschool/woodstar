@@ -54,7 +54,7 @@ const executionEventColumns: DataTableColumnDef<ExecutionEventTableRow>[] = [
     cell: ({ row }) => (
       <TextLink
         to="/santa/events/$id"
-        params={{ id: String(row.original.event.id) }}
+        params={{ id: row.original.event.id }}
         className="font-medium"
       >
         {row.original.event.executable.file_name || "-"}
@@ -119,7 +119,7 @@ const fileAccessEventColumns: DataTableColumnDef<SantaFileAccessEvent>[] = [
     cell: ({ row }) => (
       <TextLink
         to="/santa/events/file-access/$id"
-        params={{ id: String(row.original.id) }}
+        params={{ id: row.original.id }}
         className="font-medium"
       >
         {fileName(row.original.target) || row.original.target}
@@ -240,18 +240,17 @@ function EventContextChips({
   onClearHost: () => void;
   onClearUser?: () => void;
 }) {
-  const host = useHost(hostId);
   return (
     <>
-      {hostId != null ? (
-        <FilterChip
-          label="Host"
-          value={host.data?.display_name ?? `#${hostId}`}
-          onRemove={onClearHost}
-        />
-      ) : null}
+      {hostId != null ? <HostFilterChip id={hostId} onRemove={onClearHost} /> : null}
       {user && onClearUser ? <FilterChip label="User" value={user} onRemove={onClearUser} /> : null}
     </>
+  );
+}
+function HostFilterChip({ id, onRemove }: { id: number; onRemove: () => void }) {
+  const host = useHost(id);
+  return (
+    <FilterChip label="Host" value={host.data?.display_name ?? `#${id}`} onRemove={onRemove} />
   );
 }
 function EventListNav({
@@ -428,7 +427,7 @@ function EventsEmptyState({ hasFilters, noun }: { hasFilters: boolean; noun: str
 }
 function EventHostLink({ host }: { host: SantaHostSummary }) {
   return (
-    <TextLink to="/hosts/$id" params={{ id: String(host.id) }}>
+    <TextLink to="/hosts/$id" params={{ id: host.id }}>
       {host.display_name}
     </TextLink>
   );

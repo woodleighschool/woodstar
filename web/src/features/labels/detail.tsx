@@ -17,27 +17,17 @@ import { useUsers } from "@features/directory/users/queries";
 import { labelDerivedAttributeSelectorLabel, labelMembershipLabel } from "@features/labels/model";
 import type { Label } from "@lib/api";
 import { MAX_PAGE_SIZE } from "@lib/pagination";
-import { parseRouteID } from "@lib/route-params";
 import { countLabel } from "@lib/utils";
 
 import { LabelDeleteDialog } from "./delete-dialog";
 import { useLabel } from "./queries";
 
 export function LabelDetailPage() {
-  const { id: labelID } = useParams({
-    from: "/_authenticated/labels/$id",
-  });
+  const { id } = useParams({ from: "/_authenticated/labels/$id" });
   const navigate = useNavigate();
   const canEdit = useCan({ resource: "labels", access: "edit" });
-  const id = parseRouteID(labelID);
   const query = useLabel(id);
   const [deleteOpen, setDeleteOpen] = useState(false);
-
-  if (id === null) {
-    return (
-      <QueryGate title="Failed to Load Label" error={{ message: "Label route is invalid." }} />
-    );
-  }
 
   if (query.error || !query.data) {
     return (
@@ -61,7 +51,7 @@ export function LabelDetailPage() {
             <>
               <Button
                 size="sm"
-                render={<Link to="/labels/$id/edit" params={{ id: String(label.id) }} />}
+                render={<Link to="/labels/$id/edit" params={{ id: label.id }} />}
                 nativeButton={false}
               >
                 <Pencil data-icon="inline-start" />
@@ -183,7 +173,7 @@ function UserValues({ values }: { values: readonly string[] }) {
             key={value}
             variant="outline"
             className="font-normal"
-            render={<Link to="/directory/users/$id" params={{ id: value }} />}
+            render={<Link to="/directory/users/$id" params={{ id: user.id }} />}
           >
             {user.name}
           </Badge>

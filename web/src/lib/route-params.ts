@@ -1,11 +1,8 @@
-export function parseRouteID(value: string | null | undefined): number | null {
-  const id = Number(value);
-  return Number.isInteger(id) && id > 0 ? id : null;
-}
-
-export function detailPath(id: number | null): { id: number } {
-  if (id === null) {
-    throw new Error("detail query ran without an id");
-  }
-  return { id };
-}
+// A path id is a positive integer. A route that rejects its id doesn't match,
+// so the URL falls through to the not-found route.
+export const idParams = {
+  parse: ({ id }: { id: string }) => {
+    const parsed = Number(id);
+    return /^[1-9]\d*$/.test(id) && Number.isSafeInteger(parsed) ? { id: parsed } : false;
+  },
+};

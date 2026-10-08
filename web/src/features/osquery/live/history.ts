@@ -73,7 +73,7 @@ export function useOpenOsqueryLive() {
         }
         await router.navigate({
           to: "/osquery/reports/$id/live",
-          params: { id: String(id) },
+          params: { id },
           state,
         });
         return;
@@ -84,7 +84,7 @@ export function useOpenOsqueryLive() {
       }
       await router.navigate({
         to: "/osquery/policies/$id/live",
-        params: { id: String(id) },
+        params: { id },
         state,
       });
     },

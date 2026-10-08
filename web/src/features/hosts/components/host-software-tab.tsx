@@ -52,7 +52,7 @@ const softwareColumns: DataTableColumnDef<HostSoftware>[] = [
         <SoftwareIcon {...softwareIconProps(row.original.source)} />
         <TextLink
           to="/software/titles/$id"
-          params={{ id: String(row.original.id) }}
+          params={{ id: row.original.id }}
           className="min-w-0 truncate font-medium"
           title={row.original.name}
         >
@@ -125,7 +125,7 @@ const softwareColumns: DataTableColumnDef<HostSoftware>[] = [
     meta: { label: "Installed Path" },
   },
 ];
-export function HostSoftwareTab({ hostId }: { hostId: number | null }) {
+export function HostSoftwareTab({ hostId }: { hostId: number }) {
   const search = routeApi.useSearch();
   const navigate = routeApi.useNavigate();
   const tableSearch = useDataTableSearch({

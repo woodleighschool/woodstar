@@ -1,27 +1,15 @@
 import { useNavigate, useParams } from "@tanstack/react-router";
 
 import { QueryGate } from "@components/query-gate";
-import { parseRouteID } from "@lib/route-params";
 
 import { DistributionPointForm, formFromDistributionPoint } from "./fields";
 import { useMunkiDistributionPoint, useUpdateMunkiDistributionPoint } from "./queries";
 
 export function DistributionPointEditPage() {
   const navigate = useNavigate();
-  const params = useParams({ strict: false });
-  const distributionPointId = params.id ?? "";
-  const id = parseRouteID(distributionPointId);
+  const { id } = useParams({ from: "/_authenticated/munki/distribution-points/$id" });
   const detail = useMunkiDistributionPoint(id);
   const update = useUpdateMunkiDistributionPoint();
-
-  if (id === null) {
-    return (
-      <QueryGate
-        title="Failed to load distribution point"
-        error={{ message: "Distribution point route is invalid." }}
-      />
-    );
-  }
 
   if (detail.error || !detail.data) {
     return (
@@ -43,7 +31,7 @@ export function DistributionPointEditPage() {
       onCancel={() =>
         void navigate({
           to: "/munki/distribution-points/$id",
-          params: { id: String(point.id) },
+          params: { id: point.id },
         })
       }
       onSubmit={async (body) => (await update.mutateAsync({ id: point.id, body })).id}
@@ -51,7 +39,7 @@ export function DistributionPointEditPage() {
         if (savedID === undefined) return;
         void navigate({
           to: "/munki/distribution-points/$id",
-          params: { id: String(savedID) },
+          params: { id: savedID },
         });
       }}
     />

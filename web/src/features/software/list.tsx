@@ -117,7 +117,7 @@ const softwareColumns: DataTableColumnDef<SoftwareTitle>[] = [
         <SoftwareIcon {...softwareIconProps(row.original.source)} />
         <TextLink
           to="/software/titles/$id"
-          params={{ id: String(row.original.id) }}
+          params={{ id: row.original.id }}
           className="min-w-0 truncate font-medium"
           title={row.original.name}
         >

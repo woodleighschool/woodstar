@@ -21,10 +21,8 @@ import type { SoftwareTitle } from "@lib/api";
 import { countLabel } from "@lib/utils";
 
 export function SoftwareDetailPage() {
-  const { id: softwareId } = useParams({
-    from: "/_authenticated/software/titles/$id",
-  });
-  const query = useSoftwareTitle(Number(softwareId), {
+  const { id } = useParams({ from: "/_authenticated/software/titles/$id" });
+  const query = useSoftwareTitle(id, {
     refetchInterval: 30000,
   });
   const title = query.data;

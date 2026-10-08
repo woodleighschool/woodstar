@@ -10,14 +10,14 @@ export function DocumentTitle({ title }: { title: string }) {
 export function RouteTitle() {
   const crumbs = useBreadcrumbs();
 
-  let resource: { Name: ResourceName; id: string | undefined } | undefined;
+  let resource: { Name: ResourceName; id: number } | undefined;
   let actions: string[] = [];
-  for (const { label, id } of crumbs) {
-    if (typeof label === "string") {
-      actions.push(label);
-    } else {
-      resource = { Name: label, id };
+  for (const crumb of crumbs) {
+    if ("id" in crumb) {
+      resource = { Name: crumb.label, id: crumb.id };
       actions = [];
+    } else {
+      actions.push(crumb.label);
     }
   }
 

@@ -13,7 +13,7 @@ export function HostActivityPage() {
     page: search.page,
     per_page: search.per_page,
     subject_type: "host",
-    subject_id: Number(id),
+    subject_id: id,
   });
 
   return (

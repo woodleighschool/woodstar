@@ -58,7 +58,7 @@ export function ReportCreatePage() {
           await clearHistoryState();
           await navigate({
             to: "/osquery/reports/$id",
-            params: { id: String(id) },
+            params: { id },
           });
         }
       }}

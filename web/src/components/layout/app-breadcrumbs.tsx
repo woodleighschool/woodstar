@@ -11,16 +11,20 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@components/ui/breadcrumb";
-import { parseRouteID } from "@lib/route-params";
 import { cn } from "@lib/utils";
 
 // Passes a resource route's name to its children once the resource has loaded.
 export type ResourceName = ComponentType<{
-  id: string | undefined;
+  id: number;
   children: (name: string | undefined) => ReactNode;
 }>;
 
 type BreadcrumbLabel = string | ResourceName;
+
+type Crumb = { key: string; to: string } & (
+  | { label: string }
+  | { label: ResourceName; id: number }
+);
 
 declare module "@tanstack/react-router" {
   interface StaticDataRouteOption {
@@ -29,24 +33,36 @@ declare module "@tanstack/react-router" {
 }
 
 export function resourceName<TData, TError, TQueryKey extends QueryKey>(
-  options: (id: number | null) => UseQueryOptions<TData, TError, TData, TQueryKey>,
+  options: (id: number) => UseQueryOptions<TData, TError, TData, TQueryKey>,
   name: (resource: TData) => string | undefined,
 ): ResourceName {
   return function ResourceName({ id, children }) {
-    const { data } = useQuery(options(parseRouteID(id)));
+    const { data } = useQuery(options(id));
     return children(data === undefined ? undefined : name(data));
   };
 }
 
 export function useBreadcrumbs() {
   return useMatches({
-    select: (matches) =>
-      matches.flatMap((match) => {
+    select: (matches) => {
+      const crumbs: Crumb[] = [];
+      for (const match of matches) {
         const label = match.staticData.breadcrumb;
-        if (!label) return [];
-        const id = "id" in match.params ? match.params.id : undefined;
-        return [{ key: match.id, label, to: match.pathname, id }];
-      }),
+        const crumb = { key: match.id, to: match.pathname };
+        // The not-found page stands in for a missing route and its children.
+        if (match.status === "notFound") {
+          crumbs.push({ ...crumb, label: "Page Not Found" });
+          break;
+        }
+        if (typeof label === "string") {
+          crumbs.push({ ...crumb, label });
+        } else if (label && "id" in match.params) {
+          // Only routes with an id param declare a resource name.
+          crumbs.push({ ...crumb, label, id: match.params.id });
+        }
+      }
+      return crumbs;
+    },
   });
 }
 
@@ -65,11 +81,11 @@ export function AppBreadcrumbs({ className }: { className?: string }) {
               <BreadcrumbItem>
                 {isLast || !crumb.to ? (
                   <BreadcrumbPage>
-                    <BreadcrumbContent label={crumb.label} id={crumb.id} />
+                    <BreadcrumbContent crumb={crumb} />
                   </BreadcrumbPage>
                 ) : (
                   <BreadcrumbLink render={<Link to={crumb.to} />}>
-                    <BreadcrumbContent label={crumb.label} id={crumb.id} />
+                    <BreadcrumbContent crumb={crumb} />
                   </BreadcrumbLink>
                 )}
               </BreadcrumbItem>
@@ -82,8 +98,8 @@ export function AppBreadcrumbs({ className }: { className?: string }) {
   );
 }
 
-function BreadcrumbContent({ label, id }: { label: BreadcrumbLabel; id: string | undefined }) {
-  if (typeof label === "string") return label;
-  const Name = label;
+function BreadcrumbContent({ crumb }: { crumb: Crumb }) {
+  if (!("id" in crumb)) return crumb.label;
+  const { label: Name, id } = crumb;
   return <Name id={id}>{(name) => name ?? id}</Name>;
 }

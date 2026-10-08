@@ -23,7 +23,7 @@ export function TargetBadge({
           <Badge
             variant="outline"
             className="font-normal"
-            render={<Link to="/labels/$id" params={{ id: String(labelID) }} />}
+            render={<Link to="/labels/$id" params={{ id: labelID }} />}
           />
         }
       >

@@ -36,7 +36,7 @@ export function DistributionPointCreatePage() {
             setCreated(null);
             void navigate({
               to: "/munki/distribution-points/$id",
-              params: { id: String(id) },
+              params: { id },
             });
           }}
         />

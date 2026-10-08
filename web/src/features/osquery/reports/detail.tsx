@@ -25,7 +25,6 @@ import { Skeleton } from "@components/ui/skeleton";
 import { TabsContent, TabsTrigger } from "@components/ui/tabs";
 import { useCan } from "@features/authz/access";
 import { LiveRunButton } from "@features/osquery/live/query-actions";
-import { parseRouteID } from "@lib/route-params";
 import { formatInterval } from "@lib/utils";
 
 import { ReportDeleteDialog } from "./delete-dialog";
@@ -59,9 +58,7 @@ function ReportResultsToolbar({ table }: { table: DataTableInstance<ReportResult
 }
 
 export function ReportDetailPage() {
-  const { id: reportId } = useParams({
-    from: "/_authenticated/osquery/reports/$id",
-  });
+  const { id } = useParams({ from: "/_authenticated/osquery/reports/$id" });
   const search = routeApi.useSearch();
   const navigate = routeApi.useNavigate();
   const activeTab = search.tab === "results" ? "results" : "overview";
@@ -72,16 +69,19 @@ export function ReportDetailPage() {
   });
   const canEdit = useCan({ resource: "osquery.reports", access: "edit" });
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const id = parseRouteID(reportId);
   const report = useReport(id);
   const status = search.status;
-  const snapshots = useReportSnapshots(activeTab === "results" ? id : null, {
-    q: tableSearch.q,
-    page: tableSearch.page,
-    per_page: tableSearch.per_page,
-    sort: tableSearch.sort,
-    status,
-  });
+  const snapshots = useReportSnapshots(
+    id,
+    {
+      q: tableSearch.q,
+      page: tableSearch.page,
+      per_page: tableSearch.per_page,
+      sort: tableSearch.sort,
+      status,
+    },
+    { enabled: activeTab === "results" },
+  );
   const rows = useMemo(
     () => snapshots.data?.items.map(reportResultFromSnapshot) ?? EMPTY_REPORT_SNAPSHOTS,
     [snapshots.data?.items],
@@ -99,12 +99,6 @@ export function ReportDetailPage() {
     getRowCanExpand: (row) => row.original.rows.length > 0,
     paginateExpandedRows: false,
   });
-
-  if (id === null) {
-    return (
-      <QueryGate title="Failed to Load Report" error={{ message: "Report route is invalid." }} />
-    );
-  }
 
   if (report.error) {
     return (
@@ -152,7 +146,7 @@ export function ReportDetailPage() {
               <>
                 <Button
                   size="sm"
-                  render={<Link to="/osquery/reports/$id/edit" params={{ id: reportId }} />}
+                  render={<Link to="/osquery/reports/$id/edit" params={{ id }} />}
                   nativeButton={false}
                 >
                   <Pencil data-icon="inline-start" />
@@ -183,7 +177,7 @@ export function ReportDetailPage() {
             render={
               <Link
                 to="/osquery/reports/$id"
-                params={{ id: reportId }}
+                params={{ id }}
                 search={{ ...search, tab: undefined }}
               />
             }
@@ -196,7 +190,7 @@ export function ReportDetailPage() {
             render={
               <Link
                 to="/osquery/reports/$id"
-                params={{ id: reportId }}
+                params={{ id }}
                 search={{ ...search, tab: "results" }}
               />
             }

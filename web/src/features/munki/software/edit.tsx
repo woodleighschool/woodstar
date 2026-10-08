@@ -1,4 +1,4 @@
-import { getRouteApi, useParams } from "@tanstack/react-router";
+import { getRouteApi } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
 import { useMemo } from "react";
 
@@ -25,7 +25,6 @@ import { usePageFormExitGuard } from "@hooks/use-page-form-exit-guard";
 import type { MunkiPackage, MunkiSoftwareDetail } from "@lib/api";
 import { uniqueOptions } from "@lib/form-validation";
 import { MAX_PAGE_SIZE } from "@lib/pagination";
-import { parseRouteID } from "@lib/route-params";
 import { formatRelative } from "@lib/utils";
 
 import {
@@ -59,7 +58,7 @@ const packageColumns: DataTableColumnDef<MunkiPackage>[] = [
         <SoftwareArtwork src={row.original.software.icon_url} size="md" />
         <TextLink
           to="/munki/packages/$id"
-          params={{ id: String(row.original.id) }}
+          params={{ id: row.original.id }}
           className="min-w-0 truncate font-medium"
           title={row.original.version}
         >
@@ -85,17 +84,8 @@ const packageColumns: DataTableColumnDef<MunkiPackage>[] = [
 
 export function MunkiSoftwareEditPage() {
   const search = routeApi.useSearch();
-  const params = useParams({ strict: false });
-  const softwareID = parseRouteID(params.id);
-  const query = useMunkiSoftwareDetail(softwareID);
-  if (softwareID === null) {
-    return (
-      <QueryGate
-        title="Failed to Load Software"
-        error={{ message: "Software route is invalid." }}
-      />
-    );
-  }
+  const { id } = routeApi.useParams();
+  const query = useMunkiSoftwareDetail(id);
   if (query.error || !query.data) {
     return (
       <QueryGate
@@ -162,7 +152,7 @@ function MunkiSoftwareDetailForm({
     (savedID) =>
       void navigate({
         to: "/munki/software/$id",
-        params: { id: String(savedID) },
+        params: { id: savedID },
       }),
   );
   // Category/developer suggestions capped at MAX_PAGE_SIZE for now.
@@ -199,7 +189,7 @@ function MunkiSoftwareDetailForm({
     onDiscard: () =>
       void navigate({
         to: "/munki/software/$id",
-        params: { id: String(software.id) },
+        params: { id: software.id },
       }),
   });
   const tabs = [

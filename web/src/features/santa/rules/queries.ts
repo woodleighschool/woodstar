@@ -19,7 +19,6 @@ import {
 } from "@lib/api";
 import type { ListSantaRulesData } from "@lib/api-client/types.gen";
 import { baseListParams } from "@lib/pagination";
-import { detailPath } from "@lib/route-params";
 
 type QueryParams = Record<string, unknown>;
 
@@ -28,14 +27,13 @@ type SantaRuleListParams = NonNullable<ListSantaRulesData["query"]>;
 const ruleKeys = {
   all: ["santa", "rules"] as const,
   list: (params?: QueryParams) => ["santa", "rules", "list", params ?? {}] as const,
-  detail: (id: number | null) => ["santa", "rules", "detail", id] as const,
+  detail: (id: number) => ["santa", "rules", "detail", id] as const,
 };
 
-export function santaRuleQueryOptions(id: number | null) {
+export function santaRuleQueryOptions(id: number) {
   return queryOptions<SantaRule, ApiError>({
     queryKey: ruleKeys.detail(id),
-    queryFn: ({ signal }) => unwrap(getSantaRule({ path: detailPath(id), signal })),
-    enabled: id !== null,
+    queryFn: ({ signal }) => unwrap(getSantaRule({ path: { id }, signal })),
   });
 }
 
@@ -52,7 +50,7 @@ export function useSantaRules(params: SantaRuleListParams = {}) {
   });
 }
 
-export function useSantaRule(id: number | null) {
+export function useSantaRule(id: number) {
   return useQuery(santaRuleQueryOptions(id));
 }
 

@@ -40,11 +40,7 @@ interface LabelTableRow {
 
 function LabelNameCell({ row }: DataTableCellContext<LabelTableRow>) {
   return (
-    <TextLink
-      to="/labels/$id"
-      params={{ id: String(row.original.label.id) }}
-      className="font-medium"
-    >
+    <TextLink to="/labels/$id" params={{ id: row.original.label.id }} className="font-medium">
       {row.original.label.name}
     </TextLink>
   );
@@ -220,9 +216,7 @@ function LabelRowActions({ label, onDelete }: { label: Label; onDelete: (label: 
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuGroup>
-          <DropdownMenuItem
-            render={<Link to="/labels/$id/edit" params={{ id: String(label.id) }} />}
-          >
+          <DropdownMenuItem render={<Link to="/labels/$id/edit" params={{ id: label.id }} />}>
             Edit
           </DropdownMenuItem>
           <DropdownMenuItem variant="destructive" onClick={() => onDelete(label)}>

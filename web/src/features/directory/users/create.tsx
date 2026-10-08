@@ -16,7 +16,7 @@ export function UserCreatePage() {
       onSuccess={(id) => {
         void navigate({
           to: "/directory/users/$id",
-          params: { id: String(id) },
+          params: { id },
         });
       }}
       onCancel={() => void navigate({ to: "/directory/users" })}

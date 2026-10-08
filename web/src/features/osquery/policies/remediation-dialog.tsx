@@ -25,7 +25,7 @@ export function PolicyRemediationDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const query = usePolicyRemediationRun(open ? policyID : null, open ? hostID : null);
+  const query = usePolicyRemediationRun(policyID, open ? hostID : null);
   const run = query.data;
 
   return (

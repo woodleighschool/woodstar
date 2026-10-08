@@ -50,7 +50,7 @@ export function MunkiSoftwareCreatePage() {
       }
       return title.id;
     },
-    (id) => void navigate({ to: "/munki/software/$id", params: { id: String(id) } }),
+    (id) => void navigate({ to: "/munki/software/$id", params: { id } }),
   );
   const cancel = () => void navigate({ to: "/munki/software" });
   const exitGuard = usePageFormExitGuard({ form, onDiscard: cancel });

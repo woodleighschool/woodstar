@@ -5,21 +5,12 @@ import { QueryGate } from "@components/query-gate";
 import { Alert, AlertDescription, AlertTitle } from "@components/ui/alert";
 import { LabelForm, labelFromDetail } from "@features/labels/fields";
 import { useLabel, useUpdateLabel } from "@features/labels/queries";
-import { parseRouteID } from "@lib/route-params";
 
 export function LabelEditPage() {
   const navigate = useNavigate();
-  const params = useParams({ strict: false });
-  const labelId = params.id ?? "";
-  const id = parseRouteID(labelId);
+  const { id } = useParams({ from: "/_authenticated/labels/$id" });
   const detail = useLabel(id);
   const update = useUpdateLabel(id);
-
-  if (id === null) {
-    return (
-      <QueryGate title="Failed to Load Label" error={{ message: "Label route is invalid." }} />
-    );
-  }
 
   if (detail.error || !detail.data) {
     return (
@@ -54,14 +45,14 @@ export function LabelEditPage() {
       onCancel={() =>
         void navigate({
           to: "/labels/$id",
-          params: { id: String(label.id) },
+          params: { id: label.id },
         })
       }
       onSubmit={async (body) => (await update.mutateAsync(body)).id}
       onSuccess={() =>
         void navigate({
           to: "/labels/$id",
-          params: { id: String(label.id) },
+          params: { id: label.id },
         })
       }
     />

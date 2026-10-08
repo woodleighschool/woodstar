@@ -24,12 +24,9 @@ import { ExecutionDecisionBadge, HostLink, Timestamp } from "./event-ui";
 import { useSantaEvent } from "./queries";
 
 export function SantaEventDetailPage() {
-  const { id: eventId } = useParams({
-    from: "/_authenticated/santa/events/$id",
-  });
+  const { id } = useParams({ from: "/_authenticated/santa/events/$id" });
   const search = useSearch({ from: "/_authenticated/santa/events/$id" });
-  const id = Number(eventId);
-  const query = useSantaEvent(Number.isFinite(id) ? id : null);
+  const query = useSantaEvent(id);
 
   if (query.error || !query.data) {
     return (
@@ -81,7 +78,7 @@ export function SantaEventDetailPage() {
               render={
                 <Link
                   to="/santa/events/$id"
-                  params={{ id: eventId }}
+                  params={{ id }}
                   search={{ ...search, tab: undefined }}
                 />
               }
@@ -95,7 +92,7 @@ export function SantaEventDetailPage() {
                 render={
                   <Link
                     to="/santa/events/$id"
-                    params={{ id: eventId }}
+                    params={{ id }}
                     search={{ ...search, tab: "signing-chain" }}
                   />
                 }
@@ -110,7 +107,7 @@ export function SantaEventDetailPage() {
                 render={
                   <Link
                     to="/santa/events/$id"
-                    params={{ id: eventId }}
+                    params={{ id }}
                     search={{ ...search, tab: "entitlements" }}
                   />
                 }

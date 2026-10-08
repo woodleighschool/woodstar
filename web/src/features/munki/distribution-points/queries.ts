@@ -27,7 +27,6 @@ import {
 } from "@lib/api";
 import type { ListMunkiDistributionPointsData } from "@lib/api-client/types.gen";
 import { baseListParams } from "@lib/pagination";
-import { detailPath } from "@lib/route-params";
 
 type MunkiDistributionPointListParams = NonNullable<ListMunkiDistributionPointsData["query"]>;
 
@@ -46,17 +45,16 @@ const listRefreshMs = 30_000;
 const munkiDistributionPointKeys = {
   root: distributionPointRoot,
   list: (params: QueryParams) => [...distributionPointRoot, "list", params] as const,
-  detail: (id: number | null) => [...distributionPointRoot, "detail", id] as const,
+  detail: (id: number) => [...distributionPointRoot, "detail", id] as const,
 };
 
 export function munkiDistributionPointQueryOptions(
-  id: number | null,
+  id: number,
   refreshOptions: MunkiDistributionPointRefreshOptions = {},
 ) {
   return queryOptions<MunkiDistributionPointDetail, ApiError>({
     queryKey: munkiDistributionPointKeys.detail(id),
-    queryFn: ({ signal }) => unwrap(getMunkiDistributionPoint({ path: detailPath(id), signal })),
-    enabled: id !== null,
+    queryFn: ({ signal }) => unwrap(getMunkiDistributionPoint({ path: { id }, signal })),
     ...refreshOptions,
   });
 }
@@ -72,13 +70,13 @@ export function useMunkiDistributionPoints(params: MunkiDistributionPointListPar
 }
 
 export function useMunkiDistributionPoint(
-  id: number | null,
+  id: number,
   refreshOptions: MunkiDistributionPointRefreshOptions = {},
 ) {
   return useQuery(munkiDistributionPointQueryOptions(id, refreshOptions));
 }
 
-export function useLiveMunkiDistributionPoint(id: number | null) {
+export function useLiveMunkiDistributionPoint(id: number) {
   return useMunkiDistributionPoint(id, {
     staleTime: detailRefreshMs,
     refetchInterval: detailRefreshMs,

@@ -16,7 +16,7 @@ export function LabelCreatePage() {
       onSubmit={async (body) => (await create.mutateAsync(body)).id}
       onSuccess={(id) => {
         if (id !== undefined) {
-          void navigate({ to: "/labels/$id", params: { id: String(id) } });
+          void navigate({ to: "/labels/$id", params: { id } });
         }
       }}
     />

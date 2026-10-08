@@ -136,11 +136,7 @@ const reportColumns: DataTableColumnDef<ReportTableRow>[] = [
     accessorKey: "name",
     header: "Name",
     cell: ({ row }) => (
-      <TextLink
-        to="/osquery/reports/$id"
-        params={{ id: String(row.original.id) }}
-        className="font-medium"
-      >
+      <TextLink to="/osquery/reports/$id" params={{ id: row.original.id }} className="font-medium">
         {row.original.name}
       </TextLink>
     ),
@@ -246,7 +242,7 @@ function ReportActionsCell({ row }: DataTableCellContext<ReportTableRow>) {
       <DropdownMenuContent align="end">
         <DropdownMenuGroup>
           <DropdownMenuItem
-            render={<Link to="/osquery/reports/$id/edit" params={{ id: String(report.id) }} />}
+            render={<Link to="/osquery/reports/$id/edit" params={{ id: report.id }} />}
           >
             Edit
           </DropdownMenuItem>

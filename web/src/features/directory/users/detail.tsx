@@ -14,23 +14,16 @@ import { DIRECTORY_SOURCES } from "@features/directory/source";
 import { UserDeleteDialog } from "@features/directory/users/delete-dialog";
 import { USER_ACCESS_ROLES, userAccessRole } from "@features/directory/users/metadata";
 import { useUser } from "@features/directory/users/queries";
-import { parseRouteID } from "@lib/route-params";
 import { nonEmpty } from "@lib/utils";
 
 export function UserDetailPage() {
-  const { id: userID } = useParams({
-    from: "/_authenticated/directory/users/$id",
-  });
+  const { id } = useParams({ from: "/_authenticated/directory/users/$id" });
   const navigate = useNavigate();
   const { user: currentUser } = useAuth();
   const canEdit = useCan({ resource: "users", access: "edit" });
-  const id = parseRouteID(userID);
   const query = useUser(id);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  if (id === null) {
-    return <QueryGate title="Failed to Load User" error={{ message: "User route is invalid." }} />;
-  }
   if (query.error || !query.data) {
     return (
       <QueryGate
@@ -47,7 +40,7 @@ export function UserDetailPage() {
     ? ({ to: "/account" } as const)
     : ({
         to: "/directory/users/$id/edit",
-        params: { id: String(user.id) },
+        params: { id: user.id },
       } as const);
 
   return (

@@ -203,7 +203,7 @@ function distributionPointColumns(
       cell: ({ row }) => (
         <TextLink
           to="/munki/distribution-points/$id"
-          params={{ id: String(row.original.id) }}
+          params={{ id: row.original.id }}
           className="font-medium"
         >
           {row.original.name}
@@ -301,9 +301,7 @@ function DistributionPointRowActions({
       <DropdownMenuContent align="end">
         <DropdownMenuGroup>
           <DropdownMenuItem
-            render={
-              <Link to="/munki/distribution-points/$id/edit" params={{ id: String(point.id) }} />
-            }
+            render={<Link to="/munki/distribution-points/$id/edit" params={{ id: point.id }} />}
           >
             Edit
           </DropdownMenuItem>

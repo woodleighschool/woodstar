@@ -1,4 +1,4 @@
-import { getRouteApi, useParams } from "@tanstack/react-router";
+import { getRouteApi } from "@tanstack/react-router";
 import { useState } from "react";
 
 import { ConfirmDialog } from "@components/confirm-dialog";
@@ -8,7 +8,6 @@ import {
   useOpenOsqueryLive,
   useOsqueryHistoryState,
 } from "@features/osquery/live/history";
-import { parseRouteID } from "@lib/route-params";
 import { countLabel } from "@lib/utils";
 
 import { PolicyForm, policyFromDetail } from "./fields";
@@ -24,9 +23,7 @@ const routeApi = getRouteApi("/_authenticated/osquery/policies/$id/edit");
 export function PolicyEditPage() {
   const navigate = routeApi.useNavigate();
   const search = routeApi.useSearch();
-  const params = useParams({ strict: false });
-  const policyId = params.id ?? "";
-  const id = parseRouteID(policyId);
+  const { id } = routeApi.useParams();
   const detail = usePolicy(id);
   const remediationSource = usePolicyRemediationSource(id);
   const update = useUpdatePolicy(id);
@@ -43,14 +40,8 @@ export function PolicyEditPage() {
     await clearHistoryState();
     await navigate({
       to: "/osquery/policies/$id",
-      params: { id: String(savedID) },
+      params: { id: savedID },
     });
-  }
-
-  if (id === null) {
-    return (
-      <QueryGate title="Failed to Load Policy" error={{ message: "Policy route is invalid." }} />
-    );
   }
 
   if (detail.error || remediationSource.error || !detail.data || !remediationSource.data) {
@@ -93,7 +84,7 @@ export function PolicyEditPage() {
           await clearHistoryState();
           await navigate({
             to: "/osquery/policies/$id",
-            params: { id: String(policy.id) },
+            params: { id: policy.id },
           });
         }}
         onRunLive={(value) =>

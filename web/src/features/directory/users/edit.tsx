@@ -6,18 +6,11 @@ import { useAuth } from "@features/authn/queries";
 import { UserForm, userFromDetail } from "@features/directory/users/fields";
 import { useUpdateUser, useUser } from "@features/directory/users/queries";
 import type { User } from "@lib/api";
-import { parseRouteID } from "@lib/route-params";
 
 export function UserEditPage() {
-  const params = useParams({ strict: false });
-  const userId = params.id ?? "";
-  const userID = parseRouteID(userId);
-  const user = useUser(userID);
+  const { id } = useParams({ from: "/_authenticated/directory/users/$id" });
+  const user = useUser(id);
   const { user: currentUser } = useAuth();
-
-  if (userID === null) {
-    return <QueryGate title="Failed to Load User" error={{ message: "User route is invalid." }} />;
-  }
 
   if (user.error || !user.data) {
     return (
@@ -50,13 +43,13 @@ function UserEdit({ user }: { user: User }) {
       onSuccess={() => {
         void navigate({
           to: "/directory/users/$id",
-          params: { id: String(user.id) },
+          params: { id: user.id },
         });
       }}
       onCancel={() =>
         void navigate({
           to: "/directory/users/$id",
-          params: { id: String(user.id) },
+          params: { id: user.id },
         })
       }
     />

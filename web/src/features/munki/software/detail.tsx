@@ -16,7 +16,6 @@ import { useCan } from "@features/authz/access";
 import { useLabelNameMap } from "@features/labels/components/label-ref-list";
 import { SoftwareArtwork } from "@features/software/software-icon";
 import type { MunkiInclude, MunkiPackage, MunkiSoftwareDetail } from "@lib/api";
-import { parseRouteID } from "@lib/route-params";
 import { countLabel, formatRelative } from "@lib/utils";
 
 import { MUNKI_SOFTWARE_ACTIONS } from "./actions";
@@ -33,7 +32,7 @@ const packageColumns: DataTableColumnDef<MunkiPackage>[] = [
         <SoftwareArtwork src={row.original.software.icon_url} />
         <TextLink
           to="/munki/packages/$id"
-          params={{ id: String(row.original.id) }}
+          params={{ id: row.original.id }}
           className="min-w-0 truncate font-medium"
           title={row.original.version}
         >
@@ -56,21 +55,12 @@ const packageColumns: DataTableColumnDef<MunkiPackage>[] = [
 ];
 
 export function MunkiSoftwareDetailPage() {
-  const params = useParams({ strict: false });
+  const { id } = useParams({ from: "/_authenticated/munki/software/$id" });
   const navigate = useNavigate();
   const canEdit = useCan({ resource: "munki.software", access: "edit" });
-  const softwareID = parseRouteID(params.id);
-  const query = useMunkiSoftwareDetail(softwareID);
+  const query = useMunkiSoftwareDetail(id);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  if (softwareID === null) {
-    return (
-      <QueryGate
-        title="Failed to Load Software"
-        error={{ message: "Software route is invalid." }}
-      />
-    );
-  }
   if (query.error || !query.data) {
     return (
       <QueryGate
@@ -99,7 +89,7 @@ export function MunkiSoftwareDetailPage() {
             <>
               <Button
                 size="sm"
-                render={<Link to="/munki/software/$id/edit" params={{ id: String(software.id) }} />}
+                render={<Link to="/munki/software/$id/edit" params={{ id: software.id }} />}
                 nativeButton={false}
               >
                 <Pencil data-icon="inline-start" />

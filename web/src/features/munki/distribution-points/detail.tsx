@@ -28,13 +28,10 @@ import {
 } from "./model";
 import { useLiveMunkiDistributionPoint, useRotateMunkiDistributionPointKey } from "./queries";
 export function DistributionPointDetailPage() {
-  const { id: distributionPointId } = useParams({
-    from: "/_authenticated/munki/distribution-points/$id",
-  });
+  const { id } = useParams({ from: "/_authenticated/munki/distribution-points/$id" });
   const navigate = useNavigate();
   const canEdit = useCan({ resource: "munki.distribution-points", access: "edit" });
-  const id = Number(distributionPointId);
-  const query = useLiveMunkiDistributionPoint(Number.isFinite(id) ? id : null);
+  const query = useLiveMunkiDistributionPoint(id);
   const rotate = useRotateMunkiDistributionPointKey();
   const [rotatedKey, setRotatedKey] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -62,12 +59,7 @@ export function DistributionPointDetailPage() {
             <>
               <Button
                 size="sm"
-                render={
-                  <Link
-                    to="/munki/distribution-points/$id/edit"
-                    params={{ id: String(point.id) }}
-                  />
-                }
+                render={<Link to="/munki/distribution-points/$id/edit" params={{ id: point.id }} />}
                 nativeButton={false}
               >
                 <Pencil data-icon="inline-start" />
@@ -178,7 +170,7 @@ const packageStateColumns: DataTableColumnDef<MunkiPackageState>[] = [
         <SoftwareArtwork src={row.original.software_icon_url} />
         <TextLink
           to="/munki/packages/$id"
-          params={{ id: String(row.original.package_id) }}
+          params={{ id: row.original.package_id }}
           className="min-w-0 truncate font-medium"
           title={`${row.original.name} ${row.original.version}`}
         >

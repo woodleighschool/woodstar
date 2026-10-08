@@ -32,7 +32,7 @@ export function LabelRefList({ labelIDs }: { labelIDs: readonly number[] }) {
           key={labelID}
           variant="outline"
           className="font-normal"
-          render={<Link to="/labels/$id" params={{ id: String(labelID) }} />}
+          render={<Link to="/labels/$id" params={{ id: labelID }} />}
         >
           {labelsByID.get(labelID) ?? `Label ${labelID}`}
         </Badge>

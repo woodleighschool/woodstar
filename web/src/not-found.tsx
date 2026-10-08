@@ -20,7 +20,9 @@ export function NotFoundPage() {
             <Compass />
           </EmptyMedia>
           <EmptyTitle>Page Not Found</EmptyTitle>
-          <EmptyDescription>That route doesn't exist in this build.</EmptyDescription>
+          <EmptyDescription>
+            Nothing exists at this address. It may have been deleted.
+          </EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
           <Button size="sm" render={<Link to="/" />} nativeButton={false}>

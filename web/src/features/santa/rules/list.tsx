@@ -43,11 +43,7 @@ interface RuleTableRow {
 
 function RuleNameCell({ row }: DataTableCellContext<RuleTableRow>) {
   return (
-    <TextLink
-      to="/santa/rules/$id"
-      params={{ id: String(row.original.rule.id) }}
-      className="font-medium"
-    >
+    <TextLink to="/santa/rules/$id" params={{ id: row.original.rule.id }} className="font-medium">
       {row.original.rule.name}
     </TextLink>
   );
@@ -247,9 +243,7 @@ function RuleRowActions({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuGroup>
-          <DropdownMenuItem
-            render={<Link to="/santa/rules/$id/edit" params={{ id: String(rule.id) }} />}
-          >
+          <DropdownMenuItem render={<Link to="/santa/rules/$id/edit" params={{ id: rule.id }} />}>
             Edit
           </DropdownMenuItem>
           <DropdownMenuItem variant="destructive" onClick={() => onDelete(rule)}>

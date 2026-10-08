@@ -43,7 +43,7 @@ function PackageSoftwareCell({ row }: DataTableCellContext<MunkiPackage>) {
       <SoftwareArtwork src={row.original.software.icon_url} />
       <TextLink
         to="/munki/packages/$id"
-        params={{ id: String(row.original.id) }}
+        params={{ id: row.original.id }}
         className="min-w-0 truncate font-medium"
         title={row.original.software.name}
       >
@@ -232,9 +232,7 @@ function PackageRowActions({ pkg, onDelete }: { pkg: MunkiPackage; onDelete: () 
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuGroup>
-          <DropdownMenuItem
-            render={<Link to="/munki/packages/$id/edit" params={{ id: String(pkg.id) }} />}
-          >
+          <DropdownMenuItem render={<Link to="/munki/packages/$id/edit" params={{ id: pkg.id }} />}>
             Edit
           </DropdownMenuItem>
           <DropdownMenuItem variant="destructive" onClick={onDelete}>

@@ -62,11 +62,7 @@ export function createPolicyResultColumns({
       accessorKey: "host_name",
       header: () => "Host",
       cell: ({ row }) => (
-        <TextLink
-          to="/hosts/$id"
-          params={{ id: String(row.original.host_id) }}
-          className="font-medium"
-        >
+        <TextLink to="/hosts/$id" params={{ id: row.original.host_id }} className="font-medium">
           {row.original.host_name}
         </TextLink>
       ),

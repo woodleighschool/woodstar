@@ -25,7 +25,6 @@ import {
 } from "@lib/api";
 import type { ListSantaConfigurationsData } from "@lib/api-client/types.gen";
 import { baseListParams } from "@lib/pagination";
-import { detailPath } from "@lib/route-params";
 
 type QueryParams = Record<string, unknown>;
 
@@ -34,14 +33,13 @@ type SantaListParams = NonNullable<ListSantaConfigurationsData["query"]>;
 const configurationKeys = {
   all: ["santa", "configurations"] as const,
   list: (params?: QueryParams) => ["santa", "configurations", "list", params ?? {}] as const,
-  detail: (id: number | null) => ["santa", "configurations", "detail", id] as const,
+  detail: (id: number) => ["santa", "configurations", "detail", id] as const,
 };
 
-export function santaConfigurationQueryOptions(id: number | null) {
+export function santaConfigurationQueryOptions(id: number) {
   return queryOptions<SantaConfiguration, ApiError>({
     queryKey: configurationKeys.detail(id),
-    queryFn: ({ signal }) => unwrap(getSantaConfiguration({ path: detailPath(id), signal })),
-    enabled: id !== null,
+    queryFn: ({ signal }) => unwrap(getSantaConfiguration({ path: { id }, signal })),
   });
 }
 
@@ -55,7 +53,7 @@ export function useSantaConfigurations(params: SantaListParams = {}) {
   });
 }
 
-export function useSantaConfiguration(id: number | null) {
+export function useSantaConfiguration(id: number) {
   return useQuery(santaConfigurationQueryOptions(id));
 }
 

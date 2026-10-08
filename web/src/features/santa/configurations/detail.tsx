@@ -13,7 +13,6 @@ import { TokenList } from "@components/token-list";
 import { Button } from "@components/ui/button";
 import { useCan } from "@features/authz/access";
 import type { SantaRemovableMediaPolicy } from "@lib/api";
-import { parseRouteID } from "@lib/route-params";
 import { formatInterval } from "@lib/utils";
 
 import { ConfigurationDeleteDialog } from "./delete-dialog";
@@ -26,23 +25,11 @@ import {
 import { useSantaConfiguration } from "./queries";
 
 export function ConfigurationDetailPage() {
-  const { id: configurationID } = useParams({
-    from: "/_authenticated/santa/configurations/$id",
-  });
+  const { id } = useParams({ from: "/_authenticated/santa/configurations/$id" });
   const navigate = useNavigate();
   const canEdit = useCan({ resource: "santa.configurations", access: "edit" });
-  const id = parseRouteID(configurationID);
   const query = useSantaConfiguration(id);
   const [deleteOpen, setDeleteOpen] = useState(false);
-
-  if (id === null) {
-    return (
-      <QueryGate
-        title="Failed to Load Configuration"
-        error={{ message: "Configuration route is invalid." }}
-      />
-    );
-  }
 
   if (query.error || !query.data) {
     return (
@@ -66,10 +53,7 @@ export function ConfigurationDetailPage() {
               <Button
                 size="sm"
                 render={
-                  <Link
-                    to="/santa/configurations/$id/edit"
-                    params={{ id: String(configuration.id) }}
-                  />
+                  <Link to="/santa/configurations/$id/edit" params={{ id: configuration.id }} />
                 }
                 nativeButton={false}
               >

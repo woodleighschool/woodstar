@@ -1,7 +1,6 @@
-import { getRouteApi, useParams } from "@tanstack/react-router";
+import { getRouteApi } from "@tanstack/react-router";
 
 import { QueryGate } from "@components/query-gate";
-import { parseRouteID } from "@lib/route-params";
 
 import { ConfigurationForm } from "./fields";
 import { formFromConfiguration } from "./form-adapter";
@@ -12,20 +11,9 @@ const routeApi = getRouteApi("/_authenticated/santa/configurations/$id/edit");
 export function ConfigurationEditPage() {
   const navigate = routeApi.useNavigate();
   const search = routeApi.useSearch();
-  const params = useParams({ strict: false });
-  const configurationId = params.id ?? "";
-  const id = parseRouteID(configurationId);
+  const { id } = routeApi.useParams();
   const detail = useSantaConfiguration(id);
   const update = useUpdateSantaConfiguration();
-
-  if (id === null) {
-    return (
-      <QueryGate
-        title="Failed to Load Configuration"
-        error={{ message: "Configuration route is invalid." }}
-      />
-    );
-  }
 
   if (detail.error || !detail.data) {
     return (
@@ -56,7 +44,7 @@ export function ConfigurationEditPage() {
       onCancel={() =>
         void navigate({
           to: "/santa/configurations/$id",
-          params: { id: String(configuration.id) },
+          params: { id: configuration.id },
         })
       }
       onSubmit={async (body) => (await update.mutateAsync({ id: configuration.id, body })).id}
@@ -64,7 +52,7 @@ export function ConfigurationEditPage() {
         if (savedID !== undefined) {
           void navigate({
             to: "/santa/configurations/$id",
-            params: { id: String(savedID) },
+            params: { id: savedID },
           });
         }
       }}

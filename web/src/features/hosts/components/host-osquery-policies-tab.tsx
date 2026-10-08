@@ -25,7 +25,7 @@ const policyColumns: DataTableColumnDef<OsqueryPolicyHostStatus>[] = [
     accessorKey: "policy_name",
     header: () => "Policy",
     cell: ({ row }) => (
-      <TextLink to="/osquery/policies/$id" params={{ id: String(row.original.policy_id) }}>
+      <TextLink to="/osquery/policies/$id" params={{ id: row.original.policy_id }}>
         {row.original.policy_name}
       </TextLink>
     ),
@@ -66,7 +66,7 @@ function HostPoliciesToolbar({ table }: { table: DataTableInstance<OsqueryPolicy
   );
 }
 
-export function HostOsqueryPoliciesTab({ hostId }: { hostId: number | null }) {
+export function HostOsqueryPoliciesTab({ hostId }: { hostId: number }) {
   const search = routeApi.useSearch();
   const navigate = routeApi.useNavigate();
   const tableSearch = useDataTableSearch({

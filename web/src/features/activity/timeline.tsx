@@ -86,27 +86,19 @@ function subjectLabel(event: ActivityEvent): ReactNode {
   switch (event.subject.type) {
     case "host":
       return (
-        <Link to="/hosts/$id" params={{ id: String(id) }} className="font-medium hover:underline">
+        <Link to="/hosts/$id" params={{ id }} className="font-medium hover:underline">
           {label}
         </Link>
       );
     case "policy":
       return (
-        <Link
-          to="/osquery/policies/$id"
-          params={{ id: String(id) }}
-          className="font-medium hover:underline"
-        >
+        <Link to="/osquery/policies/$id" params={{ id }} className="font-medium hover:underline">
           {label}
         </Link>
       );
     case "report":
       return (
-        <Link
-          to="/osquery/reports/$id"
-          params={{ id: String(id) }}
-          className="font-medium hover:underline"
-        >
+        <Link to="/osquery/reports/$id" params={{ id }} className="font-medium hover:underline">
           {label}
         </Link>
       );

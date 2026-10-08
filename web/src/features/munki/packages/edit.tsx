@@ -1,11 +1,10 @@
-import { getRouteApi, useParams } from "@tanstack/react-router";
+import { getRouteApi } from "@tanstack/react-router";
 import { useMemo, useRef } from "react";
 
 import { encodeSort } from "@components/data-table/use-data-table-search";
 import { QueryGate } from "@components/query-gate";
 import type { MunkiPackage } from "@lib/api";
 import { MAX_PAGE_SIZE } from "@lib/pagination";
-import { parseRouteID } from "@lib/route-params";
 
 import { deleteUnclaimedMunkiInstaller } from "../upload";
 import { PackageForm } from "./fields";
@@ -19,15 +18,8 @@ const routeApi = getRouteApi("/_authenticated/munki/packages/$id/edit");
 
 export function MunkiPackageEditPage() {
   const search = routeApi.useSearch();
-  const params = useParams({ strict: false });
-  const validPackageID = parseRouteID(params.id);
-  const pkg = useMunkiPackage(validPackageID);
-
-  if (validPackageID === null) {
-    return (
-      <QueryGate title="Failed to Load Package" error={{ message: "Package route is invalid." }} />
-    );
-  }
+  const { id } = routeApi.useParams();
+  const pkg = useMunkiPackage(id);
 
   if (pkg.error || !pkg.data) {
     return (
@@ -42,7 +34,7 @@ export function MunkiPackageEditPage() {
   return (
     <MunkiPackageEditForm
       key={`${pkg.data.id}:${pkg.data.updated_at}`}
-      packageID={validPackageID}
+      packageID={id}
       pkg={pkg.data}
       activeTab={search.tab ?? "basic"}
     />
@@ -128,7 +120,7 @@ function MunkiPackageEditForm({
       onSuccess={() =>
         void navigate({
           to: "/munki/packages/$id",
-          params: { id: String(packageID) },
+          params: { id: packageID },
         })
       }
       onCancel={() => {
@@ -137,7 +129,7 @@ function MunkiPackageEditForm({
         packageMutationAbort.current?.abort();
         void navigate({
           to: "/munki/packages/$id",
-          params: { id: String(packageID) },
+          params: { id: packageID },
         });
       }}
     />

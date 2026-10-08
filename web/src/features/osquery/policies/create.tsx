@@ -58,7 +58,7 @@ export function PolicyCreatePage() {
           await clearHistoryState();
           await navigate({
             to: "/osquery/policies/$id",
-            params: { id: String(id) },
+            params: { id },
           });
         }
       }}

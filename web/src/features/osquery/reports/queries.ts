@@ -30,7 +30,6 @@ import type {
   ListOsqueryReportsData,
 } from "@lib/api-client/types.gen";
 import { baseListParams, collectAllPages } from "@lib/pagination";
-import { detailPath } from "@lib/route-params";
 
 type QueryParams = Record<string, unknown>;
 
@@ -42,17 +41,16 @@ const REPORT_SNAPSHOT_REFRESH_MS = 30_000;
 const reportKeys = {
   all: ["osquery", "reports"] as const,
   list: (params?: QueryParams) => ["osquery", "reports", "list", params ?? {}] as const,
-  detail: (id: number | null) => ["osquery", "reports", "detail", id] as const,
-  snapshotsRoot: (id: number | null) => ["osquery", "reports", "detail", id, "snapshots"] as const,
-  snapshots: (id: number | null, params?: QueryParams) =>
+  detail: (id: number) => ["osquery", "reports", "detail", id] as const,
+  snapshotsRoot: (id: number) => ["osquery", "reports", "detail", id, "snapshots"] as const,
+  snapshots: (id: number, params?: QueryParams) =>
     [...reportKeys.snapshotsRoot(id), params ?? {}] as const,
 };
 
-export function reportQueryOptions(id: number | null) {
+export function reportQueryOptions(id: number) {
   return queryOptions<OsqueryReport, ApiError>({
     queryKey: reportKeys.detail(id),
-    queryFn: ({ signal }) => unwrap(getOsqueryReport({ path: detailPath(id), signal })),
-    enabled: id !== null,
+    queryFn: ({ signal }) => unwrap(getOsqueryReport({ path: { id }, signal })),
   });
 }
 
@@ -66,23 +64,27 @@ export function useReports(params: ReportListParams = {}) {
   });
 }
 
-export function useReport(id: number | null) {
+export function useReport(id: number) {
   return useQuery(reportQueryOptions(id));
 }
 
-export function useReportSnapshots(id: number | null, params: ReportSnapshotParams = {}) {
+export function useReportSnapshots(
+  id: number,
+  params: ReportSnapshotParams = {},
+  options: { enabled?: boolean } = {},
+) {
   const queryParams = reportSnapshotQueryParams(params);
   return useQuery<PageReportSnapshot, ApiError>({
     queryKey: reportKeys.snapshots(id, queryParams),
     queryFn: ({ signal }) =>
       unwrap(
         listOsqueryReportSnapshots({
-          path: detailPath(id),
+          path: { id },
           query: queryParams,
           signal,
         }),
       ),
-    enabled: id !== null,
+    enabled: options.enabled,
     placeholderData: keepPreviousData,
     refetchInterval: REPORT_SNAPSHOT_REFRESH_MS,
   });
@@ -120,13 +122,13 @@ export function useCreateReport() {
   });
 }
 
-export function useUpdateReport(id: number | null) {
+export function useUpdateReport(id: number) {
   const queryClient = useQueryClient();
   return useMutation<OsqueryReport, ApiError, OsqueryReportMutation>({
     mutationFn: (body) =>
       unwrap(
         updateOsqueryReport({
-          path: detailPath(id),
+          path: { id },
           body,
         }),
       ),

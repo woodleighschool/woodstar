@@ -146,11 +146,7 @@ const policyColumns: DataTableColumnDef<PolicyTableRow>[] = [
     accessorKey: "name",
     header: "Name",
     cell: ({ row }) => (
-      <TextLink
-        to="/osquery/policies/$id"
-        params={{ id: String(row.original.id) }}
-        className="font-medium"
-      >
+      <TextLink to="/osquery/policies/$id" params={{ id: row.original.id }} className="font-medium">
         {row.original.name}
       </TextLink>
     ),
@@ -284,7 +280,7 @@ function PolicyActionsCell({ row }: DataTableCellContext<PolicyTableRow>) {
       <DropdownMenuContent align="end">
         <DropdownMenuGroup>
           <DropdownMenuItem
-            render={<Link to="/osquery/policies/$id/edit" params={{ id: String(policy.id) }} />}
+            render={<Link to="/osquery/policies/$id/edit" params={{ id: policy.id }} />}
           >
             Edit
           </DropdownMenuItem>

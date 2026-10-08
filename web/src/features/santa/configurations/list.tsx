@@ -228,7 +228,7 @@ function configurationColumns(
       cell: ({ row }) => (
         <TextLink
           to="/santa/configurations/$id"
-          params={{ id: String(row.original.id) }}
+          params={{ id: row.original.id }}
           className="font-medium"
         >
           {row.original.name}
@@ -299,9 +299,7 @@ function ConfigurationRowActions({
       <DropdownMenuContent align="end">
         <DropdownMenuGroup>
           <DropdownMenuItem
-            render={
-              <Link to="/santa/configurations/$id/edit" params={{ id: String(configuration.id) }} />
-            }
+            render={<Link to="/santa/configurations/$id/edit" params={{ id: configuration.id }} />}
           >
             Edit
           </DropdownMenuItem>

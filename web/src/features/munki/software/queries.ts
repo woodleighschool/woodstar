@@ -33,7 +33,6 @@ import {
 } from "@lib/api";
 import type { ListMunkiSoftwareData } from "@lib/api-client/types.gen";
 import { baseListParams, MAX_PAGE_SIZE } from "@lib/pagination";
-import { detailPath } from "@lib/route-params";
 
 import { uploadRequestFromTarget } from "../upload";
 
@@ -46,7 +45,7 @@ const munkiRoot = ["munki"] as const;
 const munkiSoftwareKeys = {
   root: [...munkiRoot, "software"] as const,
   list: (params: QueryParams) => [...munkiRoot, "software", "list", params] as const,
-  detail: (id: number | null) => [...munkiRoot, "software", "detail", id] as const,
+  detail: (id: number) => [...munkiRoot, "software", "detail", id] as const,
   iconList: (params: QueryParams) => [...munkiRoot, "icons", "list", params] as const,
 };
 
@@ -54,11 +53,10 @@ async function invalidateMunkiCatalog(queryClient: QueryClient) {
   await queryClient.invalidateQueries({ queryKey: munkiRoot });
 }
 
-export function munkiSoftwareQueryOptions(id: number | null) {
+export function munkiSoftwareQueryOptions(id: number) {
   return queryOptions<MunkiSoftwareDetail, ApiError>({
     queryKey: munkiSoftwareKeys.detail(id),
-    queryFn: ({ signal }) => unwrap(getMunkiSoftware({ path: detailPath(id), signal })),
-    enabled: id !== null,
+    queryFn: ({ signal }) => unwrap(getMunkiSoftware({ path: { id }, signal })),
   });
 }
 
@@ -71,7 +69,7 @@ export function useMunkiSoftware(params: MunkiListParams = {}) {
   });
 }
 
-export function useMunkiSoftwareDetail(id: number | null) {
+export function useMunkiSoftwareDetail(id: number) {
   return useQuery(munkiSoftwareQueryOptions(id));
 }
 

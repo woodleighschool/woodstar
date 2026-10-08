@@ -32,7 +32,6 @@ import {
   POLICY_RESULT_STATUS_OPTIONS,
   REMEDIATION_STATUS_FILTER_OPTIONS,
 } from "@features/osquery/policies/model";
-import { parseRouteID } from "@lib/route-params";
 
 import { PolicyDeleteDialog } from "./delete-dialog";
 import {
@@ -88,9 +87,7 @@ function PolicyResultsToolbar({ table }: { table: DataTableInstance<PolicyResult
 }
 
 export function PolicyDetailPage() {
-  const { id: policyId } = useParams({
-    from: "/_authenticated/osquery/policies/$id",
-  });
+  const { id } = useParams({ from: "/_authenticated/osquery/policies/$id" });
   const search = routeApi.useSearch();
   const navigate = routeApi.useNavigate();
   const activeTab =
@@ -109,24 +106,27 @@ export function PolicyDetailPage() {
   const canEditRemediation = useCan({ resource: "osquery.remediations", access: "edit" });
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [viewRemediation, setViewRemediation] = useState<PolicyResultRow | null>(null);
-  const id = parseRouteID(policyId);
   const policy = usePolicy(id);
   const showRemediation = Boolean(policy.data?.remediation.configured);
   const canRunRemediation = Boolean(canEditRemediation && policy.data?.remediation.configured);
-  const remediationSource = usePolicyRemediationSource(
-    activeTab === "remediation" && canViewRemediation ? id : null,
-  );
+  const remediationSource = usePolicyRemediationSource(id, {
+    enabled: activeTab === "remediation" && canViewRemediation,
+  });
   const runRemediations = useRunPolicyRemediations();
   const status = search.status;
   const remediation = search.remediation;
-  const results = usePolicyResults(activeTab === "results" ? id : null, {
-    q: tableSearch.q,
-    page: tableSearch.page,
-    per_page: tableSearch.per_page,
-    sort: tableSearch.sort,
-    status,
-    remediation,
-  });
+  const results = usePolicyResults(
+    id,
+    {
+      q: tableSearch.q,
+      page: tableSearch.page,
+      per_page: tableSearch.per_page,
+      sort: tableSearch.sort,
+      status,
+      remediation,
+    },
+    { enabled: activeTab === "results" },
+  );
   const rows =
     results.data?.items.map((result) =>
       policyResultFromStatus(
@@ -166,12 +166,6 @@ export function PolicyDetailPage() {
     getRowId: (row) => String(row.host_id),
     enableRowSelection: canRunRemediation ? (row) => row.original.status === "fail" : false,
   });
-
-  if (id === null) {
-    return (
-      <QueryGate title="Failed to Load Policy" error={{ message: "Policy route is invalid." }} />
-    );
-  }
 
   if (policy.error) {
     return (
@@ -215,7 +209,7 @@ export function PolicyDetailPage() {
               <>
                 <Button
                   size="sm"
-                  render={<Link to="/osquery/policies/$id/edit" params={{ id: policyId }} />}
+                  render={<Link to="/osquery/policies/$id/edit" params={{ id }} />}
                   nativeButton={false}
                 >
                   <Pencil data-icon="inline-start" />
@@ -246,7 +240,7 @@ export function PolicyDetailPage() {
             render={
               <Link
                 to="/osquery/policies/$id"
-                params={{ id: policyId }}
+                params={{ id }}
                 search={{ ...search, tab: undefined }}
               />
             }
@@ -259,7 +253,7 @@ export function PolicyDetailPage() {
             render={
               <Link
                 to="/osquery/policies/$id"
-                params={{ id: policyId }}
+                params={{ id }}
                 search={{ ...search, tab: "results" }}
               />
             }
@@ -272,7 +266,7 @@ export function PolicyDetailPage() {
             render={
               <Link
                 to="/osquery/policies/$id"
-                params={{ id: policyId }}
+                params={{ id }}
                 search={{ ...search, tab: "remediation" }}
               />
             }

@@ -49,25 +49,24 @@ import type {
   ListHostsData,
 } from "@lib/api-client/types.gen";
 import { baseListParams, collectAllPages } from "@lib/pagination";
-import { detailPath } from "@lib/route-params";
 
 type QueryParams = Record<string, unknown>;
 
 export const hostKeys = {
   all: ["hosts"] as const,
   list: (params?: QueryParams) => ["hosts", "list", params ?? {}] as const,
-  detail: (id: number | null) => ["hosts", "detail", id] as const,
-  software: (id: number | null, params?: QueryParams) =>
+  detail: (id: number) => ["hosts", "detail", id] as const,
+  software: (id: number, params?: QueryParams) =>
     ["hosts", "detail", id, "software", "list", params ?? {}] as const,
-  munkiState: (id: number | null) => ["hosts", "detail", id, "munki"] as const,
-  munkiSoftware: (id: number | null, params?: QueryParams) =>
+  munkiState: (id: number) => ["hosts", "detail", id, "munki"] as const,
+  munkiSoftware: (id: number, params?: QueryParams) =>
     ["hosts", "detail", id, "munki", "software", "list", params ?? {}] as const,
-  osqueryReports: (id: number | null, params?: QueryParams) =>
+  osqueryReports: (id: number, params?: QueryParams) =>
     ["hosts", "detail", id, "osquery", "reports", params ?? {}] as const,
-  osqueryPolicies: (id: number | null, params?: QueryParams) =>
+  osqueryPolicies: (id: number, params?: QueryParams) =>
     ["hosts", "detail", id, "osquery", "policies", params ?? {}] as const,
-  santaState: (id: number | null) => ["hosts", "detail", id, "santa"] as const,
-  santaRules: (id: number | null, params?: QueryParams) =>
+  santaState: (id: number) => ["hosts", "detail", id, "santa"] as const,
+  santaRules: (id: number, params?: QueryParams) =>
     ["hosts", "detail", id, "santa", "rules", "list", params ?? {}] as const,
 };
 
@@ -98,11 +97,10 @@ function hostListQueryParams(params: HostListParams) {
   };
 }
 
-export function hostQueryOptions(id: number | null, options: HostRefetchOptions = {}) {
+export function hostQueryOptions(id: number, options: HostRefetchOptions = {}) {
   return queryOptions<HostDetail, ApiError>({
     queryKey: hostKeys.detail(id),
-    queryFn: ({ signal }) => unwrap(getHost({ path: detailPath(id), signal })),
-    enabled: id !== null,
+    queryFn: ({ signal }) => unwrap(getHost({ path: { id }, signal })),
     refetchInterval: options.refetchInterval,
   });
 }
@@ -128,42 +126,39 @@ export async function listAllHosts(params: HostListParams = {}): Promise<Host[]>
   );
 }
 
-export function useHost(id: number | null, options: HostRefetchOptions = {}) {
+export function useHost(id: number, options: HostRefetchOptions = {}) {
   return useQuery(hostQueryOptions(id, options));
 }
 
-export function useHostMunkiState(id: number | null) {
+export function useHostMunkiState(id: number) {
   return useQuery<MunkiHostState | null, ApiError>({
     queryKey: hostKeys.munkiState(id),
-    queryFn: ({ signal }) => nullOn404(getHostMunkiState({ path: detailPath(id), signal })),
-    enabled: id !== null,
+    queryFn: ({ signal }) => nullOn404(getHostMunkiState({ path: { id }, signal })),
     refetchInterval: HOST_REFRESH_MS,
   });
 }
 
-export function useHostMunkiSoftware(id: number | null, params: HostMunkiSoftwareParams = {}) {
+export function useHostMunkiSoftware(id: number, params: HostMunkiSoftwareParams = {}) {
   const queryParams = baseListParams(params);
   return useQuery<PageHostManifestSoftware, ApiError>({
     queryKey: hostKeys.munkiSoftware(id, queryParams),
     queryFn: ({ signal }) =>
       unwrap(
         listHostMunkiSoftware({
-          path: detailPath(id),
+          path: { id },
           query: queryParams,
           signal,
         }),
       ),
-    enabled: id !== null,
     placeholderData: keepPreviousData,
     refetchInterval: HOST_REFRESH_MS,
   });
 }
 
-export function useHostSantaState(id: number | null) {
+export function useHostSantaState(id: number) {
   return useQuery<SantaHostState | null, ApiError>({
     queryKey: hostKeys.santaState(id),
-    queryFn: ({ signal }) => nullOn404(getHostSantaState({ path: detailPath(id), signal })),
-    enabled: id !== null,
+    queryFn: ({ signal }) => nullOn404(getHostSantaState({ path: { id }, signal })),
     refetchInterval: HOST_REFRESH_MS,
   });
 }
@@ -236,7 +231,7 @@ export function useClearHostPrimaryUser() {
   });
 }
 
-export function useHostSoftware(id: number | null, params: HostSoftwareListParams = {}) {
+export function useHostSoftware(id: number, params: HostSoftwareListParams = {}) {
   const queryParams = {
     ...baseListParams(params),
     source: params.source && params.source.length > 0 ? params.source : undefined,
@@ -247,36 +242,33 @@ export function useHostSoftware(id: number | null, params: HostSoftwareListParam
     queryFn: ({ signal }) =>
       unwrap(
         listHostSoftware({
-          path: detailPath(id),
+          path: { id },
           query: queryParams,
           signal,
         }),
       ),
-    enabled: id !== null,
     placeholderData: keepPreviousData,
     refetchInterval: HOST_REFRESH_MS,
   });
 }
 
-export function useHostOsqueryReports(id: number | null, params: HostOsqueryReportsParams = {}) {
+export function useHostOsqueryReports(id: number, params: HostOsqueryReportsParams = {}) {
   const queryParams = hostOsqueryReportsQueryParams(params);
   return useQuery<PageReportSnapshot, ApiError>({
     queryKey: hostKeys.osqueryReports(id, queryParams),
     queryFn: ({ signal }) =>
-      unwrap(listHostOsqueryReports({ path: detailPath(id), query: queryParams, signal })),
-    enabled: id !== null,
+      unwrap(listHostOsqueryReports({ path: { id }, query: queryParams, signal })),
     placeholderData: keepPreviousData,
     refetchInterval: HOST_REFRESH_MS,
   });
 }
 
-export function useHostOsqueryPolicies(id: number | null, params: HostOsqueryPoliciesParams = {}) {
+export function useHostOsqueryPolicies(id: number, params: HostOsqueryPoliciesParams = {}) {
   const queryParams = hostOsqueryPoliciesQueryParams(params);
   return useQuery<PagePolicyHostStatus, ApiError>({
     queryKey: hostKeys.osqueryPolicies(id, queryParams),
     queryFn: ({ signal }) =>
-      unwrap(listHostOsqueryPolicies({ path: detailPath(id), query: queryParams, signal })),
-    enabled: id !== null,
+      unwrap(listHostOsqueryPolicies({ path: { id }, query: queryParams, signal })),
     placeholderData: keepPreviousData,
     refetchInterval: HOST_REFRESH_MS,
   });
@@ -310,7 +302,7 @@ function hostOsqueryPoliciesQueryParams(params: HostOsqueryPoliciesParams) {
   };
 }
 
-export function useHostSantaRules(id: number | null, params: HostSantaRulesParams = {}) {
+export function useHostSantaRules(id: number, params: HostSantaRulesParams = {}) {
   const queryParams = baseListParams(params, {
     defaultPerPage: HOST_SANTA_RULES_PAGE_SIZE,
   });
@@ -320,12 +312,11 @@ export function useHostSantaRules(id: number | null, params: HostSantaRulesParam
     queryFn: ({ signal }) =>
       unwrap(
         listHostSantaRules({
-          path: detailPath(id),
+          path: { id },
           query: queryParams,
           signal,
         }),
       ),
-    enabled: id !== null,
     placeholderData: keepPreviousData,
     refetchInterval: HOST_REFRESH_MS,
   });

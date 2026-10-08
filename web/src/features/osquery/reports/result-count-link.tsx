@@ -14,7 +14,7 @@ export function ReportResultCountLink({
   return (
     <TextLink
       to="/osquery/reports/$id"
-      params={{ id: String(reportId) }}
+      params={{ id: reportId }}
       search={{ tab: "results", status }}
       className="w-fit"
     >

@@ -37,34 +37,33 @@ import type {
   ListOsqueryPoliciesData,
 } from "@lib/api-client/types.gen";
 import { baseListParams, collectAllPages } from "@lib/pagination";
-import { detailPath } from "@lib/route-params";
 import { countLabel } from "@lib/utils";
 
 type QueryParams = Record<string, unknown>;
 
 type PolicyListParams = NonNullable<ListOsqueryPoliciesData["query"]>;
 type PolicyResultsParams = NonNullable<ListOsqueryPolicyResultsData["query"]>;
+type EnabledOptions = { enabled?: boolean };
 
 const POLICY_REFRESH_MS = 30_000;
 
 const policyKeys = {
   all: ["osquery", "policies"] as const,
   list: (params?: QueryParams) => ["osquery", "policies", "list", params ?? {}] as const,
-  detail: (id: number | null) => ["osquery", "policies", "detail", id] as const,
-  remediationSource: (id: number | null) =>
+  detail: (id: number) => ["osquery", "policies", "detail", id] as const,
+  remediationSource: (id: number) =>
     ["osquery", "policies", "detail", id, "remediation-source"] as const,
-  remediationRun: (id: number | null, hostID: number | null) =>
+  remediationRun: (id: number, hostID: number | null) =>
     ["osquery", "policies", "detail", id, "remediation", hostID] as const,
-  resultsRoot: (id: number | null) => ["osquery", "policies", "detail", id, "results"] as const,
-  results: (id: number | null, params?: QueryParams) =>
+  resultsRoot: (id: number) => ["osquery", "policies", "detail", id, "results"] as const,
+  results: (id: number, params?: QueryParams) =>
     [...policyKeys.resultsRoot(id), params ?? {}] as const,
 };
 
-export function policyQueryOptions(id: number | null) {
+export function policyQueryOptions(id: number) {
   return queryOptions<OsqueryPolicy, ApiError>({
     queryKey: policyKeys.detail(id),
-    queryFn: ({ signal }) => unwrap(getOsqueryPolicy({ path: detailPath(id), signal })),
-    enabled: id !== null,
+    queryFn: ({ signal }) => unwrap(getOsqueryPolicy({ path: { id }, signal })),
   });
 }
 
@@ -79,47 +78,50 @@ export function usePolicies(params: PolicyListParams = {}) {
   });
 }
 
-export function usePolicy(id: number | null) {
+export function usePolicy(id: number) {
   return useQuery(policyQueryOptions(id));
 }
 
-export function usePolicyRemediationSource(id: number | null) {
+export function usePolicyRemediationSource(id: number, options: EnabledOptions = {}) {
   return useQuery<OsqueryPolicyRemediationSource, ApiError>({
     queryKey: policyKeys.remediationSource(id),
-    queryFn: ({ signal }) =>
-      unwrap(getOsqueryPolicyRemediationSource({ path: detailPath(id), signal })),
-    enabled: id !== null,
+    queryFn: ({ signal }) => unwrap(getOsqueryPolicyRemediationSource({ path: { id }, signal })),
+    enabled: options.enabled,
   });
 }
 
-export function usePolicyRemediationRun(policyID: number | null, hostID: number | null) {
+export function usePolicyRemediationRun(policyID: number, hostID: number | null) {
   return useQuery<OsqueryPolicyRemediationRun | null, ApiError>({
     queryKey: policyKeys.remediationRun(policyID, hostID),
     queryFn: ({ signal }) =>
       nullOn404(
         getOsqueryPolicyRemediationRun({
-          path: { id: policyID ?? 0, host_id: hostID ?? 0 },
+          path: { id: policyID, host_id: hostID ?? 0 },
           signal,
         }),
       ),
-    enabled: policyID !== null && hostID !== null,
+    enabled: hostID !== null,
     refetchInterval: POLICY_REFRESH_MS,
   });
 }
 
-export function usePolicyResults(id: number | null, params: PolicyResultsParams = {}) {
+export function usePolicyResults(
+  id: number,
+  params: PolicyResultsParams = {},
+  options: EnabledOptions = {},
+) {
   const queryParams = policyResultQueryParams(params);
   return useQuery<PagePolicyHostStatus, ApiError>({
     queryKey: policyKeys.results(id, queryParams),
     queryFn: ({ signal }) =>
       unwrap(
         listOsqueryPolicyResults({
-          path: detailPath(id),
+          path: { id },
           query: queryParams,
           signal,
         }),
       ),
-    enabled: id !== null,
+    enabled: options.enabled,
     placeholderData: keepPreviousData,
     refetchInterval: POLICY_REFRESH_MS,
   });
@@ -158,13 +160,13 @@ export function useCreatePolicy() {
   });
 }
 
-export function useUpdatePolicy(id: number | null) {
+export function useUpdatePolicy(id: number) {
   const queryClient = useQueryClient();
   return useMutation<OsqueryPolicy, ApiError, OsqueryPolicyMutation>({
     mutationFn: (body) =>
       unwrap(
         updateOsqueryPolicy({
-          path: detailPath(id),
+          path: { id },
           body,
         }),
       ),

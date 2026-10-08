@@ -11,25 +11,17 @@ import { Button } from "@components/ui/button";
 import { useCan } from "@features/authz/access";
 import { useLabelNameMap } from "@features/labels/components/label-ref-list";
 import type { SantaRule } from "@lib/api";
-import { parseRouteID } from "@lib/route-params";
 
 import { RuleDeleteDialog } from "./delete-dialog";
 import { POLICIES, ruleTypeLabel } from "./metadata";
 import { useSantaRule } from "./queries";
 
 export function RuleDetailPage() {
-  const { id: ruleID } = useParams({
-    from: "/_authenticated/santa/rules/$id",
-  });
+  const { id } = useParams({ from: "/_authenticated/santa/rules/$id" });
   const navigate = useNavigate();
   const canEdit = useCan({ resource: "santa.rules", access: "edit" });
-  const id = parseRouteID(ruleID);
   const query = useSantaRule(id);
   const [deleteOpen, setDeleteOpen] = useState(false);
-
-  if (id === null) {
-    return <QueryGate title="Failed to Load Rule" error={{ message: "Rule route is invalid." }} />;
-  }
 
   if (query.error || !query.data) {
     return (
@@ -52,7 +44,7 @@ export function RuleDetailPage() {
             <>
               <Button
                 size="sm"
-                render={<Link to="/santa/rules/$id/edit" params={{ id: String(rule.id) }} />}
+                render={<Link to="/santa/rules/$id/edit" params={{ id: rule.id }} />}
                 nativeButton={false}
               >
                 <Pencil data-icon="inline-start" />

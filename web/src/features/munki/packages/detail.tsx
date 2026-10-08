@@ -13,24 +13,17 @@ import { Button } from "@components/ui/button";
 import { useCan } from "@features/authz/access";
 import { SoftwareArtwork } from "@features/software/software-icon";
 import type { MunkiPackageReference } from "@lib/api";
-import { parseRouteID } from "@lib/route-params";
 
 import { MunkiPackageDeleteDialog } from "./delete-dialog";
 import { useMunkiPackage } from "./queries";
 
 export function MunkiPackageDetailPage() {
-  const params = useParams({ strict: false });
+  const { id } = useParams({ from: "/_authenticated/munki/packages/$id" });
   const navigate = useNavigate();
   const canEdit = useCan({ resource: "munki.packages", access: "edit" });
-  const packageID = parseRouteID(params.id);
-  const query = useMunkiPackage(packageID);
+  const query = useMunkiPackage(id);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  if (packageID === null) {
-    return (
-      <QueryGate title="Failed to Load Package" error={{ message: "Package route is invalid." }} />
-    );
-  }
   if (query.error || !query.data) {
     return (
       <QueryGate
@@ -59,7 +52,7 @@ export function MunkiPackageDetailPage() {
             <>
               <Button
                 size="sm"
-                render={<Link to="/munki/packages/$id/edit" params={{ id: String(pkg.id) }} />}
+                render={<Link to="/munki/packages/$id/edit" params={{ id: pkg.id }} />}
                 nativeButton={false}
               >
                 <Pencil data-icon="inline-start" />
@@ -85,7 +78,7 @@ export function MunkiPackageDetailPage() {
           value={
             <TextLink
               to="/munki/software/$id"
-              params={{ id: String(pkg.software.id) }}
+              params={{ id: pkg.software.id }}
               className="font-medium"
             >
               {pkg.software.name}
@@ -156,7 +149,7 @@ function PackageReferences({ values }: { values: MunkiPackageReference[] }) {
         <TextLink
           key={`${reference.software_id}:${reference.package_id ?? "latest"}`}
           to={reference.package_id === undefined ? "/munki/software/$id" : "/munki/packages/$id"}
-          params={{ id: String(reference.package_id ?? reference.software_id) }}
+          params={{ id: reference.package_id ?? reference.software_id }}
           className="font-medium"
         >
           {reference.software_name} {reference.package_version ?? "latest"}

@@ -55,12 +55,6 @@ export function HostListPage() {
   const [enrollmentOpen, setEnrollmentOpen] = React.useState(false);
   const softwareID = search.software_title_id === undefined ? undefined : search.software_id;
 
-  const label = useLabel(search.label_id ?? null);
-  const softwareTitle = useSoftwareTitle(search.software_title_id ?? null);
-  const softwareLabel = softwareTitle.data
-    ? softwareFilterLabel(softwareTitle.data, softwareID)
-    : undefined;
-
   const query = useHosts(
     {
       q: tableSearch.q,
@@ -118,16 +112,15 @@ export function HostListPage() {
         context={
           <>
             {search.label_id !== undefined ? (
-              <FilterChip
-                label="Label"
-                value={label.data?.name ?? `#${search.label_id}`}
+              <LabelFilterChip
+                id={search.label_id}
                 onRemove={() => tableSearch.clearSearchKeys(["label_id"])}
               />
             ) : null}
-            {softwareLabel ? (
-              <FilterChip
-                label="Software"
-                value={softwareLabel}
+            {search.software_title_id !== undefined ? (
+              <SoftwareFilterChip
+                titleID={search.software_title_id}
+                softwareID={softwareID}
                 onRemove={() => tableSearch.clearSearchKeys(["software_id", "software_title_id"])}
               />
             ) : null}
@@ -205,7 +198,7 @@ const hostColumns: DataTableColumnDef<Host>[] = [
     header: "Name",
     cell: ({ row }) => (
       <div className="flex items-center gap-2">
-        <TextLink to="/hosts/$id" params={{ id: String(row.original.id) }} className="font-medium">
+        <TextLink to="/hosts/$id" params={{ id: row.original.id }} className="font-medium">
           {row.original.display_name}
         </TextLink>
         <HostOnlineDot status={row.original.status} />
@@ -375,6 +368,31 @@ const hostExportColumns: DataTableExportOptions<Host>["columns"] = [
     value: (host) => host.last_restarted_at,
   },
 ];
+
+function LabelFilterChip({ id, onRemove }: { id: number; onRemove: () => void }) {
+  const label = useLabel(id);
+  return <FilterChip label="Label" value={label.data?.name ?? `#${id}`} onRemove={onRemove} />;
+}
+
+function SoftwareFilterChip({
+  titleID,
+  softwareID,
+  onRemove,
+}: {
+  titleID: number;
+  softwareID: number | undefined;
+  onRemove: () => void;
+}) {
+  const title = useSoftwareTitle(titleID);
+  if (!title.data) return null;
+  return (
+    <FilterChip
+      label="Software"
+      value={softwareFilterLabel(title.data, softwareID)}
+      onRemove={onRemove}
+    />
+  );
+}
 
 function softwareFilterLabel(title: SoftwareTitle, softwareID: number | undefined) {
   if (softwareID === undefined) return title.name;

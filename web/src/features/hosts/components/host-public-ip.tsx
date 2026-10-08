@@ -42,7 +42,7 @@ export function HostPublicIP({
               value={
                 <TextLink
                   to="/munki/distribution-points/$id"
-                  params={{ id: String(distributionPoint.id) }}
+                  params={{ id: distributionPoint.id }}
                   className="font-medium"
                 >
                   {distributionPoint.name}

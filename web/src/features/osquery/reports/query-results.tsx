@@ -101,7 +101,7 @@ export function createReportResultColumns({
       accessorKey: "host_name",
       header: () => "Host",
       cell: ({ row }) => (
-        <TextLink to="/hosts/$id" params={{ id: String(row.original.host_id) }}>
+        <TextLink to="/hosts/$id" params={{ id: row.original.host_id }}>
           {row.original.host_name}
         </TextLink>
       ),

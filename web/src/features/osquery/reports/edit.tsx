@@ -1,4 +1,4 @@
-import { getRouteApi, useParams } from "@tanstack/react-router";
+import { getRouteApi } from "@tanstack/react-router";
 
 import { QueryGate } from "@components/query-gate";
 import {
@@ -6,7 +6,6 @@ import {
   useOpenOsqueryLive,
   useOsqueryHistoryState,
 } from "@features/osquery/live/history";
-import { parseRouteID } from "@lib/route-params";
 
 import { ReportForm, reportFromDetail } from "./fields";
 import { useReport, useUpdateReport } from "./queries";
@@ -16,20 +15,12 @@ const routeApi = getRouteApi("/_authenticated/osquery/reports/$id/edit");
 export function ReportEditPage() {
   const navigate = routeApi.useNavigate();
   const search = routeApi.useSearch();
-  const params = useParams({ strict: false });
-  const reportId = params.id ?? "";
-  const id = parseRouteID(reportId);
+  const { id } = routeApi.useParams();
   const detail = useReport(id);
   const update = useUpdateReport(id);
   const historyState = useOsqueryHistoryState();
   const openLive = useOpenOsqueryLive();
   const clearHistoryState = useClearOsqueryHistoryState();
-
-  if (id === null) {
-    return (
-      <QueryGate title="Failed to Load Report" error={{ message: "Report route is invalid." }} />
-    );
-  }
 
   if (detail.error || !detail.data) {
     return (
@@ -67,7 +58,7 @@ export function ReportEditPage() {
         await clearHistoryState();
         await navigate({
           to: "/osquery/reports/$id",
-          params: { id: String(report.id) },
+          params: { id: report.id },
         });
       }}
       onRunLive={(value) =>
@@ -88,7 +79,7 @@ export function ReportEditPage() {
           await clearHistoryState();
           await navigate({
             to: "/osquery/reports/$id",
-            params: { id: String(savedID) },
+            params: { id: savedID },
           });
         }
       }}

@@ -29,7 +29,6 @@ import {
 } from "@lib/api";
 import type { ListMunkiPackagesData } from "@lib/api-client/types.gen";
 import { baseListParams } from "@lib/pagination";
-import { detailPath } from "@lib/route-params";
 
 import { deleteUnclaimedMunkiInstaller, uploadRequestFromTarget } from "../upload";
 
@@ -41,7 +40,7 @@ const munkiRoot = ["munki"] as const;
 
 const munkiPackageKeys = {
   list: (params: QueryParams) => [...munkiRoot, "packages", "list", params] as const,
-  detail: (id: number | null) => [...munkiRoot, "packages", "detail", id] as const,
+  detail: (id: number) => [...munkiRoot, "packages", "detail", id] as const,
 };
 
 function packageQueryParams(params: MunkiPackageListParams) {
@@ -52,11 +51,10 @@ function packageQueryParams(params: MunkiPackageListParams) {
   };
 }
 
-export function munkiPackageQueryOptions(id: number | null) {
+export function munkiPackageQueryOptions(id: number) {
   return queryOptions<MunkiPackage, ApiError>({
     queryKey: munkiPackageKeys.detail(id),
-    queryFn: ({ signal }) => unwrap(getMunkiPackage({ path: detailPath(id), signal })),
-    enabled: id !== null,
+    queryFn: ({ signal }) => unwrap(getMunkiPackage({ path: { id }, signal })),
   });
 }
 
@@ -69,7 +67,7 @@ export function useMunkiPackages(params: MunkiPackageListParams = {}) {
   });
 }
 
-export function useMunkiPackage(id: number | null) {
+export function useMunkiPackage(id: number) {
   return useQuery(munkiPackageQueryOptions(id));
 }
 

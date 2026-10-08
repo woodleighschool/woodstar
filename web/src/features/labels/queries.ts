@@ -12,25 +12,23 @@ import type { ApiError, Label, LabelMutation, PageLabel } from "@lib/api";
 import { createLabel, deleteLabel, getLabel, listLabels, unwrap, updateLabel } from "@lib/api";
 import type { ListLabelsData } from "@lib/api-client/types.gen";
 import { baseListParams } from "@lib/pagination";
-import { detailPath } from "@lib/route-params";
 
 type QueryParams = Record<string, unknown>;
 
 const labelKeys = {
   all: ["labels"] as const,
   list: (params?: QueryParams) => ["labels", "list", params ?? {}] as const,
-  detail: (id: number | null) => ["labels", "detail", id] as const,
+  detail: (id: number) => ["labels", "detail", id] as const,
 };
 
 export type LabelListParams = NonNullable<ListLabelsData["query"]>;
 
 type RefetchOptions = { refetchInterval?: number | false };
 
-export function labelQueryOptions(id: number | null) {
+export function labelQueryOptions(id: number) {
   return queryOptions<Label, ApiError>({
     queryKey: labelKeys.detail(id),
-    queryFn: ({ signal }) => unwrap(getLabel({ path: detailPath(id), signal })),
-    enabled: id !== null,
+    queryFn: ({ signal }) => unwrap(getLabel({ path: { id }, signal })),
   });
 }
 
@@ -49,7 +47,7 @@ export function useLabels(params: LabelListParams = {}, options: RefetchOptions 
   });
 }
 
-export function useLabel(id: number | null) {
+export function useLabel(id: number) {
   return useQuery(labelQueryOptions(id));
 }
 
@@ -67,10 +65,10 @@ export function useCreateLabel() {
   });
 }
 
-export function useUpdateLabel(id: number | null) {
+export function useUpdateLabel(id: number) {
   const queryClient = useQueryClient();
   return useMutation<Label, ApiError, LabelMutation>({
-    mutationFn: (body) => unwrap(updateLabel({ path: detailPath(id), body })),
+    mutationFn: (body) => unwrap(updateLabel({ path: { id }, body })),
     onSuccess: async () => {
       toast.add({ title: "Label Saved", type: "success" });
       await Promise.all([

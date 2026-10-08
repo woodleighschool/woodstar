@@ -4,7 +4,6 @@ import type { ApiError, Group, PageGroup } from "@lib/api";
 import { getGroup, listGroups, unwrap } from "@lib/api";
 import type { ListGroupsData } from "@lib/api-client/types.gen";
 import { baseListParams } from "@lib/pagination";
-import { detailPath } from "@lib/route-params";
 
 export type GroupListParams = NonNullable<ListGroupsData["query"]>;
 
@@ -13,7 +12,7 @@ type QueryParams = Record<string, unknown>;
 export const groupKeys = {
   all: ["groups"] as const,
   list: (params?: QueryParams) => ["groups", "list", params ?? {}] as const,
-  detail: (id: number | null) => ["groups", "detail", id] as const,
+  detail: (id: number) => ["groups", "detail", id] as const,
 };
 
 function groupQueryParams(params: GroupListParams = {}) {
@@ -38,16 +37,15 @@ export function useGroups(params: GroupListParams = {}) {
   });
 }
 
-export function useGroup(id: number | null) {
+export function useGroup(id: number) {
   return useQuery<Group, ApiError>({
     queryKey: groupKeys.detail(id),
     queryFn: ({ signal }) =>
       unwrap(
         getGroup({
-          path: detailPath(id),
+          path: { id },
           signal,
         }),
       ),
-    enabled: id !== null,
   });
 }

@@ -21,11 +21,7 @@ const santaRuleColumns: DataTableColumnDef<SantaRuleStatus>[] = [
     accessorKey: "name",
     header: () => "Name",
     cell: ({ row }) => (
-      <TextLink
-        to="/santa/rules/$id"
-        params={{ id: String(row.original.rule_id) }}
-        className="font-medium"
-      >
+      <TextLink to="/santa/rules/$id" params={{ id: row.original.rule_id }} className="font-medium">
         {row.original.name}
       </TextLink>
     ),
@@ -152,7 +148,7 @@ function SantaConfigurationLink({
   const link = (
     <TextLink
       to="/santa/configurations/$id"
-      params={{ id: String(configuration.id) }}
+      params={{ id: configuration.id }}
       className="font-medium"
     >
       {configuration.name}

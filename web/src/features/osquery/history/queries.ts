@@ -2,7 +2,6 @@ import { useQuery } from "@tanstack/react-query";
 
 import type { ApiError, OsqueryHostStatusPoint, OsqueryPolicyStatusPoint } from "@lib/api";
 import { listOsqueryHostStatusHistory, listOsqueryPolicyStatusHistory, unwrap } from "@lib/api";
-import { detailPath } from "@lib/route-params";
 
 export type HistoryRange = "24h" | "7d" | "30d";
 
@@ -31,18 +30,17 @@ export function useHostStatusHistory(range: HistoryRange) {
   });
 }
 
-export function usePolicyStatusHistory(id: number | null, range: HistoryRange) {
+export function usePolicyStatusHistory(id: number, range: HistoryRange) {
   return useQuery<OsqueryPolicyStatusPoint[], ApiError>({
     queryKey: ["osquery", "policies", "detail", id, "history", range],
     queryFn: ({ signal }) =>
       unwrap(
         listOsqueryPolicyStatusHistory({
-          path: detailPath(id),
+          path: { id },
           query: { since: since(range) },
           signal,
         }),
       ),
-    enabled: id !== null,
     refetchInterval: HISTORY_REFRESH_MS,
   });
 }

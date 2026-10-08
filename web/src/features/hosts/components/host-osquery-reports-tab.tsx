@@ -47,7 +47,7 @@ const hostReportColumns: DataTableColumnDef<OsqueryReportSnapshot>[] = [
     cell: ({ row }) => (
       <div className="flex flex-col gap-0.5">
         <span className="inline-flex w-fit items-center gap-1">
-          <TextLink to="/osquery/reports/$id" params={{ id: String(row.original.report_id) }}>
+          <TextLink to="/osquery/reports/$id" params={{ id: row.original.report_id }}>
             {row.original.report_name}
           </TextLink>
           {row.original.error ? (
@@ -99,7 +99,7 @@ function HostReportsToolbar({ table }: { table: DataTableInstance<OsqueryReportS
   );
 }
 
-export function HostOsqueryReportsTab({ hostId }: { hostId: number | null }) {
+export function HostOsqueryReportsTab({ hostId }: { hostId: number }) {
   const search = routeApi.useSearch();
   const navigate = routeApi.useNavigate();
   const tableSearch = useDataTableSearch({

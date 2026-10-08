@@ -246,7 +246,7 @@ function HostSectionNav({ hostID, host }: { hostID: number; host: HostDetail }) 
             <TabsTrigger
               key={section.value}
               value={section.value}
-              render={<Link to={section.path} params={{ id: String(hostID) }} preload="intent" />}
+              render={<Link to={section.path} params={{ id: hostID }} preload="intent" />}
               nativeButton={false}
             >
               {section.label}
@@ -258,6 +258,5 @@ function HostSectionNav({ hostID, host }: { hostID: number; host: HostDetail }) 
 }
 
 function useHostID() {
-  const { id } = useParams({ from: "/_authenticated/hosts/$id" });
-  return Number(id);
+  return useParams({ from: "/_authenticated/hosts/$id" }).id;
 }

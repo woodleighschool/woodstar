@@ -16,7 +16,6 @@ import {
 } from "@lib/api";
 import type { ListSantaEventsData, ListSantaFileAccessEventsData } from "@lib/api-client/types.gen";
 import { baseListParams } from "@lib/pagination";
-import { detailPath } from "@lib/route-params";
 import { nonEmpty } from "@lib/utils";
 
 type QueryParams = Record<string, unknown>;
@@ -35,26 +34,23 @@ const SANTA_EVENT_REFRESH_MS = 30_000;
 const eventKeys = {
   executions: (params?: QueryParams) =>
     ["santa", "events", "executions", "list", params ?? {}] as const,
-  execution: (id: number | null) => ["santa", "events", "executions", "detail", id] as const,
+  execution: (id: number) => ["santa", "events", "executions", "detail", id] as const,
   fileAccess: (params?: QueryParams) =>
     ["santa", "events", "file-access", "list", params ?? {}] as const,
-  fileAccessDetail: (id: number | null) =>
-    ["santa", "events", "file-access", "detail", id] as const,
+  fileAccessDetail: (id: number) => ["santa", "events", "file-access", "detail", id] as const,
 };
 
-export function santaEventQueryOptions(id: number | null) {
+export function santaEventQueryOptions(id: number) {
   return queryOptions<SantaExecutionEvent, ApiError>({
     queryKey: eventKeys.execution(id),
-    queryFn: ({ signal }) => unwrap(getSantaEvent({ path: detailPath(id), signal })),
-    enabled: id !== null,
+    queryFn: ({ signal }) => unwrap(getSantaEvent({ path: { id }, signal })),
   });
 }
 
-export function santaFileAccessEventQueryOptions(id: number | null) {
+export function santaFileAccessEventQueryOptions(id: number) {
   return queryOptions<SantaFileAccessEvent, ApiError>({
     queryKey: eventKeys.fileAccessDetail(id),
-    queryFn: ({ signal }) => unwrap(getSantaFileAccessEvent({ path: detailPath(id), signal })),
-    enabled: id !== null,
+    queryFn: ({ signal }) => unwrap(getSantaFileAccessEvent({ path: { id }, signal })),
   });
 }
 
@@ -74,7 +70,7 @@ export function useSantaEvents(params: SantaEventListParams = {}) {
   });
 }
 
-export function useSantaEvent(id: number | null) {
+export function useSantaEvent(id: number) {
   return useQuery(santaEventQueryOptions(id));
 }
 
@@ -93,6 +89,6 @@ export function useSantaFileAccessEvents(params: SantaFileAccessEventListParams 
   });
 }
 
-export function useSantaFileAccessEvent(id: number | null) {
+export function useSantaFileAccessEvent(id: number) {
   return useQuery(santaFileAccessEventQueryOptions(id));
 }
