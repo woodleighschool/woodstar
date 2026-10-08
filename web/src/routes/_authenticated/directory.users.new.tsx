@@ -4,7 +4,7 @@ import { requirePermission } from "@features/authn/guards";
 import { UserCreatePage } from "@features/directory/users/create";
 
 export const Route = createFileRoute("/_authenticated/directory/users/new")({
-  staticData: { breadcrumb: "Create" },
+  staticData: { breadcrumb: "Create User" },
   beforeLoad: ({ context }) =>
     requirePermission(context.queryClient, { resource: "users", access: "edit" }, () => {
       throw redirect({ to: "/directory/users" });

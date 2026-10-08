@@ -6,6 +6,6 @@ import { ReportLivePage } from "@features/osquery/live/page";
 export const Route = createFileRoute("/_authenticated/osquery/reports/new/live")({
   beforeLoad: ({ context }) =>
     requirePermission(context.queryClient, { resource: "osquery.live-queries", access: "edit" }),
-  staticData: { breadcrumb: "Live" },
+  staticData: { breadcrumb: "Run Report" },
   component: ReportLivePage,
 });

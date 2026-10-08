@@ -8,7 +8,7 @@ const searchSchema = z.object({
 });
 
 export const Route = createFileRoute("/_authenticated/osquery/reports/new/")({
-  staticData: { breadcrumb: "Create" },
+  staticData: { breadcrumb: "Create Report" },
   validateSearch: searchSchema,
   component: ReportCreatePage,
 });

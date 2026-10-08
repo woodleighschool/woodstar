@@ -74,7 +74,7 @@ function SidebarBrand({ to }: { to: string }) {
         <SidebarMenuButton size="lg" render={<Link to={to} />}>
           <Logo />
           <div className="grid flex-1 text-left text-sm/tight">
-            <span className="truncate font-semibold">Woodstar</span>
+            <span className="truncate font-semibold">{runtime.name}</span>
             <span className="truncate text-xs text-muted-foreground">{`v${runtime.version}`}</span>
           </div>
         </SidebarMenuButton>

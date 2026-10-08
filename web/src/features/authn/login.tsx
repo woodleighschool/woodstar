@@ -3,6 +3,7 @@ import { getRouteApi } from "@tanstack/react-router";
 import { z } from "zod";
 
 import { AsyncButton } from "@components/async-button";
+import { DocumentTitle } from "@components/layout/document-title";
 import { Logo } from "@components/logo";
 import { Button } from "@components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@components/ui/card";
@@ -35,6 +36,7 @@ export function LoginPage() {
   });
   return (
     <div className="flex min-h-dvh w-full min-w-0 items-center justify-center overflow-x-hidden bg-muted/40 px-4 py-10">
+      <DocumentTitle title="Log In" />
       <Card className="w-full max-w-md">
         <CardHeader className="items-center justify-items-center text-center">
           <Logo size="md" />

@@ -1,22 +1,16 @@
-import { useQuery } from "@tanstack/react-query";
-import { createFileRoute, useParams } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 
+import { resourceName } from "@components/layout/app-breadcrumbs";
 import { santaConfigurationQueryOptions } from "@features/santa/configurations/queries";
 import { parseRouteID } from "@lib/route-params";
 
 export const Route = createFileRoute("/_authenticated/santa/configurations/$id")({
-  staticData: { breadcrumb: ConfigurationBreadcrumb },
+  staticData: {
+    breadcrumb: resourceName(santaConfigurationQueryOptions, (configuration) => configuration.name),
+  },
   loader: async ({ context, params }) => {
     await context.queryClient.ensureQueryData(
       santaConfigurationQueryOptions(parseRouteID(params.id)),
     );
   },
 });
-
-function ConfigurationBreadcrumb(): string {
-  const { id } = useParams({
-    from: "/_authenticated/santa/configurations/$id",
-  });
-  const { data } = useQuery(santaConfigurationQueryOptions(parseRouteID(id)));
-  return data?.name ?? id;
-}

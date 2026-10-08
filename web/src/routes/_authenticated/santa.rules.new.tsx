@@ -13,7 +13,7 @@ const searchSchema = z.object({
 });
 
 export const Route = createFileRoute("/_authenticated/santa/rules/new")({
-  staticData: { breadcrumb: "Create" },
+  staticData: { breadcrumb: "Create Rule" },
   validateSearch: searchSchema,
   beforeLoad: ({ context }) =>
     requirePermission(context.queryClient, { resource: "santa.rules", access: "edit" }, () => {

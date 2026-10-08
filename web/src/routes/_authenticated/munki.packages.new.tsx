@@ -11,7 +11,7 @@ const searchSchema = z.object({
 });
 
 export const Route = createFileRoute("/_authenticated/munki/packages/new")({
-  staticData: { breadcrumb: "Create" },
+  staticData: { breadcrumb: "Create Package" },
   validateSearch: searchSchema,
   beforeLoad: ({ context }) =>
     requirePermission(context.queryClient, { resource: "munki.packages", access: "edit" }, () => {

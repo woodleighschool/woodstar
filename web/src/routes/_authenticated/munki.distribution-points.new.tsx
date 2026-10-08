@@ -4,7 +4,7 @@ import { requirePermission } from "@features/authn/guards";
 import { DistributionPointCreatePage } from "@features/munki/distribution-points/create";
 
 export const Route = createFileRoute("/_authenticated/munki/distribution-points/new")({
-  staticData: { breadcrumb: "Create" },
+  staticData: { breadcrumb: "Create Distribution Point" },
   beforeLoad: ({ context }) =>
     requirePermission(
       context.queryClient,

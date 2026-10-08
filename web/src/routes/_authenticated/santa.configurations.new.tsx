@@ -9,7 +9,7 @@ const searchSchema = z.object({
 });
 
 export const Route = createFileRoute("/_authenticated/santa/configurations/new")({
-  staticData: { breadcrumb: "Create" },
+  staticData: { breadcrumb: "Create Configuration" },
   validateSearch: searchSchema,
   beforeLoad: ({ context }) =>
     requirePermission(
