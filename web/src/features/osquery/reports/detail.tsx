@@ -21,7 +21,6 @@ import { QueryGate } from "@components/query-gate";
 import { LabelTargetDetails } from "@components/targeting/target-details";
 import { Button } from "@components/ui/button";
 import { Separator } from "@components/ui/separator";
-import { Skeleton } from "@components/ui/skeleton";
 import { TabsContent, TabsTrigger } from "@components/ui/tabs";
 import { useCan } from "@features/authz/access";
 import { LiveRunButton } from "@features/osquery/live/query-actions";
@@ -100,22 +99,13 @@ export function ReportDetailPage() {
     paginateExpandedRows: false,
   });
 
-  if (report.error) {
+  if (report.error || !report.data) {
     return (
       <QueryGate
         title="Failed to Load Report"
         error={report.error}
         onRetry={() => void report.refetch()}
       />
-    );
-  }
-
-  if (!report.data) {
-    return (
-      <PageShell>
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-64 w-full" />
-      </PageShell>
     );
   }
 

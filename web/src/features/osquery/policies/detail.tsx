@@ -167,22 +167,13 @@ export function PolicyDetailPage() {
     enableRowSelection: canRunRemediation ? (row) => row.original.status === "fail" : false,
   });
 
-  if (policy.error) {
+  if (policy.error || !policy.data) {
     return (
       <QueryGate
         title="Failed to Load Policy"
         error={policy.error}
         onRetry={() => void policy.refetch()}
       />
-    );
-  }
-
-  if (!policy.data) {
-    return (
-      <PageShell>
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-64 w-full" />
-      </PageShell>
     );
   }
 

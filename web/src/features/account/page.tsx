@@ -5,7 +5,7 @@ import { z } from "zod";
 import { EnumBadge } from "@components/enum-badge";
 import { FormActions } from "@components/form-actions";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
-import { QueryError } from "@components/query-error";
+import { QueryGate } from "@components/query-gate";
 import { Field, FieldGroup, FieldLabel } from "@components/ui/field";
 import { Input } from "@components/ui/input";
 import { toast } from "@components/ui/toast";
@@ -19,19 +19,14 @@ import type { Account } from "@lib/api";
 
 export function AccountPage() {
   const account = useAccount();
-  if (account.error) {
+  if (account.error || !account.data) {
     return (
-      <PageShell>
-        <QueryError
-          title="Failed to Load Account"
-          error={account.error}
-          onRetry={() => void account.refetch()}
-        />
-      </PageShell>
+      <QueryGate
+        title="Failed to Load Account"
+        error={account.error}
+        onRetry={() => void account.refetch()}
+      />
     );
-  }
-  if (!account.data) {
-    return null;
   }
   return <AccountForm key={account.data.user.updated_at} account={account.data} />;
 }
