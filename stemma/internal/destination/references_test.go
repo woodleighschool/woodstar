@@ -83,7 +83,7 @@ func TestPlanLinksResourceReferencesThroughPeers(t *testing.T) {
 			continue
 		}
 		review := strings.Join(change.Review, "\n")
-		if !strings.Contains(review, "requires: office, Rosetta · 1.0") || !strings.Contains(review, "update_for: office") {
+		if !strings.Contains(review, "requires: office, Rosetta (1.0)") || !strings.Contains(review, "update_for: office") {
 			t.Fatalf("review lost resolved identities: %s", review)
 		}
 		if err := json.Unmarshal(change.After, &initial); err != nil {

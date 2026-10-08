@@ -98,7 +98,7 @@ func creationReview(kind string, fields map[string]json.RawMessage, metadata met
 					name := reviewValue(item[id])
 					if key == "receipts" {
 						if version, ok := item["version"]; ok {
-							name += " · " + reviewValue(version)
+							name += " (" + reviewValue(version) + ")"
 						}
 						if string(item["optional"]) == "true" {
 							name += " (optional)"
@@ -117,7 +117,7 @@ func creationReview(kind string, fields map[string]json.RawMessage, metadata met
 							}
 						}
 						if version != "" {
-							name += " · " + reviewValue(json.RawMessage(version))
+							name += " (" + reviewValue(json.RawMessage(version)) + ")"
 						}
 						if value, ok := item["version_comparison_key"]; ok {
 							name += " (version key: " + reviewValue(value) + ")"

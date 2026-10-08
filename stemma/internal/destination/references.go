@@ -40,7 +40,7 @@ func resolveReferences(ctx context.Context, remote *api.Client, metadata *metada
 			}
 			name := found.Name
 			if reference.Version != "" {
-				name += " · " + reference.Version
+				name += " (" + reference.Version + ")"
 			}
 			metadata.referenceNames[value] = name
 			values = append(values, value)
@@ -56,7 +56,7 @@ func resolveReferences(ctx context.Context, remote *api.Client, metadata *metada
 			}
 			name := found.Name
 			if link.Version != "" {
-				name += " · " + link.Version
+				name += " (" + link.Version + ")"
 			}
 			metadata.referenceNames[value] = name
 			values = append(values, value)
