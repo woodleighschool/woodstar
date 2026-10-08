@@ -10,7 +10,7 @@
     "lint": "oxlint . && tsc -b",
     "lint:fix": "oxlint --fix . && tsc -b",
     "typecheck": "tsc -b",
-    "test": "node --test src/components/layout/navigation.test.ts src/lib/route-params.test.ts",
+    "test": "node --test src/components/layout/navigation.test.ts src/lib/query-invalidation.test.ts src/lib/route-params.test.ts",
     "format": "oxfmt",
     "openapi:types": "openapi-ts -i ./openapi.yaml -o ./src/lib/api-client -c @hey-api/client-fetch --plugins @hey-api/typescript @hey-api/sdk"
   },

@@ -33,6 +33,7 @@ import {
 } from "@lib/api";
 import type { ListMunkiSoftwareData } from "@lib/api-client/types.gen";
 import { baseListParams, MAX_PAGE_SIZE } from "@lib/pagination";
+import { invalidateAfterDelete } from "@lib/query-invalidation";
 
 import { uploadRequestFromTarget } from "../upload";
 
@@ -107,7 +108,8 @@ export function useDeleteMunkiSoftware() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number>({
     mutationFn: (id) => unwrap(deleteMunkiSoftware({ path: { id } })),
-    onSuccess: async () => invalidateMunkiCatalog(queryClient),
+    onSuccess: (_, id) =>
+      invalidateAfterDelete(queryClient, munkiSoftwareKeys.detail(id), [munkiRoot]),
   });
 }
 

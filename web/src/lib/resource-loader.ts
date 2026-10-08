@@ -12,8 +12,9 @@ export async function loadResource<TData, TError, TQueryKey extends QueryKey>(
   try {
     await context.queryClient.query({
       ...options,
-      // Cached data is enough to render with unless its last fetch failed.
-      staleTime: (query) => (query.state.status === "error" ? 0 : "static"),
+      // Cached data is enough to render with until it is invalidated, which a
+      // failed fetch also does.
+      staleTime: Infinity,
     });
   } catch (error) {
     if (error instanceof ApiError && error.status === 404) throw notFound({ routeId: route.id });

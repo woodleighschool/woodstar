@@ -9,6 +9,9 @@ export const router = createRouter({
   routeTree,
   context: { queryClient },
   defaultPreload: "intent",
+  // A revisited route waits for its loader as a first visit does, so a record
+  // that has since gone is not found instead of rendered from the cache.
+  defaultStaleReloadMode: "blocking",
   defaultErrorComponent: RouteErrorPage,
   defaultNotFoundComponent: NotFoundPage,
 });

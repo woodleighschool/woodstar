@@ -29,6 +29,7 @@ import {
 } from "@lib/api";
 import type { ListMunkiPackagesData } from "@lib/api-client/types.gen";
 import { baseListParams } from "@lib/pagination";
+import { invalidateAfterDelete } from "@lib/query-invalidation";
 
 import { deleteUnclaimedMunkiInstaller, uploadRequestFromTarget } from "../upload";
 
@@ -114,7 +115,8 @@ export function useDeleteMunkiPackage() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number>({
     mutationFn: (id) => unwrap(bulkDeleteMunkiPackages({ query: { ids: [id] } })),
-    onSuccess: async () => queryClient.invalidateQueries({ queryKey: munkiRoot }),
+    onSuccess: (_, id) =>
+      invalidateAfterDelete(queryClient, munkiPackageKeys.detail(id), [munkiRoot]),
   });
 }
 

@@ -37,6 +37,7 @@ import type {
   ListOsqueryPoliciesData,
 } from "@lib/api-client/types.gen";
 import { baseListParams, collectAllPages } from "@lib/pagination";
+import { invalidateAfterDelete } from "@lib/query-invalidation";
 import { countLabel } from "@lib/utils";
 
 type QueryParams = Record<string, unknown>;
@@ -189,9 +190,8 @@ export function useDeletePolicy() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number>({
     mutationFn: (id) => unwrap(deleteOsqueryPolicy({ path: { id } })),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: policyKeys.all });
-    },
+    onSuccess: (_, id) =>
+      invalidateAfterDelete(queryClient, policyKeys.detail(id), [policyKeys.all]),
   });
 }
 

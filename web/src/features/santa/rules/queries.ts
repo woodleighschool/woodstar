@@ -19,6 +19,7 @@ import {
 } from "@lib/api";
 import type { ListSantaRulesData } from "@lib/api-client/types.gen";
 import { baseListParams } from "@lib/pagination";
+import { invalidateAfterDelete } from "@lib/query-invalidation";
 
 type QueryParams = Record<string, unknown>;
 
@@ -80,9 +81,7 @@ export function useDeleteSantaRule() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number>({
     mutationFn: (id) => unwrap(deleteSantaRule({ path: { id } })),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ruleKeys.all });
-    },
+    onSuccess: (_, id) => invalidateAfterDelete(queryClient, ruleKeys.detail(id), [ruleKeys.all]),
   });
 }
 

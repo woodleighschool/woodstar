@@ -12,6 +12,7 @@ import type { ApiError, Label, LabelMutation, PageLabel } from "@lib/api";
 import { createLabel, deleteLabel, getLabel, listLabels, unwrap, updateLabel } from "@lib/api";
 import type { ListLabelsData } from "@lib/api-client/types.gen";
 import { baseListParams } from "@lib/pagination";
+import { invalidateAfterDelete } from "@lib/query-invalidation";
 
 type QueryParams = Record<string, unknown>;
 
@@ -83,11 +84,7 @@ export function useDeleteLabel() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number>({
     mutationFn: (id) => unwrap(deleteLabel({ path: { id } })),
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: labelKeys.all }),
-        queryClient.invalidateQueries({ queryKey: hostKeys.all }),
-      ]);
-    },
+    onSuccess: (_, id) =>
+      invalidateAfterDelete(queryClient, labelKeys.detail(id), [labelKeys.all, hostKeys.all]),
   });
 }

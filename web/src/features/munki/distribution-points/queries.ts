@@ -27,6 +27,7 @@ import {
 } from "@lib/api";
 import type { ListMunkiDistributionPointsData } from "@lib/api-client/types.gen";
 import { baseListParams } from "@lib/pagination";
+import { invalidateAfterDelete } from "@lib/query-invalidation";
 
 type MunkiDistributionPointListParams = NonNullable<ListMunkiDistributionPointsData["query"]>;
 
@@ -120,8 +121,10 @@ export function useDeleteMunkiDistributionPoint() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number>({
     mutationFn: (id) => unwrap(deleteMunkiDistributionPoint({ path: { id } })),
-    onSuccess: async () =>
-      queryClient.invalidateQueries({ queryKey: munkiDistributionPointKeys.root }),
+    onSuccess: (_, id) =>
+      invalidateAfterDelete(queryClient, munkiDistributionPointKeys.detail(id), [
+        munkiDistributionPointKeys.root,
+      ]),
   });
 }
 

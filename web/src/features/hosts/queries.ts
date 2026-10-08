@@ -49,6 +49,7 @@ import type {
   ListHostsData,
 } from "@lib/api-client/types.gen";
 import { baseListParams, collectAllPages } from "@lib/pagination";
+import { invalidateAfterDelete } from "@lib/query-invalidation";
 
 type QueryParams = Record<string, unknown>;
 
@@ -177,9 +178,7 @@ export function useDeleteHost() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number>({
     mutationFn: (id) => unwrap(deleteHost({ path: { id } })),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: hostKeys.all });
-    },
+    onSuccess: (_, id) => invalidateAfterDelete(queryClient, hostKeys.detail(id), [hostKeys.all]),
   });
 }
 

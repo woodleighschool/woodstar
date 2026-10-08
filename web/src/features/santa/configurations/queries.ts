@@ -25,6 +25,7 @@ import {
 } from "@lib/api";
 import type { ListSantaConfigurationsData } from "@lib/api-client/types.gen";
 import { baseListParams } from "@lib/pagination";
+import { invalidateAfterDelete } from "@lib/query-invalidation";
 
 type QueryParams = Record<string, unknown>;
 
@@ -93,9 +94,8 @@ export function useDeleteSantaConfiguration() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number>({
     mutationFn: (id) => unwrap(deleteSantaConfiguration({ path: { id } })),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: configurationKeys.all });
-    },
+    onSuccess: (_, id) =>
+      invalidateAfterDelete(queryClient, configurationKeys.detail(id), [configurationKeys.all]),
   });
 }
 

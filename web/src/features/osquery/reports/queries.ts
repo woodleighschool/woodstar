@@ -30,6 +30,7 @@ import type {
   ListOsqueryReportsData,
 } from "@lib/api-client/types.gen";
 import { baseListParams, collectAllPages } from "@lib/pagination";
+import { invalidateAfterDelete } from "@lib/query-invalidation";
 
 type QueryParams = Record<string, unknown>;
 
@@ -154,9 +155,8 @@ export function useDeleteReport() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number>({
     mutationFn: (id) => unwrap(deleteOsqueryReport({ path: { id } })),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: reportKeys.all });
-    },
+    onSuccess: (_, id) =>
+      invalidateAfterDelete(queryClient, reportKeys.detail(id), [reportKeys.all]),
   });
 }
 
