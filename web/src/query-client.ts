@@ -1,6 +1,7 @@
 import { MutationCache, QueryClient } from "@tanstack/react-query";
 
 import { toast } from "@components/ui/toast";
+import { ApiError } from "@lib/api";
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -9,7 +10,10 @@ export const queryClient = new QueryClient({
       refetchOnMount: true,
       refetchOnWindowFocus: true,
       refetchOnReconnect: true,
-      retry: 2,
+      // A 4xx response is the server's answer; asking again returns the same one.
+      retry: (failureCount, error) =>
+        !(error instanceof ApiError && error.status >= 400 && error.status < 500) &&
+        failureCount < 2,
       retryOnMount: false,
     },
   },
