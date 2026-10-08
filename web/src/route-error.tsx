@@ -15,7 +15,7 @@ import {
 export function RouteErrorPage({ error }: ErrorComponentProps) {
   const router = useRouter();
   return (
-    <div className="flex min-h-dvh items-center justify-center p-8">
+    <div className="flex min-h-dvh items-center justify-center p-8 in-data-[slot=sidebar-inset]:min-h-full">
       <Empty>
         <EmptyHeader>
           <EmptyMedia variant="icon">
