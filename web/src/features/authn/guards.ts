@@ -11,7 +11,7 @@ import type { SessionBody } from "@lib/api";
 export type SessionUser = NonNullable<SessionBody["user"]>;
 
 async function loadSession(queryClient: QueryClient): Promise<SessionBody> {
-  return queryClient.fetchQuery(sessionQueryOptions);
+  return queryClient.query(sessionQueryOptions);
 }
 
 /** Authenticated route guard. Redirects to login if no user is signed in. */
@@ -36,7 +36,7 @@ export async function requirePermissions(
   requirements: readonly PermissionRequirement[],
   onForbidden?: () => never,
 ): Promise<void> {
-  const account = await queryClient.fetchQuery(accountQueryOptions);
+  const account = await queryClient.query(accountQueryOptions);
   if (canAll(account.effective_permissions, requirements)) return;
   if (onForbidden) return onForbidden();
   throw redirect({ to: firstAccessiblePath(account) ?? "/account" });
@@ -46,7 +46,7 @@ export async function requirePermissions(
 export async function redirectForEntry(queryClient: QueryClient): Promise<void> {
   const session = await loadSession(queryClient);
   if (!session.user) throw redirect({ to: "/login" });
-  const account = await queryClient.fetchQuery(accountQueryOptions);
+  const account = await queryClient.query(accountQueryOptions);
   throw redirect({ to: firstAccessiblePath(account) ?? "/account" });
 }
 
@@ -54,6 +54,6 @@ export async function redirectForEntry(queryClient: QueryClient): Promise<void> 
 export async function redirectAuthenticatedFromLogin(queryClient: QueryClient): Promise<void> {
   const session = await loadSession(queryClient);
   if (!session.user) return;
-  const account = await queryClient.fetchQuery(accountQueryOptions);
+  const account = await queryClient.query(accountQueryOptions);
   throw redirect({ to: firstAccessiblePath(account) ?? "/account" });
 }

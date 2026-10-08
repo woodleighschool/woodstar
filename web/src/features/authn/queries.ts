@@ -44,7 +44,7 @@ export function useLogin() {
     meta: { inlineError: true },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: sessionQueryOptions.queryKey });
-      const account = await queryClient.fetchQuery(accountQueryOptions);
+      const account = await queryClient.query(accountQueryOptions);
       await router.navigate({ to: firstAccessiblePath(account) ?? "/account" });
     },
   });
