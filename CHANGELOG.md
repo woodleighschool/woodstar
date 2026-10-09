@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.10.5](https://github.com/woodleighschool/woodstar/compare/v0.10.4...v0.10.5) (2026-10-09)
+
+
+### Bug Fixes
+
+* **go:** update stemma (v0.10.2 → v0.10.3) ([#515](https://github.com/woodleighschool/woodstar/issues/515)) ([bf189ab](https://github.com/woodleighschool/woodstar/commit/bf189abd916dd507ac20ca6e4fe95877361d439d))
+* **munki:** finalize installer uploads asynchronously ([2085c45](https://github.com/woodleighschool/woodstar/commit/2085c459b43425bbbb882390752d81ee05bc8b92))
+
 ## [0.10.4](https://github.com/woodleighschool/woodstar/compare/v0.10.3...v0.10.4) (2026-10-09)
 
 
