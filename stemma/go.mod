@@ -8,7 +8,7 @@ require (
 	github.com/invopop/jsonschema v0.14.0
 	github.com/woodleighschool/goodies/auth v1.1.0
 	github.com/woodleighschool/stemma v0.10.3
-	github.com/woodleighschool/woodstar v0.10.3
+	github.com/woodleighschool/woodstar v0.10.4
 	resty.dev/v3 v3.0.0-rc.4
 )
 
@@ -55,11 +55,11 @@ require (
 	github.com/pb33f/go-yaml v0.1.0 // indirect
 	github.com/pb33f/ordered-map/v2 v2.3.2 // indirect
 	github.com/pressly/goose/v3 v3.28.0 // indirect
-	github.com/riverqueue/river v0.48.0 // indirect
-	github.com/riverqueue/river/riverdriver v0.48.0 // indirect
-	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.48.0 // indirect
-	github.com/riverqueue/river/rivershared v0.48.0 // indirect
-	github.com/riverqueue/river/rivertype v0.48.0 // indirect
+	github.com/riverqueue/river v0.49.0 // indirect
+	github.com/riverqueue/river/riverdriver v0.49.0 // indirect
+	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.49.0 // indirect
+	github.com/riverqueue/river/rivershared v0.49.0 // indirect
+	github.com/riverqueue/river/rivertype v0.49.0 // indirect
 	github.com/rs/cors v1.11.1 // indirect
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3 // indirect
 	github.com/sethvargo/go-retry v0.4.0 // indirect
