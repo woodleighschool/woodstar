@@ -7626,6 +7626,7 @@ paths:
         access: edit
         resource: munki.packages
     put:
+      description: Returns 202 with Retry-After while verification is queued, running, or retrying. Returns 200 with verified metadata, or 422 after terminal failure. Repeated requests do not restart failed verification.
       operationId: complete-munki-package-installer-upload
       parameters:
         - in: path
@@ -7641,6 +7642,21 @@ paths:
               schema:
                 $ref: "#/components/schemas/MunkiObjectView"
           description: OK
+          headers:
+            Retry-After:
+              schema:
+                type: string
+        "202":
+          content:
+            application/json:
+              schema:
+                type: "null"
+          description: Verification pending; poll after Retry-After seconds.
+          headers:
+            Retry-After:
+              description: Polling interval in seconds.
+              schema:
+                type: string
         "400":
           content:
             application/problem+json:
@@ -7680,7 +7696,7 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Complete a package installer upload
+      summary: Ensure package installer verification
       tags:
         - Munki package installers
       x-authz:

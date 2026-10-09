@@ -134,13 +134,35 @@ export function useUploadMunkiInstaller() {
       ),
     uploadRequest: uploadRequestFromTarget,
     completeUpload: async (intent, _variables, signal) => {
-      const finalize = () =>
-        unwrap(completeMunkiPackageInstallerUpload({ path: { id: intent.object_id }, signal }));
-      try {
-        return await finalize();
-      } catch (error) {
-        if (signal.aborted) throw error;
-        return finalize();
+      for (;;) {
+        signal.throwIfAborted();
+        const result = await completeMunkiPackageInstallerUpload({
+          path: { id: intent.object_id },
+          signal,
+        });
+        if (result.response?.status === 202) {
+          const seconds = Number(result.response.headers.get("Retry-After") ?? 2);
+          const delay = Number.isFinite(seconds) ? Math.min(30, Math.max(1, seconds)) : 2;
+          await new Promise<void>((resolve, reject) => {
+            const abort = () => {
+              signal.removeEventListener("abort", abort);
+              clearTimeout(timer);
+              reject(signal.reason);
+            };
+            const timer = setTimeout(() => {
+              signal.removeEventListener("abort", abort);
+              resolve();
+            }, delay * 1000);
+            signal.addEventListener("abort", abort, { once: true });
+            if (signal.aborted) abort();
+          });
+          continue;
+        }
+        const object = await unwrap(Promise.resolve(result));
+        if (result.response?.status !== 200 || !object?.sha256 || object.size_bytes == null) {
+          throw new Error("Installer verification returned no verified content");
+        }
+        return object;
       }
     },
     cleanupIntent: (intent) => deleteUnclaimedMunkiInstaller(intent.object_id),

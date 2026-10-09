@@ -15,9 +15,10 @@ import (
 )
 
 const (
-	QueueName       = "background"
-	maxAttempts     = 3
-	softStopTimeout = 10 * time.Second
+	QueueName          = "background"
+	InstallerQueueName = "installer_finalization"
+	maxAttempts        = 3
+	softStopTimeout    = 10 * time.Second
 
 	TriggerScheduled Trigger = "scheduled"
 	TriggerManual    Trigger = "manual"
@@ -83,11 +84,13 @@ func New(
 ) (*Runtime, error) {
 	client, err := river.NewClient(riverpgxv5.New(pool), &river.Config{
 		// Keep River's five-second housekeeping chatter out of debug logs.
-		Logger:          riverLogger(logger),
-		JobTimeout:      30 * time.Minute,
-		SoftStopTimeout: softStopTimeout,
+		Logger:               riverLogger(logger),
+		JobTimeout:           30 * time.Minute,
+		RescueStuckJobsAfter: 65 * time.Minute,
+		SoftStopTimeout:      softStopTimeout,
 		Queues: map[string]river.QueueConfig{
-			QueueName: {MaxWorkers: 3},
+			QueueName:          {MaxWorkers: 3},
+			InstallerQueueName: {MaxWorkers: 1},
 		},
 		Workers:      workers,
 		PeriodicJobs: periodicJobs,
@@ -117,6 +120,15 @@ func (r *Runtime) Stop(ctx context.Context) error {
 		return fmt.Errorf("stop River: %w", err)
 	}
 	return nil
+}
+
+// EnqueueTx makes durable work part of its owner's transaction.
+func (r *Runtime) EnqueueTx(ctx context.Context, tx pgx.Tx, args river.JobArgs) (int64, error) {
+	result, err := r.client.InsertTx(ctx, tx, args, nil)
+	if err != nil {
+		return 0, fmt.Errorf("enqueue %s: %w", args.Kind(), err)
+	}
+	return result.Job.ID, nil
 }
 
 func (r *Runtime) Enqueue(ctx context.Context, args river.JobArgs) error {

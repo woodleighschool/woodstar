@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os/exec"
 	"testing"
+	"time"
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
@@ -253,5 +254,26 @@ func drainAndClose(t *testing.T, response *http.Response) {
 	}
 	if err := response.Body.Close(); err != nil {
 		t.Fatalf("close HTTP response: %v", err)
+	}
+}
+
+func finalizeInstaller(t *testing.T, server *testServer, objectID int64) *adminapi.CompleteMunkiPackageInstallerUploadResponse {
+	t.Helper()
+	deadline := time.Now().Add(15 * time.Second)
+	for {
+		response, err := server.Admin.CompleteMunkiPackageInstallerUploadWithResponse(t.Context(), objectID)
+		if err != nil {
+			t.Fatalf("finalize installer: %v", err)
+		}
+		if response.StatusCode() != http.StatusAccepted {
+			return response
+		}
+		if response.HTTPResponse.Header.Get("Retry-After") == "" {
+			t.Fatal("pending verification has no Retry-After")
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("verification did not complete")
+		}
+		time.Sleep(20 * time.Millisecond)
 	}
 }

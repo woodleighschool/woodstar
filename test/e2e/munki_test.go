@@ -211,16 +211,13 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 		t.Fatalf("installer upload status = %d, want %d", installerUploadResponse.StatusCode, http.StatusNoContent)
 	}
 
-	finalizedInstaller, err := server.Admin.CompleteMunkiPackageInstallerUploadWithResponse(
-		t.Context(),
-		installerTarget.ObjectId,
-	)
+	finalizedInstaller := finalizeInstaller(t, server, installerTarget.ObjectId)
 	finalizedInstaller = requireAPIResponse(
 		t,
 		"finalize package installer",
 		http.StatusOK,
 		finalizedInstaller,
-		err,
+		nil,
 	)
 	if finalizedInstaller.JSON200 == nil {
 		t.Fatal("finalize package installer returned no JSON body")
@@ -333,16 +330,13 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 	if secondInstallerUploadResponse.StatusCode != http.StatusNoContent {
 		t.Fatalf("second installer upload status = %d, want %d", secondInstallerUploadResponse.StatusCode, http.StatusNoContent)
 	}
-	finalizedSecondInstaller, err := server.Admin.CompleteMunkiPackageInstallerUploadWithResponse(
-		t.Context(),
-		secondInstallerTarget.ObjectId,
-	)
+	finalizedSecondInstaller := finalizeInstaller(t, server, secondInstallerTarget.ObjectId)
 	finalizedSecondInstaller = requireAPIResponse(
 		t,
 		"finalize second package installer",
 		http.StatusOK,
 		finalizedSecondInstaller,
-		err,
+		nil,
 	)
 	if finalizedSecondInstaller.JSON200 == nil {
 		t.Fatal("finalize second package installer returned no JSON body")

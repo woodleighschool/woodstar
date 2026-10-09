@@ -4,7 +4,9 @@ package httpapi
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -13,7 +15,9 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/riverqueue/river"
 	"github.com/woodleighschool/goodies/bloby"
+	"github.com/woodleighschool/woodstar/internal/backgroundjobs"
 
 	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/munki/clientresources"
@@ -35,6 +39,22 @@ func newMunkiFixture(t *testing.T) munkiFixture {
 	t.Helper()
 	db, ctx := testdb.Open(t)
 	objects := testbloby.New(t, db)
+	workers := river.NewWorkers()
+	river.AddWorker(workers, packages.NewFinalizeInstallerWorker(objects))
+	jobs, err := backgroundjobs.New(db, workers, nil, slog.New(slog.DiscardHandler))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := jobs.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := jobs.Stop(context.Background()); err != nil {
+			t.Error(err)
+		}
+	})
+	finalizations := packages.NewFinalizations(db, objects, jobs)
+
 	packageStore := packages.NewStore(db, objects)
 	softwareStore := munkisoftware.NewStore(db, objects, packageStore)
 	software, err := softwareStore.Create(ctx, munkisoftware.CreateMutation{Name: "ExampleApp"})
@@ -48,7 +68,7 @@ func newMunkiFixture(t *testing.T) munkiFixture {
 		Packages: packageStore, DesiredPackagesChanged: func() {},
 	})
 	deletions := munki.NewSoftwareDeletionService(softwareStore, func() {})
-	registerMunkiPackages(humaAPI, humaAPI, service, objects, discardLogger())
+	registerMunkiPackages(humaAPI, humaAPI, service, objects, finalizations, discardLogger())
 	registerMunkiSoftware(humaAPI, softwareStore, deletions, service, objects, discardLogger())
 	registerCreateClientResourcesUpload(
 		humaAPI,

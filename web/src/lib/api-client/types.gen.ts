@@ -3874,6 +3874,10 @@ export type CompleteMunkiPackageInstallerUploadResponses = {
      * OK
      */
     200: MunkiObjectView;
+    /**
+     * Verification pending; poll after Retry-After seconds.
+     */
+    202: null;
 };
 
 export type CompleteMunkiPackageInstallerUploadResponse = CompleteMunkiPackageInstallerUploadResponses[keyof CompleteMunkiPackageInstallerUploadResponses];

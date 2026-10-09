@@ -3454,7 +3454,9 @@ type ClientInterface interface {
 	// Corresponds with POST /api/munki/package-installers (the `CreateMunkiPackageInstallerUpload` operationId).
 	CreateMunkiPackageInstallerUpload(ctx context.Context, body CreateMunkiPackageInstallerUploadJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// CompleteMunkiPackageInstallerUpload Complete a package installer upload
+	// CompleteMunkiPackageInstallerUpload Ensure package installer verification
+	//
+	// Returns 202 with Retry-After while verification is queued, running, or retrying. Returns 200 with verified metadata, or 422 after terminal failure. Repeated requests do not restart failed verification.
 	//
 	// Corresponds with PUT /api/munki/package-installers/{id} (the `CompleteMunkiPackageInstallerUpload` operationId).
 	CompleteMunkiPackageInstallerUpload(ctx context.Context, id int64, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -4094,7 +4096,9 @@ func (c *Client) CreateMunkiPackageInstallerUpload(ctx context.Context, body Cre
 	return c.Client.Do(req)
 }
 
-// CompleteMunkiPackageInstallerUpload Complete a package installer upload
+// CompleteMunkiPackageInstallerUpload Ensure package installer verification
+//
+// Returns 202 with Retry-After while verification is queued, running, or retrying. Returns 200 with verified metadata, or 422 after terminal failure. Repeated requests do not restart failed verification.
 //
 // Corresponds with PUT /api/munki/package-installers/{id} (the `CompleteMunkiPackageInstallerUpload` operationId).
 func (c *Client) CompleteMunkiPackageInstallerUpload(ctx context.Context, id int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -6759,7 +6763,9 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /api/munki/package-installers (the `CreateMunkiPackageInstallerUpload` operationId).
 	CreateMunkiPackageInstallerUploadWithResponse(ctx context.Context, body CreateMunkiPackageInstallerUploadJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateMunkiPackageInstallerUploadResponse, error)
 
-	// CompleteMunkiPackageInstallerUploadWithResponse Complete a package installer upload
+	// CompleteMunkiPackageInstallerUploadWithResponse Ensure package installer verification
+	//
+	// Returns 202 with Retry-After while verification is queued, running, or retrying. Returns 200 with verified metadata, or 422 after terminal failure. Repeated requests do not restart failed verification.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -8641,11 +8647,23 @@ func (r CreateMunkiPackageInstallerUploadResponse) ContentType() string {
 	return ""
 }
 
+// CompleteMunkiPackageInstallerUploadResponse200Headers the declared response headers of an HTTP 200 response for CompleteMunkiPackageInstallerUpload
+type CompleteMunkiPackageInstallerUploadResponse200Headers struct {
+	RetryAfter *string
+}
+
+// CompleteMunkiPackageInstallerUploadResponse202Headers the declared response headers of an HTTP 202 response for CompleteMunkiPackageInstallerUpload
+type CompleteMunkiPackageInstallerUploadResponse202Headers struct {
+	RetryAfter *string
+}
+
 type CompleteMunkiPackageInstallerUploadResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	// JSON200 the response for an HTTP 200 `application/json` response
 	JSON200 *MunkiObjectView
+	// JSON202 the response for an HTTP 202 `application/json` response
+	JSON202 *any
 	// ApplicationproblemJSON400 the response for an HTTP 400 `application/problem+json` response
 	ApplicationproblemJSON400 *ErrorModel
 	// ApplicationproblemJSON401 the response for an HTTP 401 `application/problem+json` response
@@ -8658,11 +8676,20 @@ type CompleteMunkiPackageInstallerUploadResponse struct {
 	ApplicationproblemJSON422 *ErrorModel
 	// ApplicationproblemJSON500 the response for an HTTP 500 `application/problem+json` response
 	ApplicationproblemJSON500 *ErrorModel
+	// Headers200 the parsed response headers for an HTTP 200 response
+	Headers200 *CompleteMunkiPackageInstallerUploadResponse200Headers
+	// Headers202 the parsed response headers for an HTTP 202 response
+	Headers202 *CompleteMunkiPackageInstallerUploadResponse202Headers
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
 func (r CompleteMunkiPackageInstallerUploadResponse) GetJSON200() *MunkiObjectView {
 	return r.JSON200
+}
+
+// GetJSON202 returns the response for an HTTP 202 `application/json` response
+func (r CompleteMunkiPackageInstallerUploadResponse) GetJSON202() *any {
+	return r.JSON202
 }
 
 // GetApplicationproblemJSON400 returns the response for an HTTP 400 `application/problem+json` response
@@ -10192,7 +10219,9 @@ func (c *ClientWithResponses) CreateMunkiPackageInstallerUploadWithResponse(ctx 
 	return ParseCreateMunkiPackageInstallerUploadResponse(rsp)
 }
 
-// CompleteMunkiPackageInstallerUploadWithResponse Complete a package installer upload
+// CompleteMunkiPackageInstallerUploadWithResponse Ensure package installer verification
+//
+// Returns 202 with Retry-After while verification is queued, running, or retrying. Returns 200 with verified metadata, or 422 after terminal failure. Repeated requests do not restart failed verification.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -11887,6 +11916,13 @@ func ParseCompleteMunkiPackageInstallerUploadResponse(rsp *http.Response) (*Comp
 		}
 		response.JSON200 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+		var dest any
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON202 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
 		var dest ErrorModel
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -11929,6 +11965,29 @@ func ParseCompleteMunkiPackageInstallerUploadResponse(rsp *http.Response) (*Comp
 		}
 		response.ApplicationproblemJSON500 = &dest
 
+	}
+
+	switch {
+	case rsp.StatusCode == 200:
+		var headers CompleteMunkiPackageInstallerUploadResponse200Headers
+		if values := rsp.Header.Values("Retry-After"); len(values) > 0 {
+			var value string
+			if err := runtime.BindStyledParameterWithOptions("simple", "Retry-After", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.RetryAfter = &value
+		}
+		response.Headers200 = &headers
+	case rsp.StatusCode == 202:
+		var headers CompleteMunkiPackageInstallerUploadResponse202Headers
+		if values := rsp.Header.Values("Retry-After"); len(values) > 0 {
+			var value string
+			if err := runtime.BindStyledParameterWithOptions("simple", "Retry-After", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.RetryAfter = &value
+		}
+		response.Headers202 = &headers
 	}
 
 	return response, nil

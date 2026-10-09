@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 
@@ -40,10 +41,11 @@ func registerPackageInstallerRoutes(
 	humaAPI huma.API,
 	longRunningAPI huma.API,
 	objects *bloby.Service,
+	finalizations *packages.Finalizations,
 	logger *slog.Logger,
 ) {
 	registerCreatePackageInstallerUploadRoute(humaAPI, objects, logger)
-	registerCompletePackageInstallerUploadRoute(longRunningAPI, objects, logger)
+	registerCompletePackageInstallerUploadRoute(humaAPI, finalizations, logger)
 	registerDeletePackageInstallerUploadRoute(humaAPI, objects, logger)
 	registerSignPackageInstallerPartRoute(humaAPI, objects, logger)
 	registerCompletePackageInstallerMultipartRoute(longRunningAPI, objects, logger)
@@ -81,9 +83,15 @@ func registerCreatePackageInstallerUploadRoute(
 	})
 }
 
+type munkiInstallerFinalizationOutput struct {
+	Status     int
+	RetryAfter string `header:"Retry-After"`
+	Body       *MunkiObjectView
+}
+
 func registerCompletePackageInstallerUploadRoute(
 	humaAPI huma.API,
-	objects *bloby.Service,
+	finalizations *packages.Finalizations,
 	logger *slog.Logger,
 ) {
 	huma.Register(humaAPI, huma.Operation{
@@ -91,18 +99,27 @@ func registerCompletePackageInstallerUploadRoute(
 		Method:      http.MethodPut,
 		Path:        munkiPackageInstallerPath + "/{id}",
 		Tags:        []string{api.TagMunkiPackageInstallers},
-		Summary:     "Complete a package installer upload",
-		Errors:      []int{http.StatusBadRequest, http.StatusNotFound},
-	}, func(ctx context.Context, input *munkiPackageInstallerInput) (*munkiObjectOutput, error) {
-		object, err := finalizeMunkiUpload(ctx, objects, packages.ObjectPrefix, input.ID)
+		Summary:     "Ensure package installer verification",
+		Description: "Returns 202 with Retry-After while verification is queued, running, or retrying. Returns 200 with verified metadata, or 422 after terminal failure. Repeated requests do not restart failed verification.",
+		Responses: map[string]*huma.Response{"202": {
+			Description: "Verification pending; poll after Retry-After seconds.",
+			Headers:     map[string]*huma.Param{"Retry-After": {Description: "Polling interval in seconds.", Schema: &huma.Schema{Type: "string"}}},
+			Content:     map[string]*huma.MediaType{"application/json": {Schema: &huma.Schema{Type: "null"}}},
+		}},
+		Errors: []int{http.StatusBadRequest, http.StatusNotFound, http.StatusUnprocessableEntity},
+	}, func(ctx context.Context, input *munkiPackageInstallerInput) (*munkiInstallerFinalizationOutput, error) {
+		object, err := finalizations.Ensure(ctx, input.ID)
+		if errors.Is(err, packages.ErrFinalizationFailed) {
+			return nil, huma.Error422UnprocessableEntity(err.Error())
+		}
 		if err != nil {
-			return nil, api.ResourceError(
-				ctx, logger, "complete-munki-package-installer-upload", munkiUploadLabel, err,
-				"object_id", input.ID,
-			)
+			return nil, api.ResourceError(ctx, logger, "complete-munki-package-installer-upload", munkiUploadLabel, err, "object_id", input.ID)
+		}
+		if object == nil {
+			return &munkiInstallerFinalizationOutput{Status: http.StatusAccepted, RetryAfter: "2"}, nil
 		}
 		view := munkiObjectView(*object, contentURL(munkiPackageInstallerPath, object.ID))
-		return &munkiObjectOutput{Body: view}, nil
+		return &munkiInstallerFinalizationOutput{Status: http.StatusOK, Body: &view}, nil
 	})
 }
 

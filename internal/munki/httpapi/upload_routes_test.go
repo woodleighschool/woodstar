@@ -22,7 +22,7 @@ func TestPackageInstallerRoutesSelectLongRunningSurface(t *testing.T) {
 		router.With(routeSurfaceMiddleware("long-running")),
 		testHumaConfigWithoutUtilityRoutes(),
 	)
-	registerPackageInstallerRoutes(ordinary, longRunning, nil, discardLogger())
+	registerPackageInstallerRoutes(ordinary, longRunning, nil, nil, discardLogger())
 
 	for _, tc := range []struct {
 		name        string
@@ -31,7 +31,7 @@ func TestPackageInstallerRoutesSelectLongRunningSurface(t *testing.T) {
 		wantSurface string
 	}{
 		{name: "create", method: http.MethodPost, path: munkiPackageInstallerPath, wantSurface: "ordinary"},
-		{name: "finalize", method: http.MethodPut, path: munkiPackageInstallerPath + "/1", wantSurface: "long-running"},
+		{name: "finalize", method: http.MethodPut, path: munkiPackageInstallerPath + "/1", wantSurface: "ordinary"},
 		{name: "delete", method: http.MethodDelete, path: munkiPackageInstallerPath + "/1", wantSurface: "ordinary"},
 		{
 			name:        "sign multipart part",

@@ -761,7 +761,9 @@ export const deleteMunkiPackageInstallerUpload = <ThrowOnError extends boolean =
 });
 
 /**
- * Complete a package installer upload
+ * Ensure package installer verification
+ *
+ * Returns 202 with Retry-After while verification is queued, running, or retrying. Returns 200 with verified metadata, or 422 after terminal failure. Repeated requests do not restart failed verification.
  */
 export const completeMunkiPackageInstallerUpload = <ThrowOnError extends boolean = false>(options: Options<CompleteMunkiPackageInstallerUploadData, ThrowOnError>): RequestResult<CompleteMunkiPackageInstallerUploadResponses, CompleteMunkiPackageInstallerUploadErrors, ThrowOnError> => (options.client ?? client).put<CompleteMunkiPackageInstallerUploadResponses, CompleteMunkiPackageInstallerUploadErrors, ThrowOnError>({
     security: [{

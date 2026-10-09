@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/woodleighschool/goodies/bloby"
 
@@ -34,18 +35,30 @@ func TestMunkiPackageInstallerFileLifecycle(t *testing.T) {
 	t.Run("missing upload bytes", func(t *testing.T) {
 		target := fixture.beginUpload(t, munkiPackageInstallerPath, "missing.pkg")
 		rec := fixture.request(t, http.MethodPut, fmt.Sprintf("%s/%d", munkiPackageInstallerPath, target.ObjectID))
-		assertStatus(t, rec, http.StatusBadRequest, "missing upload")
-		_, err := fixture.objects.GetByID(t.Context(), target.ObjectID)
-		if !errors.Is(err, bloby.ErrNotFound) {
-			t.Fatalf("get cleaned missing upload error = %v, want ErrNotFound", err)
+		assertStatus(t, rec, http.StatusAccepted, "missing upload queued")
+		if rec.Header().Get("Retry-After") != "2" {
+			t.Fatalf("Retry-After: %v", rec.Header())
 		}
+		if _, err := fixture.db.Exec(t.Context(), `UPDATE river_job SET state='discarded',finalized_at=now() WHERE id=(SELECT job_id FROM munki_installer_finalizations WHERE object_id=$1)`, target.ObjectID); err != nil {
+			t.Fatal(err)
+		}
+		path := fmt.Sprintf("%s/%d", munkiPackageInstallerPath, target.ObjectID)
+		assertStatus(t, fixture.request(t, http.MethodPut, path), http.StatusUnprocessableEntity, "terminal failure")
+		assertStatus(t, fixture.request(t, http.MethodDelete, path), http.StatusNoContent, "delete failed upload")
 	})
 
 	t.Run("referenced object conflicts", func(t *testing.T) {
 		target := fixture.beginUpload(t, munkiPackageInstallerPath, "claimed.pkg")
 		fixture.upload(t, target, []byte("claimed installer"))
 		path := fmt.Sprintf("%s/%d", munkiPackageInstallerPath, target.ObjectID)
-		assertStatus(t, fixture.request(t, http.MethodPut, path), http.StatusOK, "finalize claimed installer")
+		rec := fixture.request(t, http.MethodPut, path)
+		assertStatus(t, rec, http.StatusAccepted, "queue verification")
+		deadline := time.Now().Add(10 * time.Second)
+		for rec.Code == http.StatusAccepted && time.Now().Before(deadline) {
+			time.Sleep(10 * time.Millisecond)
+			rec = fixture.request(t, http.MethodPut, path)
+		}
+		assertStatus(t, rec, http.StatusOK, "finalize claimed installer")
 		if _, err := fixture.packages.Create(t.Context(), packages.PackageCreateMutation{
 			SoftwareID:        fixture.softwareID,
 			Version:           "2.0",

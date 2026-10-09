@@ -12,6 +12,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/munki/clientresources"
 	"github.com/woodleighschool/woodstar/internal/munki/mdp"
+	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
 	"github.com/woodleighschool/woodstar/internal/rbac"
 )
@@ -24,6 +25,7 @@ type Dependencies struct {
 	Software        *munkisoftware.Store
 	DeleteSoftware  *munki.SoftwareDeletionService
 	Packages        *munki.PackageService
+	Finalizations   *packages.Finalizations
 	ClientResources *clientresources.Service
 	Objects         *bloby.Service
 	Distribution    *mdp.Store
@@ -82,6 +84,7 @@ func registerOperations(routes api.AppRoutes, deps Dependencies) {
 		longRunningPackagesAPI,
 		deps.Packages,
 		deps.Objects,
+		deps.Finalizations,
 		deps.Logger,
 	)
 	registerMunkiClientResources(

@@ -346,6 +346,7 @@ func buildApplication(
 		eventStore,
 		activityStore,
 		historyStore,
+		storage,
 		logger,
 	)
 	if err != nil {
@@ -413,6 +414,7 @@ func buildApplication(
 				Software:        munkiSoftwareStore,
 				DeleteSoftware:  munkiSoftwareDeletions,
 				Packages:        munkiPackageService,
+				Finalizations:   packages.NewFinalizations(pool, storage, jobs),
 				ClientResources: clientResourceService,
 				Objects:         storage,
 				Distribution:    munkiDistribution,
@@ -477,9 +479,13 @@ func newBackgroundJobs(
 	eventStore *events.Store,
 	activityStore *activity.Store,
 	historyStore *history.Store,
+	storage *bloby.Service,
 	logger *slog.Logger,
 ) (*backgroundjobs.Runtime, *entra.SyncJobs, error) {
 	jobWorkers := river.NewWorkers()
+	if err := river.AddWorkerSafely(jobWorkers, packages.NewFinalizeInstallerWorker(storage)); err != nil {
+		return nil, nil, fmt.Errorf("register installer verification worker: %w", err)
+	}
 	if err := river.AddWorkerSafely(
 		jobWorkers,
 		inventory.NewCleanupWorker(inventoryStore, logger.With("component", "inventory")),

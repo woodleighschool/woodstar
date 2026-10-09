@@ -45,7 +45,11 @@ Stemma does not need this browser CORS rule.
 
 ## Package uploads
 
-Upload the installer before creating a `pkg` or `copy_from_dmg` package. The server records its size and SHA-256 when the upload is finalized. `nopkg` packages do not have an installer.
+Upload the installer before creating a `pkg` or `copy_from_dmg` package. The server verifies immutable uploaded bytes in a background job before recording their size and SHA-256. `nopkg` packages do not have an installer.
+
+`PUT /api/munki/package-installers/{id}` starts verification once and returns `202` with `Retry-After` while work is queued, running, or retrying. Poll the same endpoint until it returns `200` with verified metadata. A terminal failure returns `422`; another upload is required. Stemma and the web app wait for verification before creating a package.
+
+Verification uses a separate queue with one worker per server, up to three attempts, and a one-hour limit per attempt. Active jobs retain their uploads against deletion and orphan cleanup. Client disconnection does not cancel verification. Unattached uploads remain eligible for orphan cleanup after verification ends. Storage logs report copy and inspection durations separately.
 
 Icons and Client Resources use the same configured backend. Client Resources accepts a banner through its builder or a complete ZIP archive.
 
