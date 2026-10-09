@@ -81,11 +81,7 @@ SELECT
 		ELSE 'syncing'
 	END::text AS status,
 	COALESCE(s.error, '') AS error,
-	(
-		o.available_at IS NOT NULL
-		AND o.sha256 IS NOT NULL
-		AND o.size_bytes IS NOT NULL
-	) AS installer_finalized
+	o.available_at IS NOT NULL AS installer_finalized
 FROM munki_packages p
 JOIN munki_software sw ON sw.id = p.software_id
 JOIN storage_objects o ON o.id = p.installer_object_id
@@ -487,7 +483,8 @@ SELECT
 	p.id AS package_id,
 	o.filename,
 	o.sha256,
-	o.size_bytes
+	o.size_bytes,
+	o.available_at IS NOT NULL AS installer_finalized
 FROM munki_packages p
 JOIN storage_objects o ON o.id = p.installer_object_id
 ORDER BY p.id`)
@@ -500,7 +497,7 @@ ORDER BY p.id`)
 	}
 	packages := make([]DesiredPackage, len(rows))
 	for i, row := range rows {
-		if row.Sha256 == nil || row.SizeBytes == nil {
+		if !row.InstallerFinalized {
 			return nil, fmt.Errorf("munki package %d installer object is not finalized", row.PackageID)
 		}
 		pkg := DesiredPackage{
@@ -531,7 +528,7 @@ WHERE id = $1`, packageID).Scan(&objectID)
 	if err != nil {
 		return bloby.Object{}, err
 	}
-	if !object.Available() || object.SizeBytes == nil || object.SHA256 == nil {
+	if !object.Available() {
 		return bloby.Object{}, fmt.Errorf("munki package %d installer object is not finalized", packageID)
 	}
 	return *object, nil
@@ -700,8 +697,9 @@ type packageStateRow struct {
 
 // desiredPackageRow is the scan target for the desired-packages query.
 type desiredPackageRow struct {
-	PackageID int64   `db:"package_id"`
-	Filename  string  `db:"filename"`
-	Sha256    *string `db:"sha256"`
-	SizeBytes *int64  `db:"size_bytes"`
+	PackageID          int64   `db:"package_id"`
+	Filename           string  `db:"filename"`
+	Sha256             *string `db:"sha256"`
+	SizeBytes          *int64  `db:"size_bytes"`
+	InstallerFinalized bool    `db:"installer_finalized"`
 }

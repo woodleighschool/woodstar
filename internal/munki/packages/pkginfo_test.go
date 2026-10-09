@@ -309,9 +309,16 @@ func TestPkginfoRendersBlockingApplicationsFromExplicitNoneSwitch(t *testing.T) 
 }
 
 func TestPkginfoRejectsMissingFinalizedInstaller(t *testing.T) {
-	_, err := Pkginfo(Package{ID: 12, InstallerType: InstallerTypePkg}, PkginfoObjects{})
-	if err == nil {
+	pkg := Package{ID: 12, InstallerType: InstallerTypePkg}
+	if _, err := Pkginfo(pkg, PkginfoObjects{}); err == nil {
 		t.Fatal("Pkginfo() error = nil, want missing installer error")
+	}
+
+	// A pending upload carries its declared size and hash before any bytes arrive.
+	pending := pkginfoObjects()
+	pending.Installer.AvailableAt = nil
+	if _, err := Pkginfo(pkg, pending); err == nil {
+		t.Fatal("Pkginfo() error = nil, want pending installer error")
 	}
 }
 

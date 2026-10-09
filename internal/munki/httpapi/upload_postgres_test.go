@@ -4,80 +4,115 @@ package httpapi
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"testing"
-	"time"
 
 	"github.com/woodleighschool/goodies/bloby"
-
-	"github.com/woodleighschool/woodstar/internal/munki/packages"
 )
 
 func TestMunkiPackageInstallerFileLifecycle(t *testing.T) {
 	fixture := newMunkiFixture(t)
+	installerPath := func(objectID int64) string {
+		return fmt.Sprintf("%s/%d", munkiPackageInstallerPath, objectID)
+	}
+	createPackage := func(t *testing.T, objectID int64) int {
+		t.Helper()
+		return fixture.requestJSON(t, http.MethodPost, munkiPackagePath, json.RawMessage(fmt.Sprintf(
+			`{"software_id":%d,"version":"1.0","installer_type":"pkg","installer_object_id":%d}`,
+			fixture.softwareID, objectID,
+		))).Code
+	}
+	assertReleased := func(t *testing.T, objectID int64) {
+		t.Helper()
+		if _, err := fixture.objects.GetByID(t.Context(), objectID); !errors.Is(err, bloby.ErrNotFound) {
+			t.Fatalf("get released upload error = %v, want ErrNotFound", err)
+		}
+	}
 
 	t.Run("cancel pending upload", func(t *testing.T) {
-		target := fixture.beginUpload(t, munkiPackageInstallerPath, "cancel.pkg")
-		rec := fixture.request(
-			t,
-			http.MethodDelete,
-			fmt.Sprintf("%s/%d", munkiPackageInstallerPath, target.ObjectID),
-		)
+		target := fixture.beginUpload(t, munkiPackageInstallerPath, "cancel.pkg", []byte("cancelled installer"))
+		rec := fixture.request(t, http.MethodDelete, installerPath(target.ObjectID))
 		assertStatus(t, rec, http.StatusNoContent, "cancel installer")
-		_, err := fixture.objects.GetByID(t.Context(), target.ObjectID)
-		if !errors.Is(err, bloby.ErrNotFound) {
-			t.Fatalf("get cancelled object error = %v, want ErrNotFound", err)
-		}
+		assertReleased(t, target.ObjectID)
 	})
 
-	t.Run("missing upload bytes", func(t *testing.T) {
-		target := fixture.beginUpload(t, munkiPackageInstallerPath, "missing.pkg")
-		rec := fixture.request(t, http.MethodPut, fmt.Sprintf("%s/%d", munkiPackageInstallerPath, target.ObjectID))
-		assertStatus(t, rec, http.StatusAccepted, "missing upload queued")
-		if rec.Header().Get("Retry-After") != "2" {
-			t.Fatalf("Retry-After: %v", rec.Header())
-		}
-		if _, err := fixture.db.Exec(t.Context(), `UPDATE river_job SET state='discarded',finalized_at=now() WHERE id=(SELECT job_id FROM munki_installer_finalizations WHERE object_id=$1)`, target.ObjectID); err != nil {
+	t.Run("finalize publishes the declared content", func(t *testing.T) {
+		body := []byte("published installer")
+		target := fixture.stage(t, munkiPackageInstallerPath, "published.pkg", body)
+		content, err := bloby.Digest(bytes.NewReader(body))
+		if err != nil {
 			t.Fatal(err)
 		}
-		path := fmt.Sprintf("%s/%d", munkiPackageInstallerPath, target.ObjectID)
-		assertStatus(t, fixture.request(t, http.MethodPut, path), http.StatusUnprocessableEntity, "terminal failure")
-		assertStatus(t, fixture.request(t, http.MethodDelete, path), http.StatusNoContent, "delete failed upload")
+		// A repeated request returns the same published object.
+		for range 2 {
+			rec := fixture.request(t, http.MethodPut, installerPath(target.ObjectID))
+			assertStatus(t, rec, http.StatusOK, "finalize installer")
+			var view MunkiObjectView
+			decodeJSON(t, rec, &view)
+			if view.ID != target.ObjectID || view.SizeBytes != content.SizeBytes || view.SHA256 != content.SHA256 {
+				t.Fatalf("finalized installer = %+v, want object %d with declared %+v", view, target.ObjectID, content)
+			}
+		}
+		downloaded := fixture.request(t, http.MethodGet, contentURL(munkiPackageInstallerPath, target.ObjectID))
+		assertStatus(t, downloaded, http.StatusOK, "get installer content")
+		if !bytes.Equal(downloaded.Body.Bytes(), body) {
+			t.Fatalf("installer content = %q, want %q", downloaded.Body.Bytes(), body)
+		}
 	})
 
-	t.Run("referenced object conflicts", func(t *testing.T) {
-		target := fixture.beginUpload(t, munkiPackageInstallerPath, "claimed.pkg")
-		fixture.upload(t, target, []byte("claimed installer"))
-		path := fmt.Sprintf("%s/%d", munkiPackageInstallerPath, target.ObjectID)
-		rec := fixture.request(t, http.MethodPut, path)
-		assertStatus(t, rec, http.StatusAccepted, "queue verification")
-		deadline := time.Now().Add(10 * time.Second)
-		for rec.Code == http.StatusAccepted && time.Now().Before(deadline) {
-			time.Sleep(10 * time.Millisecond)
-			rec = fixture.request(t, http.MethodPut, path)
-		}
-		assertStatus(t, rec, http.StatusOK, "finalize claimed installer")
-		if _, err := fixture.packages.Create(t.Context(), packages.PackageCreateMutation{
-			SoftwareID:        fixture.softwareID,
-			Version:           "2.0",
-			InstallerType:     packages.InstallerTypePkg,
-			InstallerObjectID: &target.ObjectID,
-		}); err != nil {
-			t.Fatalf("create package: %v", err)
+	t.Run("finalize before upload releases the object", func(t *testing.T) {
+		target := fixture.beginUpload(t, munkiPackageInstallerPath, "missing.pkg", []byte("never sent"))
+		rec := fixture.request(t, http.MethodPut, installerPath(target.ObjectID))
+		assertProblem(t, rec, http.StatusBadRequest)
+		assertReleased(t, target.ObjectID)
+	})
+
+	t.Run("storage refuses undeclared content", func(t *testing.T) {
+		target := fixture.beginUpload(t, munkiPackageInstallerPath, "undeclared.pkg", []byte("declared installer"))
+		rec := fixture.put(t, target, []byte("tampered installer"))
+		assertStatus(t, rec, http.StatusBadRequest, "upload undeclared content")
+		object, err := fixture.objects.GetByID(t.Context(), target.ObjectID)
+		if err != nil || object.Available() {
+			t.Fatalf("refused upload = %+v, %v; want a pending object", object, err)
 		}
 		assertStatus(
 			t,
-			fixture.request(t, http.MethodDelete, path),
+			fixture.request(t, http.MethodGet, contentURL(munkiPackageInstallerPath, target.ObjectID)),
+			http.StatusNotFound,
+			"get refused content",
+		)
+		assertProblem(t, fixture.request(t, http.MethodPut, installerPath(target.ObjectID)), http.StatusBadRequest)
+		assertReleased(t, target.ObjectID)
+	})
+
+	t.Run("pending installer cannot be attached", func(t *testing.T) {
+		target := fixture.stage(t, munkiPackageInstallerPath, "pending.pkg", []byte("pending installer"))
+		if status := createPackage(t, target.ObjectID); status != http.StatusBadRequest {
+			t.Fatalf("attach pending installer status = %d, want %d", status, http.StatusBadRequest)
+		}
+		assertStatus(
+			t,
+			fixture.request(t, http.MethodPut, installerPath(target.ObjectID)),
+			http.StatusOK,
+			"finalize installer",
+		)
+		if status := createPackage(t, target.ObjectID); status != http.StatusCreated {
+			t.Fatalf("attach finalized installer status = %d, want %d", status, http.StatusCreated)
+		}
+		assertStatus(
+			t,
+			fixture.request(t, http.MethodDelete, installerPath(target.ObjectID)),
 			http.StatusConflict,
-			"delete claimed installer",
+			"delete attached installer",
 		)
 	})
 
 	t.Run("delete rejects another object prefix", func(t *testing.T) {
-		target := fixture.beginUpload(t, munkiIconPath, "icon.png")
-		path := fmt.Sprintf("%s/%d", munkiPackageInstallerPath, target.ObjectID)
+		target := fixture.beginUpload(t, munkiIconPath, "icon.png", pngSignature)
+		path := installerPath(target.ObjectID)
 		assertStatus(t, fixture.request(t, http.MethodDelete, path), http.StatusBadRequest, "delete icon as installer")
 		if _, err := fixture.objects.GetByID(t.Context(), target.ObjectID); err != nil {
 			t.Fatalf("get cross-prefix object: %v", err)
@@ -85,23 +120,20 @@ func TestMunkiPackageInstallerFileLifecycle(t *testing.T) {
 	})
 
 	t.Run("multipart is rejected by file storage", func(t *testing.T) {
-		target := fixture.beginUpload(t, munkiPackageInstallerPath, "multipart.pkg")
-		path := fmt.Sprintf("%s/%d/multipart/parts/1", munkiPackageInstallerPath, target.ObjectID)
-		assertStatus(
-			t,
-			fixture.request(t, http.MethodPost, path),
-			http.StatusBadRequest,
-			"sign multipart part",
-		)
+		target := fixture.beginUpload(t, munkiPackageInstallerPath, "multipart.pkg", []byte("single part"))
+		path := fmt.Sprintf("%s/multipart/parts/1", installerPath(target.ObjectID))
+		rec := fixture.requestJSON(t, http.MethodPost, path, MunkiMultipartPartRequest{CRC64NVME: "0123456789abcdef"})
+		assertStatus(t, rec, http.StatusBadRequest, "sign multipart part")
 	})
 }
+
+var pngSignature = []byte("\x89PNG\r\n\x1a\n")
 
 func TestMunkiIconUploadLifecycle(t *testing.T) {
 	fixture := newMunkiFixture(t)
 	attachPath := fmt.Sprintf("/api/munki/software/%d/icon", fixture.softwareID)
-	icon := []byte("\x89PNG\r\n\x1a\n")
-	target := fixture.beginUpload(t, munkiIconPath, "icon.png")
-	fixture.upload(t, target, icon)
+	icon := pngSignature
+	target := fixture.stage(t, munkiIconPath, "icon.png", icon)
 
 	rec := fixture.requestJSON(t, http.MethodPut, attachPath, MunkiObjectMutation{ObjectID: target.ObjectID})
 	assertStatus(t, rec, http.StatusOK, "attach icon")
@@ -126,7 +158,7 @@ func TestMunkiUploadRejectsWrongPrefixAndInvalidIcon(t *testing.T) {
 	fixture := newMunkiFixture(t)
 
 	t.Run("wrong object prefix", func(t *testing.T) {
-		target := fixture.beginUpload(t, munkiPackageInstallerPath, "wrong-prefix.pkg")
+		target := fixture.beginUpload(t, munkiPackageInstallerPath, "wrong-prefix.pkg", []byte("installer"))
 		rec := fixture.requestJSON(
 			t,
 			http.MethodPut,
@@ -138,8 +170,7 @@ func TestMunkiUploadRejectsWrongPrefixAndInvalidIcon(t *testing.T) {
 
 	t.Run("invalid icon content", func(t *testing.T) {
 		attachPath := fmt.Sprintf("/api/munki/software/%d/icon", fixture.softwareID)
-		target := fixture.beginUpload(t, munkiIconPath, "not-an-icon.txt")
-		fixture.upload(t, target, []byte("not an image"))
+		target := fixture.stage(t, munkiIconPath, "not-an-icon.txt", []byte("not an image"))
 		rec := fixture.requestJSON(t, http.MethodPut, attachPath, MunkiObjectMutation{ObjectID: target.ObjectID})
 		assertStatus(t, rec, http.StatusBadRequest, "invalid icon")
 		_, err := fixture.objects.GetByID(t.Context(), target.ObjectID)
@@ -151,8 +182,8 @@ func TestMunkiUploadRejectsWrongPrefixAndInvalidIcon(t *testing.T) {
 
 func TestClientResourcesUploadsRemainPrefixScoped(t *testing.T) {
 	fixture := newMunkiFixture(t)
-	banner := fixture.beginUpload(t, clientResourcesBannerUploadPath, "banner.png")
-	archive := fixture.beginUpload(t, clientResourcesArchiveUploadPath, "resources.zip")
+	banner := fixture.beginUpload(t, clientResourcesBannerUploadPath, "banner.png", pngSignature)
+	archive := fixture.beginUpload(t, clientResourcesArchiveUploadPath, "resources.zip", []byte("archive"))
 
 	wrongArchivePath := fmt.Sprintf("%s/%d", clientResourcesArchiveUploadPath, banner.ObjectID)
 	assertStatus(

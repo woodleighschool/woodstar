@@ -197,6 +197,26 @@ func createMunkiPackageObject(
 	return createMunkiStorageObject(t, ctx, stores, "munki/packages", location, contentSeed)
 }
 
+// beginMunkiPackageUpload reserves a pending installer whose declared bytes
+// have not been sent.
+func beginMunkiPackageUpload(
+	t *testing.T,
+	ctx context.Context,
+	stores munkiStores,
+	filename string,
+) *bloby.Object {
+	t.Helper()
+	declared, err := bloby.Digest(strings.NewReader(filename))
+	if err != nil {
+		t.Fatalf("digest pending installer: %v", err)
+	}
+	pending, _, err := stores.objects.BeginDirect(ctx, packages.ObjectPrefix, filename, declared)
+	if err != nil {
+		t.Fatalf("begin pending installer: %v", err)
+	}
+	return pending
+}
+
 func assertBlockingApplications(t *testing.T, pkg packages.Package, wantNone bool, want []string) {
 	t.Helper()
 	if pkg.BlockingApplicationsNone != wantNone {

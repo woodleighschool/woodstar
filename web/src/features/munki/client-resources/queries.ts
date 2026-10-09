@@ -69,8 +69,8 @@ export function useUploadAndSaveMunkiClientResourcesBanner() {
     mutationKey: ["munki-client-resources-banner-upload"],
     loadingText: "Saving Client Resources",
     successText: "Client Resources Saved",
-    createIntent: ({ file }, signal) =>
-      unwrap(createMunkiClientResourcesBannerUpload({ body: { filename: file.name }, signal })),
+    createIntent: (body, signal) =>
+      unwrap(createMunkiClientResourcesBannerUpload({ body, signal })),
     uploadRequest: uploadRequestFromTarget,
     completeUpload: (intent, { body, clientResourcesID }, signal) =>
       saveClientResources({
@@ -91,8 +91,8 @@ export function useUploadAndSaveMunkiClientResourcesArchive() {
     mutationKey: ["munki-client-resources-archive-upload"],
     loadingText: "Saving Client Resources",
     successText: "Client Resources Saved",
-    createIntent: ({ file }, signal) =>
-      unwrap(createMunkiClientResourcesArchiveUpload({ body: { filename: file.name }, signal })),
+    createIntent: (body, signal) =>
+      unwrap(createMunkiClientResourcesArchiveUpload({ body, signal })),
     uploadRequest: uploadRequestFromTarget,
     completeUpload: (intent, { clientResourcesID }, signal) =>
       saveClientResources({

@@ -189,21 +189,6 @@ components:
         - organizational_unit
         - common_name
       type: object
-    CompletedPart:
-      additionalProperties: false
-      properties:
-        etag:
-          minLength: 1
-          type: string
-        part_number:
-          format: int32
-          maximum: 10000
-          minimum: 1
-          type: integer
-      required:
-        - part_number
-        - etag
-      type: object
     Criteria:
       additionalProperties: false
       properties:
@@ -1101,14 +1086,6 @@ components:
         - name
         - targets
       type: object
-    MunkiDirectUploadRequest:
-      additionalProperties: false
-      properties:
-        filename:
-          type: string
-      required:
-        - filename
-      type: object
     MunkiDistributionPoint:
       additionalProperties: false
       properties:
@@ -1423,16 +1400,14 @@ components:
         - target
         - open_in_browser
       type: object
-    MunkiMultipartCompleteRequest:
+    MunkiMultipartPartRequest:
       additionalProperties: false
       properties:
-        parts:
-          items:
-            $ref: "#/components/schemas/CompletedPart"
-          minItems: 1
-          type: array
+        crc64nvme:
+          pattern: ^[0-9a-f]{16}$
+          type: string
       required:
-        - parts
+        - crc64nvme
       type: object
     MunkiObjectMutation:
       additionalProperties: false
@@ -1465,6 +1440,8 @@ components:
         - id
         - filename
         - content_type
+        - size_bytes
+        - sha256
         - content_url
       type: object
     MunkiPackage:
@@ -1858,19 +1835,6 @@ components:
       required:
         - name
         - value
-      type: object
-    MunkiPackageInstallerUploadRequest:
-      additionalProperties: false
-      properties:
-        filename:
-          type: string
-        size_bytes:
-          format: int64
-          minimum: 0
-          type: integer
-      required:
-        - filename
-        - size_bytes
       type: object
     MunkiPackageItemToCopy:
       additionalProperties: false
@@ -2303,6 +2267,27 @@ components:
           $ref: "#/components/schemas/MunkiTargets"
       required:
         - targets
+      type: object
+    MunkiUploadRequest:
+      additionalProperties: false
+      properties:
+        crc64nvme:
+          pattern: ^[0-9a-f]{16}$
+          type: string
+        filename:
+          type: string
+        sha256:
+          pattern: ^[0-9a-f]{64}$
+          type: string
+        size_bytes:
+          format: int64
+          minimum: 0
+          type: integer
+      required:
+        - filename
+        - size_bytes
+        - sha256
+        - crc64nvme
       type: object
     MunkiUploadTarget:
       additionalProperties: false
@@ -6568,7 +6553,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/MunkiDirectUploadRequest"
+              $ref: "#/components/schemas/MunkiUploadRequest"
         required: true
       responses:
         "201":
@@ -6687,7 +6672,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/MunkiDirectUploadRequest"
+              $ref: "#/components/schemas/MunkiUploadRequest"
         required: true
       responses:
         "201":
@@ -7458,7 +7443,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/MunkiDirectUploadRequest"
+              $ref: "#/components/schemas/MunkiUploadRequest"
         required: true
       responses:
         "201":
@@ -7513,7 +7498,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/MunkiPackageInstallerUploadRequest"
+              $ref: "#/components/schemas/MunkiUploadRequest"
         required: true
       responses:
         "201":
@@ -7626,7 +7611,6 @@ paths:
         access: edit
         resource: munki.packages
     put:
-      description: Returns 202 with Retry-After while verification is queued, running, or retrying. Returns 200 with verified metadata, or 422 after terminal failure. Repeated requests do not restart failed verification.
       operationId: complete-munki-package-installer-upload
       parameters:
         - in: path
@@ -7642,21 +7626,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/MunkiObjectView"
           description: OK
-          headers:
-            Retry-After:
-              schema:
-                type: string
-        "202":
-          content:
-            application/json:
-              schema:
-                type: "null"
-          description: Verification pending; poll after Retry-After seconds.
-          headers:
-            Retry-After:
-              description: Polling interval in seconds.
-              schema:
-                type: string
         "400":
           content:
             application/problem+json:
@@ -7696,71 +7665,7 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Ensure package installer verification
-      tags:
-        - Munki package installers
-      x-authz:
-        access: edit
-        resource: munki.packages
-  /api/munki/package-installers/{id}/multipart:
-    put:
-      operationId: complete-munki-package-installer-multipart
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            format: int64
-            type: integer
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/MunkiMultipartCompleteRequest"
-        required: true
-      responses:
-        "204":
-          description: No Content
-        "400":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Bad Request
-        "401":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unauthorized
-        "403":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Forbidden
-        "404":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Not Found
-        "422":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unprocessable Entity
-        "500":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Internal Server Error
-      security:
-        - cookieAuth: []
-        - bearerAuth: []
-      summary: Complete a multipart upload
+      summary: Complete a package installer upload
       tags:
         - Munki package installers
       x-authz:
@@ -7784,6 +7689,12 @@ paths:
             maximum: 10000
             minimum: 1
             type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MunkiMultipartPartRequest"
+        required: true
       responses:
         "200":
           content:

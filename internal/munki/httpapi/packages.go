@@ -70,10 +70,8 @@ func installerTypeFilterValues(types []packages.InstallerType) []string {
 
 func registerMunkiPackages(
 	humaAPI huma.API,
-	longRunningAPI huma.API,
 	store *munki.PackageService,
 	objects *bloby.Service,
-	finalizations *packages.Finalizations,
 	logger *slog.Logger,
 ) {
 	registerListMunkiPackages(humaAPI, store, logger)
@@ -82,7 +80,7 @@ func registerMunkiPackages(
 	registerPutMunkiPackage(humaAPI, store, logger)
 	registerPatchMunkiPackage(humaAPI, store, logger)
 	registerBulkDeleteMunkiPackages(humaAPI, store, logger)
-	registerPackageInstallerRoutes(humaAPI, longRunningAPI, objects, finalizations, logger)
+	registerPackageInstallerRoutes(humaAPI, objects, logger)
 }
 
 func registerListMunkiPackages(humaAPI huma.API, store *munki.PackageService, logger *slog.Logger) {

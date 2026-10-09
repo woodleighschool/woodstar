@@ -3,30 +3,28 @@ package httpapi
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"github.com/woodleighschool/goodies/bloby"
 	blobyhuma "github.com/woodleighschool/goodies/bloby/huma"
-	"github.com/woodleighschool/woodstar/internal/fault"
 )
 
 const munkiUploadLabel = "Munki upload"
 
-type MunkiDirectUploadRequest struct {
-	Filename string `json:"filename"`
-}
+// MunkiUploadRequest names an upload and declares the bytes it will carry.
+// Storage accepts no other content for the object.
+type MunkiUploadRequest struct {
+	bloby.Content
 
-type MunkiPackageInstallerUploadRequest struct {
-	Filename  string `json:"filename"`
-	SizeBytes int64  `json:"size_bytes" minimum:"0"`
+	Filename string `json:"filename"`
 }
 
 type MunkiObjectMutation struct {
 	ObjectID int64 `json:"object_id" minimum:"1"`
 }
 
-type MunkiMultipartCompleteRequest struct {
-	Parts []bloby.CompletedPart `json:"parts" minItems:"1"`
+// MunkiMultipartPartRequest declares the checksum of one multipart part.
+type MunkiMultipartPartRequest struct {
+	CRC64NVME string `json:"crc64nvme" pattern:"^[0-9a-f]{16}$"`
 }
 
 type MunkiUploadTarget struct {
@@ -34,13 +32,14 @@ type MunkiUploadTarget struct {
 	Upload   blobyhuma.UploadAction `json:"upload"`
 }
 
+// MunkiObjectView describes a published storage object.
 type MunkiObjectView struct {
-	ID          int64   `json:"id"`
-	Filename    string  `json:"filename"`
-	ContentType string  `json:"content_type"`
-	SizeBytes   *int64  `json:"size_bytes,omitempty"`
-	SHA256      *string `json:"sha256,omitempty"`
-	ContentURL  string  `json:"content_url"`
+	ID          int64  `json:"id"`
+	Filename    string `json:"filename"`
+	ContentType string `json:"content_type"`
+	SizeBytes   int64  `json:"size_bytes"`
+	SHA256      string `json:"sha256"`
+	ContentURL  string `json:"content_url"`
 }
 
 type munkiUploadOutput struct {
@@ -66,12 +65,14 @@ func munkiObjectView(o bloby.Object, contentURL string) MunkiObjectView {
 		ID:          o.ID,
 		Filename:    o.Filename,
 		ContentType: o.ContentType,
-		SizeBytes:   o.SizeBytes,
-		SHA256:      o.SHA256,
+		SizeBytes:   o.SizeBytesValue(),
+		SHA256:      o.SHA256Value(),
 		ContentURL:  contentURL,
 	}
 }
 
+// finalizeMunkiUpload publishes an upload, releasing one whose bytes are
+// missing or differ from its declaration.
 func finalizeMunkiUpload(
 	ctx context.Context,
 	objects *bloby.Service,
@@ -79,11 +80,8 @@ func finalizeMunkiUpload(
 	objectID int64,
 ) (*bloby.Object, error) {
 	object, err := objects.Finalize(ctx, objectID, prefix)
-	if errors.Is(err, bloby.ErrObjectNotFound) {
-		return nil, errors.Join(
-			fmt.Errorf("%w: uploaded object does not exist", fault.ErrInvalidInput),
-			cleanupMunkiUpload(ctx, objects, objectID, prefix),
-		)
+	if errors.Is(err, bloby.ErrObjectNotFound) || errors.Is(err, bloby.ErrContentMismatch) {
+		return nil, errors.Join(err, cleanupMunkiUpload(ctx, objects, objectID, prefix))
 	}
 	return object, err
 }

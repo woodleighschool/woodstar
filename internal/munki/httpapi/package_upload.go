@@ -2,7 +2,6 @@ package httpapi
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 	"net/http"
 
@@ -16,7 +15,7 @@ import (
 const munkiPackageInstallerPath = "/api/munki/package-installers"
 
 type munkiPackageInstallerCreateInput struct {
-	Body MunkiPackageInstallerUploadRequest
+	Body MunkiUploadRequest
 }
 
 type munkiPackageInstallerInput struct {
@@ -26,11 +25,7 @@ type munkiPackageInstallerInput struct {
 type munkiPackageInstallerPartInput struct {
 	ID         int64 `path:"id"`
 	PartNumber int32 `path:"part_number" minimum:"1" maximum:"10000"`
-}
-
-type munkiPackageInstallerCompleteInput struct {
-	ID   int64 `path:"id"`
-	Body MunkiMultipartCompleteRequest
+	Body       MunkiMultipartPartRequest
 }
 
 type munkiMultipartPartOutput struct {
@@ -39,16 +34,13 @@ type munkiMultipartPartOutput struct {
 
 func registerPackageInstallerRoutes(
 	humaAPI huma.API,
-	longRunningAPI huma.API,
 	objects *bloby.Service,
-	finalizations *packages.Finalizations,
 	logger *slog.Logger,
 ) {
 	registerCreatePackageInstallerUploadRoute(humaAPI, objects, logger)
-	registerCompletePackageInstallerUploadRoute(humaAPI, finalizations, logger)
+	registerCompletePackageInstallerUploadRoute(humaAPI, objects, logger)
 	registerDeletePackageInstallerUploadRoute(humaAPI, objects, logger)
 	registerSignPackageInstallerPartRoute(humaAPI, objects, logger)
-	registerCompletePackageInstallerMultipartRoute(longRunningAPI, objects, logger)
 }
 
 func registerCreatePackageInstallerUploadRoute(
@@ -72,7 +64,7 @@ func registerCreatePackageInstallerUploadRoute(
 			ctx,
 			packages.ObjectPrefix,
 			input.Body.Filename,
-			input.Body.SizeBytes,
+			input.Body.Content,
 		)
 		if err != nil {
 			return nil, api.ResourceError(
@@ -83,15 +75,9 @@ func registerCreatePackageInstallerUploadRoute(
 	})
 }
 
-type munkiInstallerFinalizationOutput struct {
-	Status     int
-	RetryAfter string `header:"Retry-After"`
-	Body       *MunkiObjectView
-}
-
 func registerCompletePackageInstallerUploadRoute(
 	humaAPI huma.API,
-	finalizations *packages.Finalizations,
+	objects *bloby.Service,
 	logger *slog.Logger,
 ) {
 	huma.Register(humaAPI, huma.Operation{
@@ -99,27 +85,18 @@ func registerCompletePackageInstallerUploadRoute(
 		Method:      http.MethodPut,
 		Path:        munkiPackageInstallerPath + "/{id}",
 		Tags:        []string{api.TagMunkiPackageInstallers},
-		Summary:     "Ensure package installer verification",
-		Description: "Returns 202 with Retry-After while verification is queued, running, or retrying. Returns 200 with verified metadata, or 422 after terminal failure. Repeated requests do not restart failed verification.",
-		Responses: map[string]*huma.Response{"202": {
-			Description: "Verification pending; poll after Retry-After seconds.",
-			Headers:     map[string]*huma.Param{"Retry-After": {Description: "Polling interval in seconds.", Schema: &huma.Schema{Type: "string"}}},
-			Content:     map[string]*huma.MediaType{"application/json": {Schema: &huma.Schema{Type: "null"}}},
-		}},
-		Errors: []int{http.StatusBadRequest, http.StatusNotFound, http.StatusUnprocessableEntity},
-	}, func(ctx context.Context, input *munkiPackageInstallerInput) (*munkiInstallerFinalizationOutput, error) {
-		object, err := finalizations.Ensure(ctx, input.ID)
-		if errors.Is(err, packages.ErrFinalizationFailed) {
-			return nil, huma.Error422UnprocessableEntity(err.Error())
-		}
+		Summary:     "Complete a package installer upload",
+		Errors:      []int{http.StatusBadRequest, http.StatusNotFound},
+	}, func(ctx context.Context, input *munkiPackageInstallerInput) (*munkiObjectOutput, error) {
+		object, err := finalizeMunkiUpload(ctx, objects, packages.ObjectPrefix, input.ID)
 		if err != nil {
-			return nil, api.ResourceError(ctx, logger, "complete-munki-package-installer-upload", munkiUploadLabel, err, "object_id", input.ID)
-		}
-		if object == nil {
-			return &munkiInstallerFinalizationOutput{Status: http.StatusAccepted, RetryAfter: "2"}, nil
+			return nil, api.ResourceError(
+				ctx, logger, "complete-munki-package-installer-upload", munkiUploadLabel, err,
+				"object_id", input.ID,
+			)
 		}
 		view := munkiObjectView(*object, contentURL(munkiPackageInstallerPath, object.ID))
-		return &munkiInstallerFinalizationOutput{Status: http.StatusOK, Body: &view}, nil
+		return &munkiObjectOutput{Body: view}, nil
 	})
 }
 
@@ -161,7 +138,7 @@ func registerSignPackageInstallerPartRoute(
 		Errors:      []int{http.StatusBadRequest, http.StatusNotFound},
 	}, func(ctx context.Context, input *munkiPackageInstallerPartInput) (*munkiMultipartPartOutput, error) {
 		target, err := objects.PresignMultipartPart(
-			ctx, input.ID, packages.ObjectPrefix, input.PartNumber,
+			ctx, input.ID, packages.ObjectPrefix, input.PartNumber, input.Body.CRC64NVME,
 		)
 		if err != nil {
 			return nil, api.ResourceError(
@@ -170,29 +147,5 @@ func registerSignPackageInstallerPartRoute(
 			)
 		}
 		return &munkiMultipartPartOutput{Body: target}, nil
-	})
-}
-
-func registerCompletePackageInstallerMultipartRoute(
-	humaAPI huma.API,
-	objects *bloby.Service,
-	logger *slog.Logger,
-) {
-	huma.Register(humaAPI, huma.Operation{
-		OperationID:   "complete-munki-package-installer-multipart",
-		Method:        http.MethodPut,
-		Path:          munkiPackageInstallerPath + "/{id}/multipart",
-		Tags:          []string{api.TagMunkiPackageInstallers},
-		Summary:       "Complete a multipart upload",
-		DefaultStatus: http.StatusNoContent,
-		Errors:        []int{http.StatusBadRequest, http.StatusNotFound},
-	}, func(ctx context.Context, input *munkiPackageInstallerCompleteInput) (*struct{}, error) {
-		if err := objects.CompleteMultipart(ctx, input.ID, packages.ObjectPrefix, input.Body.Parts); err != nil {
-			return nil, api.ResourceError(
-				ctx, logger, "complete-munki-package-installer-multipart", munkiUploadLabel, err,
-				"object_id", input.ID,
-			)
-		}
-		return &struct{}{}, nil
 	})
 }

@@ -98,7 +98,7 @@ function MunkiClientResourcesEditForm({
       deployed={resource !== null}
       archiveMetadata={resource?.custom ? resource.archive : undefined}
       archiveUploading={uploadArchive.isUploading}
-      archiveProgress={uploadArchive.progress}
+      archiveStatusText={uploadArchive.statusText}
       archiveError={uploadArchive.error}
       bannerUploading={uploadBanner.isUploading}
       undeploying={undeploy.isPending}

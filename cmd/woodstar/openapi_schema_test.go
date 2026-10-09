@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -287,13 +288,16 @@ func TestMunkiUploadStrategySchema(t *testing.T) {
 	if packageInstaller == nil || packageInstaller.Put == nil {
 		t.Fatal("package installer finalization is missing")
 	}
-	multipartComplete := doc.Paths["/api/munki/package-installers/{id}/multipart"]
-	if multipartComplete == nil || multipartComplete.Put == nil || multipartComplete.Post != nil {
-		t.Fatal("multipart route must expose only server-side completion")
+	if packageInstaller.Put.RequestBody != nil {
+		t.Fatal("package installer finalization takes no body")
 	}
 	multipartPartPath := doc.Paths["/api/munki/package-installers/{id}/multipart/parts/{part_number}"]
 	if multipartPartPath == nil || multipartPartPath.Post == nil {
 		t.Fatal("multipart part signing is missing")
+	}
+	partRequest := doc.Components.Schemas.Map()["MunkiMultipartPartRequest"]
+	if partRequest == nil || !reflect.DeepEqual(partRequest.Required, []string{"crc64nvme"}) {
+		t.Fatalf("multipart part request = %#v, want a required part checksum", partRequest)
 	}
 
 	packageTarget := doc.Components.Schemas.Map()["MunkiUploadTarget"]
@@ -302,10 +306,6 @@ func TestMunkiUploadStrategySchema(t *testing.T) {
 	}
 	if packageTarget.Properties["upload"] == nil {
 		t.Fatal("package installer upload action is missing")
-	}
-	multipartRequest := doc.Components.Schemas.Map()["MunkiMultipartCompleteRequest"]
-	if multipartRequest == nil || multipartRequest.Properties["parts"] == nil {
-		t.Fatalf("multipart completion request = %#v, want completed parts", multipartRequest)
 	}
 	for path, wantRef := range map[string]string{
 		"/api/munki/package-installers":              "#/components/schemas/MunkiUploadTarget",
@@ -320,20 +320,27 @@ func TestMunkiUploadStrategySchema(t *testing.T) {
 	}
 }
 
-func TestMunkiUploadRequestSchemas(t *testing.T) {
+func TestMunkiUploadRequestSchema(t *testing.T) {
 	t.Parallel()
 	doc := buildOpenAPI("test").OpenAPI()
 
-	directRequest := doc.Components.Schemas.Map()["MunkiDirectUploadRequest"]
-	if directRequest == nil || directRequest.Properties["filename"] == nil ||
-		directRequest.Properties["size_bytes"] != nil ||
-		!reflect.DeepEqual(directRequest.Required, []string{"filename"}) {
-		t.Fatalf("direct upload request = %#v, want filename only", directRequest)
+	request := doc.Components.Schemas.Map()["MunkiUploadRequest"]
+	if request == nil {
+		t.Fatal("MunkiUploadRequest schema is missing")
 	}
-	installerRequest := doc.Components.Schemas.Map()["MunkiPackageInstallerUploadRequest"]
-	if installerRequest == nil || installerRequest.Properties["filename"] == nil ||
-		installerRequest.Properties["size_bytes"] == nil ||
-		!reflect.DeepEqual(installerRequest.Required, []string{"filename", "size_bytes"}) {
-		t.Fatalf("package installer upload request = %#v, want filename and size", installerRequest)
+	wantRequired := []string{"crc64nvme", "filename", "sha256", "size_bytes"}
+	if got := slices.Sorted(slices.Values(request.Required)); !slices.Equal(got, wantRequired) {
+		t.Fatalf("upload request requires %v, want a filename and declared content %v", got, wantRequired)
+	}
+	for _, path := range []string{
+		"/api/munki/package-installers",
+		"/api/munki/icons",
+		"/api/munki/client-resources/banner-uploads",
+		"/api/munki/client-resources/archive-uploads",
+	} {
+		got := doc.Paths[path].Post.RequestBody.Content["application/json"].Schema.Ref
+		if got != "#/components/schemas/MunkiUploadRequest" {
+			t.Errorf("POST %s request schema = %q, want the declared upload request", path, got)
+		}
 	}
 }

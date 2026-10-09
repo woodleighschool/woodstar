@@ -4,7 +4,6 @@ package httpapi
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -12,12 +11,11 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/riverqueue/river"
 	"github.com/woodleighschool/goodies/bloby"
-	"github.com/woodleighschool/woodstar/internal/backgroundjobs"
 
 	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/munki/clientresources"
@@ -39,22 +37,6 @@ func newMunkiFixture(t *testing.T) munkiFixture {
 	t.Helper()
 	db, ctx := testdb.Open(t)
 	objects := testbloby.New(t, db)
-	workers := river.NewWorkers()
-	river.AddWorker(workers, packages.NewFinalizeInstallerWorker(objects))
-	jobs, err := backgroundjobs.New(db, workers, nil, slog.New(slog.DiscardHandler))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := jobs.Start(ctx); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		if err := jobs.Stop(context.Background()); err != nil {
-			t.Error(err)
-		}
-	})
-	finalizations := packages.NewFinalizations(db, objects, jobs)
-
 	packageStore := packages.NewStore(db, objects)
 	softwareStore := munkisoftware.NewStore(db, objects, packageStore)
 	software, err := softwareStore.Create(ctx, munkisoftware.CreateMutation{Name: "ExampleApp"})
@@ -68,7 +50,7 @@ func newMunkiFixture(t *testing.T) munkiFixture {
 		Packages: packageStore, DesiredPackagesChanged: func() {},
 	})
 	deletions := munki.NewSoftwareDeletionService(softwareStore, func() {})
-	registerMunkiPackages(humaAPI, humaAPI, service, objects, finalizations, discardLogger())
+	registerMunkiPackages(humaAPI, service, objects, discardLogger())
 	registerMunkiSoftware(humaAPI, softwareStore, deletions, service, objects, discardLogger())
 	registerCreateClientResourcesUpload(
 		humaAPI,
@@ -118,13 +100,14 @@ func newMunkiFixture(t *testing.T) munkiFixture {
 	}
 }
 
-func (f munkiFixture) beginUpload(t *testing.T, path, filename string) MunkiUploadTarget {
+// beginUpload reserves an upload that declares body as its content.
+func (f munkiFixture) beginUpload(t *testing.T, path, filename string, body []byte) MunkiUploadTarget {
 	t.Helper()
-	var request any = MunkiDirectUploadRequest{Filename: filename}
-	if path == munkiPackageInstallerPath {
-		request = MunkiPackageInstallerUploadRequest{Filename: filename, SizeBytes: 0}
+	content, err := bloby.Digest(bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("digest upload: %v", err)
 	}
-	rec := f.requestJSON(t, http.MethodPost, path, request)
+	rec := f.requestJSON(t, http.MethodPost, path, MunkiUploadRequest{Filename: filename, Content: content})
 	assertStatus(t, rec, http.StatusCreated, "begin upload")
 	var target MunkiUploadTarget
 	decodeJSON(t, rec, &target)
@@ -134,7 +117,8 @@ func (f munkiFixture) beginUpload(t *testing.T, path, filename string) MunkiUplo
 	return target
 }
 
-func (f munkiFixture) upload(t *testing.T, target MunkiUploadTarget, body []byte) {
+// put sends body to the upload target and returns storage's response.
+func (f munkiFixture) put(t *testing.T, target MunkiUploadTarget, body []byte) *httptest.ResponseRecorder {
 	t.Helper()
 	uploadURL, err := url.Parse(target.Upload.Target.URL)
 	if err != nil {
@@ -146,7 +130,15 @@ func (f munkiFixture) upload(t *testing.T, target MunkiUploadTarget, body []byte
 		req.Header.Set(name, value)
 	}
 	f.router.ServeHTTP(rec, req)
-	assertStatus(t, rec, http.StatusNoContent, "upload")
+	return rec
+}
+
+// stage reserves an upload for body and sends its bytes, leaving it pending.
+func (f munkiFixture) stage(t *testing.T, path, filename string, body []byte) MunkiUploadTarget {
+	t.Helper()
+	target := f.beginUpload(t, path, filename, body)
+	assertStatus(t, f.put(t, target, body), http.StatusNoContent, "upload")
+	return target
 }
 
 func (f munkiFixture) request(
@@ -203,4 +195,19 @@ func assertProblem(t *testing.T, rec *httptest.ResponseRecorder, want int) {
 	if problem.Status != want {
 		t.Fatalf("problem status = %d, want %d; body = %s", problem.Status, want, rec.Body)
 	}
+}
+
+func testHumaConfigWithoutUtilityRoutes() huma.Config {
+	cfg := huma.DefaultConfig("test", "test")
+	cfg.OpenAPIPath = ""
+	cfg.DocsPath = ""
+	cfg.SchemasPath = ""
+	cfg.Components = &huma.Components{
+		Schemas: huma.NewMapRegistry("#/components/schemas/", huma.DefaultSchemaNamer),
+	}
+	return cfg
+}
+
+func discardLogger() *slog.Logger {
+	return slog.New(slog.DiscardHandler)
 }

@@ -69,7 +69,6 @@ type AppRoutes struct {
 	Logout        huma.API
 	Protected     huma.API
 	Streaming     huma.API
-	LongRunning   huma.API
 	Router        chi.Router
 	Transfers     chi.Router
 }
@@ -223,14 +222,7 @@ func newBrowserRoutes(
 		sessionMiddleware,
 		crossOriginProtection,
 	)
-	longRunning := r.With(
-		requestTimeoutMiddleware(longRunningRequestTimeout),
-		compression,
-		requestLogger,
-		sessionMiddleware,
-		crossOriginProtection,
-	)
-	apis := newAppAPIs(passwordLogin, ordinary, streaming, longRunning, options.Version)
+	apis := newAppAPIs(passwordLogin, ordinary, streaming, options.Version)
 	return newAppRoutes(ordinary, transfers, apis, options.Authn, options.Logger), storageTransfers
 }
 
@@ -238,14 +230,12 @@ type appAPIs struct {
 	passwordLogin huma.API
 	ordinary      huma.API
 	streaming     huma.API
-	longRunning   huma.API
 }
 
 func newAppAPIs(
 	passwordLogin chi.Router,
 	ordinary chi.Router,
 	streaming chi.Router,
-	longRunning chi.Router,
 	version string,
 ) appAPIs {
 	cfg := humaConfig(version)
@@ -253,7 +243,6 @@ func newAppAPIs(
 		passwordLogin: humachi.New(passwordLogin, cfg),
 		ordinary:      humachi.New(ordinary, cfg),
 		streaming:     humachi.New(streaming, cfg),
-		longRunning:   humachi.New(longRunning, cfg),
 	}
 }
 
@@ -269,7 +258,6 @@ func newAppRoutes(
 
 	protected := newProtectedGroup(apis.ordinary, authenticator, logger)
 	streaming := newProtectedGroup(apis.streaming, authenticator, logger)
-	longRunning := newProtectedGroup(apis.longRunning, authenticator, logger)
 
 	return AppRoutes{
 		PasswordLogin: apis.passwordLogin,
@@ -277,7 +265,6 @@ func newAppRoutes(
 		Logout:        apis.ordinary,
 		Protected:     protected,
 		Streaming:     streaming,
-		LongRunning:   longRunning,
 		Router:        ordinaryRouter,
 		Transfers:     transferRouter,
 	}
@@ -287,12 +274,11 @@ func newAppRoutes(
 // registration without runtime authentication middleware.
 func NewSchema(version string) (huma.API, AppRoutes) {
 	r := chi.NewRouter()
-	apis := newAppAPIs(r, r, r, r, version)
+	apis := newAppAPIs(r, r, r, version)
 
 	session := huma.NewGroup(apis.ordinary)
 	protected := newDocumentedProtectedGroup(apis.ordinary)
 	streaming := newDocumentedProtectedGroup(apis.streaming)
-	longRunning := newDocumentedProtectedGroup(apis.longRunning)
 
 	return apis.ordinary, AppRoutes{
 		PasswordLogin: apis.passwordLogin,
@@ -300,7 +286,6 @@ func NewSchema(version string) (huma.API, AppRoutes) {
 		Logout:        apis.ordinary,
 		Protected:     protected,
 		Streaming:     streaming,
-		LongRunning:   longRunning,
 	}
 }
 
@@ -386,10 +371,7 @@ func requestTimeoutMiddleware(timeout time.Duration) func(http.Handler) http.Han
 	}
 }
 
-const (
-	defaultRequestTimeout     = 120 * time.Second
-	longRunningRequestTimeout = time.Hour
-)
+const defaultRequestTimeout = 120 * time.Second
 
 func corsMiddleware(cfg config.Config) func(http.Handler) http.Handler {
 	if len(cfg.CORSAllowedOrigins) == 0 {

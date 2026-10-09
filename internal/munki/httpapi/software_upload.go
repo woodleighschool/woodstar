@@ -14,7 +14,7 @@ import (
 )
 
 type munkiIconUploadInput struct {
-	Body MunkiDirectUploadRequest
+	Body MunkiUploadRequest
 }
 
 const munkiIconPath = "/api/munki/icons"
@@ -61,6 +61,7 @@ func registerCreateIconUploadRoute(
 			ctx,
 			munkisoftware.IconObjectPrefix,
 			input.Body.Filename,
+			input.Body.Content,
 		)
 		if err != nil {
 			return nil, api.ResourceError(

@@ -132,10 +132,7 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 	installerSHA256 := hex.EncodeToString(installerSum[:])
 	createdInstaller, err := server.Admin.CreateMunkiPackageInstallerUploadWithResponse(
 		t.Context(),
-		adminapi.MunkiPackageInstallerUploadRequest{
-			Filename:  "WoodstarIntegration.pkg",
-			SizeBytes: int64(len(installerBytes)),
-		},
+		declaredUpload(t, "WoodstarIntegration.pkg", installerBytes),
 	)
 	createdInstaller = requireAPIResponse(
 		t,
@@ -211,25 +208,27 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 		t.Fatalf("installer upload status = %d, want %d", installerUploadResponse.StatusCode, http.StatusNoContent)
 	}
 
-	finalizedInstaller := finalizeInstaller(t, server, installerTarget.ObjectId)
+	finalizedInstaller, err := server.Admin.CompleteMunkiPackageInstallerUploadWithResponse(
+		t.Context(),
+		installerTarget.ObjectId,
+	)
 	finalizedInstaller = requireAPIResponse(
 		t,
 		"finalize package installer",
 		http.StatusOK,
 		finalizedInstaller,
-		nil,
+		err,
 	)
 	if finalizedInstaller.JSON200 == nil {
 		t.Fatal("finalize package installer returned no JSON body")
 	}
 	installer := *finalizedInstaller.JSON200
 	if installer.Id != installerTarget.ObjectId || installer.Filename != "WoodstarIntegration.pkg" ||
-		installer.ContentType != "application/octet-stream" || installer.SizeBytes == nil ||
-		*installer.SizeBytes != int64(len(installerBytes)) || installer.Sha256 == nil ||
-		*installer.Sha256 != installerSHA256 ||
+		installer.ContentType != "application/octet-stream" ||
+		installer.SizeBytes != int64(len(installerBytes)) || installer.Sha256 != installerSHA256 ||
 		installer.ContentUrl != "/api/munki/package-installers/"+
 			strconv.FormatInt(installer.Id, 10)+"/content" {
-		t.Fatal("finalized installer did not contain the expected server-derived metadata")
+		t.Fatal("finalized installer did not contain the expected metadata")
 	}
 	installerContentResponse := getResponse(t, server.AdminHTTP, server.BaseURL+installer.ContentUrl)
 	if got := readAndClose(t, installerContentResponse); installerContentResponse.StatusCode != http.StatusOK ||
@@ -294,10 +293,7 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 	secondInstallerBytes := bytes.Repeat([]byte{0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01, 0x00}, 200)
 	createdSecondInstaller, err := server.Admin.CreateMunkiPackageInstallerUploadWithResponse(
 		t.Context(),
-		adminapi.MunkiPackageInstallerUploadRequest{
-			Filename:  "WoodstarSecondIntegration.pkg",
-			SizeBytes: int64(len(secondInstallerBytes)),
-		},
+		declaredUpload(t, "WoodstarSecondIntegration.pkg", secondInstallerBytes),
 	)
 	createdSecondInstaller = requireAPIResponse(
 		t,
@@ -330,13 +326,16 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 	if secondInstallerUploadResponse.StatusCode != http.StatusNoContent {
 		t.Fatalf("second installer upload status = %d, want %d", secondInstallerUploadResponse.StatusCode, http.StatusNoContent)
 	}
-	finalizedSecondInstaller := finalizeInstaller(t, server, secondInstallerTarget.ObjectId)
+	finalizedSecondInstaller, err := server.Admin.CompleteMunkiPackageInstallerUploadWithResponse(
+		t.Context(),
+		secondInstallerTarget.ObjectId,
+	)
 	finalizedSecondInstaller = requireAPIResponse(
 		t,
 		"finalize second package installer",
 		http.StatusOK,
 		finalizedSecondInstaller,
-		nil,
+		err,
 	)
 	if finalizedSecondInstaller.JSON200 == nil {
 		t.Fatal("finalize second package installer returned no JSON body")
@@ -432,9 +431,7 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 	}
 	createdBanner, err := server.Admin.CreateMunkiClientResourcesBannerUploadWithResponse(
 		t.Context(),
-		adminapi.MunkiDirectUploadRequest{
-			Filename: "banner.png",
-		},
+		declaredUpload(t, "banner.png", bannerBytes),
 	)
 	createdBanner = requireAPIResponse(t, "create banner upload", http.StatusCreated, createdBanner, err)
 	bannerTarget := createdBanner.JSON201
@@ -530,10 +527,8 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 	}
 	if clientResources.Builder.Banner.Id != bannerTarget.ObjectId ||
 		clientResources.Builder.Banner.ContentType != "image/png" ||
-		clientResources.Builder.Banner.SizeBytes == nil ||
-		*clientResources.Builder.Banner.SizeBytes != int64(len(bannerBytes)) ||
-		clientResources.Builder.Banner.Sha256 == nil ||
-		*clientResources.Builder.Banner.Sha256 != bannerSHA256 ||
+		clientResources.Builder.Banner.SizeBytes != int64(len(bannerBytes)) ||
+		clientResources.Builder.Banner.Sha256 != bannerSHA256 ||
 		clientResources.Builder.BannerFit != "cover" ||
 		clientResources.Builder.BannerFocalX != 50 ||
 		clientResources.Builder.FooterText != "Managed by Example IT" ||
@@ -1096,9 +1091,7 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 	uploadedArchiveBytes := []byte("trusted administrator archive bytes")
 	createdArchive, err := server.Admin.CreateMunkiClientResourcesArchiveUploadWithResponse(
 		t.Context(),
-		adminapi.MunkiDirectUploadRequest{
-			Filename: "school-resources.zip",
-		},
+		declaredUpload(t, "school-resources.zip", uploadedArchiveBytes),
 	)
 	createdArchive = requireAPIResponse(
 		t,
@@ -1155,8 +1148,7 @@ func TestMunki(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear product
 		uploadedResources.Builder.Banner.Id != bannerTarget.ObjectId ||
 		uploadedResources.Archive.Id != archiveTarget.ObjectId ||
 		uploadedResources.Archive.Filename != "school-resources.zip" ||
-		uploadedResources.Archive.SizeBytes == nil ||
-		*uploadedResources.Archive.SizeBytes != int64(len(uploadedArchiveBytes)) {
+		uploadedResources.Archive.SizeBytes != int64(len(uploadedArchiveBytes)) {
 		t.Fatalf("uploaded client resources = %+v", uploadedResources)
 	}
 
@@ -1310,9 +1302,7 @@ func attachMunkiIcon(
 	contents []byte,
 ) adminapi.MunkiObjectView {
 	t.Helper()
-	payload, err := json.Marshal(adminapi.MunkiDirectUploadRequest{
-		Filename: filename,
-	})
+	payload, err := json.Marshal(declaredUpload(t, filename, contents))
 	if err != nil {
 		t.Fatalf("encode icon upload request: %v", err)
 	}
@@ -1390,7 +1380,7 @@ func attachMunkiIcon(
 		t.Fatalf("decode attached icon: %v", err)
 	}
 	if icon.Id != target.ObjectId || icon.Filename != filename || icon.ContentType != "image/png" ||
-		icon.SizeBytes == nil || *icon.SizeBytes != int64(len(contents)) || icon.Sha256 == nil || *icon.Sha256 == "" {
+		icon.SizeBytes != int64(len(contents)) || icon.Sha256 == "" {
 		t.Fatalf("attached icon = %+v, want finalized %s", icon, filename)
 	}
 	return icon

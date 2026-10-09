@@ -274,10 +274,7 @@ func createMDPInstaller(
 
 	created, err := server.Admin.CreateMunkiPackageInstallerUploadWithResponse(
 		t.Context(),
-		adminapi.MunkiPackageInstallerUploadRequest{
-			Filename:  filename,
-			SizeBytes: int64(len(contents)),
-		},
+		declaredUpload(t, filename, contents),
 	)
 	created = requireAPIResponse(t, "create package installer", http.StatusCreated, created, err)
 	upload := directUpload(t, created.JSON201)
@@ -315,8 +312,11 @@ func createMDPInstaller(
 		t.Fatalf("installer upload status = %d, want %d", uploadResponse.StatusCode, http.StatusNoContent)
 	}
 
-	finalized := finalizeInstaller(t, server, created.JSON201.ObjectId)
-	finalized = requireAPIResponse(t, "finalize package installer", http.StatusOK, finalized, nil)
+	finalized, err := server.Admin.CompleteMunkiPackageInstallerUploadWithResponse(
+		t.Context(),
+		created.JSON201.ObjectId,
+	)
+	finalized = requireAPIResponse(t, "finalize package installer", http.StatusOK, finalized, err)
 	if finalized.JSON200 == nil || finalized.JSON200.Id != created.JSON201.ObjectId ||
 		finalized.JSON200.Filename != filename {
 		t.Fatalf("finalized installer = %+v, want uploaded object", finalized.JSON200)

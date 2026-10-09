@@ -1,4 +1,3 @@
-import type { UploadProgress } from "@woodleighschool/bloby-client";
 import { filesize } from "filesize";
 import { FileArchive, Trash2 } from "lucide-react";
 import { useRef } from "react";
@@ -24,14 +23,14 @@ export function ClientResourcesArchiveField({
   editable,
   metadata,
   uploading,
-  progress,
+  statusText,
   error,
 }: {
   form: ClientResourcesForm;
   editable: boolean;
   metadata?: MunkiObjectView;
   uploading: boolean;
-  progress: UploadProgress | null;
+  statusText: string | null;
   error: Error | null;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -61,10 +60,10 @@ export function ClientResourcesArchiveField({
               const description = error
                 ? error.message
                 : uploading
-                  ? `Uploading${progress ? ` ${progress.percent}%` : ""}`
+                  ? (statusText ?? "Uploading")
                   : file
                     ? `${filesize(file.size)} selected`
-                    : metadata?.size_bytes !== null && metadata?.size_bytes !== undefined
+                    : metadata
                       ? filesize(metadata.size_bytes)
                       : editable
                         ? "Select a ZIP archive."

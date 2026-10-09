@@ -163,7 +163,7 @@ func (s *RepositoryService) ResolvePackageFile(
 		return PackageInstaller{}, err
 	}
 	obj := objectByID(objects, pkg.InstallerObjectID)
-	if obj == nil || !obj.Available() || obj.SizeBytes == nil || obj.SHA256 == nil {
+	if obj == nil || !obj.Available() {
 		return PackageInstaller{}, fmt.Errorf("package %d installer object is not finalized", pkg.ID)
 	}
 	if packages.InstallerItemLocation(pkg, *obj) != key {

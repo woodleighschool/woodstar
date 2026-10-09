@@ -1,6 +1,5 @@
 import { revalidateLogic, useForm } from "@tanstack/react-form";
 import { useSelector } from "@tanstack/react-store";
-import type { UploadProgress } from "@woodleighschool/bloby-client";
 import { Brush, Trash2, Upload } from "lucide-react";
 import { useState } from "react";
 
@@ -47,7 +46,7 @@ export function MunkiClientResourcesForm({
   deployed,
   archiveMetadata,
   archiveUploading,
-  archiveProgress,
+  archiveStatusText,
   archiveError,
   bannerUploading,
   undeploying,
@@ -60,7 +59,7 @@ export function MunkiClientResourcesForm({
   deployed: boolean;
   archiveMetadata?: MunkiObjectView;
   archiveUploading: boolean;
-  archiveProgress: UploadProgress | null;
+  archiveStatusText: string | null;
   archiveError: Error | null;
   bannerUploading: boolean;
   undeploying: boolean;
@@ -134,7 +133,7 @@ export function MunkiClientResourcesForm({
                 editable={editable}
                 metadata={archiveMetadata}
                 uploading={archiveUploading}
-                progress={archiveProgress}
+                statusText={archiveStatusText}
                 error={archiveError}
               />
             ) : (

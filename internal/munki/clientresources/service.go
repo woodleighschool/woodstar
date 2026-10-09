@@ -199,12 +199,6 @@ func (s *Service) finalizeObject(
 	wasPending := !object.Available()
 	if wasPending {
 		object, err = s.objects.Finalize(ctx, objectID, prefix)
-		if errors.Is(err, bloby.ErrObjectNotFound) {
-			return nil, true, errors.Join(
-				fmt.Errorf("%w: uploaded %s does not exist", fault.ErrInvalidInput, label),
-				cleanupUploads(ctx, s.objects, prefix, objectID),
-			)
-		}
 		if err != nil {
 			return nil, true, errors.Join(
 				err,

@@ -24,7 +24,7 @@ const (
 )
 
 type clientResourcesUploadInput struct {
-	Body MunkiDirectUploadRequest
+	Body MunkiUploadRequest
 }
 
 type clientResourcesCreateInput struct {
@@ -286,7 +286,7 @@ func registerCreateClientResourcesUpload(
 		DefaultStatus: http.StatusCreated,
 		Errors:        []int{http.StatusBadRequest},
 	}, func(ctx context.Context, input *clientResourcesUploadInput) (*munkiUploadOutput, error) {
-		object, target, err := objects.BeginDirect(ctx, prefix, input.Body.Filename)
+		object, target, err := objects.BeginDirect(ctx, prefix, input.Body.Filename, input.Body.Content)
 		if err != nil {
 			return nil, api.ResourceError(ctx, logger, operationID, clientResourcesLabel, err)
 		}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/jackc/pgx/v5"
 
@@ -25,20 +24,18 @@ func validateAndLockInstallerObject(
 		return nil
 	}
 	var prefix string
-	var sizeBytes *int64
-	var sha256sum *string
-	var availableAt *time.Time
+	var available bool
 	if err := tx.QueryRow(ctx, `
-SELECT prefix, size_bytes, sha256, available_at
+SELECT prefix, available_at IS NOT NULL
 FROM storage_objects
 WHERE id = $1
-FOR UPDATE`, *objectID).Scan(&prefix, &sizeBytes, &sha256sum, &availableAt); err != nil {
+FOR UPDATE`, *objectID).Scan(&prefix, &available); err != nil {
 		return postgres.GetError(err)
 	}
 	if prefix != ObjectPrefix {
 		return fmt.Errorf("%w: installer_object_id must reference a package installer", fault.ErrInvalidInput)
 	}
-	if availableAt == nil || sizeBytes == nil || sha256sum == nil {
+	if !available {
 		return fmt.Errorf("%w: installer_object_id must reference a finalized object", fault.ErrInvalidInput)
 	}
 	var ownerID int64

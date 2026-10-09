@@ -1,12 +1,7 @@
 import type { MultipartUploadRequest, UploadRequest } from "@woodleighschool/bloby-client";
 
 import type { MunkiUploadTarget } from "@lib/api";
-import {
-  completeMunkiPackageInstallerMultipart,
-  deleteMunkiPackageInstallerUpload,
-  signMunkiPackageInstallerPart,
-  unwrap,
-} from "@lib/api";
+import { deleteMunkiPackageInstallerUpload, signMunkiPackageInstallerPart, unwrap } from "@lib/api";
 import { assertNever } from "@lib/utils";
 
 export function uploadRequestFromTarget(target: MunkiUploadTarget): UploadRequest {
@@ -29,18 +24,11 @@ export async function deleteUnclaimedMunkiInstaller(objectID: number) {
 
 function packageInstallerMultipartRequest(objectID: number): MultipartUploadRequest {
   return {
-    complete: (parts, signal) =>
-      unwrap(
-        completeMunkiPackageInstallerMultipart({
-          path: { id: objectID },
-          body: { parts },
-          signal,
-        }),
-      ),
-    signPart: (partNumber, signal) =>
+    signPart: (partNumber, crc64nvme, signal) =>
       unwrap(
         signMunkiPackageInstallerPart({
           path: { id: objectID, part_number: partNumber },
+          body: { crc64nvme },
           signal,
         }),
       ),

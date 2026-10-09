@@ -66,11 +66,11 @@ func migrate(ctx context.Context, pool *pgxpool.Pool) error {
 	if err := blobydb.Migrate(ctx, pool); err != nil {
 		return fmt.Errorf("apply blob migrations: %w", err)
 	}
-	if err := migrateRiver(ctx, pool); err != nil {
-		return fmt.Errorf("apply River migrations: %w", err)
-	}
 	if _, err := provider.Up(ctx); err != nil {
 		return fmt.Errorf("apply migrations: %w", err)
+	}
+	if err := migrateRiver(ctx, pool); err != nil {
+		return fmt.Errorf("apply River migrations: %w", err)
 	}
 	return nil
 }

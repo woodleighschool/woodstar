@@ -76,10 +76,7 @@ func TestPackageInstallerObjectValidationOwnershipAndTransitions(t *testing.T) {
 		t.Fatalf("create software: %v", err)
 	}
 
-	pending, _, err := stores.objects.BeginDirect(ctx, packages.ObjectPrefix, "pending.pkg")
-	if err != nil {
-		t.Fatalf("create pending installer: %v", err)
-	}
+	pending := beginMunkiPackageUpload(t, ctx, stores, "pending.pkg")
 	_, err = stores.packages.Create(ctx, packages.PackageCreateMutation{
 		SoftwareID:        software.ID,
 		Version:           "pending",

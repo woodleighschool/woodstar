@@ -23,7 +23,7 @@ func MunkiVersionedSoftwareName(softwareName, packageVersion string) string {
 func Pkginfo(pkg Package, objects PkginfoObjects) (any, error) {
 	if pkg.InstallerType != InstallerTypeNoPkg {
 		installer := objects.Installer
-		if installer == nil || !installer.Available() || installer.SizeBytes == nil || installer.SHA256 == nil {
+		if installer == nil || !installer.Available() {
 			return nil, fmt.Errorf("package %d installer object is not finalized", pkg.ID)
 		}
 	}
