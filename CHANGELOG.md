@@ -1,5 +1,46 @@
 # Changelog
 
+## [0.10.4](https://github.com/woodleighschool/woodstar/compare/v0.10.3...v0.10.4) (2026-10-09)
+
+
+### Features
+
+* **npm:** update dependency oxlint (1.85.0 → 1.86.0) ([#442](https://github.com/woodleighschool/woodstar/issues/442)) ([f03f6ff](https://github.com/woodleighschool/woodstar/commit/f03f6ff9853f671447feeea1e24d09f46557c824))
+* **web:** title browser tabs from the open page ([1d64216](https://github.com/woodleighschool/woodstar/commit/1d6421650524efd91f9590c8bb8bc6be57bbef97))
+
+
+### Bug Fixes
+
+* **build:** source Node container version from Mise ([f12f4bc](https://github.com/woodleighschool/woodstar/commit/f12f4bc973be43e436c81dd517abb92815aaab35))
+* **build:** unify Go toolchain and license tool versions ([4ea66ea](https://github.com/woodleighschool/woodstar/commit/4ea66ea5438f1f18595227f9dff77e3529de056d))
+* **go:** update module buf.build/gen/go/northpolesec/protos/protocolbuffers/go (v1.36.12-20261001164304-786973e556bd.2 → v1.36.12-20261005140654-db515270599c.2) ([#487](https://github.com/woodleighschool/woodstar/issues/487)) ([fa5ead2](https://github.com/woodleighschool/woodstar/commit/fa5ead200014e62b608bad133699366d939e3151))
+* **go:** update module buf.build/gen/go/northpolesec/protos/protocolbuffers/go (v1.36.12-20261005140654-db515270599c.2 → v1.36.12-20261005171343-b02056c70052.2) ([#489](https://github.com/woodleighschool/woodstar/issues/489)) ([ca1931b](https://github.com/woodleighschool/woodstar/commit/ca1931b5f7f39d74982d2b97abfcb7e8bcb804a8))
+* **go:** update module buf.build/gen/go/northpolesec/protos/protocolbuffers/go (v1.36.12-20261005171343-b02056c70052.2 → v1.36.12-20261006152137-c0d02907d210.2) ([#498](https://github.com/woodleighschool/woodstar/issues/498)) ([4558f9f](https://github.com/woodleighschool/woodstar/commit/4558f9fb8e7991bda26cc2b7a270761d697da03b))
+* **go:** update module github.com/microsoftgraph/msgraph-sdk-go (v1.103.0 → v1.104.0) ([#500](https://github.com/woodleighschool/woodstar/issues/500)) ([212ac10](https://github.com/woodleighschool/woodstar/commit/212ac10def3401034ea28334f62d1af473b26027))
+* **go:** update river monorepo (v0.48.0 → v0.49.0) ([#488](https://github.com/woodleighschool/woodstar/issues/488)) ([179f9dc](https://github.com/woodleighschool/woodstar/commit/179f9dcd93fe9d34c5025503378a1f244e821d76))
+* **go:** update stemma (v0.10.0 → v0.10.1) ([#493](https://github.com/woodleighschool/woodstar/issues/493)) ([6e2c1bf](https://github.com/woodleighschool/woodstar/commit/6e2c1bf52f21b7cc610a0130fa882cd95497f2cf))
+* **npm:** update codemirror ([#510](https://github.com/woodleighschool/woodstar/issues/510)) ([4b23eaf](https://github.com/woodleighschool/woodstar/commit/4b23eaf46aecfa362352146b16211c26e3b5658d))
+* **npm:** update dependency @codemirror/language (6.13.0 → 6.13.1) ([#511](https://github.com/woodleighschool/woodstar/issues/511)) ([a924c5b](https://github.com/woodleighschool/woodstar/commit/a924c5b703918ca26c08435c5834c48747363c42))
+* **npm:** update dependency @tanstack/react-table (9.2.4 → 9.2.5) ([#485](https://github.com/woodleighschool/woodstar/issues/485)) ([584c654](https://github.com/woodleighschool/woodstar/commit/584c65473b67a69e1780020379f8229d293ba567))
+* **npm:** update dependency @tanstack/react-table (9.2.5 → 9.2.6) ([#490](https://github.com/woodleighschool/woodstar/issues/490)) ([d7b4002](https://github.com/woodleighschool/woodstar/commit/d7b4002a8b0b9b1d228db651161f1d46489598ef))
+* **npm:** update dependency @types/node (26.6.3 → 26.6.4) ([#471](https://github.com/woodleighschool/woodstar/issues/471)) ([43127b3](https://github.com/woodleighschool/woodstar/commit/43127b3620087bc4caf3090bee7f9ea05643b9b4))
+* **npm:** update dependency docusaurus-plugin-llms (0.6.0 → 0.6.1) ([#480](https://github.com/woodleighschool/woodstar/issues/480)) ([520296d](https://github.com/woodleighschool/woodstar/commit/520296d5a881ffbb0d02c07b67791b675cdf0fa8))
+* **npm:** update dependency lucide-react (1.49.0 → 1.50.0) ([#476](https://github.com/woodleighschool/woodstar/issues/476)) ([6e9088a](https://github.com/woodleighschool/woodstar/commit/6e9088a5e017328fe8c151870885f4cdd2e52a0b))
+* **npm:** update dependency lucide-react (1.50.0 → 1.51.0) ([#481](https://github.com/woodleighschool/woodstar/issues/481)) ([fce3ddb](https://github.com/woodleighschool/woodstar/commit/fce3ddb3d05eafa7f45490b8db0b2de0daa1db48))
+* **npm:** update dependency lucide-react (1.51.0 → 1.52.0) ([#486](https://github.com/woodleighschool/woodstar/issues/486)) ([b713a4e](https://github.com/woodleighschool/woodstar/commit/b713a4ed45167ef98f9494de647572b15c60fb54))
+* **npm:** update dependency shadcn (4.21.1 → 4.21.2) ([#497](https://github.com/woodleighschool/woodstar/issues/497)) ([d6f2417](https://github.com/woodleighschool/woodstar/commit/d6f24177372c19d133876c39b3389693e3b912d8))
+* **npm:** update dependency shadcn (4.21.2 → 4.21.3) ([#503](https://github.com/woodleighschool/woodstar/issues/503)) ([3ae0148](https://github.com/woodleighschool/woodstar/commit/3ae01480b4fd31e84d842dd15bb21c0d0b7355ba))
+* **npm:** update dependency shadcn (4.21.3 → 4.21.4) ([#508](https://github.com/woodleighschool/woodstar/issues/508)) ([1b45f4c](https://github.com/woodleighschool/woodstar/commit/1b45f4c19c924392834f8cfa3cb399f090ca82ef))
+* **npm:** update dependency simple-icons (16.33.0 → 16.34.0) ([#484](https://github.com/woodleighschool/woodstar/issues/484)) ([53c7979](https://github.com/woodleighschool/woodstar/commit/53c797955c1824e57ecb7c6665418a7cabf95df1))
+* **npm:** update tanstack-query monorepo (5.104.0 → 5.104.1) ([#475](https://github.com/woodleighschool/woodstar/issues/475)) ([e9db028](https://github.com/woodleighschool/woodstar/commit/e9db0282621d67bb3b57b6e478648820c315debd))
+* **web:** keep a deleted record's page steady until it leaves ([08a7727](https://github.com/woodleighschool/woodstar/commit/08a77276b92e6a80f94b6885bf4e5d598af7fc01))
+* **web:** keep a page's data when a background refetch fails ([1b328cb](https://github.com/woodleighschool/woodstar/commit/1b328cb827308c1e382936ccd3c2489526dd4173))
+* **web:** keep the app shell on unknown URLs ([15c547c](https://github.com/woodleighschool/woodstar/commit/15c547ca3e7cae49d32f0e8504cf4240bb9b9922))
+* **web:** reset page scroll on navigation ([da5d0bb](https://github.com/woodleighschool/woodstar/commit/da5d0bb12c845f07cdc380d49a55145d5b9128f7))
+* **web:** show a placeholder while a page's query loads ([d9d8422](https://github.com/woodleighschool/woodstar/commit/d9d84223557aae6046a82d4081c35ec77763994a))
+* **web:** show the not-found page for invalid and missing records ([bde5ec0](https://github.com/woodleighschool/woodstar/commit/bde5ec01fee8eacdc1707e42c85d4021ef1e6e21))
+* **web:** stop retrying requests the server rejected ([ee3fbc0](https://github.com/woodleighschool/woodstar/commit/ee3fbc076ddac53a98a4666e987e17bb501c2357))
+
 ## [0.10.3](https://github.com/woodleighschool/woodstar/compare/v0.10.2...v0.10.3) (2026-10-02)
 
 
