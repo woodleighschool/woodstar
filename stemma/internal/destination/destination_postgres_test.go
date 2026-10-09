@@ -23,9 +23,11 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	"github.com/go-chi/chi/v5"
+	"github.com/riverqueue/river"
 	"github.com/woodleighschool/goodies/auth/authn"
 	"github.com/woodleighschool/goodies/auth/authz"
 	"github.com/woodleighschool/stemma/plugin"
+	"github.com/woodleighschool/woodstar/internal/backgroundjobs"
 
 	"github.com/woodleighschool/woodstar/internal/api"
 	"github.com/woodleighschool/woodstar/internal/labels"
@@ -41,6 +43,22 @@ import (
 func TestStemmaAdapterPostgresLifecycle(t *testing.T) { //nolint:funlen,gocognit,cyclop // Sequential ownership and convergence assertions share one real API lifecycle.
 	db, ctx := testdb.Open(t)
 	objects := testbloby.New(t, db)
+	workers := river.NewWorkers()
+	river.AddWorker(workers, packages.NewFinalizeInstallerWorker(objects))
+	jobs, err := backgroundjobs.New(db, workers, nil, slog.New(slog.DiscardHandler))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := jobs.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := jobs.Stop(context.Background()); err != nil {
+			t.Error(err)
+		}
+	})
+	finalizations := packages.NewFinalizations(db, objects, jobs)
+
 	packageStore := packages.NewStore(db, objects)
 	softwareStore := software.NewStore(db, objects, packageStore)
 	service := munki.NewPackageService(munki.PackageServiceDependencies{
@@ -73,7 +91,7 @@ func TestStemmaAdapterPostgresLifecycle(t *testing.T) { //nolint:funlen,gocognit
 	humaAPI := humachi.New(router, cfg)
 	routes := api.AppRoutes{Protected: humaAPI, LongRunning: humaAPI, Router: router, Transfers: router}
 	httpapi.RegisterAPI(routes, httpapi.Dependencies{
-		Software: softwareStore, Packages: service, Objects: objects,
+		Software: softwareStore, Packages: service, Objects: objects, Finalizations: finalizations,
 		Authorizer: testAuthorizer{}, Logger: slog.New(slog.DiscardHandler),
 	})
 	labelsapi.RegisterAPI(routes, labelStore, testAuthorizer{}, slog.New(slog.DiscardHandler))

@@ -41,10 +41,13 @@ type uploadTarget struct {
 	Headers map[string]string `json:"headers"`
 }
 
+var errInstallerMismatch = errors.New("finalized installer does not match the prepared content")
+
 // Upload sends a leased installer to a new object and returns its id once the
-// repository holds the prepared content. A failed upload releases its object.
+// repository holds the prepared content. Ambiguous verification failures retain
+// the object for server-side completion and orphan cleanup.
 func (c *Client) Upload(ctx context.Context, artifact plugin.Artifact) (_ int64, runErr error) {
-	ctx, cancel := context.WithTimeout(ctx, time.Hour)
+	ctx, cancel := context.WithTimeout(ctx, 4*time.Hour)
 	defer cancel()
 	done := plugin.Stage(ctx, "Uploading installer", plugin.Detail(artifact.Filename))
 	defer func() { done(runErr) }()
@@ -78,9 +81,13 @@ func (c *Client) Upload(ctx context.Context, artifact plugin.Artifact) (_ int64,
 		return 0, errors.New("upload reservation has no object id")
 	}
 	endpoint := "/api/munki/package-installers/" + strconv.FormatInt(upload.ObjectID, 10)
-	// A later run uploads afresh, so nothing about a failed attempt is worth keeping.
+	finalizing := false
 	defer func() {
-		if runErr != nil {
+		if runErr == nil {
+			return
+		}
+		status, _ := errors.AsType[StatusError](runErr)
+		if !finalizing || status.Status == http.StatusUnprocessableEntity || errors.Is(runErr, errInstallerMismatch) {
 			c.ReleaseUpload(ctx, upload.ObjectID)
 		}
 	}()
@@ -97,6 +104,7 @@ func (c *Client) Upload(ctx context.Context, artifact plugin.Artifact) (_ int64,
 	default:
 		return 0, errors.New("unsupported installer upload strategy")
 	}
+	finalizing = true
 	if err := c.finalizeUpload(ctx, artifact, upload.ObjectID); err != nil {
 		return 0, err
 	}
@@ -114,15 +122,39 @@ func (c *Client) ReleaseUpload(ctx context.Context, objectID int64) {
 func (c *Client) finalizeUpload(ctx context.Context, artifact plugin.Artifact, objectID int64) (runErr error) {
 	done := plugin.Stage(ctx, "Finalizing upload", plugin.Detail(artifact.Filename))
 	defer func() { done(runErr) }()
-	var finalized storedObject
 	endpoint := "/api/munki/package-installers/" + strconv.FormatInt(objectID, 10)
-	if err := c.request(ctx, http.MethodPut, endpoint, nil, &finalized); err != nil {
-		return err
+	for {
+		var finalized storedObject
+		response, err := c.api.R().SetContext(ctx).SetResult(&finalized).
+			SetResponseForceContentType("application/json").Put(endpoint)
+		if err != nil {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			return fmt.Errorf("PUT %s: request failed", endpoint)
+		}
+		switch response.StatusCode() {
+		case http.StatusOK:
+			if finalized.ID != objectID || finalized.SHA256 != artifact.SHA256 || finalized.SizeBytes != artifact.Size {
+				return errInstallerMismatch
+			}
+			return nil
+		case http.StatusAccepted:
+			seconds, err := strconv.Atoi(response.Header().Get("Retry-After"))
+			if err != nil {
+				seconds = 2
+			}
+			timer := time.NewTimer(time.Duration(min(max(seconds, 1), 30)) * time.Second)
+			select {
+			case <-ctx.Done():
+				timer.Stop()
+				return ctx.Err()
+			case <-timer.C:
+			}
+		default:
+			return StatusError{Method: http.MethodPut, Path: endpoint, Status: response.StatusCode()}
+		}
 	}
-	if finalized.ID != objectID || finalized.SHA256 != artifact.SHA256 || finalized.SizeBytes != artifact.Size {
-		return errors.New("finalized installer does not match the prepared content")
-	}
-	return nil
 }
 
 func (c *Client) uploadMultipart(ctx context.Context, endpoint string, file *os.File, size int64) error {

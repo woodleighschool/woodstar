@@ -67,7 +67,6 @@ func (c *Client) Close() error {
 }
 
 func (c *Client) request(ctx context.Context, method, endpoint string, body, output any) error {
-	// Finalization reads full stored installers, so API calls share the transfer budget.
 	ctx, cancel := context.WithTimeout(ctx, time.Hour)
 	defer cancel()
 	request := c.api.R().SetContext(ctx).SetResult(output).SetResponseForceContentType("application/json")
