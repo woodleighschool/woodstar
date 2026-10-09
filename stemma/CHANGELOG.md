@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.1.4](https://github.com/woodleighschool/woodstar/compare/stemma-v1.1.3...stemma-v1.1.4) (2026-10-09)
+
+
+### Bug Fixes
+
+* **go:** update module github.com/woodleighschool/woodstar (2085c45 → 0d93bf5) ([#459](https://github.com/woodleighschool/woodstar/issues/459)) ([9b75cdf](https://github.com/woodleighschool/woodstar/commit/9b75cdf6729b637070c9a31ac4c138c7f1a7f295))
+* **go:** update module github.com/woodleighschool/woodstar (3a11d54 → 96b0319) ([#528](https://github.com/woodleighschool/woodstar/issues/528)) ([30d8762](https://github.com/woodleighschool/woodstar/commit/30d8762f037c7c65df846cb2f2788020a75f2d4e))
+* **go:** update module github.com/woodleighschool/woodstar (v0.10.5-0.20261009042032-0d93bf5ce491 → v0.10.5) ([#520](https://github.com/woodleighschool/woodstar/issues/520)) ([b11c036](https://github.com/woodleighschool/woodstar/commit/b11c036ab8e4b07cf3e28845657dd689325a1137))
+* **stemma:** declare installer content and upload parts in parallel ([96b0319](https://github.com/woodleighschool/woodstar/commit/96b0319d72ca402344ff08d4f647e47564283582))
+
 ## [1.1.3](https://github.com/woodleighschool/woodstar/compare/stemma-v1.1.2...stemma-v1.1.3) (2026-10-09)
 
 
