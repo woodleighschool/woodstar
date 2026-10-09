@@ -1,10 +1,12 @@
 # syntax=docker/dockerfile:1
+# check=skip=InvalidDefaultArgInFrom
 
-# Keep the container toolchains aligned with Mise. Renovate updates each pair.
+# Go is supplied by Mise through the release workflow or local container task.
+ARG GO_VERSION
 ARG DBIP_RELEASE=2026-08
 
 # ---- Go base --------------------------------------------------------------
-FROM --platform=$BUILDPLATFORM golang:1.27.2-alpine AS go-base
+FROM --platform=$BUILDPLATFORM golang:${GO_VERSION}-alpine AS go-base
 
 # ---- GeoIP databases -----------------------------------------------------
 FROM go-base AS geoip
@@ -39,7 +41,8 @@ WORKDIR /workspace
 # Cache module downloads before copying source.
 COPY go.mod go.sum ./
 RUN go mod download
-RUN go install github.com/google/go-licenses/v2@v2.0.1
+ARG GO_LICENSES_VERSION
+RUN go install github.com/google/go-licenses/v2@${GO_LICENSES_VERSION}
 
 COPY cmd/ cmd/
 COPY internal/ internal/

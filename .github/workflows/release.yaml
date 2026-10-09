@@ -19,7 +19,34 @@ concurrency:
   cancel-in-progress: ${{ github.event_name != 'release' }}
 
 jobs:
+  versions:
+    name: Versions
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+    outputs:
+      go-version: ${{ steps.versions.outputs.go-version }}
+      go-licenses-version: ${{ steps.versions.outputs.go-licenses-version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Mise
+        uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
+        with:
+          install: false
+          cache: false
+
+      - name: Resolve versions
+        id: versions
+        run: |
+          echo "go-version=$(mise config get tools.go)" >> "$GITHUB_OUTPUT"
+          echo "go-licenses-version=$(mise tool go:github.com/google/go-licenses/v2 --requested)" >> "$GITHUB_OUTPUT"
+
   release:
+    needs: versions
     if: >-
       github.event_name == 'push' ||
       !startsWith(github.event.release.tag_name, 'stemma-')
@@ -31,6 +58,8 @@ jobs:
     uses: docker/github-builder/.github/workflows/build.yml@58cb9f5b71b1836d6f690c1e95effdeb9b98cb8a # v1.17.0
     with:
       build-args: |
+        GO_VERSION=${{ needs.versions.outputs.go-version }}
+        GO_LICENSES_VERSION=${{ needs.versions.outputs.go-licenses-version }}
         VERSION=${{ github.ref_name }}
       cache: true
       meta-images: ghcr.io/${{ github.repository }}
