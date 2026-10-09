@@ -17,7 +17,7 @@ export function TokenList({
   return (
     <div className={cn("flex flex-wrap gap-1.5", className)}>
       {values.map((value, index) => (
-        <Badge key={`${value}:${index}`} variant="secondary" className="font-normal">
+        <Badge key={`${value}:${index}`} variant="outline" className="font-normal">
           {value}
         </Badge>
       ))}
