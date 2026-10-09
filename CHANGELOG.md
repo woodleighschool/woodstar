@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.11.0](https://github.com/woodleighschool/woodstar/compare/v0.10.5...v0.11.0) (2026-10-09)
+
+
+### ⚠ BREAKING CHANGES
+
+* **munki:** creating an upload requires size_bytes, sha256 and crc64nvme; signing a multipart part requires that part's crc64nvme; the multipart completion endpoint is removed. Stemma plugins older than this change cannot publish installers or icons.
+
+### Bug Fixes
+
+* **go:** update module buf.build/gen/go/northpolesec/protos/protocolbuffers/go (v1.36.12-20261006152137-c0d02907d210.2 → v1.36.12-20261009155136-3f086b7ba5bb.2) ([#524](https://github.com/woodleighschool/woodstar/issues/524)) ([61c49fc](https://github.com/woodleighschool/woodstar/commit/61c49fc18361ecd7acf37fb23441d96d52341a05))
+* **go:** update module buf.build/gen/go/northpolesec/protos/protocolbuffers/go (v1.36.12-20261009155136-3f086b7ba5bb.2 → v1.36.12-20261009200749-7d8cec123772.2) ([#527](https://github.com/woodleighschool/woodstar/issues/527)) ([87571b0](https://github.com/woodleighschool/woodstar/commit/87571b0844dd105c2cebcce2eb577277c557a2f0))
+* **munki:** publish uploads from their declared content ([3a11d54](https://github.com/woodleighschool/woodstar/commit/3a11d54eb9036335602e0f8406dba537dc6a37af))
+* **npm:** update dependency @tanstack/react-table (9.2.6 → 9.2.8) ([#529](https://github.com/woodleighschool/woodstar/issues/529)) ([ed75213](https://github.com/woodleighschool/woodstar/commit/ed752132caa937f007457b56a8b15b3ccb433fdf))
+* **npm:** update dependency lucide-react (1.52.0 → 1.53.0) ([#521](https://github.com/woodleighschool/woodstar/issues/521)) ([4a87dc6](https://github.com/woodleighschool/woodstar/commit/4a87dc6c798a07efa75586e34307b2b0a50b4f14))
+
 ## [0.10.5](https://github.com/woodleighschool/woodstar/compare/v0.10.4...v0.10.5) (2026-10-09)
 
 
