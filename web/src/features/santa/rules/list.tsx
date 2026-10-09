@@ -171,7 +171,7 @@ export function RuleListPage() {
         }
       />
 
-      {query.error ? (
+      {query.isLoadingError ? (
         <QueryError
           title="Failed to Load Rules"
           error={query.error}

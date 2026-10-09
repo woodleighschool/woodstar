@@ -102,7 +102,7 @@ export function AgentSecretsDialog({
 
         <Separator />
 
-        {query.error ? (
+        {query.isLoadingError ? (
           <QueryError
             title="Failed to Load Secrets"
             error={query.error}

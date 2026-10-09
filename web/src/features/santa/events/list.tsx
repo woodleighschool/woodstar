@@ -320,7 +320,7 @@ function ExecutionEventsTable({ hostId, user }: { hostId?: number; user?: string
     initialState: { pagination: { pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE } },
     getRowId: (row) => String(row.event.id),
   });
-  if (query.error) {
+  if (query.isLoadingError) {
     return (
       <QueryError
         title="Failed to load execution events"
@@ -382,7 +382,7 @@ function FileAccessEventsTable({ hostId }: { hostId?: number }) {
     initialState: { pagination: { pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE } },
     getRowId: (row) => String(row.id),
   });
-  if (query.error) {
+  if (query.isLoadingError) {
     return (
       <QueryError
         title="Failed to load file access events"

@@ -15,7 +15,7 @@ export function RuleEditPage() {
   const detail = useSantaRule(id);
   const update = useUpdateSantaRule();
 
-  if (detail.error || !detail.data) {
+  if (!detail.data) {
     return (
       <QueryGate
         title="Failed to Load Rule"

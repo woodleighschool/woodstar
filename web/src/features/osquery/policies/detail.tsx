@@ -167,7 +167,7 @@ export function PolicyDetailPage() {
     enableRowSelection: canRunRemediation ? (row) => row.original.status === "fail" : false,
   });
 
-  if (policy.error || !policy.data) {
+  if (!policy.data) {
     return (
       <QueryGate
         title="Failed to Load Policy"
@@ -347,7 +347,7 @@ export function PolicyDetailPage() {
             <section className="flex min-w-0 flex-col gap-3">
               <h2 className="text-base/snug font-medium text-foreground">Script</h2>
               <Separator />
-              {remediationSource.error ? (
+              {remediationSource.isLoadingError ? (
                 <QueryError
                   title="Failed to load remediation script"
                   error={remediationSource.error}
@@ -367,7 +367,7 @@ export function PolicyDetailPage() {
         </TabsContent>
 
         <TabsContent value="results">
-          {results.error ? (
+          {results.isLoadingError ? (
             <QueryError
               title="Failed to load policy results"
               error={results.error}

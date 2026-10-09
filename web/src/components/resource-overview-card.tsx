@@ -27,7 +27,7 @@ export function ResourceOverviewCard({
       <CardContent>
         {loading ? (
           <Skeleton className="h-9 w-24" />
-        ) : error ? (
+        ) : error && count === undefined ? (
           <p className="text-sm text-destructive">Count unavailable</p>
         ) : (
           <span className="text-3xl font-semibold tracking-tight tabular-nums">

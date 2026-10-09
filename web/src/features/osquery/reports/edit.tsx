@@ -22,7 +22,7 @@ export function ReportEditPage() {
   const openLive = useOpenOsqueryLive();
   const clearHistoryState = useClearOsqueryHistoryState();
 
-  if (detail.error || !detail.data) {
+  if (!detail.data) {
     return (
       <QueryGate
         title="Failed to Load Report"

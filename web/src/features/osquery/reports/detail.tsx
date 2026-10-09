@@ -99,7 +99,7 @@ export function ReportDetailPage() {
     paginateExpandedRows: false,
   });
 
-  if (report.error || !report.data) {
+  if (!report.data) {
     return (
       <QueryGate
         title="Failed to Load Report"
@@ -245,7 +245,7 @@ export function ReportDetailPage() {
         </TabsContent>
 
         <TabsContent value="results">
-          {snapshots.error ? (
+          {snapshots.isLoadingError ? (
             <QueryError
               title="Failed to load report results"
               error={snapshots.error}

@@ -27,7 +27,7 @@ export function SoftwareDetailPage() {
   });
   const title = query.data;
 
-  if (query.error || !title) {
+  if (!title) {
     return (
       <QueryGate
         title="Failed to load software title"

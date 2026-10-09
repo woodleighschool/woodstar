@@ -93,7 +93,7 @@ export function GroupListPage() {
     <PageShell>
       <PageHeader title="Groups" description="Browse directory groups." />
 
-      {query.error ? (
+      {query.isLoadingError ? (
         <QueryError
           title="Failed to Load Groups"
           error={query.error}

@@ -21,7 +21,7 @@ export function MunkiPackageEditPage() {
   const { id } = routeApi.useParams();
   const pkg = useMunkiPackage(id);
 
-  if (pkg.error || !pkg.data) {
+  if (!pkg.data) {
     return (
       <QueryGate
         title="Failed to Load Package"

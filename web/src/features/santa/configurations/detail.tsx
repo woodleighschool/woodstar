@@ -31,7 +31,7 @@ export function ConfigurationDetailPage() {
   const query = useSantaConfiguration(id);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  if (query.error || !query.data) {
+  if (!query.data) {
     return (
       <QueryGate
         title="Failed to Load Configuration"

@@ -35,7 +35,7 @@ export function DistributionPointDetailPage() {
   const rotate = useRotateMunkiDistributionPointKey();
   const [rotatedKey, setRotatedKey] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  if (query.error || !query.data) {
+  if (!query.data) {
     return (
       <QueryGate
         title="Failed to load distribution point"

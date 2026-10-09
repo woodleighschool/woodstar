@@ -90,7 +90,7 @@ export function HostStatusChart() {
           }
           range={range}
           onRangeChange={setRange}
-          error={history.error}
+          error={history.isLoadingError ? history.error : null}
           errorTitle="Failed to load host history"
           onRetry={() => void history.refetch()}
           isLoading={history.isLoading}

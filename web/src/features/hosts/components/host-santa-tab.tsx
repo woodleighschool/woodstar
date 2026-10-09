@@ -84,7 +84,7 @@ export function HostSantaTab({ hostId, santa, stateError, onStateRetry }: HostSa
   const configuration = santa?.configuration;
   return (
     <div className="flex flex-col gap-4">
-      {stateError ? (
+      {stateError && santa === undefined ? (
         <QueryError title="Failed to load Santa state" error={stateError} onRetry={onStateRetry} />
       ) : santa === null ? (
         <PanelEmptyState>No Santa sync reported</PanelEmptyState>
@@ -116,7 +116,7 @@ export function HostSantaTab({ hostId, santa, stateError, onStateRetry }: HostSa
         </KeyValueSection>
       ) : null}
 
-      {rules.error ? (
+      {rules.isLoadingError ? (
         <section className="flex min-w-0 flex-col gap-3">
           <h2 className="text-base/snug font-medium text-foreground">Rules</h2>
           <Separator />

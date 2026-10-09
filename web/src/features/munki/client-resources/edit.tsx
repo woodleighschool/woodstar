@@ -18,7 +18,7 @@ import {
 export function MunkiClientResourcesEditPage() {
   const canEdit = useCan({ resource: "munki.client-resources", access: "edit" });
   const query = useMunkiClientResources();
-  if (query.error || !query.data) {
+  if (!query.data) {
     return (
       <QueryGate
         title="Failed to load client resources"

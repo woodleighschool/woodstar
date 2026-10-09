@@ -82,7 +82,7 @@ export function ReportListPage() {
           ) : null
         }
       />
-      {query.error ? (
+      {query.isLoadingError ? (
         <QueryError
           title="Failed to Load Reports"
           error={query.error}

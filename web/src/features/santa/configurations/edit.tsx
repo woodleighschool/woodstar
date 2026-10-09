@@ -15,7 +15,7 @@ export function ConfigurationEditPage() {
   const detail = useSantaConfiguration(id);
   const update = useUpdateSantaConfiguration();
 
-  if (detail.error || !detail.data) {
+  if (!detail.data) {
     return (
       <QueryGate
         title="Failed to Load Configuration"

@@ -98,7 +98,7 @@ export function HostDetailPage() {
   });
   const host = query.data;
 
-  if (query.error || !host) {
+  if (!host) {
     return (
       <QueryGate
         title="Failed to Load Host"
@@ -160,7 +160,7 @@ export function HostDetailsPage() {
   const query = useHost(useHostID());
   const host = query.data;
 
-  if (query.error || !host) {
+  if (!host) {
     return (
       <QueryGate
         title="Failed to load host details"

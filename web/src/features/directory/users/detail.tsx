@@ -24,7 +24,7 @@ export function UserDetailPage() {
   const query = useUser(id);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  if (query.error || !query.data) {
+  if (!query.data) {
     return (
       <QueryGate
         title="Failed to Load User"

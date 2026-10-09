@@ -11,7 +11,7 @@ export function DistributionPointEditPage() {
   const detail = useMunkiDistributionPoint(id);
   const update = useUpdateMunkiDistributionPoint();
 
-  if (detail.error || !detail.data) {
+  if (!detail.data) {
     return (
       <QueryGate
         title="Failed to load distribution point"

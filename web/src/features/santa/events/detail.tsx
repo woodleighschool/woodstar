@@ -28,7 +28,7 @@ export function SantaEventDetailPage() {
   const search = useSearch({ from: "/_authenticated/santa/events/$id" });
   const query = useSantaEvent(id);
 
-  if (query.error || !query.data) {
+  if (!query.data) {
     return (
       <QueryGate
         title="Failed to Load Event"

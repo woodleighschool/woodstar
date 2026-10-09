@@ -161,7 +161,7 @@ export function LabelListPage() {
           ) : null
         }
       />
-      {query.error ? (
+      {query.isLoadingError ? (
         <QueryError
           title="Failed to Load Labels"
           error={query.error}

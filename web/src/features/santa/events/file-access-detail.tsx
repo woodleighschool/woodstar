@@ -28,7 +28,7 @@ export function SantaFileAccessEventDetailPage() {
   });
   const query = useSantaFileAccessEvent(id);
 
-  if (query.error || !query.data) {
+  if (!query.data) {
     return (
       <QueryGate
         title="Failed to load file access event"

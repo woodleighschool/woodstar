@@ -65,7 +65,7 @@ export function LabelPicker({
   const selectedLabel = selected[0] ?? null;
   const anchorRef = useComboboxAnchor();
 
-  if (labels.error) {
+  if (labels.isLoadingError) {
     return <p className="text-sm text-destructive">{labels.error.message}</p>;
   }
 

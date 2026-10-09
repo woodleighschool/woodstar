@@ -153,7 +153,7 @@ export function MunkiSoftwareListPage() {
         }
       />
 
-      {query.error ? (
+      {query.isLoadingError ? (
         <QueryError
           title="Failed to Load Software"
           error={query.error}

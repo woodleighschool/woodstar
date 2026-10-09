@@ -23,7 +23,7 @@ export function RuleDetailPage() {
   const query = useSantaRule(id);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  if (query.error || !query.data) {
+  if (!query.data) {
     return (
       <QueryGate
         title="Failed to Load Rule"

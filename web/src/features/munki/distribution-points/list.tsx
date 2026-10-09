@@ -132,7 +132,7 @@ export function DistributionPointListPage() {
         }
       />
 
-      {query.error ? (
+      {query.isLoadingError ? (
         <QueryError
           title="Failed to load distribution points"
           error={query.error}

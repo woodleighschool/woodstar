@@ -40,7 +40,7 @@ export function ActivityList({
     if (data && page > pages) onPageChange(pages);
   }, [data, onPageChange, page, pages]);
 
-  if (error) {
+  if (error && !data) {
     return <QueryError title="Failed to Load Activity" error={error} onRetry={onRetry} />;
   }
   if (isLoading) {

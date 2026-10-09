@@ -92,7 +92,7 @@ export function PolicyListPage() {
           ) : null
         }
       />
-      {query.error ? (
+      {query.isLoadingError ? (
         <QueryError
           title="Failed to Load Policies"
           error={query.error}

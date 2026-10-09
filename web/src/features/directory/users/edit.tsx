@@ -12,7 +12,7 @@ export function UserEditPage() {
   const user = useUser(id);
   const { user: currentUser } = useAuth();
 
-  if (user.error || !user.data) {
+  if (!user.data) {
     return (
       <QueryGate
         title="Failed to Load User"

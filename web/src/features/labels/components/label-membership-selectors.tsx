@@ -81,7 +81,7 @@ export function HostSelector({
       selectedCount={value.length}
       isLoading={hosts.isLoading}
       isPlaceholderData={hosts.isPlaceholderData}
-      error={hosts.error?.message}
+      error={hosts.isLoadingError ? hosts.error.message : undefined}
       selectedRowIds={value.map(String)}
       onSelectedRowIdsChange={(ids) =>
         onChange(ids.map(Number).filter((id) => Number.isInteger(id) && id > 0))
@@ -151,7 +151,7 @@ function DepartmentSelector({
       selectedCount={value.length}
       isLoading={departments.isLoading}
       isPlaceholderData={departments.isPlaceholderData}
-      error={departments.error?.message}
+      error={departments.isLoadingError ? departments.error.message : undefined}
       selectedRowIds={value}
       onSelectedRowIdsChange={onChange}
       getRowId={(department) => department.value}
@@ -204,7 +204,7 @@ function GroupSelector({
       selectedCount={value.length}
       isLoading={groups.isLoading}
       isPlaceholderData={groups.isPlaceholderData}
-      error={groups.error?.message}
+      error={groups.isLoadingError ? groups.error.message : undefined}
       selectedRowIds={value}
       onSelectedRowIdsChange={onChange}
       getRowId={(group) => group.external_id}
@@ -257,7 +257,7 @@ function UserSelector({
       selectedCount={value.length}
       isLoading={users.isLoading}
       isPlaceholderData={users.isPlaceholderData}
-      error={users.error?.message}
+      error={users.isLoadingError ? users.error.message : undefined}
       selectedRowIds={value}
       onSelectedRowIdsChange={onChange}
       getRowId={(user) => String(user.id)}

@@ -152,7 +152,7 @@ export function HostSoftwareTab({ hostId }: { hostId: number }) {
     pageCount,
     rowCount: totalCount,
   });
-  if (query.error) {
+  if (query.isLoadingError) {
     return (
       <QueryError
         title="Failed to Load Software"

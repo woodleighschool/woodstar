@@ -136,7 +136,7 @@ export function HostOsqueryReportsTab({ hostId }: { hostId: number }) {
     );
   }
 
-  if (reports.error) {
+  if (reports.isLoadingError) {
     return (
       <QueryError
         title="Failed to Load Reports"

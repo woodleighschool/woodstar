@@ -142,7 +142,7 @@ export function ConfigurationListPage() {
         }
       />
 
-      {query.error ? (
+      {query.isLoadingError ? (
         <QueryError
           title="Failed to load configurations"
           error={query.error}

@@ -165,7 +165,7 @@ export function MunkiPackageListPage() {
           ) : null
         }
       />
-      {query.error ? (
+      {query.isLoadingError ? (
         <QueryError
           title="Failed to Load Packages"
           error={query.error}

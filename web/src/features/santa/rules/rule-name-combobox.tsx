@@ -47,10 +47,10 @@ export function RuleNameCombobox({
   const searchPending = q !== input || query.isPending || query.isPlaceholderData;
   const candidates = useMemo(
     () =>
-      q === "" || searchPending || !query.isSuccess || selectedName === input
+      q === "" || searchPending || !query.data || selectedName === input
         ? []
         : ruleNameCandidates(query.data.items),
-    [input, q, query.data, query.isSuccess, searchPending, selectedName],
+    [input, q, query.data, searchPending, selectedName],
   );
 
   return (

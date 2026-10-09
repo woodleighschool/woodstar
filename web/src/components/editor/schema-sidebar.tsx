@@ -135,7 +135,7 @@ function SchemaPanel({
         <div className="flex-1 overflow-y-auto">
           {schema.isLoading ? (
             <div className="p-4 text-sm text-muted-foreground">Loading Schema...</div>
-          ) : schema.error ? (
+          ) : schema.isLoadingError ? (
             <div className="p-4 text-sm text-muted-foreground">Schema unavailable</div>
           ) : table ? (
             <TableDetail table={table} onInsertColumn={onInsertColumn} />

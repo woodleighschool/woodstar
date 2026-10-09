@@ -140,7 +140,7 @@ export function HostListPage() {
         <AgentSecretsDialog agent="orbit" open onOpenChange={setEnrollmentOpen} />
       ) : null}
 
-      {query.error ? (
+      {query.isLoadingError ? (
         <QueryError
           title="Failed to Load Hosts"
           error={query.error}

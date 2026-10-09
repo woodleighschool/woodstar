@@ -35,7 +35,7 @@ export function RecentOsqueryActivityCard() {
         </CardAction>
       </CardHeader>
       <CardContent>
-        {activity.error ? (
+        {activity.isLoadingError ? (
           <QueryError
             title="Failed to load recent activity"
             error={activity.error}

@@ -69,7 +69,7 @@ export function SoftwareListPage() {
     <PageShell>
       <PageHeader title="Software" description="Search software observed in host inventory." />
 
-      {query.error ? (
+      {query.isLoadingError ? (
         <QueryError
           title="Failed to Load Software"
           error={query.error}

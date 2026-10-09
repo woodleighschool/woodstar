@@ -100,7 +100,7 @@ export function HostOsqueryPoliciesTab({ hostId }: { hostId: number }) {
     );
   }
 
-  if (query.error) {
+  if (query.isLoadingError) {
     return (
       <QueryError
         title="Failed to Load Policies"

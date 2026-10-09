@@ -61,7 +61,7 @@ export function MunkiSoftwareDetailPage() {
   const query = useMunkiSoftwareDetail(id);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  if (query.error || !query.data) {
+  if (!query.data) {
     return (
       <QueryGate
         title="Failed to Load Software"

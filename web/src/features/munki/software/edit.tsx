@@ -86,7 +86,7 @@ export function MunkiSoftwareEditPage() {
   const search = routeApi.useSearch();
   const { id } = routeApi.useParams();
   const query = useMunkiSoftwareDetail(id);
-  if (query.error || !query.data) {
+  if (!query.data) {
     return (
       <QueryGate
         title="Failed to Load Software"

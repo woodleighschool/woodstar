@@ -12,7 +12,7 @@ export function LabelEditPage() {
   const detail = useLabel(id);
   const update = useUpdateLabel(id);
 
-  if (detail.error || !detail.data) {
+  if (!detail.data) {
     return (
       <QueryGate
         title="Failed to Load Label"

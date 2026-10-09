@@ -113,7 +113,7 @@ export function HostMunkiTab({
 
   return (
     <div className="flex flex-col gap-4">
-      {stateError ? (
+      {stateError && munki === undefined ? (
         <QueryError title="Failed to load Munki state" error={stateError} onRetry={onStateRetry} />
       ) : munki && hasReport ? (
         <KeyValueSection title="Overview">
@@ -131,7 +131,7 @@ export function HostMunkiTab({
         <DataTableStatic heading="Problems" columns={problemColumns} data={problems} />
       ) : null}
 
-      {software.error ? (
+      {software.isLoadingError ? (
         <section className="flex min-w-0 flex-col gap-3">
           <h2 className="text-base/snug font-medium text-foreground">Software</h2>
           <Separator />

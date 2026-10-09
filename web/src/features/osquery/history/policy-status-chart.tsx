@@ -95,7 +95,7 @@ export function PolicyStatusChart({ policyID }: { policyID: number }) {
       }
       range={range}
       onRangeChange={setRange}
-      error={history.error}
+      error={history.isLoadingError ? history.error : null}
       errorTitle="Failed to load policy history"
       onRetry={() => void history.refetch()}
       isLoading={history.isLoading}

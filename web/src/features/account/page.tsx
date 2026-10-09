@@ -19,7 +19,7 @@ import type { Account } from "@lib/api";
 
 export function AccountPage() {
   const account = useAccount();
-  if (account.error || !account.data) {
+  if (!account.data) {
     return (
       <QueryGate
         title="Failed to Load Account"

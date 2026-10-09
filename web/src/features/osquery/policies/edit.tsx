@@ -44,15 +44,13 @@ export function PolicyEditPage() {
     });
   }
 
-  if (detail.error || remediationSource.error || !detail.data || !remediationSource.data) {
+  if (!detail.data || !remediationSource.data) {
+    const missing = detail.data ? remediationSource : detail;
     return (
       <QueryGate
         title="Failed to Load Policy"
-        error={detail.error ?? remediationSource.error}
-        onRetry={() => {
-          void detail.refetch();
-          void remediationSource.refetch();
-        }}
+        error={missing.error}
+        onRetry={() => void missing.refetch()}
       />
     );
   }

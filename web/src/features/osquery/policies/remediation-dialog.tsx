@@ -36,7 +36,7 @@ export function PolicyRemediationDialog({
           <DialogDescription>{hostName}</DialogDescription>
         </DialogHeader>
 
-        {query.error ? (
+        {query.isLoadingError ? (
           <QueryError
             title="Failed to Load Remediation"
             error={query.error}
