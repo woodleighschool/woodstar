@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.3](https://github.com/woodleighschool/woodstar/compare/stemma-v1.1.2...stemma-v1.1.3) (2026-10-09)
+
+
+### Bug Fixes
+
+* **go:** update module github.com/woodleighschool/woodstar (v0.10.3 → v0.10.4) ([#517](https://github.com/woodleighschool/woodstar/issues/517)) ([fef7b57](https://github.com/woodleighschool/woodstar/commit/fef7b572d0a8c5a90bccf34b3e38992d89ab0edc))
+* **stemma:** poll durable installer finalization ([4cc4e57](https://github.com/woodleighschool/woodstar/commit/4cc4e5730e5fe3419dd24937db25f8de213ca059))
+
 ## [1.1.2](https://github.com/woodleighschool/woodstar/compare/stemma-v1.1.1...stemma-v1.1.2) (2026-10-09)
 
 
