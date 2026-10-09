@@ -1,8 +1,9 @@
 # syntax=docker/dockerfile:1
 # check=skip=InvalidDefaultArgInFrom
 
-# Go is supplied by Mise through the release workflow or local container task.
+# Go and Node versions are supplied by Mise through the release workflow or local container task.
 ARG GO_VERSION
+ARG NODE_VERSION
 ARG DBIP_RELEASE=2026-08
 
 # ---- Go base --------------------------------------------------------------
@@ -17,7 +18,7 @@ RUN go run /geoipdb.go -release "${DBIP_RELEASE}" -output /geoip
 # ---- Web build ------------------------------------------------------------
 # Build the frontend bundle so the Go stage can embed it. The runtime image
 # does not include Node.
-FROM --platform=$BUILDPLATFORM node:26.10.0-alpine AS web
+FROM --platform=$BUILDPLATFORM node:${NODE_VERSION}-alpine AS web
 WORKDIR /workspace/web
 
 # Install dependencies against the lockfile first for layer caching.

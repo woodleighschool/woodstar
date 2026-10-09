@@ -26,6 +26,7 @@ jobs:
       contents: read
     outputs:
       go-version: ${{ steps.versions.outputs.go-version }}
+      node-version: ${{ steps.versions.outputs.node-version }}
       go-licenses-version: ${{ steps.versions.outputs.go-licenses-version }}
     steps:
       - name: Checkout
@@ -43,6 +44,7 @@ jobs:
         id: versions
         run: |
           echo "go-version=$(mise config get tools.go)" >> "$GITHUB_OUTPUT"
+          echo "node-version=$(mise config get tools.node)" >> "$GITHUB_OUTPUT"
           echo "go-licenses-version=$(mise tool go:github.com/google/go-licenses/v2 --requested)" >> "$GITHUB_OUTPUT"
 
   release:
@@ -59,6 +61,7 @@ jobs:
     with:
       build-args: |
         GO_VERSION=${{ needs.versions.outputs.go-version }}
+        NODE_VERSION=${{ needs.versions.outputs.node-version }}
         GO_LICENSES_VERSION=${{ needs.versions.outputs.go-licenses-version }}
         VERSION=${{ github.ref_name }}
       cache: true
