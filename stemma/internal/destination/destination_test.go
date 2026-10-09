@@ -1,6 +1,7 @@
 package destination
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -20,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/woodleighschool/goodies/bloby"
 	"github.com/woodleighschool/stemma/plugin"
 
 	"github.com/woodleighschool/woodstar/stemma/internal/destination/api"
@@ -55,7 +57,7 @@ func TestCompiledPluginReconcilesContentAndPresence(t *testing.T) {
 	}) {
 		return
 	}
-	t.Run("response loss and digest verification", func(t *testing.T) {
+	t.Run("response loss and refused content", func(t *testing.T) {
 		checkPluginRecovery(t, binary, state, &request)
 	})
 }
@@ -207,13 +209,15 @@ type apiFixture struct {
 	packages                                           map[int64]map[string]any
 	objects                                            map[int64][]byte
 	names                                              map[int64]string
+	declared                                           map[int64]bloby.Content // What each upload said it would carry.
 	labels                                             map[string]int64
 	held                                               map[int64]bool // Packages another title references.
-	released                                           []int64        // Installer objects deleted on request.
+	released                                           []int64        // Installer objects the repository no longer holds.
 	createdSoftware, createdPackages, updates, uploads int
 	mutations, lastPackage                             int
 	dropSoftwareReply, dropPackageReply                bool
-	failPackageSave, forgeDigest                       bool
+	failPackageSave                                    bool
+	loseUploads                                        bool // Storage acknowledges transfers without keeping them.
 	dropIconReply                                      bool
 	failIconAttach                                     bool
 }
@@ -221,7 +225,7 @@ type apiFixture struct {
 // serveFixture starts the fake API and returns its connection settings.
 func serveFixture(t *testing.T) (*apiFixture, api.Config) {
 	t.Helper()
-	fixture := &apiFixture{objects: map[int64][]byte{}, names: map[int64]string{}}
+	fixture := &apiFixture{objects: map[int64][]byte{}, names: map[int64]string{}, declared: map[int64]bloby.Content{}}
 	connection, origin := serveAPI(t, fixture)
 	fixture.origin = origin
 	return fixture, connection
@@ -528,7 +532,15 @@ func (fixture *apiFixture) serveTransfer(response http.ResponseWriter, request *
 		return
 	}
 	id, _ := strconv.ParseInt(strings.TrimPrefix(request.URL.Path, "/transfer/"), 10, 64)
-	fixture.objects[id], _ = io.ReadAll(request.Body)
+	body, _ := io.ReadAll(request.Body)
+	// Storage accepts only the bytes its upload declared.
+	if content, _ := bloby.Digest(bytes.NewReader(body)); content != fixture.declared[id] {
+		http.Error(response, "content differs from its declaration", http.StatusBadRequest)
+		return
+	}
+	if !fixture.loseUploads {
+		fixture.objects[id] = body
+	}
 	response.WriteHeader(http.StatusNoContent)
 }
 
@@ -632,15 +644,15 @@ func checkPluginRecovery(t *testing.T, binary string, state *apiFixture, request
 		t.Fatalf("ambiguous create: changes=%+v error=%v packages=%d", rerun.Changes, err, state.packageCount())
 	}
 	state.mu.Lock()
-	state.forgeDigest = true
+	state.loseUploads = true
 	state.mu.Unlock()
 	changeInstaller(t, request, "version three installer")
 	setPkginfo(t, request, `{"name":"Example App","version":"3.0"}`)
 	if _, err := runPlugin(t, binary, *request); err == nil {
-		t.Fatal("accepted incorrect finalized digest")
+		t.Fatal("published an installer the repository refused")
 	}
 	if state.packageCount() != 2 {
-		t.Fatal("published metadata before content identity was verified")
+		t.Fatal("published metadata for an installer the repository does not hold")
 	}
 	// A later run uploads afresh, so the reservation that failed is not kept.
 	if reserved := int64(state.uploadCount()); !state.wasReleased(reserved) {
@@ -653,21 +665,34 @@ func (fixture *apiFixture) serveUpload(response http.ResponseWriter, request *ht
 	switch {
 	case (request.URL.Path == "/api/munki/package-installers" || request.URL.Path == "/api/munki/icons") && request.Method == http.MethodPost:
 		body := read()
+		content := bloby.Content{SizeBytes: number(body["size_bytes"])}
+		content.SHA256, _ = body["sha256"].(string)
+		content.CRC64NVME, _ = body["crc64nvme"].(string)
+		if _, declared := body["size_bytes"]; !declared || content.SHA256 == "" || content.CRC64NVME == "" {
+			http.Error(response, "undeclared content", http.StatusUnprocessableEntity)
+			return
+		}
 		fixture.uploads++
 		id := int64(fixture.uploads)
 		fixture.names[id], _ = body["filename"].(string)
+		fixture.declared[id] = content
 		write(map[string]any{"object_id": id, "upload": map[string]any{"strategy": "direct-put", "target": map[string]any{"url": fixture.origin + "/transfer/" + strconv.FormatInt(id, 10), "method": "PUT", "headers": map[string]string{"Content-Type": "application/octet-stream"}}}})
 		return
 	case object != 0 && request.Method == http.MethodPut:
-		content := fixture.objects[object]
-		digest := sha256.Sum256(content)
-		hash := hex.EncodeToString(digest[:])
-		if fixture.forgeDigest {
-			hash = strings.Repeat("0", 64)
+		content, arrived := fixture.objects[object]
+		if !arrived {
+			// The repository releases an upload it refuses to publish.
+			fixture.release(object)
+			http.Error(response, "upload has not arrived", http.StatusBadRequest)
+			return
 		}
-		write(map[string]any{"id": object, "sha256": hash, "size_bytes": len(content)})
+		write(map[string]any{"id": object, "sha256": fixture.declared[object].SHA256, "size_bytes": len(content)})
 		return
 	case object != 0 && request.Method == http.MethodDelete:
+		if _, reserved := fixture.names[object]; !reserved {
+			http.NotFound(response, request)
+			return
+		}
 		// The repository keeps an installer that a package references.
 		for _, item := range fixture.packages {
 			if number(item["installer_object_id"]) == object {
@@ -675,13 +700,18 @@ func (fixture *apiFixture) serveUpload(response http.ResponseWriter, request *ht
 				return
 			}
 		}
-		delete(fixture.objects, object)
-		delete(fixture.names, object)
-		fixture.released = append(fixture.released, object)
+		fixture.release(object)
 		response.WriteHeader(http.StatusNoContent)
 		return
 	}
 	http.NotFound(response, request)
+}
+
+func (fixture *apiFixture) release(object int64) {
+	delete(fixture.objects, object)
+	delete(fixture.names, object)
+	delete(fixture.declared, object)
+	fixture.released = append(fixture.released, object)
 }
 
 func (fixture *apiFixture) servePackages(response http.ResponseWriter, request *http.Request, read func() map[string]any, write func(any)) {

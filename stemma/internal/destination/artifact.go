@@ -17,7 +17,7 @@ import (
 )
 
 // validateInstaller checks the installer against the pkginfo describing it.
-func validateInstaller(ctx context.Context, installer plugin.Artifact, installerType packages.InstallerType, installerItemHash string) error {
+func validateInstaller(installer plugin.Artifact, installerType packages.InstallerType, installerItemHash string) error {
 	if installerType == packages.InstallerTypeNoPkg {
 		if installer.Path != "" || installer.SHA256 != "" {
 			return errors.New("nopkg must not include installer content")
@@ -30,17 +30,30 @@ func validateInstaller(ctx context.Context, installer plugin.Artifact, installer
 	if installerItemHash != "" && installerItemHash != installer.SHA256 {
 		return errors.New("pkginfo installer_item_hash does not match installer")
 	}
-	if err := verifyArtifact(ctx, installer, nil); err != nil {
-		return fmt.Errorf("installer: %w", err)
+	return nil
+}
+
+func validateIcon(artifact plugin.Artifact) error {
+	if artifact.Format != "png" || artifact.Size <= 0 || artifact.Size > 32<<20 {
+		return errors.New("icon input requires a PNG artifact no larger than 32 MiB")
 	}
 	return nil
 }
 
-func validateIcon(ctx context.Context, artifact plugin.Artifact) error {
-	if artifact.Format != "png" || artifact.Size <= 0 || artifact.Size > 32<<20 {
-		return errors.New("icon input requires a PNG artifact no larger than 32 MiB")
+// verifyLeased reads the artifacts the engine leased and checks each against
+// its digest.
+func verifyLeased(ctx context.Context, installer, icon plugin.Artifact) error {
+	if installer.Path != "" {
+		if err := verifyArtifact(ctx, installer, nil); err != nil {
+			return fmt.Errorf("installer: %w", err)
+		}
 	}
-	return verifyArtifact(ctx, artifact, nil)
+	if icon.Path != "" {
+		if err := verifyArtifact(ctx, icon, nil); err != nil {
+			return fmt.Errorf("icon: %w", err)
+		}
+	}
+	return nil
 }
 
 func validateArtifact(artifact plugin.Artifact) error {

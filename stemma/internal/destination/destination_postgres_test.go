@@ -3,10 +3,12 @@
 package destination
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -14,6 +16,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"slices"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -23,11 +26,11 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	"github.com/go-chi/chi/v5"
-	"github.com/riverqueue/river"
 	"github.com/woodleighschool/goodies/auth/authn"
 	"github.com/woodleighschool/goodies/auth/authz"
+	"github.com/woodleighschool/goodies/bloby"
+	blobydb "github.com/woodleighschool/goodies/bloby/pgxstore"
 	"github.com/woodleighschool/stemma/plugin"
-	"github.com/woodleighschool/woodstar/internal/backgroundjobs"
 
 	"github.com/woodleighschool/woodstar/internal/api"
 	"github.com/woodleighschool/woodstar/internal/labels"
@@ -36,68 +39,31 @@ import (
 	"github.com/woodleighschool/woodstar/internal/munki/httpapi"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	"github.com/woodleighschool/woodstar/internal/munki/software"
-	"github.com/woodleighschool/woodstar/internal/testutil/testbloby"
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
 )
 
-func TestStemmaAdapterPostgresLifecycle(t *testing.T) { //nolint:funlen,gocognit,cyclop // Sequential ownership and convergence assertions share one real API lifecycle.
+// repository is the administrative API over PostgreSQL and file storage, as
+// the plugin reaches it.
+type repository struct {
+	connection destinationapi.Config
+	objects    *bloby.Service
+	software   *software.Store
+	packages   *packages.Store
+	labels     *labels.Store
+	// writes counts the requests that could change the repository or its storage.
+	writes *atomic.Int64
+	// scan reads the single row a query returns.
+	scan func(t *testing.T, sql string, into ...any)
+}
+
+func serveRepository(t *testing.T) repository {
+	t.Helper()
 	db, ctx := testdb.Open(t)
-	objects := testbloby.New(t, db)
-	workers := river.NewWorkers()
-	river.AddWorker(workers, packages.NewFinalizeInstallerWorker(objects))
-	jobs, err := backgroundjobs.New(db, workers, nil, slog.New(slog.DiscardHandler))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := jobs.Start(ctx); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		if err := jobs.Stop(context.Background()); err != nil {
-			t.Error(err)
-		}
-	})
-	finalizations := packages.NewFinalizations(db, objects, jobs)
-
-	packageStore := packages.NewStore(db, objects)
-	softwareStore := software.NewStore(db, objects, packageStore)
-	service := munki.NewPackageService(munki.PackageServiceDependencies{
-		Packages: packageStore, DesiredPackagesChanged: func() {},
-	})
-	dependency, err := softwareStore.Create(ctx, software.CreateMutation{Name: "AdapterDependency"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	dependencyPackage, err := packageStore.Create(ctx, packages.PackageCreateMutation{
-		SoftwareID: dependency.ID, Version: "2.0", InstallerType: packages.InstallerTypeNoPkg,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	labelStore := labels.NewStore(db)
-	included, err := labelStore.Create(ctx, labels.LabelMutation{Name: "Adapter included", LabelMembershipType: labels.LabelMembershipTypeManual})
-	if err != nil {
-		t.Fatal(err)
-	}
-	excluded, err := labelStore.Create(ctx, labels.LabelMutation{Name: "Adapter excluded", LabelMembershipType: labels.LabelMembershipTypeManual})
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	router := chi.NewRouter()
-	cfg := huma.DefaultConfig("test", "test")
-	cfg.OpenAPIPath, cfg.DocsPath, cfg.SchemasPath = "", "", ""
-	cfg.Components = &huma.Components{Schemas: huma.NewMapRegistry("#/components/schemas/", huma.DefaultSchemaNamer)}
-	humaAPI := humachi.New(router, cfg)
-	routes := api.AppRoutes{Protected: humaAPI, LongRunning: humaAPI, Router: router, Transfers: router}
-	httpapi.RegisterAPI(routes, httpapi.Dependencies{
-		Software: softwareStore, Packages: service, Objects: objects, Finalizations: finalizations,
-		Authorizer: testAuthorizer{}, Logger: slog.New(slog.DiscardHandler),
-	})
-	labelsapi.RegisterAPI(routes, labelStore, testAuthorizer{}, slog.New(slog.DiscardHandler))
 	var writes atomic.Int64
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get("Authorization") != "Bearer synthetic-api-key" {
+		// Storage transfers authorize themselves and never carry the API key.
+		if transfer := strings.HasPrefix(r.URL.Path, "/storage/"); transfer == (r.Header.Get("Authorization") == "Bearer synthetic-api-key") {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
@@ -113,10 +79,137 @@ func TestStemmaAdapterPostgresLifecycle(t *testing.T) { //nolint:funlen,gocognit
 	}
 	t.Setenv("SSL_CERT_FILE", caPath)
 	t.Setenv("SSL_CERT_DIR", t.TempDir())
-	connection := destinationapi.Config{URL: server.URL, APIKey: "synthetic-api-key"}
+
+	// Upload targets must lead back to this server, so storage starts after it.
+	objects, err := bloby.New(ctx, blobydb.New(db), bloby.Config{
+		Kind: bloby.KindFile, TransferTTL: time.Minute,
+		File: bloby.FileConfig{Root: t.TempDir(), BaseURL: server.URL, CapabilityKeyHex: strings.Repeat("42", 32)},
+	}, slog.New(slog.DiscardHandler))
+	if err != nil {
+		t.Fatal(err)
+	}
+	packageStore := packages.NewStore(db, objects)
+	softwareStore := software.NewStore(db, objects, packageStore)
+	labelStore := labels.NewStore(db)
+	cfg := huma.DefaultConfig("test", "test")
+	cfg.OpenAPIPath, cfg.DocsPath, cfg.SchemasPath = "", "", ""
+	cfg.Components = &huma.Components{Schemas: huma.NewMapRegistry("#/components/schemas/", huma.DefaultSchemaNamer)}
+	routes := api.AppRoutes{Protected: humachi.New(router, cfg), Router: router, Transfers: router}
+	httpapi.RegisterAPI(routes, httpapi.Dependencies{
+		Software: softwareStore, Objects: objects,
+		Packages:   munki.NewPackageService(munki.PackageServiceDependencies{Packages: packageStore, DesiredPackagesChanged: func() {}}),
+		Authorizer: testAuthorizer{}, Logger: slog.New(slog.DiscardHandler),
+	})
+	labelsapi.RegisterAPI(routes, labelStore, testAuthorizer{}, slog.New(slog.DiscardHandler))
+	router.Handle("/storage/*", objects.TransferHandler())
+	return repository{
+		connection: destinationapi.Config{URL: server.URL, APIKey: "synthetic-api-key"},
+		objects:    objects, software: softwareStore, packages: packageStore, labels: labelStore, writes: &writes,
+		scan: func(t *testing.T, sql string, into ...any) {
+			t.Helper()
+			if err := db.QueryRow(ctx, sql).Scan(into...); err != nil {
+				t.Fatal(err)
+			}
+		},
+	}
+}
+
+func TestStemmaAdapterPostgresPublishesContent(t *testing.T) {
+	repo := serveRepository(t)
+	ctx := t.Context()
+	request := plugin.ReconcileRequest[destinationapi.Config]{
+		Identity: plugin.Identity{Project: "adapter-test", Resource: plugin.ResourceReference{Kind: "MacSoftware", Name: "AdapterInstaller"}, Destination: "woodstar"},
+		Config:   repo.connection,
+		Artifact: installerFixture(t, "AdapterInstaller.pkg", "synthetic installer bytes; never executed", "1.0"),
+		Inputs:   map[string]plugin.Artifact{"icon": iconFixture(t, 10)},
+	}
+	setPkginfo(t, &request, `{"name":"AdapterInstaller","version":"1.0"}`)
+	call := func(method string) plugin.ReconcileResponse {
+		t.Helper()
+		request.Method = method
+		response, err := Handle(ctx, request)
+		if err != nil {
+			t.Fatalf("%s: %v", method, err)
+		}
+		return response
+	}
+	// published reads an object's bytes back from storage once the repository
+	// serves it as the artifact's content.
+	published := func(column string, artifact plugin.Artifact) {
+		t.Helper()
+		var id int64
+		repo.scan(t, `SELECT `+column+` FROM munki_packages p JOIN munki_software s ON s.id = p.software_id WHERE s.name = 'AdapterInstaller' AND p.version = '1.0'`, &id)
+		object, err := repo.objects.GetByID(ctx, id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if object.SHA256Value() != artifact.SHA256 || object.SizeBytesValue() != artifact.Size {
+			t.Fatalf("%s is %s (%d bytes), want %s (%d bytes)", column, object.SHA256Value(), object.SizeBytesValue(), artifact.SHA256, artifact.Size)
+		}
+		stored, err := repo.objects.Open(ctx, *object)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = stored.Close() }()
+		got, err := io.ReadAll(stored)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want, err := os.ReadFile(artifact.Path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(got, want) {
+			t.Fatalf("%s stores other bytes than its artifact", column)
+		}
+	}
+	converged := func() {
+		t.Helper()
+		before := repo.writes.Load()
+		for _, method := range []string{"plan", "apply"} {
+			if response := call(method); len(response.Changes) != 0 || repo.writes.Load() != before {
+				t.Fatalf("unchanged %s: changes=%+v writes=%d, want %d", method, response.Changes, repo.writes.Load(), before)
+			}
+		}
+	}
+	call("apply")
+	published("p.installer_object_id", request.Artifact)
+	published("s.icon_object_id", request.Inputs["icon"])
+	converged()
+
+	// Other bytes at the same version replace the installer where it lives.
+	changeInstaller(t, &request, "rebuilt installer bytes")
+	call("apply")
+	published("p.installer_object_id", request.Artifact)
+	published("s.icon_object_id", request.Inputs["icon"])
+	converged()
+}
+
+func TestStemmaAdapterPostgresLifecycle(t *testing.T) { //nolint:funlen,gocognit,cyclop // Sequential ownership and convergence assertions share one real API lifecycle.
+	repo := serveRepository(t)
+	ctx := t.Context()
+	softwareStore, packageStore, labelStore, writes := repo.software, repo.packages, repo.labels, repo.writes
+	dependency, err := softwareStore.Create(ctx, software.CreateMutation{Name: "AdapterDependency"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	dependencyPackage, err := packageStore.Create(ctx, packages.PackageCreateMutation{
+		SoftwareID: dependency.ID, Version: "2.0", InstallerType: packages.InstallerTypeNoPkg,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	included, err := labelStore.Create(ctx, labels.LabelMutation{Name: "Adapter included", LabelMembershipType: labels.LabelMembershipTypeManual})
+	if err != nil {
+		t.Fatal(err)
+	}
+	excluded, err := labelStore.Create(ctx, labels.LabelMutation{Name: "Adapter excluded", LabelMembershipType: labels.LabelMembershipTypeManual})
+	if err != nil {
+		t.Fatal(err)
+	}
 	request := plugin.ReconcileRequest[destinationapi.Config]{
 		Identity: plugin.Identity{Project: "adapter-test", Resource: plugin.ResourceReference{Kind: "MacSoftware", Name: "AdapterApp"}, Destination: "woodstar"},
-		Config:   connection,
+		Config:   repo.connection,
 		Metadata: json.RawMessage(fmt.Sprintf(`{"targets":{"include":[{"label_name":%q,"actions":["managed_installs"]}],"exclude":[{"label_name":%q}]}}`, included.Name, excluded.Name)),
 		// The peer is found under the Munki name it declares for this destination.
 		Peers: map[string]json.RawMessage{"stemma/v1alpha1/MacSoftware/dependency": json.RawMessage(fmt.Sprintf(`{"pkginfo":{"name":%q}}`, dependency.Name))},
@@ -151,9 +244,7 @@ func TestStemmaAdapterPostgresLifecycle(t *testing.T) { //nolint:funlen,gocognit
 	assertCounts := func(titles, versions int) {
 		t.Helper()
 		var gotTitles, gotVersions int
-		if err := db.QueryRow(ctx, `SELECT (SELECT count(*) FROM munki_software), (SELECT count(*) FROM munki_packages)`).Scan(&gotTitles, &gotVersions); err != nil {
-			t.Fatal(err)
-		}
+		repo.scan(t, `SELECT (SELECT count(*) FROM munki_software), (SELECT count(*) FROM munki_packages)`, &gotTitles, &gotVersions)
 		if gotTitles != titles || gotVersions != versions {
 			t.Fatalf("software/package counts = %d/%d, want %d/%d", gotTitles, gotVersions, titles, versions)
 		}
@@ -169,9 +260,7 @@ func TestStemmaAdapterPostgresLifecycle(t *testing.T) { //nolint:funlen,gocognit
 	published := func() identity {
 		t.Helper()
 		var found identity
-		if err := db.QueryRow(ctx, `SELECT s.id, p.id FROM munki_software s JOIN munki_packages p ON p.software_id = s.id WHERE s.name = 'AdapterApp' AND p.version = '1.0'`).Scan(&found.SoftwareID, &found.PackageID); err != nil {
-			t.Fatal(err)
-		}
+		repo.scan(t, `SELECT s.id, p.id FROM munki_software s JOIN munki_packages p ON p.software_id = s.id WHERE s.name = 'AdapterApp' AND p.version = '1.0'`, &found.SoftwareID, &found.PackageID)
 		return found
 	}
 	created := published()

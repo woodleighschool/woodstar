@@ -74,17 +74,25 @@ func readRequest(ctx context.Context, request plugin.ReconcileRequest[api.Config
 		return cfg, metadata{}, err
 	}
 	identity.Normalize()
+	icon := request.Inputs["icon"]
 	if !static {
-		if err := validateInstaller(ctx, request.Artifact, identity.InstallerType, imported.InstallerItemHash); err != nil {
+		if err := validateInstaller(request.Artifact, identity.InstallerType, imported.InstallerItemHash); err != nil {
 			return cfg, metadata{}, err
 		}
-	}
-	icon := request.Inputs["icon"]
-	if !static && icon.Path != "" {
-		if err := validateIcon(ctx, icon); err != nil {
-			return cfg, metadata{}, fmt.Errorf("icon: %w", err)
+		if icon.Path != "" {
+			if err := validateIcon(icon); err != nil {
+				return cfg, metadata{}, fmt.Errorf("icon: %w", err)
+			}
+			derived.Origins["software.icon"] = "input.icon"
 		}
-		derived.Origins["software.icon"] = "input.icon"
+		// Validation and planning read leased content only to check it. An apply
+		// checks the installer in the read that declares it and the icon in the
+		// read that sends it; storage holds each transfer to its declaration.
+		if request.Method != "apply" {
+			if err := verifyLeased(ctx, request.Artifact, icon); err != nil {
+				return cfg, metadata{}, err
+			}
+		}
 	}
 	return cfg, metadata{
 		name: imported.Name, version: identity.Version,

@@ -66,10 +66,20 @@ func (c *Client) Close() error {
 	return errors.Join(c.api.Close(), c.transfer.Close())
 }
 
+// apiTimeout bounds one API call with its retries. The server answers each
+// attempt within two minutes.
+const apiTimeout = 10 * time.Minute
+
 func (c *Client) request(ctx context.Context, method, endpoint string, body, output any) error {
-	ctx, cancel := context.WithTimeout(ctx, time.Hour)
+	return send(ctx, c.api.R(), method, endpoint, body, output)
+}
+
+// send executes an API request prepared by its caller, decoding a successful
+// reply into output.
+func send(ctx context.Context, request *resty.Request, method, endpoint string, body, output any) error {
+	ctx, cancel := context.WithTimeout(ctx, apiTimeout)
 	defer cancel()
-	request := c.api.R().SetContext(ctx).SetResult(output).SetResponseForceContentType("application/json")
+	request.SetContext(ctx).SetResult(output).SetResponseForceContentType("application/json")
 	if body != nil {
 		request.SetHeader("Content-Type", "application/json").SetBody(body)
 	}

@@ -52,3 +52,35 @@ func TestValidationVerifiesLeasedArtifacts(t *testing.T) {
 		}
 	})
 }
+
+// An apply reads leased content once, as it sends it, and that read is the
+// check.
+func TestApplyChecksTheContentItSends(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		corrupt func(*plugin.ReconcileRequest[api.Config])
+		uploads int
+	}{
+		{"installer", func(request *plugin.ReconcileRequest[api.Config]) { request.Artifact.SHA256 = strings.Repeat("0", 64) }, 0},
+		// The installer is published before the icon is read.
+		{"icon", func(request *plugin.ReconcileRequest[api.Config]) {
+			icon := request.Inputs["icon"]
+			icon.SHA256 = strings.Repeat("0", 64)
+			request.Inputs = map[string]plugin.Artifact{"icon": icon}
+		}, 1},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			fixture, connection := serveFixture(t)
+			request := plugin.ReconcileRequest[api.Config]{
+				Method: "apply", Prepared: true, Config: connection,
+				Identity: plugin.Identity{Resource: plugin.ResourceReference{Kind: "MacSoftware", Name: "Example"}},
+				Artifact: installerFixture(t, "Example.pkg", "synthetic installer bytes", "1.0"),
+				Inputs:   map[string]plugin.Artifact{"icon": iconFixture(t, 10)},
+			}
+			test.corrupt(&request)
+			if _, err := Handle(t.Context(), request); err == nil || !strings.Contains(err.Error(), "digest changed") || fixture.uploadCount() != test.uploads {
+				t.Fatalf("uploads=%d error=%v", fixture.uploadCount(), err)
+			}
+		})
+	}
+}
