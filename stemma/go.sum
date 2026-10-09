@@ -149,8 +149,8 @@ github.com/woodleighschool/goodies/pglock v0.1.1 h1:qiueWQw5yf24TgPfqZsI5p0wjVnV
 github.com/woodleighschool/goodies/pglock v0.1.1/go.mod h1:QD/YUBlFEX7wE/eqHLqOda5rUlV1fbz0/al2rN/iQkM=
 github.com/woodleighschool/stemma v0.10.3 h1:uhU2Qil0f5u/PeGol1A8BADLhkSjKiq7ierRU4gAKtc=
 github.com/woodleighschool/stemma v0.10.3/go.mod h1:O2gICvLPHIHBYdIgfZopmtADqyUD9s243ZUnDbj5k+Q=
-github.com/woodleighschool/woodstar v0.10.5-0.20261009041552-2085c459b434 h1:wI+yH1UA9CdaTzwdiyHEYPHDiK9XVAYjoL2TrGOXjwg=
-github.com/woodleighschool/woodstar v0.10.5-0.20261009041552-2085c459b434/go.mod h1:shz8gHhFmTWfrOMGroh/+lQXM53TWUvzc6BRXwLCY28=
+github.com/woodleighschool/woodstar v0.10.5-0.20261009042032-0d93bf5ce491 h1:gwGWUC5ia4km7D6k+9zv2qJhRAdaJtVL/wwrWK7vBsM=
+github.com/woodleighschool/woodstar v0.10.5-0.20261009042032-0d93bf5ce491/go.mod h1:shz8gHhFmTWfrOMGroh/+lQXM53TWUvzc6BRXwLCY28=
 github.com/x448/float16 v0.8.4 h1:qLwI1I70+NjRFUR3zs1JPUCgaCXSh3SW62uAKT1mSBM=
 github.com/x448/float16 v0.8.4/go.mod h1:14CWIYCyZA/cWjXOioeEpHeN/83MdbZDRQHoFcYsOfg=
 github.com/yosida95/uritemplate/v3 v3.0.2 h1:Ed3Oyj9yrmi9087+NczuL5BwkIc4wvTb5zIM+UJPGz4=
