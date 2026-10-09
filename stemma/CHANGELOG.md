@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.2](https://github.com/woodleighschool/woodstar/compare/stemma-v1.1.1...stemma-v1.1.2) (2026-10-09)
+
+
+### Bug Fixes
+
+* **build:** unify Go toolchain and license tool versions ([4ea66ea](https://github.com/woodleighschool/woodstar/commit/4ea66ea5438f1f18595227f9dff77e3529de056d))
+* **go:** update stemma (v0.10.2 → v0.10.3) ([#515](https://github.com/woodleighschool/woodstar/issues/515)) ([bf189ab](https://github.com/woodleighschool/woodstar/commit/bf189abd916dd507ac20ca6e4fe95877361d439d))
+
 ## [1.1.1](https://github.com/woodleighschool/woodstar/compare/stemma-v1.1.0...stemma-v1.1.1) (2026-10-08)
 
 
