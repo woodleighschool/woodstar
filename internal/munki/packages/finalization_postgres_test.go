@@ -22,7 +22,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
 )
 
-func TestInstallerFinalizationLifecycle(t *testing.T) { //nolint:funlen // Lifecycle assertions share one retained upload and job.
+func TestInstallerFinalizationLifecycle(t *testing.T) { //nolint:funlen,gocognit // Lifecycle assertions share one retained upload and job.
 	db, ctx := testdb.Open(t)
 	objects := testbloby.New(t, db)
 	workers := river.NewWorkers()
