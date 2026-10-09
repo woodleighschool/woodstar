@@ -9,7 +9,7 @@ require (
 	github.com/riverqueue/river v0.49.0
 	github.com/woodleighschool/goodies/auth v1.1.0
 	github.com/woodleighschool/stemma v0.10.3
-	github.com/woodleighschool/woodstar v0.10.5-0.20261009041552-2085c459b434
+	github.com/woodleighschool/woodstar v0.10.5-0.20261009042032-0d93bf5ce491
 	resty.dev/v3 v3.0.0-rc.4
 )
 
