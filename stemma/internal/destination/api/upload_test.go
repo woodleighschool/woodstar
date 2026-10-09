@@ -16,6 +16,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/woodleighschool/stemma/plugin"
@@ -302,6 +303,93 @@ func TestTransferHonorsRetryAfterAndCancellation(t *testing.T) {
 			_, err := remote.transferBytes(ctx, uploadTarget{URL: origin + "/signed?token=private", Method: http.MethodPut}, strings.NewReader("body"), 4)
 			if !errors.Is(err, context.DeadlineExceeded) || attempts.Load() != 1 {
 				t.Fatalf("rate-limited transfer attempts=%d err=%v", attempts.Load(), err)
+			}
+		})
+	}
+}
+
+func TestFinalizationPollsUntilVerified(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		status    int
+		body      string
+		wantError bool
+	}{
+		{"verified", http.StatusOK, `{"id":42,"sha256":"expected","size_bytes":7}`, false},
+		{"wrong content", http.StatusOK, `{"id":42,"sha256":"wrong","size_bytes":7}`, true},
+		{"terminal failure", http.StatusUnprocessableEntity, `{"status":422}`, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				remote := New(Config{URL: "https://woodstar.test", APIKey: "synthetic-key"})
+				defer func() { _ = remote.Close() }()
+				attempts := 0
+				remote.api.SetTransport(roundTripFunc(func(request *http.Request) (*http.Response, error) {
+					attempts++
+					status, body := http.StatusAccepted, "null"
+					if attempts == 3 {
+						status, body = tc.status, tc.body
+					}
+					return &http.Response{StatusCode: status, Header: http.Header{"Content-Type": []string{"application/json"}, "Retry-After": []string{"2"}}, Body: io.NopCloser(strings.NewReader(body)), Request: request}, nil
+				}))
+				err := remote.finalizeUpload(t.Context(), plugin.Artifact{SHA256: "expected", Size: 7}, 42)
+				if (err != nil) != tc.wantError || attempts != 3 {
+					t.Fatalf("attempts=%d err=%v", attempts, err)
+				}
+			})
+		})
+	}
+}
+
+func TestFinalizationCancellationWhilePending(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		remote := New(Config{URL: "https://woodstar.test", APIKey: "synthetic-key"})
+		defer func() { _ = remote.Close() }()
+		ctx, cancel := context.WithCancel(t.Context())
+		calls := 0
+		remote.api.SetTransport(roundTripFunc(func(request *http.Request) (*http.Response, error) {
+			calls++
+			time.AfterFunc(time.Second, cancel)
+			return &http.Response{StatusCode: 202, Header: http.Header{"Content-Type": []string{"application/json"}, "Retry-After": []string{"30"}}, Body: io.NopCloser(strings.NewReader("null")), Request: request}, nil
+		}))
+		if err := remote.finalizeUpload(ctx, plugin.Artifact{}, 42); !errors.Is(err, context.Canceled) || calls != 1 {
+			t.Fatalf("calls=%d err=%v", calls, err)
+		}
+	})
+}
+
+func TestUploadRetainsAmbiguousVerification(t *testing.T) {
+	for _, status := range []int{http.StatusServiceUnavailable, http.StatusUnprocessableEntity} {
+		t.Run(strconv.Itoa(status), func(t *testing.T) {
+			content := []byte("payload")
+			filename := filepath.Join(t.TempDir(), "example.pkg")
+			if err := os.WriteFile(filename, content, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			var cleaned atomic.Bool
+			var origin string
+			remote, url := testClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				switch {
+				case r.Method == http.MethodPost:
+					_ = json.NewEncoder(w).Encode(map[string]any{"object_id": 42, "upload": map[string]any{"strategy": "direct-put", "target": uploadTarget{URL: origin + "/transfer", Method: http.MethodPut}}})
+				case r.URL.Path == "/transfer":
+					w.WriteHeader(http.StatusNoContent)
+				case r.Method == http.MethodDelete:
+					cleaned.Store(true)
+					w.WriteHeader(http.StatusNoContent)
+				case r.Method == http.MethodPut:
+					w.WriteHeader(status)
+					_, _ = io.WriteString(w, `{"detail":"verification unavailable"}`)
+				default:
+					t.Errorf("unexpected request: %s", r.Method)
+				}
+			}))
+			origin = url
+			digest := sha256.Sum256(content)
+			_, err := remote.Upload(t.Context(), plugin.Artifact{Path: filename, Filename: "example.pkg", SHA256: hex.EncodeToString(digest[:]), Size: int64(len(content))})
+			if err == nil || cleaned.Load() != (status == http.StatusUnprocessableEntity) {
+				t.Fatalf("status=%d cleaned=%t err=%v", status, cleaned.Load(), err)
 			}
 		})
 	}
