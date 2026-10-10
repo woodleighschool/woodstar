@@ -55,7 +55,7 @@ const concurrentParts = 4
 func (c *Client) Upload(ctx context.Context, artifact plugin.Artifact) (_ int64, runErr error) {
 	ctx, cancel := context.WithTimeout(ctx, time.Hour)
 	defer cancel()
-	done := plugin.Stage(ctx, "Uploading installer", plugin.Detail(artifact.Filename))
+	done := plugin.Stage(ctx, "Checking installer", plugin.Detail(artifact.Filename))
 	defer func() { done(runErr) }()
 	if !filepath.IsAbs(artifact.Path) {
 		return 0, errors.New("artifact path must be an absolute leased path")
@@ -93,6 +93,8 @@ func (c *Client) Upload(ctx context.Context, artifact plugin.Artifact) (_ int64,
 			c.ReleaseUpload(ctx, upload.ObjectID)
 		}
 	}()
+	done(nil)
+	done = plugin.Stage(ctx, "Uploading installer", plugin.Detail(artifact.Filename))
 	progress := &transferProgress{ctx: ctx, total: artifact.Size}
 	switch upload.Upload.Strategy {
 	case "direct-put":
@@ -103,9 +105,11 @@ func (c *Client) Upload(ctx context.Context, artifact plugin.Artifact) (_ int64,
 		err = errors.New("unsupported installer upload strategy")
 	}
 	if err != nil {
+		done(err)
 		return 0, err
 	}
 	progress.finish()
+	done(nil)
 	if err := c.finalizeUpload(ctx, endpoint, artifact.Filename); err != nil {
 		return 0, err
 	}

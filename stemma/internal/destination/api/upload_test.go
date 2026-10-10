@@ -586,3 +586,70 @@ func lastProgress(t *testing.T, logs io.Reader, size int64) progressRecord {
 	}
 	return last
 }
+
+func TestUploadStagesMeasureCheckingTransferAndFinalizationSeparately(t *testing.T) {
+	artifact := leasedInstaller(t, []byte("synthetic installer bytes"))
+	for _, rejected := range []bool{false, true} {
+		t.Run(strconv.FormatBool(rejected), func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				repo := newRepository(t, "direct-put", "https://woodstar.test")
+				remote := New(Config{URL: repo.origin, APIKey: "synthetic-key"})
+				defer func() { _ = remote.Close() }()
+				remote.api.SetTransport(handlerTransport{repo})
+				remote.transfer.SetTransport(handlerTransport{repo})
+				repo.answer = func(w http.ResponseWriter, r *http.Request) bool {
+					switch {
+					case r.Method == http.MethodPost && r.URL.Path == installersPath:
+						time.Sleep(3 * time.Second)
+					case strings.HasPrefix(r.URL.Path, "/storage/"):
+						time.Sleep(5 * time.Second)
+					case r.Method == http.MethodPut && r.URL.Path == installerPath:
+						time.Sleep(7 * time.Second)
+						if rejected {
+							w.WriteHeader(http.StatusBadRequest)
+							return true
+						}
+					}
+					return false
+				}
+				var logs bytes.Buffer
+				ctx := plugin.WithLogger(t.Context(), slog.New(slog.NewJSONHandler(&logs, nil)))
+				_, err := remote.Upload(ctx, artifact)
+				if (err != nil) != rejected {
+					t.Fatalf("upload error: %v", err)
+				}
+				var starts, ends []string
+				durations := map[string]time.Duration{"Checking installer": 3 * time.Second, "Uploading installer": 5 * time.Second, "Finalizing upload": 7 * time.Second}
+				decoder := json.NewDecoder(&logs)
+				for decoder.More() {
+					var record struct {
+						Message string        `json:"msg"`
+						Start   bool          `json:"stage"`
+						End     bool          `json:"stage_result"`
+						Elapsed time.Duration `json:"elapsed"`
+						Error   string        `json:"error"`
+					}
+					if err := decoder.Decode(&record); err != nil {
+						t.Fatal(err)
+					}
+					if record.Start {
+						if len(starts) != len(ends) {
+							t.Fatalf("%s started before the previous operation finished", record.Message)
+						}
+						starts = append(starts, record.Message)
+					}
+					if record.End {
+						ends = append(ends, record.Message)
+						if record.Elapsed != durations[record.Message] || (record.Error != "") != (rejected && record.Message == "Finalizing upload") {
+							t.Fatalf("operation timing or outcome: %+v", record)
+						}
+					}
+				}
+				want := []string{"Checking installer", "Uploading installer", "Finalizing upload"}
+				if !slices.Equal(starts, want) || !slices.Equal(ends, want) {
+					t.Fatalf("starts=%v ends=%v", starts, ends)
+				}
+			})
+		})
+	}
+}
