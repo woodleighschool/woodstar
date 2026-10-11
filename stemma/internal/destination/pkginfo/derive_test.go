@@ -2,6 +2,7 @@ package pkginfo
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/woodleighschool/stemma/plugin"
@@ -123,7 +124,7 @@ func TestDerivedPackageMetadata(t *testing.T) {
 		}
 	}
 	request.Artifact.Version = ""
-	if _, err := Derive(request, json.RawMessage(`{}`)); err == nil {
-		t.Fatal("a package without a managed version was accepted")
+	if _, err := Derive(request, json.RawMessage(`{}`)); err == nil || !strings.Contains(err.Error(), "no managed version: its components carry example.alpha 4.5.6, example.beta 7.8.9; ") {
+		t.Fatalf("a package without a managed version: %v", err)
 	}
 }

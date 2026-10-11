@@ -58,9 +58,6 @@ func readRequest(ctx context.Context, request plugin.ReconcileRequest[api.Config
 	}
 	static := !request.Prepared && request.Artifact.Path == ""
 	if static {
-		if _, ok := derived.Values["name"]; !ok {
-			derived.Values["name"] = "PendingSoftware"
-		}
 		if _, ok := derived.Values["version"]; !ok {
 			derived.Values["version"] = "0"
 		}

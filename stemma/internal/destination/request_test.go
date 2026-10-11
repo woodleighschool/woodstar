@@ -3,6 +3,7 @@ package destination
 import (
 	"encoding/json"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/woodleighschool/woodstar/stemma/internal/destination/api"
@@ -11,7 +12,7 @@ import (
 )
 
 func TestValidationDoesNotContactDestination(t *testing.T) {
-	request := plugin.ReconcileRequest[api.Config]{Method: "validate", Config: api.Config{URL: "https://woodstar.test", APIKey: "synthetic-key"}}
+	request := plugin.ReconcileRequest[api.Config]{Method: "validate", Config: api.Config{URL: "https://woodstar.test", APIKey: "synthetic-key"}, Identity: plugin.Identity{Resource: plugin.ResourceReference{Kind: "MacSoftware", Name: "example"}}}
 	// Validation never contacts the destination, so label names are only checked for shape.
 	request.Metadata = json.RawMessage(`{"targets":{"include":[{"label_name":"Staff","actions":["optional_installs","managed_updates"]}],"exclude":[{"label_name":"Loaners"}]}}`)
 	if _, err := Handle(t.Context(), request); err != nil {
@@ -37,6 +38,19 @@ func TestValidationDoesNotContactDestination(t *testing.T) {
 				t.Fatal("accepted invalid controls")
 			}
 		})
+	}
+}
+
+// TestValidationChecksTheNameBeforePreparation covers the name Munki would
+// read as a name and a version: the resource's own, unless pkginfo names it.
+func TestValidationChecksTheNameBeforePreparation(t *testing.T) {
+	request := plugin.ReconcileRequest[api.Config]{Method: "validate", Identity: plugin.Identity{Resource: plugin.ResourceReference{Kind: "MacSoftware", Name: "epson-scan-2"}}, Metadata: json.RawMessage(`{}`)}
+	if _, err := Handle(t.Context(), request); err == nil || !strings.Contains(err.Error(), "Munki version suffix") {
+		t.Fatalf("resource name ending in a version: %v", err)
+	}
+	request.Metadata = json.RawMessage(`{"pkginfo":{"name":"Epson Scan 2"}}`)
+	if _, err := Handle(t.Context(), request); err != nil {
+		t.Fatal(err)
 	}
 }
 

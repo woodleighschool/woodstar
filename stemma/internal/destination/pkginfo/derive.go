@@ -3,6 +3,7 @@ package pkginfo
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"maps"
 	"path"
 	"reflect"
@@ -30,10 +31,11 @@ func Derive[C any](request plugin.ReconcileRequest[C], declared json.RawMessage)
 	for key := range explicit {
 		d.origins["pkginfo."+key] = "explicit"
 	}
+	// The name needs no artifact, so its rules hold before preparation.
+	d.put("name", request.Identity.Resource.Name, "software.name")
 	if !request.Prepared && request.Artifact.Path == "" {
 		return d.result(""), nil
 	}
-	d.put("name", request.Identity.Resource.Name, "software.name")
 	if request.Artifact.Version != "" {
 		d.put("version", request.Artifact.Version, "artifact.version")
 	}
@@ -60,10 +62,29 @@ func Derive[C any](request plugin.ReconcileRequest[C], declared json.RawMessage)
 		}
 	}
 	if _, exists := d.values["version"]; !exists && (kind == "pkg" || kind == "copy_from_dmg") {
-		return Derived{}, errors.New("the prepared installer has no managed version; select an application or set pkginfo.version")
+		return Derived{}, fmt.Errorf("the prepared installer has no managed version%s; select an application or set pkginfo.version", componentVersions(request.Artifact.Facts))
 	}
 	d.uninstall(kind)
 	return d.result(kind), nil
+}
+
+// componentVersions lists the versions of a package's components, which leave
+// it without one of its own when they differ.
+func componentVersions(facts plugin.Facts) string {
+	var listed []string
+	for _, subject := range facts.Subjects {
+		if pkg := subject.Package; pkg != nil && pkg.Identifier != "" {
+			listed = append(listed, strings.TrimSpace(pkg.Identifier+" "+pkg.Version))
+		}
+	}
+	const shown = 6
+	switch {
+	case len(listed) < 2:
+		return ""
+	case len(listed) > shown:
+		return fmt.Sprintf(": its components carry %s and %d more", strings.Join(listed[:shown], ", "), len(listed)-shown)
+	}
+	return ": its components carry " + strings.Join(listed, ", ")
 }
 
 type nativeDefaults struct {
