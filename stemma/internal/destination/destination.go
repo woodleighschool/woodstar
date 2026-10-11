@@ -29,7 +29,7 @@ func Handle(ctx context.Context, request plugin.ReconcileRequest[api.Config]) (p
 	if request.Method != "validate" && request.Method != "plan" && request.Method != "apply" {
 		return plugin.ReconcileResponse{}, fmt.Errorf("unsupported method %q", request.Method)
 	}
-	cfg, metadata, err := readRequest(ctx, request)
+	cfg, metadata, err := readRequest(request)
 	if err != nil {
 		return plugin.ReconcileResponse{}, err
 	}
@@ -57,6 +57,14 @@ func Handle(ctx context.Context, request plugin.ReconcileRequest[api.Config]) (p
 	}
 	response.Changes = planned.changes
 	if request.Method == "apply" && len(planned.changes) != 0 {
+		needed := plugin.ContentRequest{Artifact: planned.content && request.Artifact.Path == ""}
+		if planned.icon && metadata.icon.Path == "" {
+			needed.Inputs = []string{"icon"}
+		}
+		if needed.Artifact || len(needed.Inputs) != 0 {
+			response.Content = &needed
+			return response, nil
+		}
 		if err := apply(ctx, remote, metadata, planned, &observed); err != nil {
 			return response, err
 		}

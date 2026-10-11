@@ -2,7 +2,6 @@ package destination
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -49,7 +48,7 @@ type metadata struct {
 	effective json.RawMessage
 }
 
-func readRequest(ctx context.Context, request plugin.ReconcileRequest[api.Config]) (api.Config, metadata, error) {
+func readRequest(request plugin.ReconcileRequest[api.Config]) (api.Config, metadata, error) {
 	cfg := request.Config
 	settings, err := decodeControls(request.Metadata)
 	if err != nil {
@@ -59,7 +58,7 @@ func readRequest(ctx context.Context, request plugin.ReconcileRequest[api.Config
 	if err != nil {
 		return cfg, metadata{}, err
 	}
-	static := !request.Prepared && request.Artifact.Path == ""
+	static := !request.Prepared && request.Artifact.SHA256 == ""
 	var effective json.RawMessage
 	if static {
 		if _, ok := derived.Values["version"]; !ok {
@@ -82,19 +81,11 @@ func readRequest(ctx context.Context, request plugin.ReconcileRequest[api.Config
 		if err := validateInstaller(request.Artifact, identity.InstallerType, imported.InstallerItemHash); err != nil {
 			return cfg, metadata{}, err
 		}
-		if icon.Path != "" {
+		if icon.SHA256 != "" {
 			if err := validateIcon(icon); err != nil {
 				return cfg, metadata{}, fmt.Errorf("icon: %w", err)
 			}
 			derived.Origins["software.icon"] = "input.icon"
-		}
-		// Validation and planning read leased content only to check it. An apply
-		// checks the installer in the read that declares it and the icon in the
-		// read that sends it; storage holds each transfer to its declaration.
-		if request.Method != "apply" {
-			if err := verifyLeased(ctx, request.Artifact, icon); err != nil {
-				return cfg, metadata{}, err
-			}
 		}
 	}
 	return cfg, metadata{

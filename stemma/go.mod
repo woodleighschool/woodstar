@@ -8,10 +8,9 @@ require (
 	github.com/invopop/jsonschema v0.14.0
 	github.com/woodleighschool/goodies/auth v1.1.0
 	github.com/woodleighschool/goodies/bloby v1.4.0
-	github.com/woodleighschool/stemma v0.10.4
+	github.com/woodleighschool/stemma v0.10.5-0.20261011095622-0f2b998b1631
 	github.com/woodleighschool/woodstar v0.11.0
 	golang.org/x/sync v0.24.0
-	howett.net/plist v1.0.1
 	resty.dev/v3 v3.0.0-rc.4
 )
 
@@ -72,10 +71,11 @@ require (
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.yaml.in/yaml/v4 v4.0.0-rc.6 // indirect
-	golang.org/x/crypto v0.57.0 // indirect
-	golang.org/x/net v0.60.0 // indirect
+	golang.org/x/crypto v0.58.0 // indirect
+	golang.org/x/net v0.61.0 // indirect
 	golang.org/x/oauth2 v0.37.0 // indirect
-	golang.org/x/sys v0.48.0 // indirect
-	golang.org/x/text v0.42.0 // indirect
+	golang.org/x/sys v0.49.0 // indirect
+	golang.org/x/text v0.43.0 // indirect
 	golang.org/x/time v0.16.0 // indirect
+	howett.net/plist v1.0.1 // indirect
 )

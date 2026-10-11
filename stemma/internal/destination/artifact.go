@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -24,8 +23,14 @@ func validateInstaller(installer plugin.Artifact, installerType packages.Install
 		}
 		return nil
 	}
-	if installer.Path == "" {
+	if installer.SHA256 == "" {
 		return errors.New("installer is required")
+	}
+	if err := validateArtifact(installer); err != nil {
+		return err
+	}
+	if installer.Tree {
+		return errors.New("installer must be a file")
 	}
 	if installerItemHash != "" && installerItemHash != installer.SHA256 {
 		return errors.New("pkginfo installer_item_hash does not match installer")
@@ -34,24 +39,11 @@ func validateInstaller(installer plugin.Artifact, installerType packages.Install
 }
 
 func validateIcon(artifact plugin.Artifact) error {
-	if artifact.Format != "png" || artifact.Size <= 0 || artifact.Size > 32<<20 {
+	if err := validateArtifact(artifact); err != nil {
+		return err
+	}
+	if artifact.Tree || artifact.Format != "png" || artifact.Size <= 0 || artifact.Size > 32<<20 {
 		return errors.New("icon input requires a PNG artifact no larger than 32 MiB")
-	}
-	return nil
-}
-
-// verifyLeased reads the artifacts the engine leased and checks each against
-// its digest.
-func verifyLeased(ctx context.Context, installer, icon plugin.Artifact) error {
-	if installer.Path != "" {
-		if err := verifyArtifact(ctx, installer, nil); err != nil {
-			return fmt.Errorf("installer: %w", err)
-		}
-	}
-	if icon.Path != "" {
-		if err := verifyArtifact(ctx, icon, nil); err != nil {
-			return fmt.Errorf("icon: %w", err)
-		}
 	}
 	return nil
 }

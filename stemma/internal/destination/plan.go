@@ -94,7 +94,7 @@ func plan(metadata metadata, observed api.Observation) (desired, error) {
 // iconChange reports a declared icon whose bytes the software does not
 // publish, naming the icon it replaces.
 func iconChange(icon plugin.Artifact, observed api.Observation) (plugin.Change, bool) {
-	if icon.Path == "" {
+	if icon.SHA256 == "" {
 		return plugin.Change{}, false
 	}
 	var current *software.IconFile

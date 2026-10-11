@@ -223,7 +223,7 @@ type apiFixture struct {
 }
 
 // serveFixture starts the fake API and returns its connection settings.
-func serveFixture(t *testing.T) (*apiFixture, api.Config) {
+func serveFixture(t testing.TB) (*apiFixture, api.Config) {
 	t.Helper()
 	fixture := &apiFixture{objects: map[int64][]byte{}, names: map[int64]string{}, declared: map[int64]bloby.Content{}}
 	connection, origin := serveAPI(t, fixture)
@@ -233,7 +233,7 @@ func serveFixture(t *testing.T) (*apiFixture, api.Config) {
 
 // serveAPI starts a TLS server and trusts it through the runner environment,
 // including in compiled plugins.
-func serveAPI(t *testing.T, handler http.Handler) (api.Config, string) {
+func serveAPI(t testing.TB, handler http.Handler) (api.Config, string) {
 	t.Helper()
 	server := httptest.NewTLSServer(handler)
 	t.Cleanup(server.Close)
@@ -778,7 +778,7 @@ func (fixture *apiFixture) servePackages(response http.ResponseWriter, request *
 }
 
 // installerFixture leases synthetic installer bytes; the extension is the format.
-func installerFixture(t *testing.T, filename, body, version string) plugin.Artifact {
+func installerFixture(t testing.TB, filename, body, version string) plugin.Artifact {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), filename)
 	if err := os.WriteFile(path, []byte(body), 0o400); err != nil {
