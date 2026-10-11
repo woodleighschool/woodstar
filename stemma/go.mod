@@ -11,6 +11,7 @@ require (
 	github.com/woodleighschool/stemma v0.10.4
 	github.com/woodleighschool/woodstar v0.11.0
 	golang.org/x/sync v0.24.0
+	howett.net/plist v1.0.1
 	resty.dev/v3 v3.0.0-rc.4
 )
 
@@ -77,5 +78,4 @@ require (
 	golang.org/x/sys v0.48.0 // indirect
 	golang.org/x/text v0.42.0 // indirect
 	golang.org/x/time v0.16.0 // indirect
-	howett.net/plist v1.0.1 // indirect
 )

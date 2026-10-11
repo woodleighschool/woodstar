@@ -54,6 +54,14 @@ func Schema() *jsonschema.Schema {
 			rename(array.Items, from, names[from])
 		}
 	}
+	installs, _ := schema.Properties.Get("installs")
+	installs.Description += " An item can instead be an inspected application, written as an expression such as {{ facts.name }}, which is detected at its installed path by its bundle identifier and version."
+	application := &jsonschema.Schema{Type: "object", Required: []string{"kind"}, AdditionalProperties: jsonschema.TrueSchema}
+	installs.Items = &jsonschema.Schema{AnyOf: []*jsonschema.Schema{installs.Items, application}}
+	uninstallable, _ := schema.Properties.Get("uninstallable")
+	uninstallable.Description += " Defaults to true when an uninstall method is derived."
+	method, _ := schema.Properties.Get("uninstall_method")
+	method.Description += " Defaults to removepackages for package receipts or remove_copied_items for copied content."
 	link := r.Reflect(ResourceRelationship{})
 	link.ID = ""
 	for _, field := range []string{"requires", "update_for"} {

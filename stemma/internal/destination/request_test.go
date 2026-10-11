@@ -61,7 +61,7 @@ func TestValidationReportsWhatItWillPublish(t *testing.T) {
 	request := plugin.ReconcileRequest[api.Config]{
 		Method: "validate", Prepared: true,
 		Identity:  plugin.Identity{Resource: plugin.ResourceReference{Kind: "MacSoftware", Name: "Example"}},
-		Metadata:  json.RawMessage(`{"pkginfo":{"category":"Media"},"targets":{"include":[{"label_name":"Staff","actions":["optional_installs"]}]}}`),
+		Metadata:  json.RawMessage(`{"pkginfo":{"category":"Media","unattended_install":false,"blocking_applications":[]},"targets":{"include":[{"label_name":"Staff","actions":["optional_installs"]}]}}`),
 		Artifact:  withApplication(installerFixture(t, "Example.dmg", "first installer", "1.0"), selected),
 		MinimumOS: &plugin.MinimumOS{Version: "14.0", Origin: "app.minimum_os"},
 	}
@@ -84,10 +84,64 @@ func TestValidationReportsWhatItWillPublish(t *testing.T) {
 	if response.Origins["pkginfo.category"] != "explicit" || response.Origins["pkginfo.version"] != "artifact.version" || response.Origins["pkginfo.installs"] != "app.installed_path" {
 		t.Fatalf("origins = %v", response.Origins)
 	}
+	blocking, ok := pkginfo["blocking_applications"].([]any)
+	if pkginfo["unattended_install"] != false || !ok || len(blocking) != 0 {
+		t.Fatalf("explicit clears = %s", response.Metadata)
+	}
+	request.MinimumOS = nil
+	response, err = Handle(t.Context(), request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(response.Metadata, &published); err != nil {
+		t.Fatal(err)
+	}
+	if value, exists := published.Pkginfo["minimum_os_version"]; !exists || value != nil {
+		t.Fatalf("withdrawn minimum OS = %s", response.Metadata)
+	}
 	// Before preparation there is nothing derived to report.
 	request.Prepared, request.Artifact = false, plugin.Artifact{}
 	if response, err := Handle(t.Context(), request); err != nil || len(response.Metadata) != 0 {
 		t.Fatalf("unprepared validation = %s: %v", response.Metadata, err)
+	}
+}
+
+// suiteApplication is an application a suite's package installs.
+func suiteApplication(name, version string) plugin.Subject {
+	return plugin.Subject{ID: "Payload/" + name + ".app", Kind: "app", Path: "Payload/" + name + ".app", InstalledPath: "/Applications/" + name + ".app", App: &plugin.AppFacts{BundleID: "test.suite." + name, Name: name, Version: version}}
+}
+
+// A suite's package is detected by every application its installs lists,
+// while its version stays what the declaration states.
+func TestInstallsListsInspectedApplications(t *testing.T) {
+	draw, graph := suiteApplication("Draw", "26.1"), suiteApplication("Graph", "8.3")
+	installer := installerFixture(t, "Suite.pkg", "suite installer", "1.0")
+	installer.Facts = plugin.Facts{Subjects: []plugin.Subject{draw, graph}}
+	request := plugin.ReconcileRequest[api.Config]{
+		Method: "validate", Prepared: true, Artifact: installer,
+		Identity: plugin.Identity{Resource: plugin.ResourceReference{Kind: "MacSoftware", Name: "Suite"}},
+		Metadata: raw(map[string]any{"pkginfo": map[string]any{"version": draw.App.Version, "installs": []any{draw, graph, map[string]any{"type": "file", "path": "/Library/Suite/licence"}}}}),
+	}
+	response, err := Handle(t.Context(), request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var published struct {
+		Pkginfo struct {
+			Version  string           `json:"version"`
+			Installs []map[string]any `json:"installs"`
+		} `json:"pkginfo"`
+	}
+	if err := json.Unmarshal(response.Metadata, &published); err != nil {
+		t.Fatal(err)
+	}
+	installs := published.Pkginfo.Installs
+	if published.Pkginfo.Version != "26.1" || len(installs) != 3 || installs[0]["path"] != "/Applications/Draw.app" || installs[1]["CFBundleIdentifier"] != "test.suite.Graph" || installs[1]["CFBundleShortVersionString"] != "8.3" || installs[2]["type"] != "file" {
+		t.Fatalf("published = %s", response.Metadata)
+	}
+	request.Metadata = raw(map[string]any{"pkginfo": map[string]any{"installs": []any{plugin.Subject{ID: "PackageInfo", Kind: "package", Package: &plugin.PackageFacts{Identifier: "test.suite"}}}}})
+	if _, err := Handle(t.Context(), request); err == nil || !strings.Contains(err.Error(), "installs item 1: expected a native installs item or an inspected application") {
+		t.Fatalf("a package under installs: %v", err)
 	}
 }
 

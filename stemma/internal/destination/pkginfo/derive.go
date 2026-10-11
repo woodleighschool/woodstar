@@ -1,6 +1,7 @@
 package pkginfo
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -25,6 +26,9 @@ type Derived struct {
 func Derive[C any](request plugin.ReconcileRequest[C], declared json.RawMessage) (Derived, error) {
 	var explicit map[string]any
 	if err := json.Unmarshal(declared, &explicit); err != nil {
+		return Derived{}, err
+	}
+	if err := resolveSubjects(explicit); err != nil {
 		return Derived{}, err
 	}
 	d := nativeDefaults{values: maps.Clone(explicit), explicit: explicit, origins: map[string]string{}}
@@ -62,7 +66,7 @@ func Derive[C any](request plugin.ReconcileRequest[C], declared json.RawMessage)
 		}
 	}
 	if _, exists := d.values["version"]; !exists && (kind == "pkg" || kind == "copy_from_dmg") {
-		return Derived{}, fmt.Errorf("the prepared installer has no managed version%s; select an application or set pkginfo.version", componentVersions(request.Artifact.Facts))
+		return Derived{}, fmt.Errorf("the prepared installer has no managed version%s; select an application or set pkginfo.version%s", componentVersions(request.Artifact.Facts), sourceVersion(request.Artifact))
 	}
 	d.uninstall(kind)
 	return d.result(kind), nil
@@ -85,6 +89,66 @@ func componentVersions(facts plugin.Facts) string {
 		return fmt.Sprintf(": its components carry %s and %d more", strings.Join(listed[:shown], ", "), len(listed)-shown)
 	}
 	return ": its components carry " + strings.Join(listed, ", ")
+}
+
+// sourceVersion names the version the source states for its input, which a
+// declaration can adopt.
+func sourceVersion(artifact plugin.Artifact) string {
+	var source struct {
+		Version string `json:"version"`
+	}
+	if json.Unmarshal(artifact.Evidence["source"], &source) != nil || source.Version == "" {
+		return ""
+	}
+	return fmt.Sprintf("; the source states %s as evidence.source.version", source.Version)
+}
+
+// resolveSubjects translates the inspected applications listed under installs
+// into native application items, as derivation does for the selected
+// application. Native items pass through unchanged.
+func resolveSubjects(explicit map[string]any) error {
+	items, _ := explicit["installs"].([]any)
+	var copies []packages.PackageItemToCopy
+	_ = json.Unmarshal(raw(explicit["items_to_copy"]), &copies)
+	for i, item := range items {
+		fields, object := item.(map[string]any)
+		if _, native := fields["type"]; !object || native {
+			continue
+		}
+		var subject plugin.Subject
+		decoder := json.NewDecoder(bytes.NewReader(raw(item)))
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&subject); err != nil || subject.Kind != "app" || subject.App == nil {
+			return fmt.Errorf("installs item %d: expected a native installs item or an inspected application, such as {{ facts.name }}", i+1)
+		}
+		endpoint, err := installedPath(subject.Path, subject.InstalledPath, copies)
+		if err != nil {
+			return fmt.Errorf("installs item %d: %w", i+1, err)
+		}
+		if endpoint == "" {
+			return fmt.Errorf("installs item %d: application %s has no known installed path; write a native installs item", i+1, subject.ID)
+		}
+		native, err := applicationItem(*subject.App, endpoint, "")
+		if err != nil {
+			return fmt.Errorf("installs item %d: application %s: %w", i+1, subject.ID, err)
+		}
+		items[i] = native
+	}
+	return nil
+}
+
+func applicationItem(app plugin.AppFacts, endpoint, versionKey string) (map[string]any, error) {
+	if versionKey == "" {
+		versionKey = app.VersionKey()
+	}
+	version := app.Version
+	if versionKey == "CFBundleVersion" {
+		version = app.Build
+	}
+	if app.BundleID == "" || version == "" {
+		return nil, errors.New("bundle identifier and comparison version are required")
+	}
+	return map[string]any{"type": "application", "path": endpoint, "CFBundleIdentifier": app.BundleID, "CFBundleName": app.Name, "CFBundleShortVersionString": app.Version, "CFBundleVersion": app.Build, "version_comparison_key": versionKey, "minosversion": app.MinimumOS}, nil
 }
 
 type nativeDefaults struct {
@@ -206,14 +270,7 @@ func hasEntries(value any) bool {
 }
 
 func (d *nativeDefaults) application(subject plugin.Subject, versionKey, kind string) error {
-	app := subject.App
-	version, endpoint := app.Version, subject.InstalledPath
-	if versionKey == "" {
-		versionKey = app.VersionKey()
-	}
-	if versionKey == "CFBundleVersion" {
-		version = app.Build
-	}
+	endpoint := subject.InstalledPath
 	if kind == "copy_from_dmg" {
 		copied, err := d.copyDestination(subject.Path, endpoint)
 		if err != nil {
@@ -227,10 +284,11 @@ func (d *nativeDefaults) application(subject plugin.Subject, versionKey, kind st
 	if endpoint == "" {
 		return errors.New("selected application has no known installed path; set application.installed_path or installs")
 	}
-	if app.BundleID == "" || version == "" {
-		return errors.New("selected application requires a bundle identifier and comparison version")
+	item, err := applicationItem(*subject.App, endpoint, versionKey)
+	if err != nil {
+		return fmt.Errorf("selected application: %w", err)
 	}
-	d.put("installs", []map[string]any{{"type": "application", "path": endpoint, "CFBundleIdentifier": app.BundleID, "CFBundleName": app.Name, "CFBundleShortVersionString": app.Version, "CFBundleVersion": app.Build, "version_comparison_key": versionKey, "minosversion": app.MinimumOS}}, "app.installed_path")
+	d.put("installs", []map[string]any{item}, "app.installed_path")
 	return nil
 }
 
@@ -248,31 +306,40 @@ func (d *nativeDefaults) copyDestination(source, endpoint string) (string, error
 		}
 		d.put("items_to_copy", []packages.PackageItemToCopy{{SourceItem: source, DestinationPath: destination, DestinationItem: item}}, "app.archive_path")
 	}
+	if !d.detects() {
+		return endpoint, nil
+	}
 	var copies []packages.PackageItemToCopy
 	if err := json.Unmarshal(raw(d.values["items_to_copy"]), &copies); err != nil {
 		return "", err
 	}
+	return installedPath(source, endpoint, copies)
+}
+
+func installedPath(source, observed string, copies []packages.PackageItemToCopy) (string, error) {
 	var copied string
+	source = path.Clean(source)
 	for _, action := range copies {
-		if path.Clean(action.SourceItem) != path.Clean(source) {
+		item := path.Clean(action.SourceItem)
+		if source != item && !strings.HasPrefix(source, item+"/") {
 			continue
 		}
 		if copied != "" {
-			return "", errors.New("selected app has multiple copy destinations; set installs explicitly")
+			return "", errors.New("application has multiple copy destinations; write a native installs item")
 		}
-		item := action.DestinationItem
-		if item == "" {
-			item = path.Base(action.SourceItem)
+		name := action.DestinationItem
+		if name == "" {
+			name = path.Base(item)
 		}
-		copied = path.Join(action.DestinationPath, item)
+		copied = path.Join(action.DestinationPath, name, strings.TrimPrefix(strings.TrimPrefix(source, item), "/"))
 	}
-	if endpoint != "" && copied != "" && endpoint != copied {
+	if observed != "" && copied != "" && observed != copied {
 		return "", errors.New("application.installed_path disagrees with items_to_copy")
 	}
 	if copied != "" {
 		return copied, nil
 	}
-	return endpoint, nil
+	return observed, nil
 }
 
 func safeLocation(value string) bool {

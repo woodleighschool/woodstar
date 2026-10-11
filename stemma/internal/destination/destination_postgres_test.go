@@ -185,6 +185,56 @@ func TestStemmaAdapterPostgresPublishesContent(t *testing.T) {
 	converged()
 }
 
+func TestStemmaAdapterPostgresReplacesASuiteUnderItsVersion(t *testing.T) {
+	repo := serveRepository(t)
+	ctx := t.Context()
+	var packageID int64
+	for _, drawVersion := range []string{"25.1", "25.2"} {
+		manifest, draw := suiteApplication("Manifest", "26.2"), suiteApplication("Draw", drawVersion)
+		installer := installerFixture(t, "Suite.pkg", "suite with Draw "+drawVersion, "26.2")
+		request := plugin.ReconcileRequest[destinationapi.Config]{
+			Method: "apply", Prepared: true, Config: repo.connection, Artifact: installer,
+			Identity: plugin.Identity{Project: "adapter-test", Resource: plugin.ResourceReference{Kind: "MacSoftware", Name: "Suite"}, Destination: "woodstar"},
+			Metadata: raw(map[string]any{"pkginfo": map[string]any{"installs": []any{manifest, draw}}}),
+		}
+		if _, err := Handle(ctx, request); err != nil {
+			t.Fatal(err)
+		}
+		var titles, versions int
+		var foundID int64
+		repo.scan(t, `SELECT (SELECT count(*) FROM munki_software), (SELECT count(*) FROM munki_packages)`, &titles, &versions)
+		repo.scan(t, `SELECT p.id FROM munki_software s JOIN munki_packages p ON p.software_id = s.id WHERE s.name = 'Suite' AND p.version = '26.2'`, &foundID)
+		if titles != 1 || versions != 1 || (packageID != 0 && foundID != packageID) {
+			t.Fatalf("suite identity: counts=%d/%d package=%d, previous=%d", titles, versions, foundID, packageID)
+		}
+		packageID = foundID
+		pkg, err := repo.packages.GetByID(ctx, packageID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(pkg.Installs) != 2 || pkg.Installs[0].BundleShortVersion != "26.2" || pkg.Installs[1].BundleShortVersion != drawVersion {
+			t.Fatalf("suite detection: %+v", pkg.Installs)
+		}
+		if pkg.InstallerObjectID == nil {
+			t.Fatal("suite has no installer")
+		}
+		object, err := repo.objects.GetByID(ctx, *pkg.InstallerObjectID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if object.SHA256Value() != installer.SHA256 {
+			t.Fatalf("installer digest=%s, want %s", object.SHA256Value(), installer.SHA256)
+		}
+		before := repo.writes.Load()
+		for _, method := range []string{"plan", "apply"} {
+			request.Method = method
+			if response, err := Handle(ctx, request); err != nil || len(response.Changes) != 0 || repo.writes.Load() != before {
+				t.Fatalf("unchanged %s: changes=%+v writes=%d, want %d: %v", method, response.Changes, repo.writes.Load(), before, err)
+			}
+		}
+	}
+}
+
 func TestStemmaAdapterPostgresLifecycle(t *testing.T) { //nolint:funlen,gocognit,cyclop // Sequential ownership and convergence assertions share one real API lifecycle.
 	repo := serveRepository(t)
 	ctx := t.Context()

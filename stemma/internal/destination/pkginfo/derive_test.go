@@ -38,7 +38,10 @@ func TestSelectedMacApplicationEvidence(t *testing.T) {
 	if _, exists := values["supported_architectures"]; exists {
 		t.Fatal("application evidence must not infer host eligibility")
 	}
-	derived, err = Derive(request, json.RawMessage(`{"version":"99","installs":[],"supported_architectures":["arm64"]}`))
+	if _, err := Derive(request, json.RawMessage(`{"items_to_copy":[{"source_item":"Tools/Editor.app","destination_path":"/Applications/Managed"}]}`)); err == nil {
+		t.Fatal("copy destination disagreeing with the installed path was accepted")
+	}
+	derived, err = Derive(request, json.RawMessage(`{"version":"99","items_to_copy":[{"source_item":"Tools/Editor.app","destination_path":"/Applications/Managed"}],"installs":[],"supported_architectures":["arm64"]}`))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -126,5 +129,34 @@ func TestDerivedPackageMetadata(t *testing.T) {
 	request.Artifact.Version = ""
 	if _, err := Derive(request, json.RawMessage(`{}`)); err == nil || !strings.Contains(err.Error(), "no managed version: its components carry example.alpha 4.5.6, example.beta 7.8.9; ") {
 		t.Fatalf("a package without a managed version: %v", err)
+	}
+}
+
+func TestInspectedApplicationFollowsCopyDestination(t *testing.T) {
+	app := plugin.Subject{Kind: "app", Path: "Tools/Graph.app", App: &plugin.AppFacts{BundleID: "example.graph", Version: "2.3"}}
+	for _, test := range []struct {
+		name, observed string
+		copies         string
+		failure        bool
+	}{
+		{"copied folder", "", `[{"source_item":"Tools","destination_path":"/Applications","destination_item":"Suite"}]`, false},
+		{"conflicting observed path", "/Applications/Graph.app", `[{"source_item":"Tools","destination_path":"/Applications","destination_item":"Suite"}]`, true},
+		{"ambiguous copies", "", `[{"source_item":"Tools","destination_path":"/Applications"},{"source_item":"Tools/Graph.app","destination_path":"/Applications"}]`, true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			app.InstalledPath = test.observed
+			data := json.RawMessage(`{"items_to_copy":` + test.copies + `,"installs":[` + string(raw(app)) + `]}`)
+			derived, err := Derive(plugin.ReconcileRequest[json.RawMessage]{}, data)
+			if (err != nil) != test.failure {
+				t.Fatalf("Derive() error = %v", err)
+			}
+			if err != nil {
+				return
+			}
+			installs := derived.Values["installs"].([]any)
+			if got := installs[0].(map[string]any)["path"]; got != "/Applications/Suite/Graph.app" {
+				t.Fatalf("installed path = %v", got)
+			}
+		})
 	}
 }
