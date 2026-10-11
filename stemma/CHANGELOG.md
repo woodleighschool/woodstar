@@ -1,5 +1,28 @@
 # Changelog
 
+## [2.0.0](https://github.com/woodleighschool/woodstar/compare/stemma-v1.1.4...stemma-v2.0.0) (2026-10-11)
+
+
+### ⚠ BREAKING CHANGES
+
+* **stemma:** reconcile metadata without installer bytes
+
+### Features
+
+* **stemma:** derive suite detection from inspected applications ([34fdc0c](https://github.com/woodleighschool/woodstar/commit/34fdc0ce18deb39b57e0c5eea6b741b71a801621))
+* **stemma:** preview managed publication metadata ([0b781d5](https://github.com/woodleighschool/woodstar/commit/0b781d5317ca1f4b1401ce6fc97ad05b89947e6e))
+* **stemma:** reconcile metadata without installer bytes ([ed0bdd2](https://github.com/woodleighschool/woodstar/commit/ed0bdd2d6f3a4196a9b88869c4b144104099a42a))
+
+
+### Bug Fixes
+
+* **go:** update module github.com/woodleighschool/woodstar (v0.10.6-0.20261009221607-96b0319d72ca → v0.11.0) ([#532](https://github.com/woodleighschool/woodstar/issues/532)) ([9a60324](https://github.com/woodleighschool/woodstar/commit/9a60324207506cdbdb3677ed84c9c1a0d17c1bb1))
+* **go:** update module golang.org/x/sync (v0.23.0 → v0.24.0) ([#530](https://github.com/woodleighschool/woodstar/issues/530)) ([ae80454](https://github.com/woodleighschool/woodstar/commit/ae804542e09b3e16da92210724fc92dd3e4ecc7a))
+* **go:** update stemma (v0.10.3 → v0.10.4) ([#534](https://github.com/woodleighschool/woodstar/issues/534)) ([7c1949b](https://github.com/woodleighschool/woodstar/commit/7c1949bbbf948f9a8a3e7c2d783255ea66378c26))
+* **go:** update stemma (v0.10.5-0.20261011095622-0f2b998b1631 → v0.11.0) ([#547](https://github.com/woodleighschool/woodstar/issues/547)) ([4b3b1fa](https://github.com/woodleighschool/woodstar/commit/4b3b1fa8e4b068124b4bf658f9894a84d2d31830))
+* **stemma:** separate upload progress stages ([59d5b49](https://github.com/woodleighschool/woodstar/commit/59d5b492ffe649434f7e33a194a81bea1d255555))
+* **stemma:** validate publication names and explain missing versions ([d45a7b4](https://github.com/woodleighschool/woodstar/commit/d45a7b41a434c343cb03f877d980ebd85236a11e))
+
 ## [1.1.4](https://github.com/woodleighschool/woodstar/compare/stemma-v1.1.3...stemma-v1.1.4) (2026-10-09)
 
 
