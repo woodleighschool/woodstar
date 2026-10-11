@@ -4,16 +4,14 @@
 # Go and Node versions are supplied by Mise through the release workflow or local container task.
 ARG GO_VERSION
 ARG NODE_VERSION
-ARG DBIP_RELEASE=2026-08
 
 # ---- Go base --------------------------------------------------------------
 FROM --platform=$BUILDPLATFORM golang:${GO_VERSION}-alpine AS go-base
 
 # ---- GeoIP databases -----------------------------------------------------
 FROM go-base AS geoip
-ARG DBIP_RELEASE
 COPY tools/geoipdb/main.go /geoipdb.go
-RUN go run /geoipdb.go -release "${DBIP_RELEASE}" -output /geoip
+RUN go run /geoipdb.go -output /geoip
 
 # ---- Web build ------------------------------------------------------------
 # Build the frontend bundle so the Go stage can embed it. The runtime image

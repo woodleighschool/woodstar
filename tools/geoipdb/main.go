@@ -25,34 +25,20 @@ var databases = []struct {
 }
 
 func main() {
-	var release string
-	flag.Func("release", "DB-IP release in YYYY-MM format (default: latest published for City and ASN)", func(value string) error {
-		if _, err := time.Parse("2006-01", value); err != nil {
-			return fmt.Errorf("invalid DB-IP release %q: %w", value, err)
-		}
-		release = value
-		return nil
-	})
 	output := flag.String("output", ".local/geoip", "directory for decompressed MMDB files")
 	flag.Parse()
 
 	client := &http.Client{Timeout: 10 * time.Minute}
-	if err := run(context.Background(), client, release, *output); err != nil {
+	if err := run(context.Background(), client, *output); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
 
-func run(ctx context.Context, client *http.Client, release, output string) error {
-	if release == "" {
-		var err error
-		release, err = latestRelease(ctx, client)
-		if err != nil {
-			return err
-		}
-	}
-	if _, err := time.Parse("2006-01", release); err != nil {
-		return fmt.Errorf("invalid DB-IP release %q: %w", release, err)
+func run(ctx context.Context, client *http.Client, output string) error {
+	release, err := latestRelease(ctx, client)
+	if err != nil {
+		return err
 	}
 	if err := os.MkdirAll(output, 0o750); err != nil {
 		return fmt.Errorf("create GeoIP cache: %w", err)

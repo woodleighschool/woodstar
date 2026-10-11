@@ -105,7 +105,7 @@ func TestRunPublishedReleaseAndCache(t *testing.T) {
 	})}
 	output := t.TempDir()
 	for range 2 {
-		if err := run(t.Context(), client, "", output); err != nil {
+		if err := run(t.Context(), client, output); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -118,26 +118,5 @@ func TestRunPublishedReleaseAndCache(t *testing.T) {
 		if err != nil || string(data) != "synthetic mmdb" {
 			t.Fatalf("%s = %q, %v", filename, data, err)
 		}
-	}
-}
-
-func TestRunExplicitReleaseDoesNotDiscoverOrFallback(t *testing.T) {
-	requests := 0
-	client := &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
-		requests++
-		if r.URL.String() != "https://download.db-ip.com/free/dbip-city-lite-2025-12.mmdb.gz" {
-			t.Fatalf("unexpected request: %s", r.URL)
-		}
-		return &http.Response{StatusCode: http.StatusNotFound, Status: "404 Not Found", Body: io.NopCloser(strings.NewReader(""))}, nil
-	})}
-	output := t.TempDir()
-	if err := run(t.Context(), client, "2025-12", output); err == nil || !strings.Contains(err.Error(), "404") {
-		t.Fatalf("want pinned release failure, got %v", err)
-	}
-	if requests != 1 || currentRelease(output) != "" {
-		t.Fatalf("requests = %d, release = %q", requests, currentRelease(output))
-	}
-	if err := run(t.Context(), client, "invalid", output); err == nil || requests != 1 {
-		t.Fatalf("invalid release: error = %v, requests = %d", err, requests)
 	}
 }
