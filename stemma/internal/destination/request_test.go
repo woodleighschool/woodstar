@@ -54,6 +54,43 @@ func TestValidationChecksTheNameBeforePreparation(t *testing.T) {
 	}
 }
 
+// Validation of a prepared artifact answers with the declaration it will
+// publish, without connection settings.
+func TestValidationReportsWhatItWillPublish(t *testing.T) {
+	selected := plugin.Subject{Kind: "app", Path: "Example.app", App: &plugin.AppFacts{BundleID: "test.example", Version: "1.0", Build: "100"}}
+	request := plugin.ReconcileRequest[api.Config]{
+		Method: "validate", Prepared: true,
+		Identity:  plugin.Identity{Resource: plugin.ResourceReference{Kind: "MacSoftware", Name: "Example"}},
+		Metadata:  json.RawMessage(`{"pkginfo":{"category":"Media"},"targets":{"include":[{"label_name":"Staff","actions":["optional_installs"]}]}}`),
+		Artifact:  withApplication(installerFixture(t, "Example.dmg", "first installer", "1.0"), selected),
+		MinimumOS: &plugin.MinimumOS{Version: "14.0", Origin: "app.minimum_os"},
+	}
+	response, err := Handle(t.Context(), request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var published struct {
+		Pkginfo map[string]any  `json:"pkginfo"`
+		Targets json.RawMessage `json:"targets"`
+	}
+	if err := json.Unmarshal(response.Metadata, &published); err != nil {
+		t.Fatal(err)
+	}
+	pkginfo := published.Pkginfo
+	installs, _ := pkginfo["installs"].([]any)
+	if pkginfo["name"] != "Example" || pkginfo["version"] != "1.0" || pkginfo["category"] != "Media" || pkginfo["minimum_os_version"] != "14.0" || pkginfo["uninstall_method"] != "remove_copied_items" || len(installs) != 1 || !strings.Contains(string(published.Targets), "Staff") {
+		t.Fatalf("published metadata = %s", response.Metadata)
+	}
+	if response.Origins["pkginfo.category"] != "explicit" || response.Origins["pkginfo.version"] != "artifact.version" || response.Origins["pkginfo.installs"] != "app.installed_path" {
+		t.Fatalf("origins = %v", response.Origins)
+	}
+	// Before preparation there is nothing derived to report.
+	request.Prepared, request.Artifact = false, plugin.Artifact{}
+	if response, err := Handle(t.Context(), request); err != nil || len(response.Metadata) != 0 {
+		t.Fatalf("unprepared validation = %s: %v", response.Metadata, err)
+	}
+}
+
 func TestDerivedFieldsFollowTheCurrentEvidence(t *testing.T) {
 	fixture, connection := serveFixture(t)
 	selected := plugin.Subject{Kind: "app", Path: "Example.app", App: &plugin.AppFacts{BundleID: "test.example", Version: "1.0", Build: "100", MinimumOS: "14.0"}}

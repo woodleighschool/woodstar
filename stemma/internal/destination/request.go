@@ -44,6 +44,9 @@ type metadata struct {
 	installer      plugin.Artifact
 	controls       controls
 	origins        map[string]string
+	// effective is the declaration with every derived pkginfo value, for a
+	// prepared artifact.
+	effective json.RawMessage
 }
 
 func readRequest(ctx context.Context, request plugin.ReconcileRequest[api.Config]) (api.Config, metadata, error) {
@@ -57,10 +60,13 @@ func readRequest(ctx context.Context, request plugin.ReconcileRequest[api.Config
 		return cfg, metadata{}, err
 	}
 	static := !request.Prepared && request.Artifact.Path == ""
+	var effective json.RawMessage
 	if static {
 		if _, ok := derived.Values["version"]; !ok {
 			derived.Values["version"] = "0"
 		}
+	} else {
+		effective = raw(controls{Targets: settings.Targets, Pkginfo: raw(derived.Values), Retention: settings.Retention})
 	}
 	imported, err := pkginfo.Import(derived.Values, request.Identity.Resource)
 	if err != nil {
@@ -95,7 +101,7 @@ func readRequest(ctx context.Context, request plugin.ReconcileRequest[api.Config
 		name: imported.Name, version: identity.Version,
 		software: imported.Software, pkg: imported.Package,
 		requires: imported.Requires, updateFor: imported.UpdateFor, links: imported.Links,
-		peers: request.Peers, icon: icon, installer: request.Artifact, controls: settings, origins: derived.Origins,
+		peers: request.Peers, icon: icon, installer: request.Artifact, controls: settings, origins: derived.Origins, effective: effective,
 	}, nil
 }
 

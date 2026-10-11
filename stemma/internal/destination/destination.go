@@ -34,7 +34,7 @@ func Handle(ctx context.Context, request plugin.ReconcileRequest[api.Config]) (p
 		return plugin.ReconcileResponse{}, err
 	}
 	if request.Method == "validate" {
-		return plugin.ReconcileResponse{Origins: metadata.origins}, nil
+		return plugin.ReconcileResponse{Origins: metadata.origins, Metadata: metadata.effective}, nil
 	}
 	remote := api.New(cfg)
 	defer func() { _ = remote.Close() }()
