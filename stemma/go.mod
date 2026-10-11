@@ -8,7 +8,7 @@ require (
 	github.com/invopop/jsonschema v0.14.0
 	github.com/woodleighschool/goodies/auth v1.1.0
 	github.com/woodleighschool/goodies/bloby v1.4.0
-	github.com/woodleighschool/stemma v0.10.5-0.20261011095622-0f2b998b1631
+	github.com/woodleighschool/stemma v0.11.0
 	github.com/woodleighschool/woodstar v0.11.0
 	golang.org/x/sync v0.24.0
 	resty.dev/v3 v3.0.0-rc.4
