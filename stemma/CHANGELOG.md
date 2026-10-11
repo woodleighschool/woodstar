@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.1.5](https://github.com/woodleighschool/woodstar/compare/stemma-v1.1.4...stemma-v1.1.5) (2026-10-11)
+
+
+### Bug Fixes
+
+* **go:** update module github.com/woodleighschool/woodstar (v0.10.6-0.20261009221607-96b0319d72ca → v0.11.0) ([#532](https://github.com/woodleighschool/woodstar/issues/532)) ([9a60324](https://github.com/woodleighschool/woodstar/commit/9a60324207506cdbdb3677ed84c9c1a0d17c1bb1))
+* **go:** update module golang.org/x/sync (v0.23.0 → v0.24.0) ([#530](https://github.com/woodleighschool/woodstar/issues/530)) ([ae80454](https://github.com/woodleighschool/woodstar/commit/ae804542e09b3e16da92210724fc92dd3e4ecc7a))
+* **go:** update stemma (v0.10.3 → v0.10.4) ([#534](https://github.com/woodleighschool/woodstar/issues/534)) ([7c1949b](https://github.com/woodleighschool/woodstar/commit/7c1949bbbf948f9a8a3e7c2d783255ea66378c26))
+* **stemma:** separate upload progress stages ([59d5b49](https://github.com/woodleighschool/woodstar/commit/59d5b492ffe649434f7e33a194a81bea1d255555))
+
 ## [1.1.4](https://github.com/woodleighschool/woodstar/compare/stemma-v1.1.3...stemma-v1.1.4) (2026-10-09)
 
 
