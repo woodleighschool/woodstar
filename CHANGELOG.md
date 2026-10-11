@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.11.1](https://github.com/woodleighschool/woodstar/compare/v0.11.0...v0.11.1) (2026-10-11)
+
+
+### Bug Fixes
+
+* **go:** update module golang.org/x/term (v0.46.0 → v0.47.0) ([#525](https://github.com/woodleighschool/woodstar/issues/525)) ([ced7aa5](https://github.com/woodleighschool/woodstar/commit/ced7aa54770e237da997187332bd95a44602289c))
+* **go:** update module golang.org/x/text (v0.42.0 → v0.43.0) ([#526](https://github.com/woodleighschool/woodstar/issues/526)) ([2d6ef8d](https://github.com/woodleighschool/woodstar/commit/2d6ef8d454702febc063b75ee92316cb2f2d05b2))
+* **go:** update stemma (v0.10.3 → v0.10.4) ([#534](https://github.com/woodleighschool/woodstar/issues/534)) ([7c1949b](https://github.com/woodleighschool/woodstar/commit/7c1949bbbf948f9a8a3e7c2d783255ea66378c26))
+* **npm:** update dependency @base-ui/react (1.8.0 → 1.9.0) ([#539](https://github.com/woodleighschool/woodstar/issues/539)) ([1f2c2da](https://github.com/woodleighschool/woodstar/commit/1f2c2da3fad315bbe42bb8557746ca331af53dae))
+* **npm:** update dependency @woodleighschool/authz (1.2.0 → 1.2.1) ([#537](https://github.com/woodleighschool/woodstar/issues/537)) ([7bcb514](https://github.com/woodleighschool/woodstar/commit/7bcb514aec40342f5fe8fa9949a3a5ebcd01367a))
+* **npm:** update dependency lucide-react (1.53.0 → 1.54.0) ([#538](https://github.com/woodleighschool/woodstar/issues/538)) ([bddb322](https://github.com/woodleighschool/woodstar/commit/bddb32281d9836fc686ee7e946fb09a603ce389d))
+
 ## [0.11.0](https://github.com/woodleighschool/woodstar/compare/v0.10.5...v0.11.0) (2026-10-09)
 
 
