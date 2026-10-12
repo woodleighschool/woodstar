@@ -39,7 +39,7 @@
     "cn": "^0.4.0",
     "cva": "^1.0.0-beta.12",
     "date-fns": "^4.4.0",
-    "filesize": "^11.0.25",
+    "filesize": "^11.0.26",
     "lucide-react": "^1.55.0",
     "papaparse": "^5.7.0",
     "react": "^19.3.0",
