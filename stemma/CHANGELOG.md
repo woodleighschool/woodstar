@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.0.1](https://github.com/woodleighschool/woodstar/compare/stemma-v2.0.0...stemma-v2.0.1) (2026-10-17)
+
+
+### Bug Fixes
+
+* **go:** update module github.com/go-chi/chi/v5 (v5.3.2 → v5.4.0) ([#552](https://github.com/woodleighschool/woodstar/issues/552)) ([df80ca2](https://github.com/woodleighschool/woodstar/commit/df80ca28a808e237873ccedebe81647bc27b9d1c))
+* **go:** update module github.com/go-chi/chi/v5 (v5.4.0 → v5.5.0) ([#567](https://github.com/woodleighschool/woodstar/issues/567)) ([cfb8140](https://github.com/woodleighschool/woodstar/commit/cfb8140ba1217f0cdac97072a15fb233d07aadf6))
+* **go:** update stemma (v0.11.0 → v0.11.1) ([#555](https://github.com/woodleighschool/woodstar/issues/555)) ([620fcc0](https://github.com/woodleighschool/woodstar/commit/620fcc096d47dd6ccb5e951788800ecaf065fd13))
+
 ## [2.0.0](https://github.com/woodleighschool/woodstar/compare/stemma-v1.1.4...stemma-v2.0.0) (2026-10-11)
 
 
