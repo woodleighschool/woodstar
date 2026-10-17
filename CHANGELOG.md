@@ -1,5 +1,46 @@
 # Changelog
 
+## [0.11.1](https://github.com/woodleighschool/woodstar/compare/v0.11.0...v0.11.1) (2026-10-17)
+
+
+### Bug Fixes
+
+* discover GeoIP releases in container builds ([efd5a66](https://github.com/woodleighschool/woodstar/commit/efd5a663b31a39e0c2024b84decc6045a1376efc))
+* **go:** update module buf.build/gen/go/northpolesec/protos/protocolbuffers/go (v1.36.12-20261009200749-7d8cec123772.2 → v1.36.12-20261016173809-1dc7e7683329.2) ([#585](https://github.com/woodleighschool/woodstar/issues/585)) ([bfe80fd](https://github.com/woodleighschool/woodstar/commit/bfe80fd0e6343fa560d55af6bb14d0ed0814f6f0))
+* **go:** update module github.com/azure/azure-sdk-for-go/sdk/azidentity (v1.14.1 → v1.15.0) ([#570](https://github.com/woodleighschool/woodstar/issues/570)) ([eaa2b5b](https://github.com/woodleighschool/woodstar/commit/eaa2b5b65c0f4abe340a254ea3203c60f79f785a))
+* **go:** update module github.com/gabriel-vasile/mimetype (v1.4.15 → v1.4.16) ([#590](https://github.com/woodleighschool/woodstar/issues/590)) ([0e80695](https://github.com/woodleighschool/woodstar/commit/0e806954f43125efe991608f912b7c7b45be6b70))
+* **go:** update module github.com/go-chi/chi/v5 (v5.3.2 → v5.4.0) ([#552](https://github.com/woodleighschool/woodstar/issues/552)) ([df80ca2](https://github.com/woodleighschool/woodstar/commit/df80ca28a808e237873ccedebe81647bc27b9d1c))
+* **go:** update module github.com/go-chi/chi/v5 (v5.4.0 → v5.5.0) ([#567](https://github.com/woodleighschool/woodstar/issues/567)) ([cfb8140](https://github.com/woodleighschool/woodstar/commit/cfb8140ba1217f0cdac97072a15fb233d07aadf6))
+* **go:** update module github.com/microsoft/kiota-abstractions-go (v1.11.1 → v1.11.2) ([#586](https://github.com/woodleighschool/woodstar/issues/586)) ([308e9c5](https://github.com/woodleighschool/woodstar/commit/308e9c59654ee3c23e4f6be821f656178c92d0f2))
+* **go:** update module github.com/oschwald/geoip2-golang/v2 (v2.4.0 → v2.5.0) ([#550](https://github.com/woodleighschool/woodstar/issues/550)) ([b65ac69](https://github.com/woodleighschool/woodstar/commit/b65ac693c5ca52b62588ed4609b99ccbbf1606fa))
+* **go:** update module github.com/pressly/goose/v3 (v3.28.0 → v3.29.0) ([#549](https://github.com/woodleighschool/woodstar/issues/549)) ([f9f767b](https://github.com/woodleighschool/woodstar/commit/f9f767bd96c75b10895e9136cc8bcd95c7dbb53e))
+* **go:** update module golang.org/x/term (v0.46.0 → v0.47.0) ([#525](https://github.com/woodleighschool/woodstar/issues/525)) ([ced7aa5](https://github.com/woodleighschool/woodstar/commit/ced7aa54770e237da997187332bd95a44602289c))
+* **go:** update module golang.org/x/text (v0.42.0 → v0.43.0) ([#526](https://github.com/woodleighschool/woodstar/issues/526)) ([2d6ef8d](https://github.com/woodleighschool/woodstar/commit/2d6ef8d454702febc063b75ee92316cb2f2d05b2))
+* **go:** update stemma (v0.10.3 → v0.10.4) ([#534](https://github.com/woodleighschool/woodstar/issues/534)) ([7c1949b](https://github.com/woodleighschool/woodstar/commit/7c1949bbbf948f9a8a3e7c2d783255ea66378c26))
+* **go:** update stemma (v0.10.5-0.20261011095622-0f2b998b1631 → v0.11.0) ([#547](https://github.com/woodleighschool/woodstar/issues/547)) ([4b3b1fa](https://github.com/woodleighschool/woodstar/commit/4b3b1fa8e4b068124b4bf658f9894a84d2d31830))
+* **go:** update stemma (v0.11.0 → v0.11.1) ([#555](https://github.com/woodleighschool/woodstar/issues/555)) ([620fcc0](https://github.com/woodleighschool/woodstar/commit/620fcc096d47dd6ccb5e951788800ecaf065fd13))
+* **npm:** update dependency @base-ui/react (1.8.0 → 1.9.0) ([#539](https://github.com/woodleighschool/woodstar/issues/539)) ([1f2c2da](https://github.com/woodleighschool/woodstar/commit/1f2c2da3fad315bbe42bb8557746ca331af53dae))
+* **npm:** update dependency @tanstack/react-table (9.2.8 → 9.3.1) ([#563](https://github.com/woodleighschool/woodstar/issues/563)) ([da5773f](https://github.com/woodleighschool/woodstar/commit/da5773fa182ccc45843b8b10cab154dd3e59d641))
+* **npm:** update dependency @woodleighschool/authz (1.2.0 → 1.2.1) ([#537](https://github.com/woodleighschool/woodstar/issues/537)) ([7bcb514](https://github.com/woodleighschool/woodstar/commit/7bcb514aec40342f5fe8fa9949a3a5ebcd01367a))
+* **npm:** update dependency filesize (11.0.25 → 11.0.26) ([#556](https://github.com/woodleighschool/woodstar/issues/556)) ([0bc759e](https://github.com/woodleighschool/woodstar/commit/0bc759ea2be08b0be691c570adb7b79a7624ea9e))
+* **npm:** update dependency lucide-react (1.53.0 → 1.54.0) ([#538](https://github.com/woodleighschool/woodstar/issues/538)) ([bddb322](https://github.com/woodleighschool/woodstar/commit/bddb32281d9836fc686ee7e946fb09a603ce389d))
+* **npm:** update dependency lucide-react (1.54.0 → 1.55.0) ([#544](https://github.com/woodleighschool/woodstar/issues/544)) ([8417b61](https://github.com/woodleighschool/woodstar/commit/8417b61c85b0cd2f7fd58641db4a58a3819bf034))
+* **npm:** update dependency lucide-react (1.55.0 → 1.56.0) ([#565](https://github.com/woodleighschool/woodstar/issues/565)) ([7c0942f](https://github.com/woodleighschool/woodstar/commit/7c0942f92734207bda690a1ec9087ffdc13a46a9))
+* **npm:** update dependency lucide-react (1.56.0 → 1.57.0) ([#571](https://github.com/woodleighschool/woodstar/issues/571)) ([963df78](https://github.com/woodleighschool/woodstar/commit/963df78aa07e873be8eb905011db4e643d30ffd7))
+* **npm:** update dependency lucide-react (1.57.0 → 1.58.0) ([#589](https://github.com/woodleighschool/woodstar/issues/589)) ([0b8a3d1](https://github.com/woodleighschool/woodstar/commit/0b8a3d1e06437db2b1c9eca01696ce06fd1c6db4))
+* **npm:** update dependency sass (1.105.1 → 1.105.2) ([#588](https://github.com/woodleighschool/woodstar/issues/588)) ([6cf0973](https://github.com/woodleighschool/woodstar/commit/6cf097307f7826e62086f765ff3c5f082b12124b))
+* **npm:** update dependency shadcn (4.21.4 → 4.21.5) ([#574](https://github.com/woodleighschool/woodstar/issues/574)) ([565b45c](https://github.com/woodleighschool/woodstar/commit/565b45c560882b0cea55f35f55d9c8540eacffb6))
+* **npm:** update dependency shadcn (4.21.5 → 4.22.0) ([#592](https://github.com/woodleighschool/woodstar/issues/592)) ([de47754](https://github.com/woodleighschool/woodstar/commit/de4775444d154584e61bad7e47290fc53feed223))
+* **npm:** update dependency simple-icons (16.34.0 → 16.35.0) ([#553](https://github.com/woodleighschool/woodstar/issues/553)) ([89b7bac](https://github.com/woodleighschool/woodstar/commit/89b7bacc80952a4e2e16b5c8876dec4f18f75fbf))
+* **npm:** update dependency zod (4.6.5 → 4.6.6) ([#557](https://github.com/woodleighschool/woodstar/issues/557)) ([f95f907](https://github.com/woodleighschool/woodstar/commit/f95f9077833a3501b98f9cc58982a55712207d0c))
+* **npm:** update dependency zod (4.6.6 → 4.6.7) ([#562](https://github.com/woodleighschool/woodstar/issues/562)) ([04143bd](https://github.com/woodleighschool/woodstar/commit/04143bd7d5835f178b2ec0a5596dd5e551f44369))
+* **npm:** update dnd-kit monorepo (0.5.0 → 0.5.1) ([#582](https://github.com/woodleighschool/woodstar/issues/582)) ([0e53089](https://github.com/woodleighschool/woodstar/commit/0e530894874039b31ac28caa89c3ae1597e6a05a))
+* **npm:** update react runtime (19.3.0 → 19.3.1) ([#575](https://github.com/woodleighschool/woodstar/issues/575)) ([7fff526](https://github.com/woodleighschool/woodstar/commit/7fff5260a27200cb6c32884171a307c85b5a51f2))
+* **npm:** update tanstack-query monorepo (5.104.1 → 5.104.2) ([#560](https://github.com/woodleighschool/woodstar/issues/560)) ([17431d6](https://github.com/woodleighschool/woodstar/commit/17431d6029f8b5befcd18b81be73f11374aa117c))
+* **npm:** update tanstack-query monorepo (5.104.2 → 5.104.3) ([#580](https://github.com/woodleighschool/woodstar/issues/580)) ([4dbf11d](https://github.com/woodleighschool/woodstar/commit/4dbf11d65f55bb7d45341eff7ee9d905cff777e2))
+* **npm:** update tanstack-router monorepo ([#545](https://github.com/woodleighschool/woodstar/issues/545)) ([14dd85f](https://github.com/woodleighschool/woodstar/commit/14dd85f783da2079e9b2dc7bd63282c3fcfe513c))
+* **npm:** update tanstack-router monorepo ([#564](https://github.com/woodleighschool/woodstar/issues/564)) ([717acb8](https://github.com/woodleighschool/woodstar/commit/717acb88748d82bcbf290d5e5694782c74328015))
+
 ## [0.11.0](https://github.com/woodleighschool/woodstar/compare/v0.10.5...v0.11.0) (2026-10-09)
 
 
