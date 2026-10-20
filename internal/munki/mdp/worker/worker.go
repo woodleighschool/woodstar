@@ -129,7 +129,9 @@ func (w *Worker) Run(ctx context.Context) error {
 	w.logger.InfoContext(ctx, "shutting down")
 	cancelConn()
 	if !loopFinished {
-		<-loopDone
+		if err := <-loopDone; err != nil && runErr == nil {
+			runErr = fmt.Errorf("control connection: %w", err)
+		}
 	}
 
 	shutdownCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), shutdownTimeout)

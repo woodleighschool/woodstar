@@ -67,7 +67,7 @@ SELECT $1, id FROM authz_roles WHERE key = 'admin'`, userID); err != nil {
 	if err != nil {
 		t.Fatal(err)
 	}
-	levels := map[authz.Access]int{}
+	levels := make(map[authz.Access]int)
 	for _, grant := range grants {
 		if grant.Resource == ResourceHosts {
 			levels[grant.Access]++
