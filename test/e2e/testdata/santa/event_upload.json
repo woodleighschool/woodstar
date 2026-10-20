@@ -6,7 +6,7 @@
       "file_path": "/Applications/Woodstar Santa Test.app/Contents/MacOS/Woodstar Santa Test",
       "file_name": "Woodstar Santa Test",
       "executing_user": "alice",
-      "execution_time": 1784196000,
+      "execution_time": "$EXECUTION_TIME",
       "decision": "BLOCK_BINARY",
       "static_rule": true,
       "pid": 4242,

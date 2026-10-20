@@ -234,10 +234,17 @@ RETURNING id`,
 		preflightFinishedAt,
 	)
 
-	eventTime := time.Date(2026, 7, 16, 10, 0, 0, 0, time.UTC)
+	// Recent enough that the startup retention sweep keeps it.
+	eventTime := time.Now().UTC().Add(-time.Hour).Truncate(time.Second)
 	eventUploadStartedAt := time.Now()
 	var eventUpload syncv1.EventUploadResponse
-	client.postFixture("eventupload", "event_upload.json", nil, &syncv1.EventUploadRequest{}, &eventUpload)
+	client.postFixture(
+		"eventupload",
+		"event_upload.json",
+		map[string]any{"$EXECUTION_TIME": eventTime.Unix()},
+		&syncv1.EventUploadRequest{},
+		&eventUpload,
+	)
 	eventUploadFinishedAt := time.Now()
 	if len(eventUpload.GetEventUploadBundleBinaries()) != 0 {
 		t.Fatalf("bundle requests = %v, want none", eventUpload.GetEventUploadBundleBinaries())
