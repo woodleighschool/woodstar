@@ -312,8 +312,8 @@ importers:
         specifier: ^6.1.2
         version: 6.1.2(vite@8.3.4(@types/node@26.6.5)(jiti@2.7.0))
       eslint-plugin-better-tailwindcss:
-        specifier: ^4.9.1
-        version: 4.9.1(eslint@10.11.0(jiti@2.7.0)(supports-color@7.2.0))(oxlint@1.89.0(oxlint-tsgolint@7.0.2004))(tailwindcss@4.3.3)(typescript@6.0.3)
+        specifier: ^4.10.0
+        version: 4.10.0(eslint@10.11.0(jiti@2.7.0)(supports-color@7.2.0))(oxlint@1.89.0(oxlint-tsgolint@7.0.2004))(tailwindcss@4.3.3)(typescript@6.0.3)
       oxlint:
         specifier: 1.89.0
         version: 1.89.0(oxlint-tsgolint@7.0.2004)
@@ -2056,8 +2056,8 @@ packages:
     resolution: {integrity: sha512-TtpcNJ3XAzx3Gq8sWRzJaVajRs0uVxA2YAkdb1jm2YkPz4G6egUFAyA3n5vtEIZefPk5Wa4UXbKuS5fKkJWdgA==}
     engines: {node: '>=10'}
 
-  eslint-plugin-better-tailwindcss@4.9.1:
-    resolution: {integrity: sha512-WOuUOlc27Ib3tcYNt6qhRpvQUie5Y/pNTkwO779QGdfF1tu0k51avWtmvfPv++7/1oVjntoFHcUK4+5a6SPZvA==}
+  eslint-plugin-better-tailwindcss@4.10.0:
+    resolution: {integrity: sha512-EvcfEScF7N39LXuqX8fDnDsgylhbBZe5bbNb+6oN8ht06ou3MvwfPQ5hVgm2LWIPLOB5LBwNDCY6gBQGW4KHGA==}
     engines: {node: ^20.19.0 || ^22.12.0 || >=23.0.0}
     peerDependencies:
       eslint: ^7.0.0 || ^8.0.0 || ^9.0.0 || ^10.0.0
@@ -5465,7 +5465,7 @@ snapshots:
 
   escape-string-regexp@4.0.0: {}
 
-  eslint-plugin-better-tailwindcss@4.9.1(eslint@10.11.0(jiti@2.7.0)(supports-color@7.2.0))(oxlint@1.89.0(oxlint-tsgolint@7.0.2004))(tailwindcss@4.3.3)(typescript@6.0.3):
+  eslint-plugin-better-tailwindcss@4.10.0(eslint@10.11.0(jiti@2.7.0)(supports-color@7.2.0))(oxlint@1.89.0(oxlint-tsgolint@7.0.2004))(tailwindcss@4.3.3)(typescript@6.0.3):
     dependencies:
       '@eslint/css-tree': 4.1.1
       '@valibot/to-json-schema': 1.8.0(valibot@1.5.0(typescript@6.0.3))
