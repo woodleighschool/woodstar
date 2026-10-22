@@ -85,7 +85,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish plugin
-        uses: woodleighschool/stemma/actions/publish-plugin@d5ea239588df8281a52166efdcc267a21400be9f # v0.11.1
+        uses: woodleighschool/stemma/actions/publish-plugin@26440e570ad81ccb9c83fc127d19f6fe0bb7febc # v0.11.2
         with:
           workdir: stemma
           image: ghcr.io/woodleighschool/woodstar/stemma:${{ steps.release-version.outputs.version }}
