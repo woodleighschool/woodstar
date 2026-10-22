@@ -9,7 +9,7 @@ require (
 	github.com/woodleighschool/goodies/auth v1.1.0
 	github.com/woodleighschool/goodies/bloby v1.4.0
 	github.com/woodleighschool/stemma v0.11.1
-	github.com/woodleighschool/woodstar v0.11.0
+	github.com/woodleighschool/woodstar v0.11.1
 	golang.org/x/sync v0.24.0
 	resty.dev/v3 v3.0.0-rc.4
 )
@@ -39,7 +39,7 @@ require (
 	github.com/buger/jsonparser v1.6.1 // indirect
 	github.com/caarlos0/env/v11 v11.4.1 // indirect
 	github.com/coreos/go-oidc/v3 v3.21.0 // indirect
-	github.com/gabriel-vasile/mimetype v1.4.15 // indirect
+	github.com/gabriel-vasile/mimetype v1.4.16 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
@@ -49,7 +49,7 @@ require (
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jackc/pgx/v5 v5.11.0 // indirect
-	github.com/jackc/puddle/v2 v2.2.2 // indirect
+	github.com/jackc/puddle/v2 v2.2.3 // indirect
 	github.com/kaptinlin/jsonpointer v0.4.28 // indirect
 	github.com/kaptinlin/jsonschema v0.9.10 // indirect
 	github.com/klauspost/cpuid/v2 v2.4.0 // indirect
@@ -58,7 +58,7 @@ require (
 	github.com/minio/crc64nvme v1.1.1 // indirect
 	github.com/pb33f/go-yaml v0.1.0 // indirect
 	github.com/pb33f/ordered-map/v2 v2.3.2 // indirect
-	github.com/pressly/goose/v3 v3.28.0 // indirect
+	github.com/pressly/goose/v3 v3.29.0 // indirect
 	github.com/riverqueue/river v0.49.0 // indirect
 	github.com/riverqueue/river/riverdriver v0.49.0 // indirect
 	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.49.0 // indirect
@@ -66,7 +66,7 @@ require (
 	github.com/riverqueue/river/rivertype v0.49.0 // indirect
 	github.com/rs/cors v1.11.1 // indirect
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3 // indirect
-	github.com/sethvargo/go-retry v0.4.0 // indirect
+	github.com/sethvargo/go-retry v0.5.0 // indirect
 	github.com/woodleighschool/goodies/pglock v0.1.1 // indirect
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
