@@ -27,7 +27,11 @@ export const Route = createFileRoute("/_authenticated/santa/configurations/$id/r
   },
 });
 
-function RuleBreadcrumb({ children }: { children: (name: string | undefined) => ReactNode }) {
+function RuleBreadcrumb({
+  children,
+}: {
+  children: (name: string | undefined) => ReactNode;
+}): ReactNode {
   const { ruleId } = useParams({
     from: "/_authenticated/santa/configurations/$id/rules/$ruleId",
   });

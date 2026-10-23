@@ -28,6 +28,7 @@ export function ConfigurationDetailPage() {
   const { id } = useParams({ from: "/_authenticated/santa/configurations/$id" });
   const navigate = useNavigate();
   const canEdit = useCan({ resource: "santa.configurations", access: "edit" });
+  const canViewRules = useCan({ resource: "santa.rules", access: "view" });
   const query = useSantaConfiguration(id);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
@@ -49,29 +50,25 @@ export function ConfigurationDetailPage() {
         title="Configuration Details"
         actions={
           <>
-            <Button
-              size="sm"
-              variant="outline"
-              render={
-                <Link
-                  to="/santa/configurations/$id/rules"
-                  params={{ id: configuration.id }}
-                />
-              }
-              nativeButton={false}
-            >
-              <ListChecks data-icon="inline-start" />
-              Rules
-            </Button>
+            {canViewRules ? (
+              <Button
+                size="sm"
+                variant="outline"
+                render={
+                  <Link to="/santa/configurations/$id/rules" params={{ id: configuration.id }} />
+                }
+                nativeButton={false}
+              >
+                <ListChecks data-icon="inline-start" />
+                Rules
+              </Button>
+            ) : null}
             {canEdit ? (
               <>
                 <Button
                   size="sm"
                   render={
-                    <Link
-                      to="/santa/configurations/$id/edit"
-                      params={{ id: configuration.id }}
-                    />
+                    <Link to="/santa/configurations/$id/edit" params={{ id: configuration.id }} />
                   }
                   nativeButton={false}
                 >

@@ -1,6 +1,5 @@
 import { getRouteApi } from "@tanstack/react-router";
 
-
 import { RuleForm } from "./fields";
 import { formFromSearch } from "./form-state";
 import { useCreateSantaRule } from "./queries";
@@ -12,7 +11,6 @@ export function RuleCreatePage() {
   const { id: configurationID } = routeApi.useParams();
   const search = routeApi.useSearch();
   const create = useCreateSantaRule();
-
 
   return (
     <RuleForm

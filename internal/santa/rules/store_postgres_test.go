@@ -288,7 +288,7 @@ func TestRuleStatusesCanonicalizeBundleCollisions(t *testing.T) {
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
 		Hardware:     hosts.HostHardware{UUID: "santa-rule-status-collision-host"},
 		OrbitNodeKey: "santa-rule-status-collision-orbit",
-	})
+	}, heartbeats.Contact{})
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
 	}
@@ -577,7 +577,7 @@ func TestRuleIdentityIsUniqueWithinConfiguration(t *testing.T) {
 	host, err := hosts.NewStore(db, labels.NewStore(db)).UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
 		Hardware:     hosts.HostHardware{UUID: "santa-rule-configuration-boundary"},
 		OrbitNodeKey: "santa-rule-configuration-boundary-orbit",
-	})
+	}, heartbeats.Contact{})
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
 	}
@@ -743,13 +743,11 @@ func createSantaRuleConfiguration(t *testing.T, db *pgxpool.Pool, name string) i
 	t.Helper()
 
 	configuration, err := configurations.NewStore(db).Create(t.Context(), configurations.ConfigurationMutation{
-		Name: name,
-		SyncSettings: configurations.SyncSettings{
-			ClientMode:               configurations.ClientModeMonitor,
-			OverrideFileAccessAction: configurations.FileAccessActionNone,
-			FullSyncIntervalSeconds:  600,
-			BatchSize:                50,
-		},
+		Name:                     name,
+		ClientMode:               configurations.ClientModeMonitor,
+		OverrideFileAccessAction: configurations.FileAccessActionNone,
+		FullSyncIntervalSeconds:  600,
+		BatchSize:                50,
 	})
 	if err != nil {
 		t.Fatalf("create configuration %q: %v", name, err)

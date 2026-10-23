@@ -177,7 +177,7 @@ func TestSyncServiceResolvesRulesInsideSelectedConfiguration(t *testing.T) {
 	service := NewSyncService(Dependencies{
 		HostStore: &testHostStore{hostID: 7},
 		Configurations: staticConfigurationResolver{configuration: &configurations.ConfigurationMatch{
-			Configuration: configurations.Configuration{ID: 42},
+			ID: 42,
 		}},
 		Events:     &testEventStore{},
 		Rules:      ruleStore,
@@ -220,7 +220,7 @@ func TestSyncServiceRejectsConflictingExpandedRulesBeforePreparingSync(t *testin
 	service := NewSyncService(Dependencies{
 		HostStore: &testHostStore{hostID: 7},
 		Configurations: staticConfigurationResolver{configuration: &configurations.ConfigurationMatch{
-			Configuration: configurations.Configuration{ID: 42},
+			ID: 42,
 		}},
 		Events:     &testEventStore{},
 		Rules:      ruleStore,

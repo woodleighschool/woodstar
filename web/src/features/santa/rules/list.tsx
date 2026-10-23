@@ -147,16 +147,14 @@ export function RuleListPage() {
   const bulkDelete = useBulkDeleteSantaRules();
   const [deleting, setDeleting] = useState<SantaRule | null>(null);
   const ruleType = search.rule_type;
-  const query = useSantaRules(
-    {
-      q: tableSearch.q,
-      page: tableSearch.page,
-      per_page: tableSearch.per_page,
-      sort: tableSearch.sort,
-      configuration_id: [configurationID],
-      rule_type: ruleType,
-    },
-  );
+  const query = useSantaRules({
+    q: tableSearch.q,
+    page: tableSearch.page,
+    per_page: tableSearch.per_page,
+    sort: tableSearch.sort,
+    configuration_id: [configurationID],
+    rule_type: ruleType,
+  });
   const tableRows = useMemo<RuleTableRow[]>(
     () =>
       query.data?.items.map((rule) => ({
@@ -188,10 +186,7 @@ export function RuleListPage() {
             <Button
               size="sm"
               render={
-                <Link
-                  to="/santa/configurations/$id/rules/new"
-                  params={{ id: configurationID }}
-                />
+                <Link to="/santa/configurations/$id/rules/new" params={{ id: configurationID }} />
               }
               nativeButton={false}
             >
@@ -278,7 +273,7 @@ function RuleRowActions({
             render={
               <Link
                 to="/santa/configurations/$id/rules/$ruleId/edit"
-                params={{ id: String(rule.configuration_id), ruleId: rule.id }}
+                params={{ id: rule.configuration_id, ruleId: rule.id }}
               />
             }
           >
