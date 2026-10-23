@@ -10,12 +10,13 @@ const searchSchema = createTableSearchSchema([
   "identifier",
   "name",
   "description",
+  "policy",
   "updated_at",
 ]).extend({
   rule_type: z.array(z.enum(RULE_TYPE_VALUES)).optional().catch(undefined),
 });
 
-export const Route = createFileRoute("/_authenticated/santa/rules/")({
+export const Route = createFileRoute("/_authenticated/santa/configurations/$id/rules/")({
   validateSearch: searchSchema,
   search: { middlewares: [stripSearchParams(TABLE_SEARCH_DEFAULTS)] },
   component: RuleListPage,

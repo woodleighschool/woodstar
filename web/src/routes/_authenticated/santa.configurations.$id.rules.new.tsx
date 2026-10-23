@@ -12,12 +12,15 @@ const searchSchema = z.object({
   tab: z.literal("targets").optional().catch(undefined),
 });
 
-export const Route = createFileRoute("/_authenticated/santa/rules/new")({
-  staticData: { breadcrumb: "Create Rule" },
+export const Route = createFileRoute("/_authenticated/santa/configurations/$id/rules/new")({
+  staticData: { breadcrumb: "Create" },
   validateSearch: searchSchema,
-  beforeLoad: ({ context }) =>
+  beforeLoad: ({ context, params }) =>
     requirePermission(context.queryClient, { resource: "santa.rules", access: "edit" }, () => {
-      throw redirect({ to: "/santa/rules" });
+      throw redirect({
+        to: "/santa/configurations/$id/rules",
+        params: { id: params.id },
+      });
     }),
   component: RuleCreatePage,
 });

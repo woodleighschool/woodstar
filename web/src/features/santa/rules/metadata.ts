@@ -2,7 +2,7 @@ import type { SantaRule } from "@lib/api";
 import { enumLabel, type EnumMetadataMap, enumOptions } from "@lib/enum-metadata";
 
 export type SantaRuleType = SantaRule["rule_type"];
-export type SantaRulePolicy = SantaRule["targets"]["include"][number]["policy"];
+export type SantaRulePolicy = SantaRule["policy"];
 
 export const RULE_TYPE_VALUES = [
   "binary",
