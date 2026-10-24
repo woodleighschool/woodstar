@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.0.2](https://github.com/woodleighschool/woodstar/compare/stemma-v2.0.1...stemma-v2.0.2) (2026-10-24)
+
+
+### Bug Fixes
+
+* **go:** update module github.com/woodleighschool/goodies/bloby (v1.4.0 → v1.4.1) ([#628](https://github.com/woodleighschool/woodstar/issues/628)) ([232c6a1](https://github.com/woodleighschool/woodstar/commit/232c6a140d3d5b47ebf2e2a506422b8e3526b8e5))
+* **go:** update module github.com/woodleighschool/woodstar (v0.11.0 → v0.11.1) ([#616](https://github.com/woodleighschool/woodstar/issues/616)) ([3312366](https://github.com/woodleighschool/woodstar/commit/331236632330991694c1bb51c0b0159a54dbea19))
+
 ## [2.0.1](https://github.com/woodleighschool/woodstar/compare/stemma-v2.0.0...stemma-v2.0.1) (2026-10-22)
 
 
