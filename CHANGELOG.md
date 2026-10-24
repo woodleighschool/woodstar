@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.11.2](https://github.com/woodleighschool/woodstar/compare/v0.11.1...v0.11.2) (2026-10-24)
+
+
+### Bug Fixes
+
+* **go:** update module github.com/microsoftgraph/msgraph-sdk-go (v1.104.0 → v1.105.0) ([#624](https://github.com/woodleighschool/woodstar/issues/624)) ([dfec24d](https://github.com/woodleighschool/woodstar/commit/dfec24de007c5197d5cce20707e35f90ec96848e))
+* **go:** update module github.com/oapi-codegen/runtime (v1.7.0 → v1.8.0) ([#625](https://github.com/woodleighschool/woodstar/issues/625)) ([1378ee3](https://github.com/woodleighschool/woodstar/commit/1378ee39fdf1278ead0e33db71cc48e73dd16dcb))
+* **go:** update module github.com/woodleighschool/goodies/bloby (v1.4.0 → v1.4.1) ([#628](https://github.com/woodleighschool/woodstar/issues/628)) ([232c6a1](https://github.com/woodleighschool/woodstar/commit/232c6a140d3d5b47ebf2e2a506422b8e3526b8e5))
+* **npm:** update dependency filesize (11.0.26 → 11.0.27) ([#617](https://github.com/woodleighschool/woodstar/issues/617)) ([f5e0e90](https://github.com/woodleighschool/woodstar/commit/f5e0e90e14dbe9ef61f3f3baae494d04b29cbbd0))
+* **npm:** update dependency filesize (11.0.27 → 11.0.28) ([#622](https://github.com/woodleighschool/woodstar/issues/622)) ([7ce5bd8](https://github.com/woodleighschool/woodstar/commit/7ce5bd87ad97b810bb5776c6df84980a24ba5f44))
+* **npm:** update dependency sass (1.106.0 → 1.106.1) ([#623](https://github.com/woodleighschool/woodstar/issues/623)) ([b332775](https://github.com/woodleighschool/woodstar/commit/b332775c971d39991f194bafcd211bd51d68cfb7))
+* **npm:** update tanstack-router monorepo ([#629](https://github.com/woodleighschool/woodstar/issues/629)) ([86c1966](https://github.com/woodleighschool/woodstar/commit/86c19662caf417f1008d7718fbbab5c0127d8820))
+
 ## [0.11.1](https://github.com/woodleighschool/woodstar/compare/v0.11.0...v0.11.1) (2026-10-22)
 
 
