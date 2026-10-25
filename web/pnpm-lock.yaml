@@ -227,8 +227,8 @@ importers:
         specifier: ^1.2.1
         version: 1.2.1(react@19.3.1)
       '@woodleighschool/bloby-client':
-        specifier: ^1.3.0
-        version: 1.3.0
+        specifier: ^1.3.1
+        version: 1.3.1
       cn:
         specifier: ^0.5.0
         version: 0.5.0
@@ -332,20 +332,20 @@ importers:
 
 packages:
 
-  '@aws-sdk/checksums@3.1001.4':
-    resolution: {integrity: sha512-H8BiG/2DnfwydVxD1uDPLa1s1sfhRnVTbD2OwzfTr3WlJzgbIzICDXxBTlTMjbWNNCe4VS9X55fco+JI34L9kw==}
+  '@aws-sdk/checksums@3.1001.5':
+    resolution: {integrity: sha512-6erto9nK2OZO/woEgmFIaPh5gChgdNd7nL6jgAf8TAXz3/QHC8Pan2TFe9GYp3IxOIKCCGWPylSjtOHKfNzQlw==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/core@3.978.4':
-    resolution: {integrity: sha512-JvGp6y9sPX8FSs2K/EmFMZcUfdkHxqGE45+oxwGC75OIh50j2e4cbx7zcR3BwNs2DSGqJdBja5h6Vy89iIDmRQ==}
+  '@aws-sdk/core@3.978.5':
+    resolution: {integrity: sha512-ruI0AWqcrfL20XDS6SwZIJFPOBZ6N0ADa9nLzWlBhxk1aoUjbUX3JkTR9vEmk7o35XpAHi68ahZ4T6RE2U9XyA==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/crc64-nvme@3.972.44':
-    resolution: {integrity: sha512-qfHpCgw0ZNdknCrQkmjvwANNcEjhyPSWpVv/P+f6jH5Zxvva1ie6tcT3akN6XCbWxcTTcM2Jy1lsak6RV636pw==}
+  '@aws-sdk/crc64-nvme@3.972.45':
+    resolution: {integrity: sha512-aIMlNlpx/C01RqzMWulTRD+DgXMk90NwQb1UXPyXmh9F/JZPJBZ9JkQ9SajGZfQq4iRHHzwF2Wds/Dkqw0R0hQ==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/types@3.974.6':
-    resolution: {integrity: sha512-v/clNZzZnDxGyvpHMOGpJKVXFAExJzUNAAjaWGdcx8QAcXLGwTaOkw33p5SHAi0YAioK32xB3hWwOekRVfmfKg==}
+  '@aws-sdk/types@3.975.0':
+    resolution: {integrity: sha512-WQlhs6juByzWOzj5fwxOx0mPJaEqMcG/sDpl3Id61B3XhKE63xY+0QWcnG+sWR/sCfprmreyUo1lM7IKZmHMzw==}
     engines: {node: '>=20.0.0'}
 
   '@aws-sdk/xml-builder@3.972.41':
@@ -1589,8 +1589,8 @@ packages:
       react:
         optional: true
 
-  '@woodleighschool/bloby-client@1.3.0':
-    resolution: {integrity: sha512-GV0w5imqvd8kCrFOyd/8rFd1fM1LGcJPTCF6Q56O7DlUz2Eay1wx/UEZ/VNn1i/v+hKrkR0hG6EKabvPGOxaug==}
+  '@woodleighschool/bloby-client@1.3.1':
+    resolution: {integrity: sha512-A0DnvFFKp1oZ1Y06x2aC/5j6JLnOE/HLfl3FSRjvQ2dDBKvlEtO8qiSYD32xtFz/IsZ0Rpknex+B5E7IxWd/tw==}
 
   accepts@2.0.0:
     resolution: {integrity: sha512-5cvg6CtKwfgdmVqY1WIiXKc3Q1bkRqGLi+2W/6ao+6Y7gu/RCwRuAhGEzh5B4KlszSuTLgZYuqFqo5bImjNKng==}
@@ -3717,17 +3717,17 @@ packages:
 
 snapshots:
 
-  '@aws-sdk/checksums@3.1001.4':
+  '@aws-sdk/checksums@3.1001.5':
     dependencies:
-      '@aws-sdk/core': 3.978.4
-      '@aws-sdk/types': 3.974.6
+      '@aws-sdk/core': 3.978.5
+      '@aws-sdk/types': 3.975.0
       '@smithy/core': 3.36.1
       '@smithy/types': 4.19.0
       tslib: 2.8.1
 
-  '@aws-sdk/core@3.978.4':
+  '@aws-sdk/core@3.978.5':
     dependencies:
-      '@aws-sdk/types': 3.974.6
+      '@aws-sdk/types': 3.975.0
       '@aws-sdk/xml-builder': 3.972.41
       '@aws/lambda-invoke-store': 0.3.0
       '@smithy/core': 3.36.1
@@ -3736,12 +3736,12 @@ snapshots:
       bowser: 2.14.1
       tslib: 2.8.1
 
-  '@aws-sdk/crc64-nvme@3.972.44':
+  '@aws-sdk/crc64-nvme@3.972.45':
     dependencies:
-      '@aws-sdk/checksums': 3.1001.4
+      '@aws-sdk/checksums': 3.1001.5
       tslib: 2.8.1
 
-  '@aws-sdk/types@3.974.6':
+  '@aws-sdk/types@3.975.0':
     dependencies:
       '@smithy/types': 4.19.0
       tslib: 2.8.1
@@ -5057,9 +5057,9 @@ snapshots:
     optionalDependencies:
       react: 19.3.1
 
-  '@woodleighschool/bloby-client@1.3.0':
+  '@woodleighschool/bloby-client@1.3.1':
     dependencies:
-      '@aws-sdk/crc64-nvme': 3.972.44
+      '@aws-sdk/crc64-nvme': 3.972.45
       '@stablelib/sha256': 2.0.1
       p-map: 7.1.1
       p-retry: 8.0.1
