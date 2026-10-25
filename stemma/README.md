@@ -38,7 +38,7 @@ deterministic tar.zst bundles for Darwin, Linux, and Windows on amd64 and arm64.
 Each bundle contains the executable and licence at its root, with dependency
 licences under `third_party_licenses/`.
 
-The release workflow publishes the bundles with Stemma's publish-plugin action as
+The release workflow publishes the bundles with `stemma plugins publish` as
 one OCI platform index at `ghcr.io/woodleighschool/woodstar/stemma`, tagged with
 the plugin version. Plugin releases have independent `stemma-<version>` Git tags
 and a changelog in this directory; they do not release the server.

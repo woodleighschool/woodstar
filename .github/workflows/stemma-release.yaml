@@ -48,7 +48,8 @@ jobs:
         with:
           cache: false
           experimental: true
-          install_args: --locked go go:github.com/google/go-licenses/v2
+          working_directory: stemma
+          install_args: --locked go go:github.com/google/go-licenses/v2 github:woodleighschool/stemma
 
       - name: Resolve release version
         id: release-version
@@ -85,7 +86,10 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish plugin
-        uses: woodleighschool/stemma/actions/publish-plugin@26440e570ad81ccb9c83fc127d19f6fe0bb7febc # v0.11.2
-        with:
-          workdir: stemma
-          image: ghcr.io/woodleighschool/woodstar/stemma:${{ steps.release-version.outputs.version }}
+        working-directory: stemma
+        env:
+          IMAGE: ghcr.io/woodleighschool/woodstar/stemma:${{ steps.release-version.outputs.version }}
+          SOURCE: ${{ github.server_url }}/${{ github.repository }}
+        run: >-
+          stemma plugins publish "$IMAGE" --goreleaser dist
+          --annotation "org.opencontainers.image.source=${SOURCE}"

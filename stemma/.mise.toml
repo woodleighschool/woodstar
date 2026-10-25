@@ -1,3 +1,6 @@
+[tools]
+"github:woodleighschool/stemma" = "v0.11.2"
+
 [tasks.release-check]
 description = "Validate the plugin release configuration"
 run = "goreleaser check"
