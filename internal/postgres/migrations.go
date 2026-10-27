@@ -26,7 +26,7 @@ const (
 
 	// riverMigrationVersion is deliberately pinned so dependency updates do not
 	// mutate the database schema without an explicit application change.
-	riverMigrationVersion = 7
+	riverMigrationVersion = 8
 
 	// blobyAdoptionVersion hands the existing object schema to Bloby before
 	// its runner or later application migrations can use it.
