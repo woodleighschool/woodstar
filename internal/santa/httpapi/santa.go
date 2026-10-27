@@ -48,5 +48,5 @@ func registerAPI(
 	registerSantaConfigurations(configurationsAPI, configurationStore, logger)
 	registerSantaRules(rulesAPI, ruleStore, logger)
 	registerSantaEvents(eventsAPI, eventStore, logger)
-	registerHostSantaRules(rulesAPI, ruleStore, logger)
+	registerHostSantaRules(rulesAPI, configurationStore, ruleStore, logger)
 }

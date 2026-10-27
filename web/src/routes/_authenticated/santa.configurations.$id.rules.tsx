@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { requirePermission } from "@features/authn/guards";
 
-export const Route = createFileRoute("/_authenticated/santa/rules")({
+export const Route = createFileRoute("/_authenticated/santa/configurations/$id/rules")({
   beforeLoad: ({ context }) =>
     requirePermission(context.queryClient, { resource: "santa.rules", access: "view" }),
   staticData: { breadcrumb: "Rules" },

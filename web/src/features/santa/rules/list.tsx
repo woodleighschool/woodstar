@@ -29,11 +29,11 @@ import { DEFAULT_PAGE_SIZE } from "@lib/pagination";
 import { formatRelative } from "@lib/utils";
 
 import { RuleDeleteDialog } from "./delete-dialog";
-import { ruleTypeLabel, RULE_TYPE_OPTIONS } from "./metadata";
+import { POLICIES, ruleTypeLabel, RULE_TYPE_OPTIONS } from "./metadata";
 import { useBulkDeleteSantaRules, useSantaRules } from "./queries";
 
-const routeApi = getRouteApi("/_authenticated/santa/rules/");
-const RULE_TYPE_FILTER_KEYS = [{ id: "rule_type", multiple: true }] as const;
+const routeApi = getRouteApi("/_authenticated/santa/configurations/$id/rules/");
+const RULE_FILTER_KEYS = [{ id: "rule_type", multiple: true }] as const;
 
 interface RuleTableRow {
   id: number;
@@ -43,7 +43,14 @@ interface RuleTableRow {
 
 function RuleNameCell({ row }: DataTableCellContext<RuleTableRow>) {
   return (
-    <TextLink to="/santa/rules/$id" params={{ id: row.original.rule.id }} className="font-medium">
+    <TextLink
+      to="/santa/configurations/$id/rules/$ruleId"
+      params={{
+        id: row.original.rule.configuration_id,
+        ruleId: row.original.rule.id,
+      }}
+      className="font-medium"
+    >
       {row.original.rule.name}
     </TextLink>
   );
@@ -76,6 +83,17 @@ function ruleColumns(canEdit: boolean): DataTableColumnDef<RuleTableRow>[] {
       size: 120,
       minSize: 120,
       maxSize: 120,
+      enableResizing: false,
+    },
+    {
+      id: "policy",
+      accessorFn: (row) => row.rule.policy,
+      header: "Policy",
+      cell: ({ row }) => POLICIES[row.original.rule.policy].name,
+      meta: { label: "Policy" },
+      size: 104,
+      minSize: 104,
+      maxSize: 104,
       enableResizing: false,
     },
     {
@@ -119,10 +137,11 @@ function ruleColumns(canEdit: boolean): DataTableColumnDef<RuleTableRow>[] {
 export function RuleListPage() {
   const search = routeApi.useSearch();
   const navigate = routeApi.useNavigate();
+  const { id: configurationID } = routeApi.useParams();
   const tableSearch = useDataTableSearch({
     search,
     onSearchChange: (updater) => void navigate({ search: updater, replace: true }),
-    filterKeys: RULE_TYPE_FILTER_KEYS,
+    filterKeys: RULE_FILTER_KEYS,
   });
   const canEdit = useCan({ resource: "santa.rules", access: "edit" });
   const bulkDelete = useBulkDeleteSantaRules();
@@ -133,6 +152,7 @@ export function RuleListPage() {
     page: tableSearch.page,
     per_page: tableSearch.per_page,
     sort: tableSearch.sort,
+    configuration_id: [configurationID],
     rule_type: ruleType,
   });
   const tableRows = useMemo<RuleTableRow[]>(
@@ -163,7 +183,13 @@ export function RuleListPage() {
         title="Rules"
         actions={
           canEdit ? (
-            <Button size="sm" render={<Link to="/santa/rules/new" />} nativeButton={false}>
+            <Button
+              size="sm"
+              render={
+                <Link to="/santa/configurations/$id/rules/new" params={{ id: configurationID }} />
+              }
+              nativeButton={false}
+            >
               <Plus data-icon="inline-start" />
               Create
             </Button>
@@ -178,7 +204,7 @@ export function RuleListPage() {
           onRetry={() => void query.refetch()}
         />
       ) : query.isLoading ? (
-        <DataTableSkeleton columnCount={canEdit ? 6 : 4} filterCount={1} />
+        <DataTableSkeleton columnCount={canEdit ? 7 : 5} filterCount={1} />
       ) : (
         <DataTable
           table={table}
@@ -243,7 +269,14 @@ function RuleRowActions({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuGroup>
-          <DropdownMenuItem render={<Link to="/santa/rules/$id/edit" params={{ id: rule.id }} />}>
+          <DropdownMenuItem
+            render={
+              <Link
+                to="/santa/configurations/$id/rules/$ruleId/edit"
+                params={{ id: rule.configuration_id, ruleId: rule.id }}
+              />
+            }
+          >
             Edit
           </DropdownMenuItem>
           <DropdownMenuItem variant="destructive" onClick={() => onDelete(rule)}>

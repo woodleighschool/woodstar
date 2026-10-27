@@ -1,5 +1,5 @@
 import { useNavigate, useParams } from "@tanstack/react-router";
-import { Pencil, Trash2 } from "lucide-react";
+import { ListChecks, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import { BooleanIndicator } from "@components/boolean-indicator";
@@ -28,6 +28,7 @@ export function ConfigurationDetailPage() {
   const { id } = useParams({ from: "/_authenticated/santa/configurations/$id" });
   const navigate = useNavigate();
   const canEdit = useCan({ resource: "santa.configurations", access: "edit" });
+  const canViewRules = useCan({ resource: "santa.rules", access: "view" });
   const query = useSantaConfiguration(id);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
@@ -48,29 +49,44 @@ export function ConfigurationDetailPage() {
       <PageHeader
         title="Configuration Details"
         actions={
-          canEdit ? (
-            <>
+          <>
+            {canViewRules ? (
               <Button
                 size="sm"
+                variant="outline"
                 render={
-                  <Link to="/santa/configurations/$id/edit" params={{ id: configuration.id }} />
+                  <Link to="/santa/configurations/$id/rules" params={{ id: configuration.id }} />
                 }
                 nativeButton={false}
               >
-                <Pencil data-icon="inline-start" />
-                Edit
+                <ListChecks data-icon="inline-start" />
+                Rules
               </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                size="sm"
-                onClick={() => setDeleteOpen(true)}
-              >
-                <Trash2 data-icon="inline-start" />
-                Delete
-              </Button>
-            </>
-          ) : null
+            ) : null}
+            {canEdit ? (
+              <>
+                <Button
+                  size="sm"
+                  render={
+                    <Link to="/santa/configurations/$id/edit" params={{ id: configuration.id }} />
+                  }
+                  nativeButton={false}
+                >
+                  <Pencil data-icon="inline-start" />
+                  Edit
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setDeleteOpen(true)}
+                >
+                  <Trash2 data-icon="inline-start" />
+                  Delete
+                </Button>
+              </>
+            ) : null}
+          </>
         }
       />
 
