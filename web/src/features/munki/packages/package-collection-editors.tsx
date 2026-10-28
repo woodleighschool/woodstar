@@ -48,17 +48,19 @@ import {
   TableHeader,
   TableRow,
 } from "@components/ui/table";
+import { Textarea } from "@components/ui/textarea";
 import { ValidatedFormField } from "@components/validated-form-field";
 import type { MunkiPackage } from "@lib/api";
 
 import { MUNKI_INSTALL_ITEM_TYPE_OPTIONS } from "../software/metadata";
 import type { PackageEditorForm } from "./fields";
-import { emptyStringRow } from "./form-adapter";
+import { emptyLaunchArgumentsRow, emptyStringRow } from "./form-adapter";
 import {
   type Architecture,
   type InstallerEnvironmentRow,
   type InstallItemRow,
   type ItemToCopyRow,
+  type LaunchArgumentsRow,
   type ReceiptRow,
   type StringRow,
 } from "./form-schema";
@@ -199,6 +201,9 @@ export function BlockingApplicationsEditor({ form }: { form: PackageEditorForm }
                                 if (checked && field.state.value.length > 0) {
                                   field.handleChange([]);
                                 }
+                                if (checked) {
+                                  form.setFieldValue("blocking_applications_with_launch_args", []);
+                                }
                               }}
                             />
                             <FieldContent>
@@ -239,6 +244,77 @@ export function BlockingApplicationsEditor({ form }: { form: PackageEditorForm }
         </form.Field>
       )}
     </form.Subscribe>
+  );
+}
+
+export function LaunchArgumentsEditor({ form }: { form: PackageEditorForm }) {
+  return (
+    <form.Field name="blocking_applications_with_launch_args" mode="array">
+      {(field) => (
+        <ValidatedFormField field={field}>
+          {(control) => (
+            <div {...control} tabIndex={-1}>
+              <FieldSet className="gap-4">
+                <FieldLegend variant="label">Relaunch Arguments</FieldLegend>
+                <FieldDescription>
+                  Arguments passed, one per line, when Managed Software Center reopens an
+                  application it quit. The application also blocks installation.
+                </FieldDescription>
+                <FieldGroup className="gap-2">
+                  {field.state.value.map((row, index) => (
+                    <LaunchArgumentsRowFields
+                      key={row.rowID}
+                      row={row}
+                      onReplace={(next) => field.replaceValue(index, next)}
+                      onRemove={() => field.removeValue(index)}
+                    />
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-fit"
+                    onClick={() => field.pushValue(emptyLaunchArgumentsRow())}
+                  >
+                    Add Arguments
+                  </Button>
+                </FieldGroup>
+              </FieldSet>
+            </div>
+          )}
+        </ValidatedFormField>
+      )}
+    </form.Field>
+  );
+}
+
+function LaunchArgumentsRowFields({
+  row,
+  onReplace,
+  onRemove,
+}: {
+  row: LaunchArgumentsRow;
+  onReplace: (row: LaunchArgumentsRow) => void;
+  onRemove: () => void;
+}) {
+  return (
+    <div className="grid gap-2 md:grid-cols-[minmax(0,14rem)_minmax(0,1fr)_auto] md:items-start">
+      <Input
+        aria-label="Application"
+        placeholder="Google Chrome.app"
+        value={row.application}
+        onChange={(event) => onReplace({ ...row, application: event.target.value })}
+      />
+      <Textarea
+        aria-label="Arguments"
+        placeholder="--restore-last-session"
+        value={row.arguments}
+        onChange={(event) => onReplace({ ...row, arguments: event.target.value })}
+      />
+      <IconButton label="Remove arguments" onClick={onRemove}>
+        <Trash2 />
+      </IconButton>
+    </div>
   );
 }
 

@@ -25,10 +25,13 @@ import {
   InstallerFileField,
   InstallsTable,
   ItemsToCopyEditor,
+  LaunchArgumentsEditor,
   ReceiptsTable,
 } from "./package-collection-editors";
 import {
+  ActionLabelsEditor,
   AlertEditor,
+  DownloadOnLowDataField,
   FormCheckboxField,
   FormCodeField,
   FormSwitchField,
@@ -38,6 +41,7 @@ import {
   RestartActionField,
   ScriptField,
   UninstallMethodField,
+  UninstallRestartActionField,
   VersionField,
 } from "./package-form-controls";
 import {
@@ -92,6 +96,7 @@ export const packageFormTabs = [
       "blocking_applications",
       "blocking_applications_manual_quit_only",
       "blocking_applications_quit_script",
+      "blocking_applications_with_launch_args",
       "supported_architectures",
       "installer_choices_xml",
     ],
@@ -99,7 +104,7 @@ export const packageFormTabs = [
   {
     value: "uninstall",
     label: "Uninstall",
-    fields: ["uninstall_method", "uninstall_script"],
+    fields: ["uninstall_method", "restart_action_for_uninstall", "uninstall_script"],
   },
   {
     value: "scripts",
@@ -109,7 +114,7 @@ export const packageFormTabs = [
   {
     value: "alerts",
     label: "Alerts",
-    fields: ["preinstall_alert", "preuninstall_alert"],
+    fields: ["preinstall_alert", "preuninstall_alert", "custom_action_labels"],
   },
   {
     value: "advanced",
@@ -118,9 +123,9 @@ export const packageFormTabs = [
       "package_path",
       "installed_size",
       "installer_environment",
+      "download_on_low_data",
       "precache",
       "apple_item",
-      "suppress_bundle_relocation",
     ],
   },
 ] as const satisfies readonly (FormTabDefinition & { label: string })[];
@@ -438,6 +443,11 @@ function InstallationTab({ form }: { form: PackageEditorForm }) {
             label="Quit Script"
             minHeight="8rem"
           />
+          <form.Subscribe selector={(state) => state.values.blocking_applications_none}>
+            {(blockingApplicationsNone) =>
+              blockingApplicationsNone ? null : <LaunchArgumentsEditor form={form} />
+            }
+          </form.Subscribe>
         </FieldGroup>
       </FieldSet>
 
@@ -481,8 +491,9 @@ function UninstallTab({ form }: { form: PackageEditorForm }) {
       <form.Subscribe selector={(state) => state.values.uninstall_method}>
         {(uninstallMethod) => (
           <>
-            <div className="max-w-sm">
+            <div className="grid max-w-sm gap-6">
               <UninstallMethodField form={form} />
+              <UninstallRestartActionField form={form} />
             </div>
             {uninstallMethod === "uninstall_script" ? (
               <form.Field name="uninstall_script">
@@ -580,6 +591,15 @@ function AlertsTab({ form }: { form: PackageEditorForm }) {
           />
         )}
       </form.Field>
+      <form.Field name="custom_action_labels">
+        {(field) => (
+          <ActionLabelsEditor
+            id="munki-package-action-labels"
+            labels={field.state.value}
+            onChange={(labels) => field.handleChange(labels)}
+          />
+        )}
+      </form.Field>
     </FieldGroup>
   );
 }
@@ -606,6 +626,7 @@ function AdvancedTab({ form }: { form: PackageEditorForm }) {
             type="number"
             inputMode="numeric"
           />
+          <DownloadOnLowDataField form={form} />
         </FieldGroup>
         <form.Field name="installer_environment" mode="array">
           {(field) => (
@@ -641,13 +662,6 @@ function AdvancedTab({ form }: { form: PackageEditorForm }) {
             id="munki-package-apple-item"
             label="Apple Item"
             description="Treat this package as an Apple update."
-          />
-          <FormCheckboxField
-            form={form}
-            name="suppress_bundle_relocation"
-            id="munki-package-suppress-bundle-relocation"
-            label="Suppress Bundle Relocation"
-            description="Prevent legacy bundle packages from updating a moved copy."
           />
         </FieldGroup>
       </FieldSet>

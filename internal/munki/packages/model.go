@@ -55,6 +55,41 @@ func (RestartAction) Schema(_ huma.Registry) *huma.Schema {
 	return openapischema.StringEnum(restartActionValues...)
 }
 
+// UninstallRestartAction is the RestartAction for removal. None requests
+// nothing even when installation does; absence applies restart_action.
+type UninstallRestartAction string
+
+// UninstallRestartActionNone overrides an installation restart action.
+const UninstallRestartActionNone UninstallRestartAction = "None"
+
+func (UninstallRestartAction) Schema(_ huma.Registry) *huma.Schema {
+	values := []UninstallRestartAction{UninstallRestartActionNone}
+	for _, action := range restartActionValues {
+		values = append(values, UninstallRestartAction(action))
+	}
+	return openapischema.StringEnum(values...)
+}
+
+// DownloadOnLowData decides whether Munki downloads an item on a low-data
+// connection. Auto follows the client's size threshold.
+type DownloadOnLowData string
+
+const (
+	DownloadOnLowDataAuto   DownloadOnLowData = "auto"
+	DownloadOnLowDataAlways DownloadOnLowData = "always"
+	DownloadOnLowDataNever  DownloadOnLowData = "never"
+)
+
+var downloadOnLowDataValues = []DownloadOnLowData{
+	DownloadOnLowDataAuto,
+	DownloadOnLowDataAlways,
+	DownloadOnLowDataNever,
+}
+
+func (DownloadOnLowData) Schema(_ huma.Registry) *huma.Schema {
+	return openapischema.StringEnum(downloadOnLowDataValues...)
+}
+
 // UninstallMethod describes the supported Munki uninstall modes.
 // Absence means no uninstall mechanism is configured.
 type UninstallMethod string
@@ -170,51 +205,71 @@ type PackageAlert struct {
 	CancelLabel string `json:"cancel_label,omitempty"`
 }
 
+// PackageLaunchArguments is a blocking application and the arguments Managed
+// Software Center passes when it reopens the application after an assisted quit.
+type PackageLaunchArguments struct {
+	Application string   `json:"application" validate:"required,notblank" minLength:"1"`
+	Arguments   []string `json:"arguments"   nullable:"false"`
+}
+
+// PackageActionLabels replaces Managed Software Center's action labels for an item.
+type PackageActionLabels struct {
+	Install    string `json:"install,omitempty"`
+	Installing string `json:"installing,omitempty"`
+	Installed  string `json:"installed,omitempty"`
+	Remove     string `json:"remove,omitempty"`
+	Removing   string `json:"removing,omitempty"`
+	Update     string `json:"update,omitempty"`
+}
+
 // PackageMutation is the editable shape for a Munki package version.
 type PackageMutation struct {
-	Version                  string                                `json:"version"                                          minLength:"1" validate:"required,notblank" jsonschema_description:"Version of this package publication."`
-	InstallerType            InstallerType                         `json:"installer_type,omitempty" nullable:"false"                      validate:"omitempty,oneof=pkg nopkg copy_from_dmg" jsonschema_description:"Installer format or nopkg for a script-only policy."`
-	UnattendedInstall        bool                                  `json:"unattended_install,omitempty" jsonschema_description:"Allow installation without user interaction."`
-	UnattendedUninstall      bool                                  `json:"unattended_uninstall,omitempty" jsonschema_description:"Allow removal without user interaction."`
-	Uninstallable            bool                                  `json:"uninstallable,omitempty" jsonschema_description:"Whether Munki may remove this software."`
-	UninstallMethod          UninstallMethod                       `json:"uninstall_method,omitempty"                                     validate:"omitempty,oneof=removepackages remove_copied_items uninstall_script" jsonschema_description:"Method Munki uses to remove the installed software."`
-	RestartAction            RestartAction                         `json:"restart_action,omitempty"                                       validate:"omitempty,oneof=RequireLogout RecommendRestart RequireRestart RequireShutdown" jsonschema_description:"Logout, restart or shutdown requested after installation."`
-	MinimumMunkiVersion      string                                `json:"minimum_munki_version,omitempty"`
-	MinimumOSVersion         string                                `json:"minimum_os_version,omitempty" jsonschema_description:"Oldest macOS version eligible for this package."`
-	MaximumOSVersion         string                                `json:"maximum_os_version,omitempty" jsonschema_description:"Newest macOS version eligible for this package."`
-	SupportedArchitectures   []string                              `json:"supported_architectures,omitempty"                              validate:"dive,oneof=arm64 x86_64" jsonschema_description:"CPU architectures eligible for installation."`
-	BlockingApplications     []string                              `json:"blocking_applications,omitempty"                                validate:"dive,required,notblank" jsonschema_description:"Applications that block installation or removal while they run. Munki uses the applications in installs when this is absent; an empty list blocks nothing."`
-	BlockingApplicationsNone bool                                  `json:"blocking_applications_none,omitempty"`
-	InstallableCondition     string                                `json:"installable_condition,omitempty" jsonschema_description:"NSPredicate expression determining whether installation is allowed."`
-	BlockingAppsManualQuit   bool                                  `json:"blocking_applications_manual_quit_only,omitempty"`
-	BlockingAppsQuitScript   string                                `json:"blocking_applications_quit_script,omitempty"`
-	Requires                 []PackageReferenceMutation            `json:"requires,omitempty"                                             validate:"dive"`
-	UpdateFor                []PackageReferenceMutation            `json:"update_for,omitempty"                                           validate:"dive"`
-	OnDemand                 bool                                  `json:"on_demand,omitempty"`
-	Precache                 bool                                  `json:"precache,omitempty"`
-	Autoremove               bool                                  `json:"autoremove,omitempty"`
-	AppleItem                bool                                  `json:"apple_item,omitempty"`
-	SuppressBundleRelocation bool                                  `json:"suppress_bundle_relocation,omitempty"`
-	ForceInstallAfterDate    *time.Time                            `json:"force_install_after_date,omitempty" jsonschema_description:"Deadline after which Munki requires installation."`
-	InstalledSize            int64                                 `json:"installed_size,omitempty"                                       validate:"gte=0"                                                                         minimum:"0" jsonschema_description:"Estimated installed size in KiB."`
-	PackagePath              string                                `json:"package_path,omitempty" jsonschema_description:"Relative path to the installer package within a disk image."`
-	InstallerChoicesXML      []PackageInstallerChoice              `json:"installer_choices_xml,omitempty"                                validate:"dive" jsonschema_description:"Installer choice selections applied to a package installation."`
-	InstallerEnvironment     []PackageInstallerEnvironmentVariable `json:"installer_environment,omitempty"                                validate:"dive"`
-	Installs                 []PackageInstallItem                  `json:"installs,omitempty"                                             validate:"dive" jsonschema_description:"Installed filesystem items used to detect the installed version."`
-	Receipts                 []PackageReceipt                      `json:"receipts,omitempty"                                             validate:"dive" jsonschema_description:"Package receipts used to determine whether installation is needed."`
-	ItemsToCopy              []PackageItemToCopy                   `json:"items_to_copy,omitempty"                                        validate:"dive" jsonschema_description:"Files copied from a disk image and their destination settings."`
-	Notes                    string                                `json:"notes,omitempty"`
-	InstallcheckScript       string                                `json:"installcheck_script,omitempty" jsonschema_description:"Script whose exit status determines whether installation is needed."`
-	UninstallcheckScript     string                                `json:"uninstallcheck_script,omitempty" jsonschema_description:"Script whose exit status determines whether removal is needed."`
-	PreinstallScript         string                                `json:"preinstall_script,omitempty" jsonschema_description:"Script Munki runs before installation."`
-	PostinstallScript        string                                `json:"postinstall_script,omitempty" jsonschema_description:"Script Munki runs after installation."`
-	PreuninstallScript       string                                `json:"preuninstall_script,omitempty" jsonschema_description:"Script Munki runs before removal."`
-	PostuninstallScript      string                                `json:"postuninstall_script,omitempty" jsonschema_description:"Script Munki runs after removal."`
-	UninstallScript          string                                `json:"uninstall_script,omitempty" jsonschema_description:"Script used by the uninstall_script removal method."`
-	VersionScript            string                                `json:"version_script,omitempty" jsonschema_description:"Script that reports the installed version."`
-	PreinstallAlert          PackageAlert                          `json:"preinstall_alert,omitzero" jsonschema_description:"User-facing alert before installation."`
-	PreuninstallAlert        PackageAlert                          `json:"preuninstall_alert,omitzero" jsonschema_description:"User-facing alert before removal."`
-	InstallerObjectID        *int64                                `json:"installer_object_id,omitempty"                                  validate:"omitempty,gt=0"                                                                minimum:"1"`
+	Version                   string                                `json:"version"                                          minLength:"1" validate:"required,notblank" jsonschema_description:"Version of this package publication."`
+	InstallerType             InstallerType                         `json:"installer_type,omitempty" nullable:"false"                      validate:"omitempty,oneof=pkg nopkg copy_from_dmg" jsonschema_description:"Installer format or nopkg for a script-only policy."`
+	UnattendedInstall         bool                                  `json:"unattended_install,omitempty" jsonschema_description:"Allow installation without user interaction."`
+	UnattendedUninstall       bool                                  `json:"unattended_uninstall,omitempty" jsonschema_description:"Allow removal without user interaction."`
+	Uninstallable             bool                                  `json:"uninstallable,omitempty" jsonschema_description:"Whether Munki may remove this software."`
+	UninstallMethod           UninstallMethod                       `json:"uninstall_method,omitempty"                                     validate:"omitempty,oneof=removepackages remove_copied_items uninstall_script" jsonschema_description:"Method Munki uses to remove the installed software."`
+	RestartAction             RestartAction                         `json:"restart_action,omitempty"                                       validate:"omitempty,oneof=RequireLogout RecommendRestart RequireRestart RequireShutdown" jsonschema_description:"Logout, restart or shutdown requested after installation."`
+	RestartActionForUninstall UninstallRestartAction                `json:"restart_action_for_uninstall,omitempty"                         validate:"omitempty,oneof=None RequireLogout RecommendRestart RequireRestart RequireShutdown" jsonschema_description:"Logout, restart or shutdown requested after removal. None requests nothing; absence applies restart_action."`
+	MinimumMunkiVersion       string                                `json:"minimum_munki_version,omitempty"`
+	MinimumOSVersion          string                                `json:"minimum_os_version,omitempty" jsonschema_description:"Oldest macOS version eligible for this package."`
+	MaximumOSVersion          string                                `json:"maximum_os_version,omitempty" jsonschema_description:"Newest macOS version eligible for this package."`
+	SupportedArchitectures    []string                              `json:"supported_architectures,omitempty"                              validate:"dive,oneof=arm64 x86_64" jsonschema_description:"CPU architectures eligible for installation."`
+	BlockingApplications      []string                              `json:"blocking_applications,omitempty"                                validate:"dive,required,notblank" jsonschema_description:"Applications that block installation or removal while they run. Munki uses the applications in installs when this and blocking_applications_with_launch_args are absent; an empty list blocks nothing."`
+	BlockingApplicationsNone  bool                                  `json:"blocking_applications_none,omitempty"`
+	InstallableCondition      string                                `json:"installable_condition,omitempty" jsonschema_description:"NSPredicate expression determining whether installation is allowed."`
+	BlockingAppsManualQuit    bool                                  `json:"blocking_applications_manual_quit_only,omitempty"`
+	BlockingAppsQuitScript    string                                `json:"blocking_applications_quit_script,omitempty"`
+	BlockingAppsLaunchArgs    []PackageLaunchArguments              `json:"blocking_applications_with_launch_args,omitempty"               validate:"dive" jsonschema_description:"Further blocking applications and the arguments passed when Managed Software Center reopens them after an assisted quit."`
+	DownloadOnLowData         DownloadOnLowData                     `json:"download_on_low_data,omitempty" nullable:"false"                                 validate:"omitempty,oneof=auto always never" jsonschema_description:"Download on a low-data connection always or never. auto follows the client's size threshold."`
+	CustomActionLabels        PackageActionLabels                   `json:"custom_action_labels,omitzero" jsonschema_description:"Managed Software Center button and progress labels for this item."`
+	Requires                  []PackageReferenceMutation            `json:"requires,omitempty"                                             validate:"dive"`
+	UpdateFor                 []PackageReferenceMutation            `json:"update_for,omitempty"                                           validate:"dive"`
+	OnDemand                  bool                                  `json:"on_demand,omitempty"`
+	Precache                  bool                                  `json:"precache,omitempty"`
+	Autoremove                bool                                  `json:"autoremove,omitempty"`
+	AppleItem                 bool                                  `json:"apple_item,omitempty"`
+	ForceInstallAfterDate     *time.Time                            `json:"force_install_after_date,omitempty" jsonschema_description:"Deadline after which Munki requires installation."`
+	InstalledSize             int64                                 `json:"installed_size,omitempty"                                       validate:"gte=0"                                                                         minimum:"0" jsonschema_description:"Estimated installed size in KiB."`
+	PackagePath               string                                `json:"package_path,omitempty" jsonschema_description:"Relative path to the installer package within a disk image."`
+	InstallerChoicesXML       []PackageInstallerChoice              `json:"installer_choices_xml,omitempty"                                validate:"dive" jsonschema_description:"Installer choice selections applied to a package installation."`
+	InstallerEnvironment      []PackageInstallerEnvironmentVariable `json:"installer_environment,omitempty"                                validate:"dive"`
+	Installs                  []PackageInstallItem                  `json:"installs,omitempty"                                             validate:"dive" jsonschema_description:"Installed filesystem items used to detect the installed version."`
+	Receipts                  []PackageReceipt                      `json:"receipts,omitempty"                                             validate:"dive" jsonschema_description:"Package receipts used to determine whether installation is needed."`
+	ItemsToCopy               []PackageItemToCopy                   `json:"items_to_copy,omitempty"                                        validate:"dive" jsonschema_description:"Files copied from a disk image and their destination settings."`
+	Notes                     string                                `json:"notes,omitempty"`
+	InstallcheckScript        string                                `json:"installcheck_script,omitempty" jsonschema_description:"Script whose exit status determines whether installation is needed."`
+	UninstallcheckScript      string                                `json:"uninstallcheck_script,omitempty" jsonschema_description:"Script whose exit status determines whether removal is needed."`
+	PreinstallScript          string                                `json:"preinstall_script,omitempty" jsonschema_description:"Script Munki runs before installation."`
+	PostinstallScript         string                                `json:"postinstall_script,omitempty" jsonschema_description:"Script Munki runs after installation."`
+	PreuninstallScript        string                                `json:"preuninstall_script,omitempty" jsonschema_description:"Script Munki runs before removal."`
+	PostuninstallScript       string                                `json:"postuninstall_script,omitempty" jsonschema_description:"Script Munki runs after removal."`
+	UninstallScript           string                                `json:"uninstall_script,omitempty" jsonschema_description:"Script used by the uninstall_script removal method."`
+	VersionScript             string                                `json:"version_script,omitempty" jsonschema_description:"Script that reports the installed version."`
+	PreinstallAlert           PackageAlert                          `json:"preinstall_alert,omitzero" jsonschema_description:"User-facing alert before installation."`
+	PreuninstallAlert         PackageAlert                          `json:"preuninstall_alert,omitzero" jsonschema_description:"User-facing alert before removal."`
+	InstallerObjectID         *int64                                `json:"installer_object_id,omitempty"                                  validate:"omitempty,gt=0"                                                                minimum:"1"`
 }
 
 // PackageCreateMutation creates one package version under selected Munki software.
@@ -246,54 +301,57 @@ type PackageSoftware struct {
 
 // Package is one managed Munki package version available for targeting.
 type Package struct {
-	ID                       int64                                 `json:"id"`
-	Software                 PackageSoftware                       `json:"software"`
-	Version                  string                                `json:"version"`
-	InstallerType            InstallerType                         `json:"installer_type"`
-	UnattendedInstall        bool                                  `json:"unattended_install"`
-	UnattendedUninstall      bool                                  `json:"unattended_uninstall"`
-	Uninstallable            bool                                  `json:"uninstallable"`
-	UninstallMethod          UninstallMethod                       `json:"uninstall_method,omitempty"`
-	RestartAction            RestartAction                         `json:"restart_action,omitempty"`
-	MinimumMunkiVersion      string                                `json:"minimum_munki_version"`
-	MinimumOSVersion         string                                `json:"minimum_os_version"`
-	MaximumOSVersion         string                                `json:"maximum_os_version"`
-	SupportedArchitectures   []string                              `json:"supported_architectures"`
-	BlockingApplications     []string                              `json:"blocking_applications"`
-	BlockingApplicationsNone bool                                  `json:"blocking_applications_none"`
-	InstallableCondition     string                                `json:"installable_condition"`
-	BlockingAppsManualQuit   bool                                  `json:"blocking_applications_manual_quit_only"`
-	BlockingAppsQuitScript   string                                `json:"blocking_applications_quit_script"`
-	Requires                 []PackageReference                    `json:"requires"`
-	UpdateFor                []PackageReference                    `json:"update_for"`
-	OnDemand                 bool                                  `json:"on_demand"`
-	Precache                 bool                                  `json:"precache"`
-	Autoremove               bool                                  `json:"autoremove"`
-	AppleItem                bool                                  `json:"apple_item"`
-	SuppressBundleRelocation bool                                  `json:"suppress_bundle_relocation"`
-	ForceInstallAfterDate    *time.Time                            `json:"force_install_after_date,omitempty"`
-	InstalledSize            int64                                 `json:"installed_size"`
-	InstallerFile            *InstallerFile                        `json:"installer_file,omitempty"`
-	PackagePath              string                                `json:"package_path"`
-	InstallerChoicesXML      []PackageInstallerChoice              `json:"installer_choices_xml"`
-	InstallerEnvironment     []PackageInstallerEnvironmentVariable `json:"installer_environment"`
-	Installs                 []PackageInstallItem                  `json:"installs"`
-	Receipts                 []PackageReceipt                      `json:"receipts"`
-	ItemsToCopy              []PackageItemToCopy                   `json:"items_to_copy"`
-	Notes                    string                                `json:"notes"`
-	InstallcheckScript       string                                `json:"installcheck_script"`
-	UninstallcheckScript     string                                `json:"uninstallcheck_script"`
-	PreinstallScript         string                                `json:"preinstall_script"`
-	PostinstallScript        string                                `json:"postinstall_script"`
-	PreuninstallScript       string                                `json:"preuninstall_script"`
-	PostuninstallScript      string                                `json:"postuninstall_script"`
-	UninstallScript          string                                `json:"uninstall_script"`
-	VersionScript            string                                `json:"version_script"`
-	PreinstallAlert          PackageAlert                          `json:"preinstall_alert"`
-	PreuninstallAlert        PackageAlert                          `json:"preuninstall_alert"`
-	InstallerObjectID        *int64                                `json:"installer_object_id,omitempty"`
-	CreatedAt                time.Time                             `json:"created_at"`
-	UpdatedAt                time.Time                             `json:"updated_at"`
+	ID                        int64                                 `json:"id"`
+	Software                  PackageSoftware                       `json:"software"`
+	Version                   string                                `json:"version"`
+	InstallerType             InstallerType                         `json:"installer_type"`
+	UnattendedInstall         bool                                  `json:"unattended_install"`
+	UnattendedUninstall       bool                                  `json:"unattended_uninstall"`
+	Uninstallable             bool                                  `json:"uninstallable"`
+	UninstallMethod           UninstallMethod                       `json:"uninstall_method,omitempty"`
+	RestartAction             RestartAction                         `json:"restart_action,omitempty"`
+	RestartActionForUninstall UninstallRestartAction                `json:"restart_action_for_uninstall,omitempty"`
+	MinimumMunkiVersion       string                                `json:"minimum_munki_version"`
+	MinimumOSVersion          string                                `json:"minimum_os_version"`
+	MaximumOSVersion          string                                `json:"maximum_os_version"`
+	SupportedArchitectures    []string                              `json:"supported_architectures"`
+	BlockingApplications      []string                              `json:"blocking_applications"`
+	BlockingApplicationsNone  bool                                  `json:"blocking_applications_none"`
+	InstallableCondition      string                                `json:"installable_condition"`
+	BlockingAppsManualQuit    bool                                  `json:"blocking_applications_manual_quit_only"`
+	BlockingAppsQuitScript    string                                `json:"blocking_applications_quit_script"`
+	BlockingAppsLaunchArgs    []PackageLaunchArguments              `json:"blocking_applications_with_launch_args"`
+	DownloadOnLowData         DownloadOnLowData                     `json:"download_on_low_data"`
+	CustomActionLabels        PackageActionLabels                   `json:"custom_action_labels"`
+	Requires                  []PackageReference                    `json:"requires"`
+	UpdateFor                 []PackageReference                    `json:"update_for"`
+	OnDemand                  bool                                  `json:"on_demand"`
+	Precache                  bool                                  `json:"precache"`
+	Autoremove                bool                                  `json:"autoremove"`
+	AppleItem                 bool                                  `json:"apple_item"`
+	ForceInstallAfterDate     *time.Time                            `json:"force_install_after_date,omitempty"`
+	InstalledSize             int64                                 `json:"installed_size"`
+	InstallerFile             *InstallerFile                        `json:"installer_file,omitempty"`
+	PackagePath               string                                `json:"package_path"`
+	InstallerChoicesXML       []PackageInstallerChoice              `json:"installer_choices_xml"`
+	InstallerEnvironment      []PackageInstallerEnvironmentVariable `json:"installer_environment"`
+	Installs                  []PackageInstallItem                  `json:"installs"`
+	Receipts                  []PackageReceipt                      `json:"receipts"`
+	ItemsToCopy               []PackageItemToCopy                   `json:"items_to_copy"`
+	Notes                     string                                `json:"notes"`
+	InstallcheckScript        string                                `json:"installcheck_script"`
+	UninstallcheckScript      string                                `json:"uninstallcheck_script"`
+	PreinstallScript          string                                `json:"preinstall_script"`
+	PostinstallScript         string                                `json:"postinstall_script"`
+	PreuninstallScript        string                                `json:"preuninstall_script"`
+	PostuninstallScript       string                                `json:"postuninstall_script"`
+	UninstallScript           string                                `json:"uninstall_script"`
+	VersionScript             string                                `json:"version_script"`
+	PreinstallAlert           PackageAlert                          `json:"preinstall_alert"`
+	PreuninstallAlert         PackageAlert                          `json:"preuninstall_alert"`
+	InstallerObjectID         *int64                                `json:"installer_object_id,omitempty"`
+	CreatedAt                 time.Time                             `json:"created_at"`
+	UpdatedAt                 time.Time                             `json:"updated_at"`
 }
 
 type PackageListParams struct {
@@ -381,11 +439,22 @@ func (m *PackageMutation) validateRelations() error {
 		}
 		environmentNames[name] = struct{}{}
 	}
-	if m.BlockingApplicationsNone && len(m.BlockingApplications) > 0 {
+	if m.BlockingApplicationsNone && (len(m.BlockingApplications) > 0 || len(m.BlockingAppsLaunchArgs) > 0) {
 		return fmt.Errorf(
-			"%w: blocking_applications_none cannot be set with blocking_applications entries",
+			"%w: blocking_applications_none cannot be set with blocking application entries",
 			fault.ErrInvalidInput,
 		)
+	}
+	launchApplications := make(map[string]struct{}, len(m.BlockingAppsLaunchArgs))
+	for _, entry := range m.BlockingAppsLaunchArgs {
+		if _, exists := launchApplications[entry.Application]; exists {
+			return fmt.Errorf(
+				"%w: blocking_applications_with_launch_args contains duplicate application %q",
+				fault.ErrInvalidInput,
+				entry.Application,
+			)
+		}
+		launchApplications[entry.Application] = struct{}{}
 	}
 	return nil
 }
@@ -406,6 +475,11 @@ func (m *PackageMutation) Normalize() {
 	m.Version = strings.TrimSpace(m.Version)
 	m.UninstallMethod = UninstallMethod(strings.TrimSpace(string(m.UninstallMethod)))
 	m.RestartAction = RestartAction(strings.TrimSpace(string(m.RestartAction)))
+	m.RestartActionForUninstall = UninstallRestartAction(strings.TrimSpace(string(m.RestartActionForUninstall)))
+	m.DownloadOnLowData = DownloadOnLowData(strings.TrimSpace(string(m.DownloadOnLowData)))
+	if m.DownloadOnLowData == "" {
+		m.DownloadOnLowData = DownloadOnLowDataAuto
+	}
 	m.MinimumMunkiVersion = strings.TrimSpace(m.MinimumMunkiVersion)
 	m.MinimumOSVersion = strings.TrimSpace(m.MinimumOSVersion)
 	m.MaximumOSVersion = strings.TrimSpace(m.MaximumOSVersion)
@@ -420,6 +494,15 @@ func (m *PackageMutation) Normalize() {
 	}
 	for i := range m.BlockingApplications {
 		m.BlockingApplications[i] = strings.TrimSpace(m.BlockingApplications[i])
+	}
+	if m.BlockingAppsLaunchArgs == nil {
+		m.BlockingAppsLaunchArgs = []PackageLaunchArguments{}
+	}
+	for i := range m.BlockingAppsLaunchArgs {
+		m.BlockingAppsLaunchArgs[i].Application = strings.TrimSpace(m.BlockingAppsLaunchArgs[i].Application)
+		if m.BlockingAppsLaunchArgs[i].Arguments == nil {
+			m.BlockingAppsLaunchArgs[i].Arguments = []string{}
+		}
 	}
 	for i := range m.InstallerChoicesXML {
 		m.InstallerChoicesXML[i].ChoiceIdentifier = strings.TrimSpace(m.InstallerChoicesXML[i].ChoiceIdentifier)
@@ -446,47 +529,50 @@ type Patch = patch.Document[PackageMutation]
 // Mutation projects editable fields and relation IDs from a package response.
 func (p Package) Mutation() PackageMutation {
 	m := PackageMutation{
-		Version:                  p.Version,
-		InstallerType:            p.InstallerType,
-		UnattendedInstall:        p.UnattendedInstall,
-		UnattendedUninstall:      p.UnattendedUninstall,
-		Uninstallable:            p.Uninstallable,
-		UninstallMethod:          p.UninstallMethod,
-		RestartAction:            p.RestartAction,
-		MinimumMunkiVersion:      p.MinimumMunkiVersion,
-		MinimumOSVersion:         p.MinimumOSVersion,
-		MaximumOSVersion:         p.MaximumOSVersion,
-		SupportedArchitectures:   p.SupportedArchitectures,
-		BlockingApplications:     p.BlockingApplications,
-		BlockingApplicationsNone: p.BlockingApplicationsNone,
-		InstallableCondition:     p.InstallableCondition,
-		BlockingAppsManualQuit:   p.BlockingAppsManualQuit,
-		BlockingAppsQuitScript:   p.BlockingAppsQuitScript,
-		OnDemand:                 p.OnDemand,
-		Precache:                 p.Precache,
-		Autoremove:               p.Autoremove,
-		AppleItem:                p.AppleItem,
-		SuppressBundleRelocation: p.SuppressBundleRelocation,
-		ForceInstallAfterDate:    p.ForceInstallAfterDate,
-		InstalledSize:            p.InstalledSize,
-		PackagePath:              p.PackagePath,
-		InstallerChoicesXML:      p.InstallerChoicesXML,
-		InstallerEnvironment:     p.InstallerEnvironment,
-		Installs:                 p.Installs,
-		Receipts:                 p.Receipts,
-		ItemsToCopy:              p.ItemsToCopy,
-		Notes:                    p.Notes,
-		InstallcheckScript:       p.InstallcheckScript,
-		UninstallcheckScript:     p.UninstallcheckScript,
-		PreinstallScript:         p.PreinstallScript,
-		PostinstallScript:        p.PostinstallScript,
-		PreuninstallScript:       p.PreuninstallScript,
-		PostuninstallScript:      p.PostuninstallScript,
-		UninstallScript:          p.UninstallScript,
-		VersionScript:            p.VersionScript,
-		PreinstallAlert:          p.PreinstallAlert,
-		PreuninstallAlert:        p.PreuninstallAlert,
-		InstallerObjectID:        p.InstallerObjectID,
+		Version:                   p.Version,
+		InstallerType:             p.InstallerType,
+		UnattendedInstall:         p.UnattendedInstall,
+		UnattendedUninstall:       p.UnattendedUninstall,
+		Uninstallable:             p.Uninstallable,
+		UninstallMethod:           p.UninstallMethod,
+		RestartAction:             p.RestartAction,
+		RestartActionForUninstall: p.RestartActionForUninstall,
+		MinimumMunkiVersion:       p.MinimumMunkiVersion,
+		MinimumOSVersion:          p.MinimumOSVersion,
+		MaximumOSVersion:          p.MaximumOSVersion,
+		SupportedArchitectures:    p.SupportedArchitectures,
+		BlockingApplications:      p.BlockingApplications,
+		BlockingApplicationsNone:  p.BlockingApplicationsNone,
+		InstallableCondition:      p.InstallableCondition,
+		BlockingAppsManualQuit:    p.BlockingAppsManualQuit,
+		BlockingAppsQuitScript:    p.BlockingAppsQuitScript,
+		BlockingAppsLaunchArgs:    p.BlockingAppsLaunchArgs,
+		DownloadOnLowData:         p.DownloadOnLowData,
+		CustomActionLabels:        p.CustomActionLabels,
+		OnDemand:                  p.OnDemand,
+		Precache:                  p.Precache,
+		Autoremove:                p.Autoremove,
+		AppleItem:                 p.AppleItem,
+		ForceInstallAfterDate:     p.ForceInstallAfterDate,
+		InstalledSize:             p.InstalledSize,
+		PackagePath:               p.PackagePath,
+		InstallerChoicesXML:       p.InstallerChoicesXML,
+		InstallerEnvironment:      p.InstallerEnvironment,
+		Installs:                  p.Installs,
+		Receipts:                  p.Receipts,
+		ItemsToCopy:               p.ItemsToCopy,
+		Notes:                     p.Notes,
+		InstallcheckScript:        p.InstallcheckScript,
+		UninstallcheckScript:      p.UninstallcheckScript,
+		PreinstallScript:          p.PreinstallScript,
+		PostinstallScript:         p.PostinstallScript,
+		PreuninstallScript:        p.PreuninstallScript,
+		PostuninstallScript:       p.PostuninstallScript,
+		UninstallScript:           p.UninstallScript,
+		VersionScript:             p.VersionScript,
+		PreinstallAlert:           p.PreinstallAlert,
+		PreuninstallAlert:         p.PreuninstallAlert,
+		InstallerObjectID:         p.InstallerObjectID,
 	}
 	for _, ref := range p.Requires {
 		m.Requires = append(m.Requires, PackageReferenceMutation{SoftwareID: ref.SoftwareID, PackageID: ref.PackageID})

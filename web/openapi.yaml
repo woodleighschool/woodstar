@@ -1461,8 +1461,20 @@ components:
           type: boolean
         blocking_applications_quit_script:
           type: string
+        blocking_applications_with_launch_args:
+          items:
+            $ref: "#/components/schemas/MunkiPackageLaunchArguments"
+          type: array
         created_at:
           format: date-time
+          type: string
+        custom_action_labels:
+          $ref: "#/components/schemas/MunkiPackageActionLabels"
+        download_on_low_data:
+          enum:
+            - auto
+            - always
+            - never
           type: string
         force_install_after_date:
           format: date-time
@@ -1545,14 +1557,20 @@ components:
             - RequireRestart
             - RequireShutdown
           type: string
+        restart_action_for_uninstall:
+          enum:
+            - None
+            - RequireLogout
+            - RecommendRestart
+            - RequireRestart
+            - RequireShutdown
+          type: string
         software:
           $ref: "#/components/schemas/MunkiPackageSoftware"
         supported_architectures:
           items:
             type: string
           type: array
-        suppress_bundle_relocation:
-          type: boolean
         unattended_install:
           type: boolean
         unattended_uninstall:
@@ -1597,13 +1615,15 @@ components:
         - installable_condition
         - blocking_applications_manual_quit_only
         - blocking_applications_quit_script
+        - blocking_applications_with_launch_args
+        - download_on_low_data
+        - custom_action_labels
         - requires
         - update_for
         - on_demand
         - precache
         - autoremove
         - apple_item
-        - suppress_bundle_relocation
         - installed_size
         - package_path
         - installer_choices_xml
@@ -1624,6 +1644,22 @@ components:
         - preuninstall_alert
         - created_at
         - updated_at
+      type: object
+    MunkiPackageActionLabels:
+      additionalProperties: false
+      properties:
+        install:
+          type: string
+        installed:
+          type: string
+        installing:
+          type: string
+        remove:
+          type: string
+        removing:
+          type: string
+        update:
+          type: string
       type: object
     MunkiPackageAlert:
       additionalProperties: false
@@ -1657,6 +1693,18 @@ components:
         blocking_applications_none:
           type: boolean
         blocking_applications_quit_script:
+          type: string
+        blocking_applications_with_launch_args:
+          items:
+            $ref: "#/components/schemas/MunkiPackageLaunchArguments"
+          type: array
+        custom_action_labels:
+          $ref: "#/components/schemas/MunkiPackageActionLabels"
+        download_on_low_data:
+          enum:
+            - auto
+            - always
+            - never
           type: string
         force_install_after_date:
           format: date-time
@@ -1736,6 +1784,14 @@ components:
             - RequireRestart
             - RequireShutdown
           type: string
+        restart_action_for_uninstall:
+          enum:
+            - None
+            - RequireLogout
+            - RecommendRestart
+            - RequireRestart
+            - RequireShutdown
+          type: string
         software_id:
           format: int64
           minimum: 1
@@ -1744,8 +1800,6 @@ components:
           items:
             type: string
           type: array
-        suppress_bundle_relocation:
-          type: boolean
         unattended_install:
           type: boolean
         unattended_uninstall:
@@ -1857,6 +1911,20 @@ components:
         - source_item
         - destination_path
       type: object
+    MunkiPackageLaunchArguments:
+      additionalProperties: false
+      properties:
+        application:
+          minLength: 1
+          type: string
+        arguments:
+          items:
+            type: string
+          type: array
+      required:
+        - application
+        - arguments
+      type: object
     MunkiPackageMutation:
       additionalProperties: false
       properties:
@@ -1873,6 +1941,18 @@ components:
         blocking_applications_none:
           type: boolean
         blocking_applications_quit_script:
+          type: string
+        blocking_applications_with_launch_args:
+          items:
+            $ref: "#/components/schemas/MunkiPackageLaunchArguments"
+          type: array
+        custom_action_labels:
+          $ref: "#/components/schemas/MunkiPackageActionLabels"
+        download_on_low_data:
+          enum:
+            - auto
+            - always
+            - never
           type: string
         force_install_after_date:
           format: date-time
@@ -1952,12 +2032,18 @@ components:
             - RequireRestart
             - RequireShutdown
           type: string
+        restart_action_for_uninstall:
+          enum:
+            - None
+            - RequireLogout
+            - RecommendRestart
+            - RequireRestart
+            - RequireShutdown
+          type: string
         supported_architectures:
           items:
             type: string
           type: array
-        suppress_bundle_relocation:
-          type: boolean
         unattended_install:
           type: boolean
         unattended_uninstall:
@@ -8041,6 +8127,56 @@ paths:
                   type:
                     - string
                     - "null"
+                blocking_applications_with_launch_args:
+                  items:
+                    additionalProperties: false
+                    properties:
+                      application:
+                        minLength: 1
+                        type: string
+                      arguments:
+                        items:
+                          type: string
+                        type: array
+                    required:
+                      - application
+                      - arguments
+                    type: object
+                  type: array
+                custom_action_labels:
+                  additionalProperties: false
+                  properties:
+                    install:
+                      type:
+                        - string
+                        - "null"
+                    installed:
+                      type:
+                        - string
+                        - "null"
+                    installing:
+                      type:
+                        - string
+                        - "null"
+                    remove:
+                      type:
+                        - string
+                        - "null"
+                    removing:
+                      type:
+                        - string
+                        - "null"
+                    update:
+                      type:
+                        - string
+                        - "null"
+                  type: object
+                download_on_low_data:
+                  enum:
+                    - auto
+                    - always
+                    - never
+                  type: string
                 force_install_after_date:
                   format: date-time
                   type:
@@ -8325,12 +8461,21 @@ paths:
                   type:
                     - string
                     - "null"
+                restart_action_for_uninstall:
+                  enum:
+                    - None
+                    - RequireLogout
+                    - RecommendRestart
+                    - RequireRestart
+                    - RequireShutdown
+                    - null
+                  type:
+                    - string
+                    - "null"
                 supported_architectures:
                   items:
                     type: string
                   type: array
-                suppress_bundle_relocation:
-                  type: boolean
                 unattended_install:
                   type: boolean
                 unattended_uninstall:

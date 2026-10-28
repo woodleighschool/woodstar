@@ -526,7 +526,10 @@ export type MunkiPackage = {
     blocking_applications_manual_quit_only: boolean;
     blocking_applications_none: boolean;
     blocking_applications_quit_script: string;
+    blocking_applications_with_launch_args: Array<MunkiPackageLaunchArguments>;
     created_at: string;
+    custom_action_labels: MunkiPackageActionLabels;
+    download_on_low_data: 'auto' | 'always' | 'never';
     force_install_after_date?: string;
     id: number;
     installable_condition: string;
@@ -555,9 +558,9 @@ export type MunkiPackage = {
     receipts: Array<MunkiPackageReceipt>;
     requires: Array<MunkiPackageReference>;
     restart_action?: 'RequireLogout' | 'RecommendRestart' | 'RequireRestart' | 'RequireShutdown';
+    restart_action_for_uninstall?: 'None' | 'RequireLogout' | 'RecommendRestart' | 'RequireRestart' | 'RequireShutdown';
     software: MunkiPackageSoftware;
     supported_architectures: Array<string>;
-    suppress_bundle_relocation: boolean;
     unattended_install: boolean;
     unattended_uninstall: boolean;
     uninstall_method?: 'removepackages' | 'remove_copied_items' | 'uninstall_script';
@@ -568,6 +571,15 @@ export type MunkiPackage = {
     updated_at: string;
     version: string;
     version_script: string;
+};
+
+export type MunkiPackageActionLabels = {
+    install?: string;
+    installed?: string;
+    installing?: string;
+    remove?: string;
+    removing?: string;
+    update?: string;
 };
 
 export type MunkiPackageAlert = {
@@ -585,6 +597,9 @@ export type MunkiPackageCreateMutation = {
     blocking_applications_manual_quit_only?: boolean;
     blocking_applications_none?: boolean;
     blocking_applications_quit_script?: string;
+    blocking_applications_with_launch_args?: Array<MunkiPackageLaunchArguments>;
+    custom_action_labels?: MunkiPackageActionLabels;
+    download_on_low_data?: 'auto' | 'always' | 'never';
     force_install_after_date?: string;
     installable_condition?: string;
     installcheck_script?: string;
@@ -611,9 +626,9 @@ export type MunkiPackageCreateMutation = {
     receipts?: Array<MunkiPackageReceipt>;
     requires?: Array<MunkiPackageReferenceMutation>;
     restart_action?: 'RequireLogout' | 'RecommendRestart' | 'RequireRestart' | 'RequireShutdown';
+    restart_action_for_uninstall?: 'None' | 'RequireLogout' | 'RecommendRestart' | 'RequireRestart' | 'RequireShutdown';
     software_id: number;
     supported_architectures?: Array<string>;
-    suppress_bundle_relocation?: boolean;
     unattended_install?: boolean;
     unattended_uninstall?: boolean;
     uninstall_method?: 'removepackages' | 'remove_copied_items' | 'uninstall_script';
@@ -659,6 +674,11 @@ export type MunkiPackageItemToCopy = {
     user?: string;
 };
 
+export type MunkiPackageLaunchArguments = {
+    application: string;
+    arguments: Array<string>;
+};
+
 export type MunkiPackageMutation = {
     apple_item?: boolean;
     autoremove?: boolean;
@@ -666,6 +686,9 @@ export type MunkiPackageMutation = {
     blocking_applications_manual_quit_only?: boolean;
     blocking_applications_none?: boolean;
     blocking_applications_quit_script?: string;
+    blocking_applications_with_launch_args?: Array<MunkiPackageLaunchArguments>;
+    custom_action_labels?: MunkiPackageActionLabels;
+    download_on_low_data?: 'auto' | 'always' | 'never';
     force_install_after_date?: string;
     installable_condition?: string;
     installcheck_script?: string;
@@ -692,8 +715,8 @@ export type MunkiPackageMutation = {
     receipts?: Array<MunkiPackageReceipt>;
     requires?: Array<MunkiPackageReferenceMutation>;
     restart_action?: 'RequireLogout' | 'RecommendRestart' | 'RequireRestart' | 'RequireShutdown';
+    restart_action_for_uninstall?: 'None' | 'RequireLogout' | 'RecommendRestart' | 'RequireRestart' | 'RequireShutdown';
     supported_architectures?: Array<string>;
-    suppress_bundle_relocation?: boolean;
     unattended_install?: boolean;
     unattended_uninstall?: boolean;
     uninstall_method?: 'removepackages' | 'remove_copied_items' | 'uninstall_script';
@@ -4106,6 +4129,19 @@ export type PatchMunkiPackageData = {
         blocking_applications_manual_quit_only?: boolean;
         blocking_applications_none?: boolean;
         blocking_applications_quit_script?: string | null;
+        blocking_applications_with_launch_args?: Array<{
+            application: string;
+            arguments: Array<string>;
+        }>;
+        custom_action_labels?: {
+            install?: string | null;
+            installed?: string | null;
+            installing?: string | null;
+            remove?: string | null;
+            removing?: string | null;
+            update?: string | null;
+        };
+        download_on_low_data?: 'auto' | 'always' | 'never';
         force_install_after_date?: string | null;
         installable_condition?: string | null;
         installcheck_script?: string | null;
@@ -4179,8 +4215,8 @@ export type PatchMunkiPackageData = {
             software_id: number;
         }>;
         restart_action?: 'RequireLogout' | 'RecommendRestart' | 'RequireRestart' | 'RequireShutdown' | null;
+        restart_action_for_uninstall?: 'None' | 'RequireLogout' | 'RecommendRestart' | 'RequireRestart' | 'RequireShutdown' | null;
         supported_architectures?: Array<string>;
-        suppress_bundle_relocation?: boolean;
         unattended_install?: boolean;
         unattended_uninstall?: boolean;
         uninstall_method?: 'removepackages' | 'remove_copied_items' | 'uninstall_script' | null;

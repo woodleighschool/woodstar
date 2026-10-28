@@ -29,6 +29,7 @@ INSERT INTO munki_packages (
 	uninstallable,
 	uninstall_method,
 	restart_action,
+	restart_action_for_uninstall,
 	minimum_munki_version,
 	minimum_os_version,
 	maximum_os_version,
@@ -38,13 +39,15 @@ INSERT INTO munki_packages (
 	installable_condition,
 	blocking_applications_manual_quit_only,
 	blocking_applications_quit_script,
+	blocking_applications_with_launch_args,
+	download_on_low_data,
+	custom_action_labels,
 	unattended_install,
 	unattended_uninstall,
 	on_demand,
 	precache,
 	autoremove,
 	apple_item,
-	suppress_bundle_relocation,
 	force_install_after_date,
 	installed_size,
 	package_path,
@@ -81,6 +84,7 @@ VALUES (
 	@uninstallable,
 	@uninstall_method,
 	@restart_action,
+	@restart_action_for_uninstall,
 	@minimum_munki_version,
 	@minimum_os_version,
 	@maximum_os_version,
@@ -90,13 +94,15 @@ VALUES (
 	@installable_condition,
 	@blocking_applications_manual_quit_only,
 	@blocking_applications_quit_script,
+	@blocking_applications_with_launch_args::jsonb,
+	@download_on_low_data,
+	@custom_action_labels::jsonb,
 	@unattended_install,
 	@unattended_uninstall,
 	@on_demand,
 	@precache,
 	@autoremove,
 	@apple_item,
-	@suppress_bundle_relocation,
 	@force_install_after_date,
 	@installed_size,
 	@package_path,
@@ -181,6 +187,7 @@ SET
 	uninstallable = @uninstallable,
 	uninstall_method = @uninstall_method,
 	restart_action = @restart_action,
+	restart_action_for_uninstall = @restart_action_for_uninstall,
 	minimum_munki_version = @minimum_munki_version,
 	minimum_os_version = @minimum_os_version,
 	maximum_os_version = @maximum_os_version,
@@ -190,13 +197,15 @@ SET
 	installable_condition = @installable_condition,
 	blocking_applications_manual_quit_only = @blocking_applications_manual_quit_only,
 	blocking_applications_quit_script = @blocking_applications_quit_script,
+	blocking_applications_with_launch_args = @blocking_applications_with_launch_args::jsonb,
+	download_on_low_data = @download_on_low_data,
+	custom_action_labels = @custom_action_labels::jsonb,
 	unattended_install = @unattended_install,
 	unattended_uninstall = @unattended_uninstall,
 	on_demand = @on_demand,
 	precache = @precache,
 	autoremove = @autoremove,
 	apple_item = @apple_item,
-	suppress_bundle_relocation = @suppress_bundle_relocation,
 	force_install_after_date = @force_install_after_date,
 	installed_size = @installed_size,
 	package_path = @package_path,
@@ -306,6 +315,7 @@ type packageWrite struct {
 	Uninstallable                bool                                                    `db:"uninstallable"`
 	UninstallMethod              string                                                  `db:"uninstall_method"`
 	RestartAction                string                                                  `db:"restart_action"`
+	RestartActionForUninstall    string                                                  `db:"restart_action_for_uninstall"`
 	MinimumMunkiVersion          string                                                  `db:"minimum_munki_version"`
 	MinimumOSVersion             string                                                  `db:"minimum_os_version"`
 	MaximumOSVersion             string                                                  `db:"maximum_os_version"`
@@ -315,13 +325,15 @@ type packageWrite struct {
 	InstallableCondition         string                                                  `db:"installable_condition"`
 	BlockingAppsManualQuit       bool                                                    `db:"blocking_applications_manual_quit_only"`
 	BlockingAppsQuitScript       string                                                  `db:"blocking_applications_quit_script"`
+	BlockingAppsLaunchArgs       postgres.JSONSlice[PackageLaunchArguments]              `db:"blocking_applications_with_launch_args"`
+	DownloadOnLowData            string                                                  `db:"download_on_low_data"`
+	CustomActionLabels           PackageActionLabels                                     `db:"custom_action_labels"`
 	UnattendedInstall            bool                                                    `db:"unattended_install"`
 	UnattendedUninstall          bool                                                    `db:"unattended_uninstall"`
 	OnDemand                     bool                                                    `db:"on_demand"`
 	Precache                     bool                                                    `db:"precache"`
 	Autoremove                   bool                                                    `db:"autoremove"`
 	AppleItem                    bool                                                    `db:"apple_item"`
-	SuppressBundleRelocation     bool                                                    `db:"suppress_bundle_relocation"`
 	ForceInstallAfterDate        *time.Time                                              `db:"force_install_after_date"`
 	InstalledSize                int64                                                   `db:"installed_size"`
 	PackagePath                  string                                                  `db:"package_path"`
@@ -360,6 +372,7 @@ func newPackageWrite(softwareID int64, params PackageMutation) packageWrite {
 		Uninstallable:                params.Uninstallable,
 		UninstallMethod:              string(params.UninstallMethod),
 		RestartAction:                string(params.RestartAction),
+		RestartActionForUninstall:    string(params.RestartActionForUninstall),
 		MinimumMunkiVersion:          params.MinimumMunkiVersion,
 		MinimumOSVersion:             params.MinimumOSVersion,
 		MaximumOSVersion:             params.MaximumOSVersion,
@@ -369,13 +382,15 @@ func newPackageWrite(softwareID int64, params PackageMutation) packageWrite {
 		InstallableCondition:         params.InstallableCondition,
 		BlockingAppsManualQuit:       params.BlockingAppsManualQuit,
 		BlockingAppsQuitScript:       params.BlockingAppsQuitScript,
+		BlockingAppsLaunchArgs:       params.BlockingAppsLaunchArgs,
+		DownloadOnLowData:            string(params.DownloadOnLowData),
+		CustomActionLabels:           params.CustomActionLabels,
 		UnattendedInstall:            params.UnattendedInstall,
 		UnattendedUninstall:          params.UnattendedUninstall,
 		OnDemand:                     params.OnDemand,
 		Precache:                     params.Precache,
 		Autoremove:                   params.Autoremove,
 		AppleItem:                    params.AppleItem,
-		SuppressBundleRelocation:     params.SuppressBundleRelocation,
 		ForceInstallAfterDate:        params.ForceInstallAfterDate,
 		InstalledSize:                params.InstalledSize,
 		PackagePath:                  params.PackagePath,

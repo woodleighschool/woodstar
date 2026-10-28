@@ -124,6 +124,11 @@ export function MunkiPackageDetailPage() {
         />
         <KeyValueRow label="Uninstallable" value={<BooleanIndicator value={pkg.uninstallable} />} />
         <KeyValueRow label="Restart Action" value={pkg.restart_action || "None"} />
+        <KeyValueRow
+          label="Restart Action After Removal"
+          value={pkg.restart_action_for_uninstall ?? "Same as installation"}
+        />
+        <KeyValueRow label="Low-Data Download" value={pkg.download_on_low_data} />
       </KeyValueSection>
 
       <KeyValueSection title="Relationships">

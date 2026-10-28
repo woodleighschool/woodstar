@@ -28,52 +28,55 @@ func packageFromRow(row packageRow) Package {
 			Developer:    row.SoftwareDeveloper,
 			IconObjectID: row.SoftwareIconObjectID,
 		},
-		Version:                  row.Version,
-		InstallerType:            InstallerType(row.InstallerType),
-		UnattendedInstall:        row.UnattendedInstall,
-		UnattendedUninstall:      row.UnattendedUninstall,
-		Uninstallable:            row.Uninstallable,
-		UninstallMethod:          UninstallMethod(row.UninstallMethod),
-		RestartAction:            RestartAction(row.RestartAction),
-		MinimumMunkiVersion:      row.MinimumMunkiVersion,
-		MinimumOSVersion:         row.MinimumOSVersion,
-		MaximumOSVersion:         row.MaximumOSVersion,
-		SupportedArchitectures:   nonNilStrings(row.SupportedArchitectures),
-		BlockingApplications:     nonNilStrings(row.BlockingApplications),
-		BlockingApplicationsNone: row.BlockingApplicationsNone,
-		InstallableCondition:     row.InstallableCondition,
-		BlockingAppsManualQuit:   row.BlockingAppsManualQuit,
-		BlockingAppsQuitScript:   row.BlockingAppsQuitScript,
-		Requires:                 []PackageReference{},
-		UpdateFor:                []PackageReference{},
-		OnDemand:                 row.OnDemand,
-		Precache:                 row.Precache,
-		Autoremove:               row.Autoremove,
-		AppleItem:                row.AppleItem,
-		SuppressBundleRelocation: row.SuppressBundleRelocation,
-		ForceInstallAfterDate:    row.ForceInstallAfterDate,
-		InstalledSize:            row.InstalledSize,
-		InstallerFile:            row.InstallerFile(),
-		PackagePath:              row.PackagePath,
-		InstallerChoicesXML:      row.InstallerChoicesXML,
-		InstallerEnvironment:     row.InstallerEnvironment,
-		Installs:                 row.Installs,
-		Receipts:                 row.Receipts,
-		ItemsToCopy:              row.ItemsToCopy,
-		Notes:                    row.Notes,
-		InstallcheckScript:       row.InstallcheckScript,
-		UninstallcheckScript:     row.UninstallcheckScript,
-		PreinstallScript:         row.PreinstallScript,
-		PostinstallScript:        row.PostinstallScript,
-		PreuninstallScript:       row.PreuninstallScript,
-		PostuninstallScript:      row.PostuninstallScript,
-		UninstallScript:          row.UninstallScript,
-		VersionScript:            row.VersionScript,
-		PreinstallAlert:          row.PreinstallAlert(),
-		PreuninstallAlert:        row.PreuninstallAlert(),
-		InstallerObjectID:        row.InstallerObjectID,
-		CreatedAt:                row.CreatedAt,
-		UpdatedAt:                row.UpdatedAt,
+		Version:                   row.Version,
+		InstallerType:             InstallerType(row.InstallerType),
+		UnattendedInstall:         row.UnattendedInstall,
+		UnattendedUninstall:       row.UnattendedUninstall,
+		Uninstallable:             row.Uninstallable,
+		UninstallMethod:           UninstallMethod(row.UninstallMethod),
+		RestartAction:             RestartAction(row.RestartAction),
+		RestartActionForUninstall: UninstallRestartAction(row.RestartActionForUninstall),
+		MinimumMunkiVersion:       row.MinimumMunkiVersion,
+		MinimumOSVersion:          row.MinimumOSVersion,
+		MaximumOSVersion:          row.MaximumOSVersion,
+		SupportedArchitectures:    nonNilStrings(row.SupportedArchitectures),
+		BlockingApplications:      nonNilStrings(row.BlockingApplications),
+		BlockingApplicationsNone:  row.BlockingApplicationsNone,
+		InstallableCondition:      row.InstallableCondition,
+		BlockingAppsManualQuit:    row.BlockingAppsManualQuit,
+		BlockingAppsQuitScript:    row.BlockingAppsQuitScript,
+		BlockingAppsLaunchArgs:    row.BlockingAppsLaunchArgs,
+		DownloadOnLowData:         DownloadOnLowData(row.DownloadOnLowData),
+		CustomActionLabels:        row.CustomActionLabels,
+		Requires:                  []PackageReference{},
+		UpdateFor:                 []PackageReference{},
+		OnDemand:                  row.OnDemand,
+		Precache:                  row.Precache,
+		Autoremove:                row.Autoremove,
+		AppleItem:                 row.AppleItem,
+		ForceInstallAfterDate:     row.ForceInstallAfterDate,
+		InstalledSize:             row.InstalledSize,
+		InstallerFile:             row.InstallerFile(),
+		PackagePath:               row.PackagePath,
+		InstallerChoicesXML:       row.InstallerChoicesXML,
+		InstallerEnvironment:      row.InstallerEnvironment,
+		Installs:                  row.Installs,
+		Receipts:                  row.Receipts,
+		ItemsToCopy:               row.ItemsToCopy,
+		Notes:                     row.Notes,
+		InstallcheckScript:        row.InstallcheckScript,
+		UninstallcheckScript:      row.UninstallcheckScript,
+		PreinstallScript:          row.PreinstallScript,
+		PostinstallScript:         row.PostinstallScript,
+		PreuninstallScript:        row.PreuninstallScript,
+		PostuninstallScript:       row.PostuninstallScript,
+		UninstallScript:           row.UninstallScript,
+		VersionScript:             row.VersionScript,
+		PreinstallAlert:           row.PreinstallAlert(),
+		PreuninstallAlert:         row.PreuninstallAlert(),
+		InstallerObjectID:         row.InstallerObjectID,
+		CreatedAt:                 row.CreatedAt,
+		UpdatedAt:                 row.UpdatedAt,
 	}
 }
 
@@ -98,6 +101,7 @@ type packageRow struct {
 	Uninstallable                bool
 	UninstallMethod              string
 	RestartAction                string
+	RestartActionForUninstall    string
 	MinimumMunkiVersion          string
 	MinimumOSVersion             string
 	MaximumOSVersion             string
@@ -105,15 +109,17 @@ type packageRow struct {
 	BlockingApplications         []string
 	BlockingApplicationsNone     bool
 	InstallableCondition         string
-	BlockingAppsManualQuit       bool   `db:"blocking_applications_manual_quit_only"`
-	BlockingAppsQuitScript       string `db:"blocking_applications_quit_script"`
+	BlockingAppsManualQuit       bool                                       `db:"blocking_applications_manual_quit_only"`
+	BlockingAppsQuitScript       string                                     `db:"blocking_applications_quit_script"`
+	BlockingAppsLaunchArgs       postgres.JSONSlice[PackageLaunchArguments] `db:"blocking_applications_with_launch_args"`
+	DownloadOnLowData            string
+	CustomActionLabels           PackageActionLabels
 	UnattendedInstall            bool
 	UnattendedUninstall          bool
 	OnDemand                     bool
 	Precache                     bool
 	Autoremove                   bool
 	AppleItem                    bool
-	SuppressBundleRelocation     bool
 	ForceInstallAfterDate        *time.Time
 	InstalledSize                int64
 	InstallerFilename            *string
@@ -212,6 +218,7 @@ func packageColumnsSQL() string {
 	p.uninstallable,
 	p.uninstall_method,
 	p.restart_action,
+	p.restart_action_for_uninstall,
 	p.minimum_munki_version,
 	p.minimum_os_version,
 	p.maximum_os_version,
@@ -221,13 +228,15 @@ func packageColumnsSQL() string {
 	p.installable_condition,
 	p.blocking_applications_manual_quit_only,
 	p.blocking_applications_quit_script,
+	p.blocking_applications_with_launch_args,
+	p.download_on_low_data,
+	p.custom_action_labels,
 	p.unattended_install,
 	p.unattended_uninstall,
 	p.on_demand,
 	p.precache,
 	p.autoremove,
 	p.apple_item,
-	p.suppress_bundle_relocation,
 	p.force_install_after_date,
 	p.installed_size,
 	installer_obj.filename AS installer_filename,

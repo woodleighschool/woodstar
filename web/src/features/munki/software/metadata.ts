@@ -3,6 +3,10 @@ import { type EnumMetadataMap, enumOptions } from "@lib/enum-metadata";
 
 export type MunkiInstallerType = NonNullable<MunkiPackageMutation["installer_type"]>;
 export type MunkiRestartAction = NonNullable<MunkiPackageMutation["restart_action"]>;
+export type MunkiUninstallRestartAction = NonNullable<
+  MunkiPackageMutation["restart_action_for_uninstall"]
+>;
+export type MunkiDownloadOnLowData = NonNullable<MunkiPackageMutation["download_on_low_data"]>;
 export type MunkiUninstallMethod = NonNullable<MunkiPackageMutation["uninstall_method"]>;
 export type MunkiInstallItemType = MunkiPackageInstallItem["type"];
 export type MunkiPackageStrategy = MunkiInclude["package"]["strategy"];
@@ -45,6 +49,24 @@ export const MUNKI_RESTART_ACTION_VALUES = [
 ] as const satisfies readonly MunkiRestartAction[];
 
 export const MUNKI_RESTART_ACTION_OPTIONS = rawEnumOptions(MUNKI_RESTART_ACTION_VALUES);
+
+// None overrides an installation restart action for removal.
+export const MUNKI_UNINSTALL_RESTART_ACTION_VALUES = [
+  "None",
+  ...MUNKI_RESTART_ACTION_VALUES,
+] as const satisfies readonly MunkiUninstallRestartAction[];
+
+export const MUNKI_UNINSTALL_RESTART_ACTION_OPTIONS = rawEnumOptions(
+  MUNKI_UNINSTALL_RESTART_ACTION_VALUES,
+);
+
+export const MUNKI_DOWNLOAD_ON_LOW_DATA_VALUES = [
+  "auto",
+  "always",
+  "never",
+] as const satisfies readonly MunkiDownloadOnLowData[];
+
+export const MUNKI_DOWNLOAD_ON_LOW_DATA_OPTIONS = rawEnumOptions(MUNKI_DOWNLOAD_ON_LOW_DATA_VALUES);
 
 export const MUNKI_UNINSTALL_METHOD_VALUES = [
   "removepackages",

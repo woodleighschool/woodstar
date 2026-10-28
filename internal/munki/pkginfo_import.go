@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 
@@ -54,12 +55,16 @@ func ImportPkginfo(data json.RawMessage) (PkginfoImport, error) {
 			delete(fields, name)
 		}
 	}
-	for _, name := range []string{"restart_action", "on_demand", "blocking_applications_none", "installer_object_id"} {
+	for _, name := range []string{"restart_action", "restart_action_for_uninstall", "on_demand", "blocking_applications_none", "installer_object_id"} {
 		if _, exists := fields[name]; exists {
 			return result, fmt.Errorf("%s is not a native pkginfo field", name)
 		}
 	}
-	for _, names := range [][2]string{{"RestartAction", "restart_action"}, {"OnDemand", "on_demand"}} {
+	// Native None after installation is the API's absent restart action.
+	if string(fields["RestartAction"]) == `"None"` {
+		fields["RestartAction"] = json.RawMessage(`null`)
+	}
+	for _, names := range [][2]string{{"RestartAction", "restart_action"}, {"RestartActionForUninstall", "restart_action_for_uninstall"}, {"OnDemand", "on_demand"}} {
 		renamePkginfoField(fields, names[0], names[1])
 	}
 	if _, exists := fields["installer_type"]; !exists {
@@ -71,12 +76,8 @@ func ImportPkginfo(data json.RawMessage) (PkginfoImport, error) {
 			return result, fmt.Errorf("%s must be a nonblank string", name)
 		}
 	}
-	if value, ok := fields["blocking_applications"]; ok {
-		var applications []string
-		if err := pkginfoArray(value, &applications); err != nil {
-			return result, fmt.Errorf("blocking_applications: %w", err)
-		}
-		fields["blocking_applications_none"] = pkginfoJSON(len(applications) == 0)
+	if err := importPkginfoBlockingApplications(fields); err != nil {
+		return result, err
 	}
 	if err := importPkginfoReferences(fields, &result); err != nil {
 		return result, err
@@ -161,6 +162,37 @@ func renamePkginfoField(fields map[string]json.RawMessage, from, to string) {
 func pkginfoJSON(value any) json.RawMessage {
 	data, _ := json.Marshal(value)
 	return data
+}
+
+// importPkginfoBlockingApplications keeps Munki's distinction between absent
+// blockers, which Munki infers from installs, and an explicitly empty set.
+func importPkginfoBlockingApplications(fields map[string]json.RawMessage) error {
+	var launchArguments []packages.PackageLaunchArguments
+	value, launchSupplied := fields["blocking_applications_with_launch_args"]
+	if launchSupplied {
+		configured, err := pkginfoObject(value)
+		if err != nil {
+			return fmt.Errorf("blocking_applications_with_launch_args: %w", err)
+		}
+		for _, application := range slices.Sorted(maps.Keys(configured)) {
+			var arguments []string
+			if err := pkginfoArray(configured[application], &arguments); err != nil {
+				return fmt.Errorf("blocking_applications_with_launch_args.%s: %w", application, err)
+			}
+			launchArguments = append(launchArguments, packages.PackageLaunchArguments{Application: application, Arguments: arguments})
+		}
+		fields["blocking_applications_with_launch_args"] = pkginfoJSON(launchArguments)
+	}
+	if value, ok := fields["blocking_applications"]; ok {
+		var applications []string
+		if err := pkginfoArray(value, &applications); err != nil {
+			return fmt.Errorf("blocking_applications: %w", err)
+		}
+		fields["blocking_applications_none"] = pkginfoJSON(len(applications) == 0 && len(launchArguments) == 0)
+	} else if len(launchArguments) > 0 {
+		fields["blocking_applications_none"] = pkginfoJSON(false)
+	}
+	return nil
 }
 
 func importPkginfoReferences(fields map[string]json.RawMessage, result *PkginfoImport) error {

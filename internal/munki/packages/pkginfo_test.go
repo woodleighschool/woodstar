@@ -62,8 +62,7 @@ func TestPkginfoProjectsMunkiTransportShape(t *testing.T) {
 		Receipts: []PackageReceipt{
 			{PackageID: "com.example.pkg", Version: "1.2.3", Name: "Example", InstalledSize: 2048, Optional: true},
 		},
-		SuppressBundleRelocation: true,
-		InstallerObjectID:        &installerID,
+		InstallerObjectID: &installerID,
 	}, PkginfoObjects{
 		Installer: &bloby.Object{
 			ID:          installerID,
@@ -146,6 +145,39 @@ func TestPkginfoProjectsMunkiTransportShape(t *testing.T) {
 	}
 }
 
+func TestPkginfoProjectsClientBehaviourKeys(t *testing.T) {
+	got := plistMap(t, mustPkginfo(t, Package{
+		ID:                        12,
+		Software:                  PackageSoftware{ID: 7, Name: "Example App"},
+		Version:                   "1.2.3",
+		InstallerType:             InstallerTypeNoPkg,
+		RestartActionForUninstall: UninstallRestartActionNone,
+		BlockingAppsLaunchArgs: []PackageLaunchArguments{
+			{Application: "Google Chrome.app", Arguments: []string{"--restore-last-session"}},
+		},
+		DownloadOnLowData:  DownloadOnLowDataAlways,
+		CustomActionLabels: PackageActionLabels{Install: "Request"},
+	}, pkginfoObjects()))
+
+	if got["RestartActionForUninstall"] != "None" || got["download_on_low_data"] != "always" {
+		t.Fatalf(
+			"removal restart and low-data download = %#v/%#v, want Munki keys",
+			got["RestartActionForUninstall"],
+			got["download_on_low_data"],
+		)
+	}
+	launchArguments, _ := got["blocking_applications_with_launch_args"].(map[string]any)
+	if arguments, ok := stringSlice(launchArguments["Google Chrome.app"]); !ok ||
+		len(arguments) != 1 ||
+		arguments[0] != "--restore-last-session" {
+		t.Fatalf("blocking_applications_with_launch_args = %#v, want arguments by application", launchArguments)
+	}
+	labels, _ := got["custom_action_labels"].(map[string]any)
+	if len(labels) != 1 || labels["install"] != "Request" {
+		t.Fatalf("custom_action_labels = %#v, want only supplied labels", got["custom_action_labels"])
+	}
+}
+
 func TestPkginfoOmitsEmptyOptionalArrays(t *testing.T) {
 	got := plistMap(t, mustPkginfo(t, Package{
 		ID:            12,
@@ -155,6 +187,8 @@ func TestPkginfoOmitsEmptyOptionalArrays(t *testing.T) {
 	}, pkginfoObjects()))
 
 	for _, key := range []string{
+		"blocking_applications_with_launch_args",
+		"custom_action_labels",
 		"installer_choices_xml",
 		"installs",
 		"items_to_copy",

@@ -57,7 +57,7 @@ func TestImportPkginfoPreservesSparseNativeFields(t *testing.T) {
 func TestImportPkginfoRejectsUnsupportedOrInvalidNativeValues(t *testing.T) {
 	for _, fields := range []string{
 		`"name":null`, `"version":null`, `"version":""`, `"installer_type":null`,
-		`"unknown":true`, `"restart_action":"RequireRestart"`, `"installer_object_id":42`,
+		`"unknown":true`, `"restart_action":"RequireRestart"`, `"restart_action_for_uninstall":"None"`, `"installer_object_id":42`,
 		`"unattended_install":null`, `"receipts":null`, `"requires":[{"software_id":1}]`,
 		`"requires":["Dependency--"]`, `"update_for":null`, `"catalogs":["production"]`,
 		`"catalogs":[]`, `"icon_name":""`, `"icon_hash":""`, `"items_to_remove":[]`,

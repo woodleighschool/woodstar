@@ -5,15 +5,21 @@ import { requiredString } from "@lib/form-validation";
 import { isRecord, nonEmpty } from "@lib/utils";
 
 import {
+  MUNKI_DOWNLOAD_ON_LOW_DATA_VALUES,
   MUNKI_INSTALL_ITEM_TYPE_VALUES,
   MUNKI_INSTALLER_TYPE_VALUES,
   MUNKI_RESTART_ACTION_VALUES,
   MUNKI_UNINSTALL_METHOD_VALUES,
+  MUNKI_UNINSTALL_RESTART_ACTION_VALUES,
 } from "../software/metadata";
 
 const ARCHITECTURE_VALUES = ["arm64", "x86_64"] as const;
 const architectureSet: ReadonlySet<string> = new Set(ARCHITECTURE_VALUES);
 const PACKAGE_UNINSTALL_METHOD_VALUES = ["", ...MUNKI_UNINSTALL_METHOD_VALUES] as const;
+const PACKAGE_UNINSTALL_RESTART_ACTION_VALUES = [
+  "",
+  ...MUNKI_UNINSTALL_RESTART_ACTION_VALUES,
+] as const;
 
 export type Architecture = (typeof ARCHITECTURE_VALUES)[number];
 
@@ -40,6 +46,19 @@ const packageReferenceRowSchema = z.object({
   rowID: rowIDSchema,
 });
 const stringRowSchema = z.object({ rowID: rowIDSchema, value: z.string() });
+const launchArgumentsRowSchema = z.object({
+  rowID: rowIDSchema,
+  application: z.string(),
+  arguments: z.string(),
+});
+const actionLabelsSchema = z.object({
+  install: optionalString,
+  installing: optionalString,
+  installed: optionalString,
+  remove: optionalString,
+  removing: optionalString,
+  update: optionalString,
+});
 const installerEnvironmentRowSchema = z.object({
   rowID: rowIDSchema,
   name: z.string(),
@@ -86,6 +105,8 @@ const alertSchema = z.object({
 
 export type PackageReferenceRow = z.input<typeof packageReferenceRowSchema>;
 export type StringRow = z.input<typeof stringRowSchema>;
+export type LaunchArgumentsRow = z.input<typeof launchArgumentsRowSchema>;
+export type ActionLabels = z.input<typeof actionLabelsSchema>;
 export type InstallerEnvironmentRow = z.input<typeof installerEnvironmentRowSchema>;
 export type InstallItemRow = z.input<typeof installItemRowSchema>;
 export type ReceiptRow = z.input<typeof receiptRowSchema>;
@@ -110,6 +131,7 @@ const packageFormShape = z.object({
   uninstall_method: z.enum(PACKAGE_UNINSTALL_METHOD_VALUES),
   restart_required: z.boolean(),
   restart_action: z.enum(MUNKI_RESTART_ACTION_VALUES),
+  restart_action_for_uninstall: z.enum(PACKAGE_UNINSTALL_RESTART_ACTION_VALUES),
   minimum_munki_version: z.string(),
   minimum_os_version: z.string(),
   maximum_os_version: z.string(),
@@ -119,6 +141,9 @@ const packageFormShape = z.object({
   installable_condition: z.string(),
   blocking_applications_manual_quit_only: z.boolean(),
   blocking_applications_quit_script: z.string(),
+  blocking_applications_with_launch_args: z.array(launchArgumentsRowSchema),
+  download_on_low_data: z.enum(MUNKI_DOWNLOAD_ON_LOW_DATA_VALUES),
+  custom_action_labels: actionLabelsSchema,
   requires: z.array(packageReferenceRowSchema),
   update_for: z.array(packageReferenceRowSchema),
   unattended_install: z.boolean(),
@@ -127,7 +152,6 @@ const packageFormShape = z.object({
   precache: z.boolean(),
   autoremove: z.boolean(),
   apple_item: z.boolean(),
-  suppress_bundle_relocation: z.boolean(),
   force_install_after_date: z.string(),
   installed_size: z.string(),
   package_path: z.string(),
@@ -265,6 +289,28 @@ export function packageFormSchema() {
         message: "Every blocking application requires a name.",
         path: ["blocking_applications"],
       });
+    }
+    const launchApplications = new Set<string>();
+    for (const row of form.blocking_applications_with_launch_args) {
+      const application = row.application.trim();
+      if (application === "" && row.arguments.trim() === "") continue;
+      if (application === "") {
+        ctx.addIssue({
+          code: "custom",
+          message: "Every set of relaunch arguments requires an application.",
+          path: ["blocking_applications_with_launch_args"],
+        });
+        break;
+      }
+      if (launchApplications.has(application)) {
+        ctx.addIssue({
+          code: "custom",
+          message: `Relaunch arguments contain duplicate application ${application}.`,
+          path: ["blocking_applications_with_launch_args"],
+        });
+        break;
+      }
+      launchApplications.add(application);
     }
     if (form.installer_type === "copy_from_dmg" && !hasItemToCopyInput(form.items_to_copy)) {
       ctx.addIssue({

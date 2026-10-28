@@ -418,6 +418,27 @@ func (e MunkiIncludeActions) Valid() bool {
 	}
 }
 
+// Defines values for MunkiPackageDownloadOnLowData.
+const (
+	MunkiPackageDownloadOnLowDataAlways MunkiPackageDownloadOnLowData = "always"
+	MunkiPackageDownloadOnLowDataAuto   MunkiPackageDownloadOnLowData = "auto"
+	MunkiPackageDownloadOnLowDataNever  MunkiPackageDownloadOnLowData = "never"
+)
+
+// Valid indicates whether the value is a known member of the MunkiPackageDownloadOnLowData enum.
+func (e MunkiPackageDownloadOnLowData) Valid() bool {
+	switch e {
+	case MunkiPackageDownloadOnLowDataAlways:
+		return true
+	case MunkiPackageDownloadOnLowDataAuto:
+		return true
+	case MunkiPackageDownloadOnLowDataNever:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for MunkiPackageInstallerType.
 const (
 	MunkiPackageInstallerTypeCopyFromDmg MunkiPackageInstallerType = "copy_from_dmg"
@@ -463,6 +484,33 @@ func (e MunkiPackageRestartAction) Valid() bool {
 	}
 }
 
+// Defines values for MunkiPackageRestartActionForUninstall.
+const (
+	MunkiPackageRestartActionForUninstallNone             MunkiPackageRestartActionForUninstall = "None"
+	MunkiPackageRestartActionForUninstallRecommendRestart MunkiPackageRestartActionForUninstall = "RecommendRestart"
+	MunkiPackageRestartActionForUninstallRequireLogout    MunkiPackageRestartActionForUninstall = "RequireLogout"
+	MunkiPackageRestartActionForUninstallRequireRestart   MunkiPackageRestartActionForUninstall = "RequireRestart"
+	MunkiPackageRestartActionForUninstallRequireShutdown  MunkiPackageRestartActionForUninstall = "RequireShutdown"
+)
+
+// Valid indicates whether the value is a known member of the MunkiPackageRestartActionForUninstall enum.
+func (e MunkiPackageRestartActionForUninstall) Valid() bool {
+	switch e {
+	case MunkiPackageRestartActionForUninstallNone:
+		return true
+	case MunkiPackageRestartActionForUninstallRecommendRestart:
+		return true
+	case MunkiPackageRestartActionForUninstallRequireLogout:
+		return true
+	case MunkiPackageRestartActionForUninstallRequireRestart:
+		return true
+	case MunkiPackageRestartActionForUninstallRequireShutdown:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for MunkiPackageUninstallMethod.
 const (
 	MunkiPackageUninstallMethodRemoveCopiedItems MunkiPackageUninstallMethod = "remove_copied_items"
@@ -478,6 +526,27 @@ func (e MunkiPackageUninstallMethod) Valid() bool {
 	case MunkiPackageUninstallMethodRemovepackages:
 		return true
 	case MunkiPackageUninstallMethodUninstallScript:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MunkiPackageCreateMutationDownloadOnLowData.
+const (
+	MunkiPackageCreateMutationDownloadOnLowDataAlways MunkiPackageCreateMutationDownloadOnLowData = "always"
+	MunkiPackageCreateMutationDownloadOnLowDataAuto   MunkiPackageCreateMutationDownloadOnLowData = "auto"
+	MunkiPackageCreateMutationDownloadOnLowDataNever  MunkiPackageCreateMutationDownloadOnLowData = "never"
+)
+
+// Valid indicates whether the value is a known member of the MunkiPackageCreateMutationDownloadOnLowData enum.
+func (e MunkiPackageCreateMutationDownloadOnLowData) Valid() bool {
+	switch e {
+	case MunkiPackageCreateMutationDownloadOnLowDataAlways:
+		return true
+	case MunkiPackageCreateMutationDownloadOnLowDataAuto:
+		return true
+	case MunkiPackageCreateMutationDownloadOnLowDataNever:
 		return true
 	default:
 		return false
@@ -523,6 +592,33 @@ func (e MunkiPackageCreateMutationRestartAction) Valid() bool {
 	case MunkiPackageCreateMutationRestartActionRequireRestart:
 		return true
 	case MunkiPackageCreateMutationRestartActionRequireShutdown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MunkiPackageCreateMutationRestartActionForUninstall.
+const (
+	MunkiPackageCreateMutationRestartActionForUninstallNone             MunkiPackageCreateMutationRestartActionForUninstall = "None"
+	MunkiPackageCreateMutationRestartActionForUninstallRecommendRestart MunkiPackageCreateMutationRestartActionForUninstall = "RecommendRestart"
+	MunkiPackageCreateMutationRestartActionForUninstallRequireLogout    MunkiPackageCreateMutationRestartActionForUninstall = "RequireLogout"
+	MunkiPackageCreateMutationRestartActionForUninstallRequireRestart   MunkiPackageCreateMutationRestartActionForUninstall = "RequireRestart"
+	MunkiPackageCreateMutationRestartActionForUninstallRequireShutdown  MunkiPackageCreateMutationRestartActionForUninstall = "RequireShutdown"
+)
+
+// Valid indicates whether the value is a known member of the MunkiPackageCreateMutationRestartActionForUninstall enum.
+func (e MunkiPackageCreateMutationRestartActionForUninstall) Valid() bool {
+	switch e {
+	case MunkiPackageCreateMutationRestartActionForUninstallNone:
+		return true
+	case MunkiPackageCreateMutationRestartActionForUninstallRecommendRestart:
+		return true
+	case MunkiPackageCreateMutationRestartActionForUninstallRequireLogout:
+		return true
+	case MunkiPackageCreateMutationRestartActionForUninstallRequireRestart:
+		return true
+	case MunkiPackageCreateMutationRestartActionForUninstallRequireShutdown:
 		return true
 	default:
 		return false
@@ -2049,7 +2145,10 @@ type MunkiPackage struct {
 	BlockingApplicationsManualQuitOnly bool                                       `json:"blocking_applications_manual_quit_only"`
 	BlockingApplicationsNone           bool                                       `json:"blocking_applications_none"`
 	BlockingApplicationsQuitScript     string                                     `json:"blocking_applications_quit_script"`
+	BlockingApplicationsWithLaunchArgs []MunkiPackageLaunchArguments              `json:"blocking_applications_with_launch_args"`
 	CreatedAt                          time.Time                                  `json:"created_at"`
+	CustomActionLabels                 MunkiPackageActionLabels                   `json:"custom_action_labels"`
+	DownloadOnLowData                  MunkiPackageDownloadOnLowData              `json:"download_on_low_data"`
 	ForceInstallAfterDate              *time.Time                                 `json:"force_install_after_date,omitempty"`
 	Id                                 int64                                      `json:"id"`
 	InstallableCondition               string                                     `json:"installable_condition"`
@@ -2078,9 +2177,9 @@ type MunkiPackage struct {
 	Receipts                           []MunkiPackageReceipt                      `json:"receipts"`
 	Requires                           []MunkiPackageReference                    `json:"requires"`
 	RestartAction                      *MunkiPackageRestartAction                 `json:"restart_action,omitempty"`
+	RestartActionForUninstall          *MunkiPackageRestartActionForUninstall     `json:"restart_action_for_uninstall,omitempty"`
 	Software                           MunkiPackageSoftware                       `json:"software"`
 	SupportedArchitectures             []string                                   `json:"supported_architectures"`
-	SuppressBundleRelocation           bool                                       `json:"suppress_bundle_relocation"`
 	UnattendedInstall                  bool                                       `json:"unattended_install"`
 	UnattendedUninstall                bool                                       `json:"unattended_uninstall"`
 	UninstallMethod                    *MunkiPackageUninstallMethod               `json:"uninstall_method,omitempty"`
@@ -2093,14 +2192,30 @@ type MunkiPackage struct {
 	VersionScript                      string                                     `json:"version_script"`
 }
 
+// MunkiPackageDownloadOnLowData defines model for MunkiPackage.DownloadOnLowData.
+type MunkiPackageDownloadOnLowData string
+
 // MunkiPackageInstallerType defines model for MunkiPackage.InstallerType.
 type MunkiPackageInstallerType string
 
 // MunkiPackageRestartAction defines model for MunkiPackage.RestartAction.
 type MunkiPackageRestartAction string
 
+// MunkiPackageRestartActionForUninstall defines model for MunkiPackage.RestartActionForUninstall.
+type MunkiPackageRestartActionForUninstall string
+
 // MunkiPackageUninstallMethod defines model for MunkiPackage.UninstallMethod.
 type MunkiPackageUninstallMethod string
+
+// MunkiPackageActionLabels defines model for MunkiPackageActionLabels.
+type MunkiPackageActionLabels struct {
+	Install    *string `json:"install,omitempty"`
+	Installed  *string `json:"installed,omitempty"`
+	Installing *string `json:"installing,omitempty"`
+	Remove     *string `json:"remove,omitempty"`
+	Removing   *string `json:"removing,omitempty"`
+	Update     *string `json:"update,omitempty"`
+}
 
 // MunkiPackageAlert defines model for MunkiPackageAlert.
 type MunkiPackageAlert struct {
@@ -2113,57 +2228,66 @@ type MunkiPackageAlert struct {
 
 // MunkiPackageCreateMutation defines model for MunkiPackageCreateMutation.
 type MunkiPackageCreateMutation struct {
-	AppleItem                          *bool                                       `json:"apple_item,omitempty"`
-	Autoremove                         *bool                                       `json:"autoremove,omitempty"`
-	BlockingApplications               *[]string                                   `json:"blocking_applications,omitempty"`
-	BlockingApplicationsManualQuitOnly *bool                                       `json:"blocking_applications_manual_quit_only,omitempty"`
-	BlockingApplicationsNone           *bool                                       `json:"blocking_applications_none,omitempty"`
-	BlockingApplicationsQuitScript     *string                                     `json:"blocking_applications_quit_script,omitempty"`
-	ForceInstallAfterDate              *time.Time                                  `json:"force_install_after_date,omitempty"`
-	InstallableCondition               *string                                     `json:"installable_condition,omitempty"`
-	InstallcheckScript                 *string                                     `json:"installcheck_script,omitempty"`
-	InstalledSize                      *int64                                      `json:"installed_size,omitempty"`
-	InstallerChoicesXml                *[]MunkiPackageInstallerChoice              `json:"installer_choices_xml,omitempty"`
-	InstallerEnvironment               *[]MunkiPackageInstallerEnvironmentVariable `json:"installer_environment,omitempty"`
-	InstallerObjectId                  *int64                                      `json:"installer_object_id,omitempty"`
-	InstallerType                      *MunkiPackageCreateMutationInstallerType    `json:"installer_type,omitempty"`
-	Installs                           *[]MunkiPackageInstallItem                  `json:"installs,omitempty"`
-	ItemsToCopy                        *[]MunkiPackageItemToCopy                   `json:"items_to_copy,omitempty"`
-	MaximumOsVersion                   *string                                     `json:"maximum_os_version,omitempty"`
-	MinimumMunkiVersion                *string                                     `json:"minimum_munki_version,omitempty"`
-	MinimumOsVersion                   *string                                     `json:"minimum_os_version,omitempty"`
-	Notes                              *string                                     `json:"notes,omitempty"`
-	OnDemand                           *bool                                       `json:"on_demand,omitempty"`
-	PackagePath                        *string                                     `json:"package_path,omitempty"`
-	PostinstallScript                  *string                                     `json:"postinstall_script,omitempty"`
-	PostuninstallScript                *string                                     `json:"postuninstall_script,omitempty"`
-	Precache                           *bool                                       `json:"precache,omitempty"`
-	PreinstallAlert                    *MunkiPackageAlert                          `json:"preinstall_alert,omitempty"`
-	PreinstallScript                   *string                                     `json:"preinstall_script,omitempty"`
-	PreuninstallAlert                  *MunkiPackageAlert                          `json:"preuninstall_alert,omitempty"`
-	PreuninstallScript                 *string                                     `json:"preuninstall_script,omitempty"`
-	Receipts                           *[]MunkiPackageReceipt                      `json:"receipts,omitempty"`
-	Requires                           *[]MunkiPackageReferenceMutation            `json:"requires,omitempty"`
-	RestartAction                      *MunkiPackageCreateMutationRestartAction    `json:"restart_action,omitempty"`
-	SoftwareId                         int64                                       `json:"software_id"`
-	SupportedArchitectures             *[]string                                   `json:"supported_architectures,omitempty"`
-	SuppressBundleRelocation           *bool                                       `json:"suppress_bundle_relocation,omitempty"`
-	UnattendedInstall                  *bool                                       `json:"unattended_install,omitempty"`
-	UnattendedUninstall                *bool                                       `json:"unattended_uninstall,omitempty"`
-	UninstallMethod                    *MunkiPackageCreateMutationUninstallMethod  `json:"uninstall_method,omitempty"`
-	UninstallScript                    *string                                     `json:"uninstall_script,omitempty"`
-	Uninstallable                      *bool                                       `json:"uninstallable,omitempty"`
-	UninstallcheckScript               *string                                     `json:"uninstallcheck_script,omitempty"`
-	UpdateFor                          *[]MunkiPackageReferenceMutation            `json:"update_for,omitempty"`
-	Version                            string                                      `json:"version"`
-	VersionScript                      *string                                     `json:"version_script,omitempty"`
+	AppleItem                          *bool                                                `json:"apple_item,omitempty"`
+	Autoremove                         *bool                                                `json:"autoremove,omitempty"`
+	BlockingApplications               *[]string                                            `json:"blocking_applications,omitempty"`
+	BlockingApplicationsManualQuitOnly *bool                                                `json:"blocking_applications_manual_quit_only,omitempty"`
+	BlockingApplicationsNone           *bool                                                `json:"blocking_applications_none,omitempty"`
+	BlockingApplicationsQuitScript     *string                                              `json:"blocking_applications_quit_script,omitempty"`
+	BlockingApplicationsWithLaunchArgs *[]MunkiPackageLaunchArguments                       `json:"blocking_applications_with_launch_args,omitempty"`
+	CustomActionLabels                 *MunkiPackageActionLabels                            `json:"custom_action_labels,omitempty"`
+	DownloadOnLowData                  *MunkiPackageCreateMutationDownloadOnLowData         `json:"download_on_low_data,omitempty"`
+	ForceInstallAfterDate              *time.Time                                           `json:"force_install_after_date,omitempty"`
+	InstallableCondition               *string                                              `json:"installable_condition,omitempty"`
+	InstallcheckScript                 *string                                              `json:"installcheck_script,omitempty"`
+	InstalledSize                      *int64                                               `json:"installed_size,omitempty"`
+	InstallerChoicesXml                *[]MunkiPackageInstallerChoice                       `json:"installer_choices_xml,omitempty"`
+	InstallerEnvironment               *[]MunkiPackageInstallerEnvironmentVariable          `json:"installer_environment,omitempty"`
+	InstallerObjectId                  *int64                                               `json:"installer_object_id,omitempty"`
+	InstallerType                      *MunkiPackageCreateMutationInstallerType             `json:"installer_type,omitempty"`
+	Installs                           *[]MunkiPackageInstallItem                           `json:"installs,omitempty"`
+	ItemsToCopy                        *[]MunkiPackageItemToCopy                            `json:"items_to_copy,omitempty"`
+	MaximumOsVersion                   *string                                              `json:"maximum_os_version,omitempty"`
+	MinimumMunkiVersion                *string                                              `json:"minimum_munki_version,omitempty"`
+	MinimumOsVersion                   *string                                              `json:"minimum_os_version,omitempty"`
+	Notes                              *string                                              `json:"notes,omitempty"`
+	OnDemand                           *bool                                                `json:"on_demand,omitempty"`
+	PackagePath                        *string                                              `json:"package_path,omitempty"`
+	PostinstallScript                  *string                                              `json:"postinstall_script,omitempty"`
+	PostuninstallScript                *string                                              `json:"postuninstall_script,omitempty"`
+	Precache                           *bool                                                `json:"precache,omitempty"`
+	PreinstallAlert                    *MunkiPackageAlert                                   `json:"preinstall_alert,omitempty"`
+	PreinstallScript                   *string                                              `json:"preinstall_script,omitempty"`
+	PreuninstallAlert                  *MunkiPackageAlert                                   `json:"preuninstall_alert,omitempty"`
+	PreuninstallScript                 *string                                              `json:"preuninstall_script,omitempty"`
+	Receipts                           *[]MunkiPackageReceipt                               `json:"receipts,omitempty"`
+	Requires                           *[]MunkiPackageReferenceMutation                     `json:"requires,omitempty"`
+	RestartAction                      *MunkiPackageCreateMutationRestartAction             `json:"restart_action,omitempty"`
+	RestartActionForUninstall          *MunkiPackageCreateMutationRestartActionForUninstall `json:"restart_action_for_uninstall,omitempty"`
+	SoftwareId                         int64                                                `json:"software_id"`
+	SupportedArchitectures             *[]string                                            `json:"supported_architectures,omitempty"`
+	UnattendedInstall                  *bool                                                `json:"unattended_install,omitempty"`
+	UnattendedUninstall                *bool                                                `json:"unattended_uninstall,omitempty"`
+	UninstallMethod                    *MunkiPackageCreateMutationUninstallMethod           `json:"uninstall_method,omitempty"`
+	UninstallScript                    *string                                              `json:"uninstall_script,omitempty"`
+	Uninstallable                      *bool                                                `json:"uninstallable,omitempty"`
+	UninstallcheckScript               *string                                              `json:"uninstallcheck_script,omitempty"`
+	UpdateFor                          *[]MunkiPackageReferenceMutation                     `json:"update_for,omitempty"`
+	Version                            string                                               `json:"version"`
+	VersionScript                      *string                                              `json:"version_script,omitempty"`
 }
+
+// MunkiPackageCreateMutationDownloadOnLowData defines model for MunkiPackageCreateMutation.DownloadOnLowData.
+type MunkiPackageCreateMutationDownloadOnLowData string
 
 // MunkiPackageCreateMutationInstallerType defines model for MunkiPackageCreateMutation.InstallerType.
 type MunkiPackageCreateMutationInstallerType string
 
 // MunkiPackageCreateMutationRestartAction defines model for MunkiPackageCreateMutation.RestartAction.
 type MunkiPackageCreateMutationRestartAction string
+
+// MunkiPackageCreateMutationRestartActionForUninstall defines model for MunkiPackageCreateMutation.RestartActionForUninstall.
+type MunkiPackageCreateMutationRestartActionForUninstall string
 
 // MunkiPackageCreateMutationUninstallMethod defines model for MunkiPackageCreateMutation.UninstallMethod.
 type MunkiPackageCreateMutationUninstallMethod string
@@ -2207,6 +2331,12 @@ type MunkiPackageItemToCopy struct {
 	Mode            *string `json:"mode,omitempty"`
 	SourceItem      string  `json:"source_item"`
 	User            *string `json:"user,omitempty"`
+}
+
+// MunkiPackageLaunchArguments defines model for MunkiPackageLaunchArguments.
+type MunkiPackageLaunchArguments struct {
+	Application string   `json:"application"`
+	Arguments   []string `json:"arguments"`
 }
 
 // MunkiPackageReceipt defines model for MunkiPackageReceipt.

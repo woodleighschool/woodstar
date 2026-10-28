@@ -24,15 +24,19 @@ import {
 import { Switch } from "@components/ui/switch";
 import { Textarea } from "@components/ui/textarea";
 import { ValidatedFormField } from "@components/validated-form-field";
-import type { MunkiPackageAlert } from "@lib/api";
+import type { MunkiPackageActionLabels, MunkiPackageAlert } from "@lib/api";
 import { isOneOf } from "@lib/utils";
 
 import {
+  MUNKI_DOWNLOAD_ON_LOW_DATA_OPTIONS,
+  MUNKI_DOWNLOAD_ON_LOW_DATA_VALUES,
   MUNKI_INSTALLER_TYPES,
   MUNKI_INSTALLER_TYPE_OPTIONS,
   MUNKI_INSTALLER_TYPE_VALUES,
   MUNKI_RESTART_ACTION_OPTIONS,
   MUNKI_UNINSTALL_METHOD_OPTIONS,
+  MUNKI_UNINSTALL_RESTART_ACTION_OPTIONS,
+  MUNKI_UNINSTALL_RESTART_ACTION_VALUES,
 } from "../software/metadata";
 import type { PackageEditorForm } from "./fields";
 import type { PackageFormInput } from "./form-schema";
@@ -235,6 +239,89 @@ export function RestartActionField({ form }: { form: PackageEditorForm }) {
               <SelectContent>
                 <SelectGroup>
                   {MUNKI_RESTART_ACTION_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          )}
+        </ValidatedFormField>
+      )}
+    </form.Field>
+  );
+}
+
+const uninstallRestartActionItems = [
+  { value: null, label: "Same as Installation" },
+  ...MUNKI_UNINSTALL_RESTART_ACTION_OPTIONS,
+];
+
+export function UninstallRestartActionField({ form }: { form: PackageEditorForm }) {
+  return (
+    <form.Field name="restart_action_for_uninstall">
+      {(field) => (
+        <ValidatedFormField
+          field={field}
+          label="Restart Action After Removal"
+          htmlFor="munki-package-restart-action-for-uninstall"
+          description="None removes without a restart even when installation requires one."
+        >
+          {() => (
+            <Select
+              items={uninstallRestartActionItems}
+              value={field.state.value || null}
+              onValueChange={(value) => {
+                field.handleChange(
+                  isOneOf(value, MUNKI_UNINSTALL_RESTART_ACTION_VALUES) ? value : "",
+                );
+              }}
+            >
+              <SelectTrigger id="munki-package-restart-action-for-uninstall" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {uninstallRestartActionItems.map((option) => (
+                    <SelectItem key={option.value ?? "inherit"} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          )}
+        </ValidatedFormField>
+      )}
+    </form.Field>
+  );
+}
+
+export function DownloadOnLowDataField({ form }: { form: PackageEditorForm }) {
+  return (
+    <form.Field name="download_on_low_data">
+      {(field) => (
+        <ValidatedFormField
+          field={field}
+          label="Low-Data Download"
+          htmlFor="munki-package-download-on-low-data"
+          description="auto defers the download on a low-data connection when the installer exceeds the client's size threshold."
+        >
+          {() => (
+            <Select
+              items={MUNKI_DOWNLOAD_ON_LOW_DATA_OPTIONS}
+              value={field.state.value}
+              onValueChange={(value) => {
+                if (isOneOf(value, MUNKI_DOWNLOAD_ON_LOW_DATA_VALUES)) field.handleChange(value);
+              }}
+            >
+              <SelectTrigger id="munki-package-download-on-low-data" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {MUNKI_DOWNLOAD_ON_LOW_DATA_OPTIONS.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
                       {option.label}
                     </SelectItem>
@@ -477,6 +564,48 @@ export function AlertEditor({
             </Field>
           </FieldGroup>
         ) : null}
+      </FieldGroup>
+    </FieldSet>
+  );
+}
+
+const actionLabelFields = [
+  { key: "install", label: "Install" },
+  { key: "installing", label: "Installing" },
+  { key: "installed", label: "Installed" },
+  { key: "update", label: "Update" },
+  { key: "remove", label: "Remove" },
+  { key: "removing", label: "Removing" },
+] as const satisfies readonly { key: keyof MunkiPackageActionLabels; label: string }[];
+
+export function ActionLabelsEditor({
+  id,
+  labels,
+  onChange,
+}: {
+  id: string;
+  labels: MunkiPackageActionLabels;
+  onChange: (labels: MunkiPackageActionLabels) => void;
+}) {
+  return (
+    <FieldSet>
+      <FieldLegend>Action Labels</FieldLegend>
+      <FieldDescription>
+        Replace Managed Software Center's button and progress labels for this item. Empty labels
+        keep the defaults.
+      </FieldDescription>
+      <FieldGroup className="grid gap-4 md:grid-cols-3">
+        {actionLabelFields.map((label) => (
+          <Field key={label.key}>
+            <FieldLabel htmlFor={`${id}-${label.key}`}>{label.label}</FieldLabel>
+            <Input
+              id={`${id}-${label.key}`}
+              value={labels[label.key] ?? ""}
+              placeholder={label.label}
+              onChange={(event) => onChange({ ...labels, [label.key]: event.target.value })}
+            />
+          </Field>
+        ))}
       </FieldGroup>
     </FieldSet>
   );

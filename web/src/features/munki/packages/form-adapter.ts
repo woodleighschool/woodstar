@@ -1,10 +1,12 @@
 import type {
   MunkiPackage,
+  MunkiPackageActionLabels,
   MunkiPackageAlert,
   MunkiPackageInstallerChoice,
   MunkiPackageInstallerEnvironmentVariable,
   MunkiPackageInstallItem,
   MunkiPackageItemToCopy,
+  MunkiPackageLaunchArguments,
   MunkiPackageMutation,
   MunkiPackageReceipt,
   MunkiPackageReference,
@@ -13,9 +15,11 @@ import type {
 import { nonEmpty } from "@lib/utils";
 
 import {
+  type ActionLabels,
   type InstallItemRow,
   type InstallerEnvironmentRow,
   type ItemToCopyRow,
+  type LaunchArgumentsRow,
   type PackageFormInput,
   type PackageFormOutput,
   type PackageReferenceRow,
@@ -47,6 +51,7 @@ export function packageMutationFromForm(
     uninstallable: form.uninstallable,
     uninstall_method: uninstallMethod || undefined,
     restart_action: form.restart_required ? form.restart_action : undefined,
+    restart_action_for_uninstall: form.restart_action_for_uninstall || undefined,
     minimum_munki_version: nonEmpty(form.minimum_munki_version),
     minimum_os_version: nonEmpty(form.minimum_os_version),
     maximum_os_version: nonEmpty(form.maximum_os_version),
@@ -56,6 +61,11 @@ export function packageMutationFromForm(
     installable_condition: nonEmpty(form.installable_condition),
     blocking_applications_manual_quit_only: form.blocking_applications_manual_quit_only,
     blocking_applications_quit_script: nonEmpty(form.blocking_applications_quit_script),
+    blocking_applications_with_launch_args: form.blocking_applications_none
+      ? []
+      : cleanLaunchArguments(form.blocking_applications_with_launch_args),
+    download_on_low_data: form.download_on_low_data,
+    custom_action_labels: cleanActionLabels(form.custom_action_labels),
     requires: cleanPackageReferences(form.requires),
     update_for: cleanPackageReferences(form.update_for),
     unattended_install: form.unattended_install,
@@ -64,7 +74,6 @@ export function packageMutationFromForm(
     precache: form.precache,
     autoremove: form.autoremove,
     apple_item: form.apple_item,
-    suppress_bundle_relocation: form.suppress_bundle_relocation,
     force_install_after_date: dateTimeLocalToISO(form.force_install_after_date),
     installed_size: numberOrUndefined(form.installed_size),
     package_path: usesInstallerOptions ? nonEmpty(form.package_path) : undefined,
@@ -105,6 +114,7 @@ export function emptyPackageForm(softwareID: number | null = null): PackageFormI
     uninstall_method: "",
     restart_required: false,
     restart_action: "RequireRestart",
+    restart_action_for_uninstall: "",
     minimum_munki_version: "",
     minimum_os_version: "",
     maximum_os_version: "",
@@ -114,6 +124,9 @@ export function emptyPackageForm(softwareID: number | null = null): PackageFormI
     installable_condition: "",
     blocking_applications_manual_quit_only: false,
     blocking_applications_quit_script: "",
+    blocking_applications_with_launch_args: [],
+    download_on_low_data: "auto",
+    custom_action_labels: {},
     requires: [],
     update_for: [],
     unattended_install: false,
@@ -122,7 +135,6 @@ export function emptyPackageForm(softwareID: number | null = null): PackageFormI
     precache: false,
     autoremove: false,
     apple_item: false,
-    suppress_bundle_relocation: false,
     force_install_after_date: "",
     installed_size: "",
     package_path: "",
@@ -156,6 +168,7 @@ export function packageFormFromPackage(pkg: MunkiPackage): PackageFormInput {
     uninstall_method: pkg.uninstall_method ?? "",
     restart_required: pkg.restart_action !== undefined,
     restart_action: pkg.restart_action ?? "RequireRestart",
+    restart_action_for_uninstall: pkg.restart_action_for_uninstall ?? "",
     minimum_munki_version: pkg.minimum_munki_version,
     minimum_os_version: pkg.minimum_os_version,
     maximum_os_version: pkg.maximum_os_version,
@@ -167,6 +180,11 @@ export function packageFormFromPackage(pkg: MunkiPackage): PackageFormInput {
     installable_condition: pkg.installable_condition,
     blocking_applications_manual_quit_only: pkg.blocking_applications_manual_quit_only,
     blocking_applications_quit_script: pkg.blocking_applications_quit_script,
+    blocking_applications_with_launch_args: launchArgumentsRows(
+      pkg.blocking_applications_with_launch_args ?? [],
+    ),
+    download_on_low_data: pkg.download_on_low_data,
+    custom_action_labels: pkg.custom_action_labels,
     requires: packageReferenceRows(pkg.requires ?? []),
     update_for: packageReferenceRows(pkg.update_for ?? []),
     unattended_install: pkg.unattended_install,
@@ -175,7 +193,6 @@ export function packageFormFromPackage(pkg: MunkiPackage): PackageFormInput {
     precache: pkg.precache,
     autoremove: pkg.autoremove,
     apple_item: pkg.apple_item,
-    suppress_bundle_relocation: pkg.suppress_bundle_relocation,
     force_install_after_date: isoToDateTimeLocal(pkg.force_install_after_date),
     installed_size: pkg.installed_size > 0 ? String(pkg.installed_size) : "",
     package_path: pkg.package_path,
@@ -200,6 +217,10 @@ export function packageFormFromPackage(pkg: MunkiPackage): PackageFormInput {
 
 export function emptyStringRow(): StringRow {
   return { rowID: rowID(), value: "" };
+}
+
+export function emptyLaunchArgumentsRow(): LaunchArgumentsRow {
+  return { rowID: rowID(), application: "", arguments: "" };
 }
 
 export function emptyPackageReferenceRow(): PackageReferenceRow {
@@ -234,6 +255,15 @@ function stringRows(values: string[]): StringRow[] {
   return values.map((value) => ({ rowID: rowID(), value }));
 }
 
+// The editor holds one argument per line because an argument may contain spaces.
+function launchArgumentsRows(values: MunkiPackageLaunchArguments[]): LaunchArgumentsRow[] {
+  return values.map((value) => ({
+    rowID: rowID(),
+    application: value.application,
+    arguments: value.arguments.join("\n"),
+  }));
+}
+
 function installerEnvironmentRows(
   values: MunkiPackageInstallerEnvironmentVariable[],
 ): InstallerEnvironmentRow[] {
@@ -263,6 +293,26 @@ function cleanPackageReferences(rows: PackageReferenceRow[]): MunkiPackageRefere
     }
   }
   return out;
+}
+
+function cleanLaunchArguments(rows: LaunchArgumentsRow[]): MunkiPackageLaunchArguments[] {
+  return rows.flatMap((row) => {
+    const application = row.application.trim();
+    return application
+      ? [{ application, arguments: row.arguments.split("\n").filter((value) => value !== "") }]
+      : [];
+  });
+}
+
+function cleanActionLabels(labels: ActionLabels): MunkiPackageActionLabels {
+  return {
+    install: nonEmpty(labels.install ?? ""),
+    installing: nonEmpty(labels.installing ?? ""),
+    installed: nonEmpty(labels.installed ?? ""),
+    remove: nonEmpty(labels.remove ?? ""),
+    removing: nonEmpty(labels.removing ?? ""),
+    update: nonEmpty(labels.update ?? ""),
+  };
 }
 
 function cleanInstallerEnvironment(
