@@ -1,5 +1,36 @@
 # Changelog
 
+## [0.12.0](https://github.com/woodleighschool/woodstar/compare/v0.11.1...v0.12.0) (2026-10-28)
+
+
+### ⚠ BREAKING CHANGES
+
+* **munki:** track Munki 7.4 package keys
+
+### Features
+
+* **munki:** offer optional uninstalls ([a2333a1](https://github.com/woodleighschool/woodstar/commit/a2333a1979fb36c03f59ab4e1342c12f39ffcec0))
+* **munki:** track Munki 7.4 package keys ([9fb3637](https://github.com/woodleighschool/woodstar/commit/9fb3637e31638b2f5fa99ac99ebdcd17d20cc8a1))
+
+
+### Bug Fixes
+
+* **go:** update module cel.dev/cel-go (v0.32.0 → v0.33.0) ([#636](https://github.com/woodleighschool/woodstar/issues/636)) ([94aa77b](https://github.com/woodleighschool/woodstar/commit/94aa77be6259d1e404dd51053ad9084721c6777b))
+* **go:** update module cel.dev/cel-go (v0.33.0 → v0.33.1) ([#642](https://github.com/woodleighschool/woodstar/issues/642)) ([5d63019](https://github.com/woodleighschool/woodstar/commit/5d63019142251e7caac23601ca651544ef93b2d6))
+* **go:** update module github.com/danielgtaylor/huma/v2 (v2.39.1 → v2.40.0) ([#638](https://github.com/woodleighschool/woodstar/issues/638)) ([720622e](https://github.com/woodleighschool/woodstar/commit/720622e4ff9017d8d5313684d02c158cdd2e7b48))
+* **go:** update module github.com/microsoftgraph/msgraph-sdk-go (v1.104.0 → v1.105.0) ([#624](https://github.com/woodleighschool/woodstar/issues/624)) ([dfec24d](https://github.com/woodleighschool/woodstar/commit/dfec24de007c5197d5cce20707e35f90ec96848e))
+* **go:** update module github.com/oapi-codegen/runtime (v1.7.0 → v1.8.0) ([#625](https://github.com/woodleighschool/woodstar/issues/625)) ([1378ee3](https://github.com/woodleighschool/woodstar/commit/1378ee39fdf1278ead0e33db71cc48e73dd16dcb))
+* **go:** update module github.com/woodleighschool/goodies/bloby (v1.4.0 → v1.4.1) ([#628](https://github.com/woodleighschool/woodstar/issues/628)) ([232c6a1](https://github.com/woodleighschool/woodstar/commit/232c6a140d3d5b47ebf2e2a506422b8e3526b8e5))
+* **go:** update river monorepo (v0.49.0 → v0.50.0) ([#639](https://github.com/woodleighschool/woodstar/issues/639)) ([c971fe5](https://github.com/woodleighschool/woodstar/commit/c971fe52f6f168a855fa24c44510fef5a4901fb2))
+* **npm:** update dependency @woodleighschool/bloby-client (1.3.0 → 1.3.1) ([#631](https://github.com/woodleighschool/woodstar/issues/631)) ([15fac81](https://github.com/woodleighschool/woodstar/commit/15fac81106429bf3e58ae9b14e96ff0bc4906e15))
+* **npm:** update dependency filesize (11.0.26 → 11.0.27) ([#617](https://github.com/woodleighschool/woodstar/issues/617)) ([f5e0e90](https://github.com/woodleighschool/woodstar/commit/f5e0e90e14dbe9ef61f3f3baae494d04b29cbbd0))
+* **npm:** update dependency filesize (11.0.27 → 11.0.28) ([#622](https://github.com/woodleighschool/woodstar/issues/622)) ([7ce5bd8](https://github.com/woodleighschool/woodstar/commit/7ce5bd87ad97b810bb5776c6df84980a24ba5f44))
+* **npm:** update dependency filesize (11.0.28 → 11.0.29) ([#633](https://github.com/woodleighschool/woodstar/issues/633)) ([63e9bd6](https://github.com/woodleighschool/woodstar/commit/63e9bd657c427cbb0731911eb7a9f872cae82679))
+* **npm:** update dependency sass (1.106.0 → 1.106.1) ([#623](https://github.com/woodleighschool/woodstar/issues/623)) ([b332775](https://github.com/woodleighschool/woodstar/commit/b332775c971d39991f194bafcd211bd51d68cfb7))
+* **npm:** update dependency simple-icons (16.35.0 → 16.36.0) ([#637](https://github.com/woodleighschool/woodstar/issues/637)) ([192ef8a](https://github.com/woodleighschool/woodstar/commit/192ef8a7187b0dbf778ba3a98afa17e7f80af698))
+* **npm:** update tanstack-query monorepo (5.104.5 → 5.105.0) ([#641](https://github.com/woodleighschool/woodstar/issues/641)) ([1d423a1](https://github.com/woodleighschool/woodstar/commit/1d423a1595183c85a5634b6da5e615a93ea4614f))
+* **npm:** update tanstack-router monorepo ([#629](https://github.com/woodleighschool/woodstar/issues/629)) ([86c1966](https://github.com/woodleighschool/woodstar/commit/86c19662caf417f1008d7718fbbab5c0127d8820))
+
 ## [0.11.1](https://github.com/woodleighschool/woodstar/compare/v0.11.0...v0.11.1) (2026-10-22)
 
 
