@@ -84,7 +84,7 @@ jobs:
     timeout-minutes: 30
     services:
       postgres:
-        image: postgres:18
+        image: postgres:18@sha256:979bccfde35445db618c65107d27d08c6c21339d8dc3ad4c830c6633947be0e4
         env:
           POSTGRES_USER: woodstar
           POSTGRES_PASSWORD: woodstar
@@ -148,7 +148,7 @@ jobs:
     timeout-minutes: 30
     services:
       postgres:
-        image: postgres:18
+        image: postgres:18@sha256:979bccfde35445db618c65107d27d08c6c21339d8dc3ad4c830c6633947be0e4
         env:
           POSTGRES_USER: woodstar
           POSTGRES_PASSWORD: woodstar
@@ -290,7 +290,7 @@ jobs:
     timeout-minutes: 30
     services:
       postgres:
-        image: postgres:18
+        image: postgres:18@sha256:979bccfde35445db618c65107d27d08c6c21339d8dc3ad4c830c6633947be0e4
         env:
           POSTGRES_USER: woodstar
           POSTGRES_PASSWORD: woodstar
