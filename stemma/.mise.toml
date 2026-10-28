@@ -1,5 +1,5 @@
 [tools]
-"github:woodleighschool/stemma" = "v0.11.2"
+"github:woodleighschool/stemma" = "v0.12.0"
 
 [tasks.release-check]
 description = "Validate the plugin release configuration"
