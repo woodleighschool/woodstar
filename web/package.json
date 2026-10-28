@@ -40,7 +40,7 @@
     "cva": "^1.0.0-beta.12",
     "date-fns": "^4.4.0",
     "filesize": "^11.0.29",
-    "lucide-react": "^1.61.0",
+    "lucide-react": "^1.62.0",
     "papaparse": "^5.7.0",
     "react": "^19.3.1",
     "react-day-picker": "^10.0.2",
