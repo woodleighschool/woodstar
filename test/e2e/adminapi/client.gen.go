@@ -345,12 +345,13 @@ func (e MunkiHostManifestLatestPackageStrategy) Valid() bool {
 
 // Defines values for MunkiHostManifestSoftwareActions.
 const (
-	MunkiHostManifestSoftwareActionsDefaultInstalls   MunkiHostManifestSoftwareActions = "default_installs"
-	MunkiHostManifestSoftwareActionsFeaturedItems     MunkiHostManifestSoftwareActions = "featured_items"
-	MunkiHostManifestSoftwareActionsManagedInstalls   MunkiHostManifestSoftwareActions = "managed_installs"
-	MunkiHostManifestSoftwareActionsManagedUninstalls MunkiHostManifestSoftwareActions = "managed_uninstalls"
-	MunkiHostManifestSoftwareActionsManagedUpdates    MunkiHostManifestSoftwareActions = "managed_updates"
-	MunkiHostManifestSoftwareActionsOptionalInstalls  MunkiHostManifestSoftwareActions = "optional_installs"
+	MunkiHostManifestSoftwareActionsDefaultInstalls    MunkiHostManifestSoftwareActions = "default_installs"
+	MunkiHostManifestSoftwareActionsFeaturedItems      MunkiHostManifestSoftwareActions = "featured_items"
+	MunkiHostManifestSoftwareActionsManagedInstalls    MunkiHostManifestSoftwareActions = "managed_installs"
+	MunkiHostManifestSoftwareActionsManagedUninstalls  MunkiHostManifestSoftwareActions = "managed_uninstalls"
+	MunkiHostManifestSoftwareActionsManagedUpdates     MunkiHostManifestSoftwareActions = "managed_updates"
+	MunkiHostManifestSoftwareActionsOptionalInstalls   MunkiHostManifestSoftwareActions = "optional_installs"
+	MunkiHostManifestSoftwareActionsOptionalUninstalls MunkiHostManifestSoftwareActions = "optional_uninstalls"
 )
 
 // Valid indicates whether the value is a known member of the MunkiHostManifestSoftwareActions enum.
@@ -367,6 +368,8 @@ func (e MunkiHostManifestSoftwareActions) Valid() bool {
 	case MunkiHostManifestSoftwareActionsManagedUpdates:
 		return true
 	case MunkiHostManifestSoftwareActionsOptionalInstalls:
+		return true
+	case MunkiHostManifestSoftwareActionsOptionalUninstalls:
 		return true
 	default:
 		return false
@@ -390,12 +393,13 @@ func (e MunkiHostManifestSpecificPackageStrategy) Valid() bool {
 
 // Defines values for MunkiIncludeActions.
 const (
-	MunkiIncludeActionsDefaultInstalls   MunkiIncludeActions = "default_installs"
-	MunkiIncludeActionsFeaturedItems     MunkiIncludeActions = "featured_items"
-	MunkiIncludeActionsManagedInstalls   MunkiIncludeActions = "managed_installs"
-	MunkiIncludeActionsManagedUninstalls MunkiIncludeActions = "managed_uninstalls"
-	MunkiIncludeActionsManagedUpdates    MunkiIncludeActions = "managed_updates"
-	MunkiIncludeActionsOptionalInstalls  MunkiIncludeActions = "optional_installs"
+	MunkiIncludeActionsDefaultInstalls    MunkiIncludeActions = "default_installs"
+	MunkiIncludeActionsFeaturedItems      MunkiIncludeActions = "featured_items"
+	MunkiIncludeActionsManagedInstalls    MunkiIncludeActions = "managed_installs"
+	MunkiIncludeActionsManagedUninstalls  MunkiIncludeActions = "managed_uninstalls"
+	MunkiIncludeActionsManagedUpdates     MunkiIncludeActions = "managed_updates"
+	MunkiIncludeActionsOptionalInstalls   MunkiIncludeActions = "optional_installs"
+	MunkiIncludeActionsOptionalUninstalls MunkiIncludeActions = "optional_uninstalls"
 )
 
 // Valid indicates whether the value is a known member of the MunkiIncludeActions enum.
@@ -412,6 +416,8 @@ func (e MunkiIncludeActions) Valid() bool {
 	case MunkiIncludeActionsManagedUpdates:
 		return true
 	case MunkiIncludeActionsOptionalInstalls:
+		return true
+	case MunkiIncludeActionsOptionalUninstalls:
 		return true
 	default:
 		return false

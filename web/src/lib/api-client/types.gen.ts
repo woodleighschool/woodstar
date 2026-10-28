@@ -445,7 +445,7 @@ export type MunkiHostManifestLatestPackage = {
 };
 
 export type MunkiHostManifestSoftware = {
-    actions: Array<'managed_installs' | 'managed_uninstalls' | 'managed_updates' | 'optional_installs' | 'featured_items' | 'default_installs'>;
+    actions: Array<'managed_installs' | 'managed_uninstalls' | 'managed_updates' | 'optional_installs' | 'optional_uninstalls' | 'featured_items' | 'default_installs'>;
     observation?: MunkiHostManifestSoftwareObservation;
     package: ({
         strategy: 'latest';
@@ -484,7 +484,7 @@ export type MunkiIconFile = {
 };
 
 export type MunkiInclude = {
-    actions: Array<'managed_installs' | 'managed_uninstalls' | 'managed_updates' | 'optional_installs' | 'featured_items' | 'default_installs'>;
+    actions: Array<'managed_installs' | 'managed_uninstalls' | 'managed_updates' | 'optional_installs' | 'optional_uninstalls' | 'featured_items' | 'default_installs'>;
     label_id: number;
     package: MunkiPackageSelector;
 };
@@ -4558,7 +4558,7 @@ export type PatchMunkiSoftwareData = {
                 label_id: number;
             }>;
             include?: Array<{
-                actions: Array<'managed_installs' | 'managed_uninstalls' | 'managed_updates' | 'optional_installs' | 'featured_items' | 'default_installs'>;
+                actions: Array<'managed_installs' | 'managed_uninstalls' | 'managed_updates' | 'optional_installs' | 'optional_uninstalls' | 'featured_items' | 'default_installs'>;
                 label_id: number;
                 package: {
                     package_id?: number | null;

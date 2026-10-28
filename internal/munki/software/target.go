@@ -24,7 +24,7 @@ type Targets struct {
 type Include struct {
 	LabelID int64           `json:"label_id" minimum:"1" validate:"gt=0"`
 	Package PackageSelector `json:"package"`
-	Actions []Action        `json:"actions"              validate:"min=1,dive,oneof=managed_installs managed_uninstalls managed_updates optional_installs featured_items default_installs" minItems:"1" nullable:"false"`
+	Actions []Action        `json:"actions"              validate:"min=1,dive,oneof=managed_installs managed_uninstalls managed_updates optional_installs optional_uninstalls featured_items default_installs" minItems:"1" nullable:"false"`
 }
 
 // PackageSelector chooses the package candidate set for a software include.
@@ -51,12 +51,13 @@ var packageStrategyValues = []PackageStrategy{
 type Action string
 
 const (
-	ActionManagedInstalls   Action = "managed_installs"
-	ActionManagedUninstalls Action = "managed_uninstalls"
-	ActionManagedUpdates    Action = "managed_updates"
-	ActionOptionalInstalls  Action = "optional_installs"
-	ActionFeaturedItems     Action = "featured_items"
-	ActionDefaultInstalls   Action = "default_installs"
+	ActionManagedInstalls    Action = "managed_installs"
+	ActionManagedUninstalls  Action = "managed_uninstalls"
+	ActionManagedUpdates     Action = "managed_updates"
+	ActionOptionalInstalls   Action = "optional_installs"
+	ActionOptionalUninstalls Action = "optional_uninstalls"
+	ActionFeaturedItems      Action = "featured_items"
+	ActionDefaultInstalls    Action = "default_installs"
 )
 
 var actionValues = []Action{
@@ -64,6 +65,7 @@ var actionValues = []Action{
 	ActionManagedUninstalls,
 	ActionManagedUpdates,
 	ActionOptionalInstalls,
+	ActionOptionalUninstalls,
 	ActionFeaturedItems,
 	ActionDefaultInstalls,
 }

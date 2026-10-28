@@ -1238,6 +1238,7 @@ components:
               - managed_uninstalls
               - managed_updates
               - optional_installs
+              - optional_uninstalls
               - featured_items
               - default_installs
             type: string
@@ -1350,6 +1351,7 @@ components:
               - managed_uninstalls
               - managed_updates
               - optional_installs
+              - optional_uninstalls
               - featured_items
               - default_installs
             type: string
@@ -9009,6 +9011,7 @@ paths:
                                 - managed_uninstalls
                                 - managed_updates
                                 - optional_installs
+                                - optional_uninstalls
                                 - featured_items
                                 - default_installs
                               type: string

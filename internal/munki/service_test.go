@@ -307,6 +307,13 @@ func TestManifestKeepsFeaturedDefaultAndOptionalActionsSeparate(t *testing.T) {
 					Version:  "1.0",
 				},
 			},
+			{
+				Actions: []munkisoftware.Action{munkisoftware.ActionOptionalUninstalls},
+				Package: packages.Package{
+					Software: packages.PackageSoftware{ID: 3, Name: "RetiredApp"},
+					Version:  "1.0",
+				},
+			},
 		}},
 	})
 
@@ -315,9 +322,10 @@ func TestManifestKeepsFeaturedDefaultAndOptionalActionsSeparate(t *testing.T) {
 		t.Fatalf("Manifest: %v", err)
 	}
 	var manifest struct {
-		OptionalInstalls []string `plist:"optional_installs"`
-		DefaultInstalls  []string `plist:"default_installs"`
-		FeaturedItems    []string `plist:"featured_items"`
+		OptionalInstalls   []string `plist:"optional_installs"`
+		OptionalUninstalls []string `plist:"optional_uninstalls"`
+		DefaultInstalls    []string `plist:"default_installs"`
+		FeaturedItems      []string `plist:"featured_items"`
 	}
 	if _, err := plist.Unmarshal(body, &manifest); err != nil {
 		t.Fatalf("manifest plist: %v", err)
@@ -330,6 +338,9 @@ func TestManifestKeepsFeaturedDefaultAndOptionalActionsSeparate(t *testing.T) {
 	}
 	if !slices.Equal(manifest.FeaturedItems, []string{"FeaturedApp"}) {
 		t.Fatalf("featured_items = %v, want [FeaturedApp]", manifest.FeaturedItems)
+	}
+	if !slices.Equal(manifest.OptionalUninstalls, []string{"RetiredApp"}) {
+		t.Fatalf("optional_uninstalls = %v, want [RetiredApp]", manifest.OptionalUninstalls)
 	}
 }
 

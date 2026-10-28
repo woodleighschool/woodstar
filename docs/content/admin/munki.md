@@ -24,14 +24,17 @@ Packages can be published through [Stemma](stemma), or entered or imported in th
 
 Targets add a software title to Munki manifest sections for matching labels.
 
-| Action            | Result                                     |
-| ----------------- | ------------------------------------------ |
-| Managed install   | Keep the item installed                    |
-| Managed uninstall | Keep the item removed                      |
-| Managed update    | Keep an installed title up to date         |
-| Optional install  | Offer the title in Managed Software Center |
-| Featured item     | Highlight an optional install              |
-| Default install   | Select an optional install by default      |
+| Action             | Result                                                         |
+| ------------------ | -------------------------------------------------------------- |
+| Managed install    | Keep the item installed                                        |
+| Managed uninstall  | Keep the item removed                                          |
+| Managed update     | Keep an installed title up to date                             |
+| Optional install   | Offer the title in Managed Software Center                     |
+| Optional uninstall | Suggest removing an installed title in Managed Software Center |
+| Featured item      | Highlight an optional install                                  |
+| Default install    | Select an optional install by default                          |
+
+Optional uninstalls require an uninstallable package with an uninstall method. A managed install of the same title takes precedence.
 
 Each include chooses the latest package or a specific version. Includes are evaluated in order, and the first matching label wins. Any matching exclude removes the title from the host's manifest.
 

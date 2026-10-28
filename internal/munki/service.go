@@ -62,13 +62,14 @@ func (s *RepositoryService) Manifest(ctx context.Context, hostID int64) ([]byte,
 		return nil, err
 	}
 	manifest := renderedManifest{
-		Catalogs:          []string{catalogName},
-		ManagedInstalls:   []string{},
-		ManagedUninstalls: []string{},
-		ManagedUpdates:    []string{},
-		OptionalInstalls:  []string{},
-		DefaultInstalls:   []string{},
-		FeaturedItems:     []string{},
+		Catalogs:           []string{catalogName},
+		ManagedInstalls:    []string{},
+		ManagedUninstalls:  []string{},
+		ManagedUpdates:     []string{},
+		OptionalInstalls:   []string{},
+		OptionalUninstalls: []string{},
+		DefaultInstalls:    []string{},
+		FeaturedItems:      []string{},
 	}
 	for _, pkg := range pkgs {
 		addManifestPackage(&manifest, pkg)
@@ -264,6 +265,8 @@ func addManifestPackage(manifest *renderedManifest, pkg munkisoftware.EffectiveP
 			manifest.ManagedUpdates = appendUnique(manifest.ManagedUpdates, name)
 		case munkisoftware.ActionOptionalInstalls:
 			manifest.OptionalInstalls = appendUnique(manifest.OptionalInstalls, name)
+		case munkisoftware.ActionOptionalUninstalls:
+			manifest.OptionalUninstalls = appendUnique(manifest.OptionalUninstalls, name)
 		case munkisoftware.ActionDefaultInstalls:
 			manifest.DefaultInstalls = appendUnique(manifest.DefaultInstalls, name)
 		case munkisoftware.ActionFeaturedItems:
@@ -362,11 +365,12 @@ func encodePlist(value any) ([]byte, error) {
 }
 
 type renderedManifest struct {
-	Catalogs          []string `plist:"catalogs"`
-	ManagedInstalls   []string `plist:"managed_installs"`
-	ManagedUninstalls []string `plist:"managed_uninstalls"`
-	ManagedUpdates    []string `plist:"managed_updates"`
-	OptionalInstalls  []string `plist:"optional_installs"`
-	DefaultInstalls   []string `plist:"default_installs"`
-	FeaturedItems     []string `plist:"featured_items"`
+	Catalogs           []string `plist:"catalogs"`
+	ManagedInstalls    []string `plist:"managed_installs"`
+	ManagedUninstalls  []string `plist:"managed_uninstalls"`
+	ManagedUpdates     []string `plist:"managed_updates"`
+	OptionalInstalls   []string `plist:"optional_installs"`
+	OptionalUninstalls []string `plist:"optional_uninstalls"`
+	DefaultInstalls    []string `plist:"default_installs"`
+	FeaturedItems      []string `plist:"featured_items"`
 }

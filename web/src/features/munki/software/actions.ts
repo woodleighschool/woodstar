@@ -8,6 +8,7 @@ export const MUNKI_SOFTWARE_ACTION_VALUES = [
   "managed_uninstalls",
   "managed_updates",
   "optional_installs",
+  "optional_uninstalls",
   "featured_items",
   "default_installs",
 ] as const satisfies readonly MunkiSoftwareAction[];
@@ -29,6 +30,10 @@ export const MUNKI_SOFTWARE_ACTIONS = {
     name: "Optional Installs",
     description: "Makes the item available in Managed Software Center.",
   },
+  optional_uninstalls: {
+    name: "Optional Uninstalls",
+    description: "Suggests removing the item in Managed Software Center where it is installed.",
+  },
   featured_items: {
     name: "Featured Items",
     description: "Highlights the item in Managed Software Center.",
@@ -44,13 +49,21 @@ export const MUNKI_SOFTWARE_ACTION_OPTIONS = enumOptions(
   MUNKI_SOFTWARE_ACTION_VALUES,
 );
 
-// Managed installs and uninstalls are exclusive assignment intents. Managed
-// updates and optional installs can be combined for optional-but-forced updates.
+// Managed installs, managed uninstalls and optional uninstalls are exclusive
+// assignment intents. Managed updates and optional installs can be combined for
+// optional-but-forced updates.
 export const MUNKI_ASSIGNMENT_ACTION_VALUES = [
   "managed_installs",
   "managed_uninstalls",
   "managed_updates",
   "optional_installs",
+  "optional_uninstalls",
+] as const satisfies readonly MunkiSoftwareAction[];
+
+export const MUNKI_EXCLUSIVE_ACTION_VALUES = [
+  "managed_installs",
+  "managed_uninstalls",
+  "optional_uninstalls",
 ] as const satisfies readonly MunkiSoftwareAction[];
 
 export const MUNKI_OPTIONAL_PRESENTATION_ACTION_VALUES = [

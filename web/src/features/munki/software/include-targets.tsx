@@ -54,9 +54,11 @@ import { LabelPicker } from "@features/labels/components/label-picker";
 import { useLabels } from "@features/labels/queries";
 import type { MunkiInclude, MunkiPackage } from "@lib/api";
 import { MAX_PAGE_SIZE } from "@lib/pagination";
+import { isOneOf } from "@lib/utils";
 
 import {
   MUNKI_ASSIGNMENT_ACTION_VALUES,
+  MUNKI_EXCLUSIVE_ACTION_VALUES,
   MUNKI_OPTIONAL_PRESENTATION_ACTION_VALUES,
   MUNKI_SOFTWARE_ACTION_OPTIONS,
   MUNKI_SOFTWARE_ACTION_VALUES,
@@ -364,8 +366,6 @@ function MunkiIncludeRowActions({
     </div>
   );
 }
-const MUNKI_EXCLUSIVE_ACTION_VALUES = ["managed_installs", "managed_uninstalls"] as const;
-
 function TargetActionsField({
   value,
   onChange,
@@ -400,8 +400,7 @@ function TargetActionsField({
         {MUNKI_ASSIGNMENT_ACTION_VALUES.map((action) => {
           const id = `munki-target-action-${action}`;
           const checked = value.includes(action);
-          const isExclusiveAction =
-            action === "managed_installs" || action === "managed_uninstalls";
+          const isExclusiveAction = isOneOf(action, MUNKI_EXCLUSIVE_ACTION_VALUES);
           const disabled =
             !checked &&
             (hasExclusiveAction || (isExclusiveAction && selectedAssignmentActions.length > 0));
