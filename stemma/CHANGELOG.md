@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.0.2](https://github.com/woodleighschool/woodstar/compare/stemma-v2.0.1...stemma-v2.0.2) (2026-10-28)
+
+
+### Bug Fixes
+
+* **go:** update module github.com/danielgtaylor/huma/v2 (v2.39.1 → v2.40.0) ([#638](https://github.com/woodleighschool/woodstar/issues/638)) ([720622e](https://github.com/woodleighschool/woodstar/commit/720622e4ff9017d8d5313684d02c158cdd2e7b48))
+* **go:** update module github.com/woodleighschool/goodies/bloby (v1.4.0 → v1.4.1) ([#628](https://github.com/woodleighschool/woodstar/issues/628)) ([232c6a1](https://github.com/woodleighschool/woodstar/commit/232c6a140d3d5b47ebf2e2a506422b8e3526b8e5))
+* **go:** update module github.com/woodleighschool/stemma (v0.11.1 → v0.11.2) ([#632](https://github.com/woodleighschool/woodstar/issues/632)) ([e6b4810](https://github.com/woodleighschool/woodstar/commit/e6b48107e63071e541dcc8047b1989eea3d79bf3))
+* **go:** update module github.com/woodleighschool/stemma (v0.11.2 → v0.12.0) ([#645](https://github.com/woodleighschool/woodstar/issues/645)) ([926c5a5](https://github.com/woodleighschool/woodstar/commit/926c5a51aeff501889235271ac2c9e91cb7fbb43))
+* **go:** update module github.com/woodleighschool/woodstar (v0.11.0 → v0.11.1) ([#616](https://github.com/woodleighschool/woodstar/issues/616)) ([3312366](https://github.com/woodleighschool/woodstar/commit/331236632330991694c1bb51c0b0159a54dbea19))
+* **go:** update module github.com/woodleighschool/woodstar (v0.11.1 → v0.12.0) ([#646](https://github.com/woodleighschool/woodstar/issues/646)) ([10c83fa](https://github.com/woodleighschool/woodstar/commit/10c83fa3726e40526820bc3f4b904642b0d94274))
+
 ## [2.0.1](https://github.com/woodleighschool/woodstar/compare/stemma-v2.0.0...stemma-v2.0.1) (2026-10-22)
 
 
