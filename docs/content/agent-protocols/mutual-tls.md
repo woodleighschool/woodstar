@@ -63,6 +63,17 @@ Munki can use the same PEM files installed by the fleetd package. Add these keys
 
 Deploy the fleetd package before Munki first contacts the repository, and preserve the file ownership and permissions set by the package.
 
+Munki presents a certificate whose issuer matches a certificate authority the edge advertises in its TLS handshake. When the edge requests a certificate without advertising acceptable authorities, add the issuing CA's distinguished name:
+
+```xml
+<key>ClientCertificateAcceptableCAs</key>
+<array>
+  <string>CN=Example Client CA,O=Example Organization</string>
+</array>
+```
+
+`openssl x509 -in client-ca.pem -noout -subject -nameopt RFC2253` prints the name in this form.
+
 ## Santa
 
 Santa cannot consume the separate PEM certificate and key files used by Orbit, osquery, and Munki. It supports either:
@@ -86,5 +97,5 @@ The bearer secret remains in `SyncExtraHeaders`; mTLS is an additional edge chec
 - [fleetd mTLS packaging and file locations](https://fleetdm.com/guides/fleetd-mtls)
 - [fleetctl package flags](https://github.com/fleetdm/fleet/blob/main/cmd/fleetctl/fleetctl/package.go)
 - [osquery TLS client flags](https://osquery.readthedocs.io/en/stable/installation/cli-flags/#remote-settings-flags-optional)
-- [Munki client certificate preferences](https://github.com/munki/munki/blob/main/code/client/munkilib/keychain.py)
+- [Munki client certificate preferences](https://github.com/munki/munki/wiki/Preferences#clientcertificateacceptablecas)
 - [Santa client authentication configuration](https://santa.dev/deployment/configuration.html)
