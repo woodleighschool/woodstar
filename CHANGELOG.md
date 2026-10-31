@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.12.1](https://github.com/woodleighschool/woodstar/compare/v0.12.0...v0.12.1) (2026-10-31)
+
+
+### Bug Fixes
+
+* **go:** update module github.com/microsoft/kiota-abstractions-go (v1.11.4 → v1.12.0) ([#651](https://github.com/woodleighschool/woodstar/issues/651)) ([9d2ce35](https://github.com/woodleighschool/woodstar/commit/9d2ce352f22ab3277b7008b757ddc7de1815a44e))
+* **npm:** update dependency lucide-react (1.61.0 → 1.62.0) ([#648](https://github.com/woodleighschool/woodstar/issues/648)) ([0c2fc24](https://github.com/woodleighschool/woodstar/commit/0c2fc24673e7c5f330d4e3f99770760925502648))
+* **npm:** update dependency lucide-react (1.62.0 → 1.63.0) ([#656](https://github.com/woodleighschool/woodstar/issues/656)) ([5e189bb](https://github.com/woodleighschool/woodstar/commit/5e189bb07a0c320fd854deaef612a069d59c4913))
+* **npm:** update dependency shadcn (4.22.1 → 4.23.0) ([#650](https://github.com/woodleighschool/woodstar/issues/650)) ([b87c50f](https://github.com/woodleighschool/woodstar/commit/b87c50faabbdecac444ff4696ab42893536fa58f))
+
 ## [0.12.0](https://github.com/woodleighschool/woodstar/compare/v0.11.1...v0.12.0) (2026-10-28)
 
 
