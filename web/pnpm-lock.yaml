@@ -242,7 +242,7 @@ importers:
         specifier: ^11.0.29
         version: 11.0.29
       lucide-react:
-        specifier: ^1.64.0
+        specifier: ^1.65.0
         version: 1.65.0(@types/react@19.3.0)(react@19.3.1)
       papaparse:
         specifier: ^5.7.0
