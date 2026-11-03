@@ -11,10 +11,5 @@
       groupName: "Docusaurus OpenAPI",
       groupSlug: "docusaurus-openapi",
     },
-    {
-      description: "Stemma Releases",
-      matchPackageNames: ["woodleighschool/stemma", "github.com/woodleighschool/stemma"],
-      minimumReleaseAge: null,
-    },
   ],
 }
