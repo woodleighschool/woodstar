@@ -3,48 +3,48 @@
 lockfile_version = 3
 
 [[tools."github:woodleighschool/stemma"]]
-version = "0.12.1"
+version = "0.12.2"
 backend = "github:woodleighschool/stemma"
-specifiers = ["v0.12.1"]
+specifiers = ["v0.12.2"]
 
 [tools."github:woodleighschool/stemma"."platforms.linux-arm64"]
-checksum = "sha256:769a7f3bcf602b5501a7de1189d7ecbdfcc4fac3dc30df4042d1c26856cd4cbb"
+checksum = "sha256:bb65b3533713e47e89cbea818631378fc6a84b6885434cf67366d23e5d2cd9de"
 checksum_source = "mise-versions"
-url = "https://github.com/woodleighschool/stemma/releases/download/v0.12.1/stemma_0.12.1_linux_arm64.tar.gz"
-url_api = "https://api.github.com/repos/woodleighschool/stemma/releases/assets/686932209"
+url = "https://github.com/woodleighschool/stemma/releases/download/v0.12.2/stemma_0.12.2_linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/woodleighschool/stemma/releases/assets/703763214"
 
 [tools."github:woodleighschool/stemma"."platforms.linux-arm64-musl"]
-checksum = "sha256:769a7f3bcf602b5501a7de1189d7ecbdfcc4fac3dc30df4042d1c26856cd4cbb"
+checksum = "sha256:bb65b3533713e47e89cbea818631378fc6a84b6885434cf67366d23e5d2cd9de"
 checksum_source = "mise-versions"
-url = "https://github.com/woodleighschool/stemma/releases/download/v0.12.1/stemma_0.12.1_linux_arm64.tar.gz"
-url_api = "https://api.github.com/repos/woodleighschool/stemma/releases/assets/686932209"
+url = "https://github.com/woodleighschool/stemma/releases/download/v0.12.2/stemma_0.12.2_linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/woodleighschool/stemma/releases/assets/703763214"
 
 [tools."github:woodleighschool/stemma"."platforms.linux-x64"]
-checksum = "sha256:f224dd7c9d83bb3da730175960f5fbf7f0d15d50b732a70f6fe6ab37637ca184"
+checksum = "sha256:a79cac6a0eaeaf153bcbeab506c8b22dbb33d99ad12a0d99dd1fd41adca988bc"
 checksum_source = "mise-versions"
-url = "https://github.com/woodleighschool/stemma/releases/download/v0.12.1/stemma_0.12.1_linux_amd64.tar.gz"
-url_api = "https://api.github.com/repos/woodleighschool/stemma/releases/assets/686932205"
+url = "https://github.com/woodleighschool/stemma/releases/download/v0.12.2/stemma_0.12.2_linux_amd64.tar.gz"
+url_api = "https://api.github.com/repos/woodleighschool/stemma/releases/assets/703763134"
 
 [tools."github:woodleighschool/stemma"."platforms.linux-x64-musl"]
-checksum = "sha256:f224dd7c9d83bb3da730175960f5fbf7f0d15d50b732a70f6fe6ab37637ca184"
+checksum = "sha256:a79cac6a0eaeaf153bcbeab506c8b22dbb33d99ad12a0d99dd1fd41adca988bc"
 checksum_source = "mise-versions"
-url = "https://github.com/woodleighschool/stemma/releases/download/v0.12.1/stemma_0.12.1_linux_amd64.tar.gz"
-url_api = "https://api.github.com/repos/woodleighschool/stemma/releases/assets/686932205"
+url = "https://github.com/woodleighschool/stemma/releases/download/v0.12.2/stemma_0.12.2_linux_amd64.tar.gz"
+url_api = "https://api.github.com/repos/woodleighschool/stemma/releases/assets/703763134"
 
 [tools."github:woodleighschool/stemma"."platforms.macos-arm64"]
-checksum = "sha256:9d4f1920202f4de6ca66eb70908b7ec424caef2435d15cae84678e44837196c2"
+checksum = "sha256:807e0819430835abd827fde069f6854c0efd4d2fa7474a264be18cda201faa9c"
 checksum_source = "mise-versions"
-url = "https://github.com/woodleighschool/stemma/releases/download/v0.12.1/stemma_0.12.1_darwin_arm64.tar.gz"
-url_api = "https://api.github.com/repos/woodleighschool/stemma/releases/assets/686932277"
+url = "https://github.com/woodleighschool/stemma/releases/download/v0.12.2/stemma_0.12.2_darwin_arm64.tar.gz"
+url_api = "https://api.github.com/repos/woodleighschool/stemma/releases/assets/703763283"
 
 [tools."github:woodleighschool/stemma"."platforms.macos-x64"]
-checksum = "sha256:9d8d089bb18cd22bade03372cdc4d07d4f37ff798c7fa16ae455ad4d2cac8374"
+checksum = "sha256:00df40f90eedd11916e18eaeb6a617a226ace9e745d900ca68801859b66b6cb5"
 checksum_source = "mise-versions"
-url = "https://github.com/woodleighschool/stemma/releases/download/v0.12.1/stemma_0.12.1_darwin_amd64.tar.gz"
-url_api = "https://api.github.com/repos/woodleighschool/stemma/releases/assets/686932303"
+url = "https://github.com/woodleighschool/stemma/releases/download/v0.12.2/stemma_0.12.2_darwin_amd64.tar.gz"
+url_api = "https://api.github.com/repos/woodleighschool/stemma/releases/assets/703763217"
 
 [tools."github:woodleighschool/stemma"."platforms.windows-x64"]
-checksum = "sha256:a628e58bae72dddffe10155ecf870f1c53ffc24783160461f4bc945bf65d271f"
+checksum = "sha256:d277a01d3ca73283e475867b3c1b1a970058b719c3c71c2f6d31ec1665c9f4c0"
 checksum_source = "mise-versions"
-url = "https://github.com/woodleighschool/stemma/releases/download/v0.12.1/stemma_0.12.1_windows_amd64.zip"
-url_api = "https://api.github.com/repos/woodleighschool/stemma/releases/assets/686932363"
+url = "https://github.com/woodleighschool/stemma/releases/download/v0.12.2/stemma_0.12.2_windows_amd64.zip"
+url_api = "https://api.github.com/repos/woodleighschool/stemma/releases/assets/703763295"
