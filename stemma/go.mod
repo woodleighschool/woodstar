@@ -8,7 +8,7 @@ require (
 	github.com/invopop/jsonschema v0.14.0
 	github.com/woodleighschool/goodies/auth v1.1.0
 	github.com/woodleighschool/goodies/bloby v1.4.1
-	github.com/woodleighschool/stemma v0.12.2
+	github.com/woodleighschool/stemma v0.12.3
 	github.com/woodleighschool/woodstar v0.12.0
 	golang.org/x/sync v0.24.0
 	resty.dev/v3 v3.0.0-rc.4
@@ -70,7 +70,7 @@ require (
 	github.com/woodleighschool/goodies/pglock v0.1.1 // indirect
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	go.yaml.in/yaml/v4 v4.0.0-rc.6 // indirect
+	go.yaml.in/yaml/v4 v4.0.0-rc.7 // indirect
 	golang.org/x/crypto v0.58.0 // indirect
 	golang.org/x/net v0.62.0 // indirect
 	golang.org/x/oauth2 v0.37.0 // indirect
