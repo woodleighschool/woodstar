@@ -29,7 +29,7 @@ require (
 	github.com/riverqueue/river/rivertype v0.51.0
 	github.com/rs/cors v1.11.1
 	github.com/spf13/cobra v1.10.2
-	github.com/testcontainers/testcontainers-go v0.44.0
+	github.com/testcontainers/testcontainers-go v0.45.0
 	github.com/woodleighschool/goodies/auth v1.1.0
 	github.com/woodleighschool/goodies/bloby v1.4.1
 	github.com/woodleighschool/goodies/pglock v0.1.1
@@ -102,7 +102,7 @@ require (
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/leodido/go-urn v1.5.0 // indirect
 	github.com/lufia/plan9stats v0.0.0-20260330125221-c963978e514e // indirect
-	github.com/magiconair/properties v1.8.10 // indirect
+	github.com/magiconair/properties v1.18.12 // indirect
 	github.com/mfridman/interpolate v0.0.2 // indirect
 	github.com/microsoft/kiota-authentication-azure-go v1.3.1 // indirect
 	github.com/microsoft/kiota-http-go v1.5.6 // indirect
@@ -112,7 +112,7 @@ require (
 	github.com/microsoft/kiota-serialization-text-go v1.1.3 // indirect
 	github.com/minio/crc64nvme v1.1.1 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
-	github.com/moby/go-archive v0.3.0 // indirect
+	github.com/moby/go-archive v0.3.3 // indirect
 	github.com/moby/moby/api v1.56.1 // indirect
 	github.com/moby/moby/client v0.6.2 // indirect
 	github.com/moby/patternmatcher v0.6.1 // indirect
