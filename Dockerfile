@@ -43,6 +43,10 @@ RUN go mod download
 ARG GO_LICENSES_VERSION
 RUN go install github.com/google/go-licenses/v2@${GO_LICENSES_VERSION}
 
+ENV CGO_ENABLED=0 \
+    GOOS=${TARGETOS} \
+    GOARCH=${TARGETARCH}
+
 COPY cmd/ cmd/
 COPY internal/ internal/
 COPY web/ web/
@@ -50,11 +54,10 @@ COPY web/ web/
 # Overlay the freshly built frontend bundle so go:embed uses the real assets.
 COPY --from=web /workspace/web/dist web/dist
 
-RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} \
-    go-licenses save ./cmd/woodstar --save_path third_party_licenses --ignore github.com/woodleighschool/woodstar --force
+COPY .mise/tasks/notices .mise/tasks/notices
+RUN ./.mise/tasks/notices
 
-RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} \
-    go build -trimpath -ldflags "-s -w -X github.com/woodleighschool/woodstar/internal/buildinfo.Version=${VERSION#v}" -o woodstar ./cmd/woodstar
+RUN go build -trimpath -ldflags "-s -w -X github.com/woodleighschool/woodstar/internal/buildinfo.Version=${VERSION#v}" -o woodstar ./cmd/woodstar
 RUN upx --best --lzma woodstar
 RUN mkdir /data
 
