@@ -67,7 +67,7 @@
     "@vitejs/plugin-react": "^6.2.1",
     "eslint-plugin-better-tailwindcss": "^4.10.0",
     "oxlint": "1.90.0",
-    "oxlint-tsgolint": "^7.0.2005",
+    "oxlint-tsgolint": "^7.0.2006",
     "tailwindcss": "^4.3.4",
     "typescript": "~6.0.3",
     "vite": "^8.3.6"
