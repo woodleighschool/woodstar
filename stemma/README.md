@@ -45,5 +45,3 @@ and a changelog in this directory; they do not release the server.
 
 The workflow builds bundles with GoReleaser, attaches them to the component
 release, and publishes the OCI image with the unprefixed version.
-
-Run `mise run snapshot` to build all release bundles locally.

@@ -8,8 +8,9 @@ on:
       - main
     paths-ignore:
       - "**.md"
-      - "stemma/**"
-      - ".release-please-manifest.json"
+      - docs/**
+      - stemma/**
+      - .release-please-manifest.json
   release:
     types:
       - published
@@ -108,15 +109,9 @@ jobs:
           cache: false
           install_args: --locked go go:github.com/google/go-licenses/v2 node pnpm
 
-      - name: Resolve GoReleaser version
-        id: goreleaser-version
-        run: echo "version=$(mise tool goreleaser --requested)" >> "$GITHUB_OUTPUT"
-
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7.3.0
         with:
-          distribution: goreleaser
-          version: ${{ steps.goreleaser-version.outputs.version }}
           args: release --clean --parallelism=2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

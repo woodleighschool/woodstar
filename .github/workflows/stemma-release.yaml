@@ -58,16 +58,9 @@ jobs:
           RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: echo "version=${RELEASE_TAG#stemma-v}" >> "$GITHUB_OUTPUT"
 
-      - name: Resolve GoReleaser version
-        id: goreleaser-version
-        working-directory: stemma
-        run: echo "version=$(mise tool goreleaser --requested)" >> "$GITHUB_OUTPUT"
-
       - name: Build plugin bundles
         uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7.3.0
         with:
-          distribution: goreleaser
-          version: ${{ steps.goreleaser-version.outputs.version }}
           args: release --snapshot --clean --skip=publish --parallelism=2
           workdir: stemma
         env:
