@@ -31,7 +31,7 @@ mise run //web:build
 
 `mise run build` builds the frontend and embeds the result in the `woodstar` binary.
 
-`mise run geoip` downloads the current DB-IP City Lite and ASN Lite databases into the gitignored `.local/geoip` directory. `dev-backend` and the default Go test task run it automatically and reuse the current month's files.
+`mise run geoip` downloads the current DB-IP City Lite and ASN Lite databases into the gitignored `.local/geoip` directory. `dev-backend`, `test` and `test-postgres` run it automatically and reuse the current month's files.
 
 ## Tests
 
@@ -40,9 +40,10 @@ mise run test
 mise run test-postgres
 mise run test-e2e
 mise run test-all
+mise run //web:test
 ```
 
-`mise run test` runs the dependency-free Go suite. `test-postgres` and the E2E tasks use the local PostgreSQL service unless `WOODSTAR_TEST_DATABASE_URL` is set.
+`mise run test` runs the dependency-free Go suite. `test-postgres` runs that suite with PostgreSQL component coverage. It and the E2E tasks use the local PostgreSQL service unless `WOODSTAR_TEST_DATABASE_URL` is set.
 
 Run one E2E lifecycle with:
 
@@ -54,7 +55,7 @@ mise run test-e2e-mdp
 mise run test-e2e-orbit
 ```
 
-The frontend has no test suite. Use its lint, typecheck, generated client, and production build checks.
+The frontend tests cover navigation permissions, query invalidation and route parameter parsing.
 
 ## Lint and format
 
@@ -80,5 +81,8 @@ mise run schema-sync
 
 ```bash
 mise run tidy-check
-mise run //docs:build
+mise run frontend-check
+mise run docs
 ```
+
+`frontend-check` verifies generated API contracts, formatting, lint, tests, types and the production application build. `docs` checks formatting, lint and types, then builds the documentation site.

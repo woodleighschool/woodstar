@@ -18,12 +18,10 @@ description = "Serve the production build"
 run = "pnpm run preview"
 
 [tasks.lint]
-description = "Lint and type-check"
 depends = [":deps"]
 run = "pnpm run lint"
 
 [tasks.lint-fix]
-description = "Fix lint issues and type-check"
 depends = [":deps"]
 run = "pnpm run lint:fix"
 

@@ -63,7 +63,28 @@ description = "Check and build the documentation"
 run = [
   { task = "//docs:fmt-check" },
   { task = "//docs:lint" },
+  { task = "//docs:typecheck" },
   { task = "//docs:build" },
+]
+
+[tasks.frontend-check]
+description = "Verify the web app and generated API contracts"
+depends = ["generate"]
+run = [
+  '''
+generated_status=$(git status --short --untracked-files=all -- \
+  web/openapi.yaml web/src/lib/api-client test/e2e/adminapi/client.gen.go)
+test -z "$generated_status" || {
+  printf '%s\n' "$generated_status"
+  git diff -- web/openapi.yaml web/src/lib/api-client test/e2e/adminapi/client.gen.go
+  exit 1
+}
+''',
+  { task = "//web:fmt-check" },
+  "pnpm --dir web run lint",
+  "pnpm --dir web run test",
+  "pnpm --dir web run build",
+  { task = "backend" },
 ]
 
 [tasks.backend]
@@ -105,10 +126,13 @@ run = [
 ]
 
 [tasks.test-postgres]
-description = "Run PostgreSQL component tests"
+description = "Run Go tests with PostgreSQL component coverage"
+depends = ["geoip"]
 run = """
+WOODSTAR_GEOIP_CITY_FILE="$PWD/.local/geoip/dbip-city-lite.mmdb" \
+WOODSTAR_GEOIP_ASN_FILE="$PWD/.local/geoip/dbip-asn-lite.mmdb" \
 WOODSTAR_TEST_DATABASE_URL="${WOODSTAR_TEST_DATABASE_URL:-postgres://woodstar:woodstar@127.0.0.1:5432/postgres?sslmode=disable}" \
-  go test -race -count=1 -tags=postgres ./internal/... ./cmd/...
+  go test -race -count=1 -tags=postgres ./...
 """
 
 [tasks.test-e2e-munki]
@@ -154,8 +178,8 @@ WOODSTAR_TEST_DATABASE_URL="${WOODSTAR_TEST_DATABASE_URL:-postgres://woodstar:wo
 """
 
 [tasks.test-all]
-description = "Run dependency-free, PostgreSQL, and end-to-end tests"
-run = [{ task = "test" }, { task = "test-postgres" }, { task = "test-e2e" }]
+description = "Run Go, PostgreSQL, and end-to-end tests"
+run = [{ task = "test-postgres" }, { task = "test-e2e" }]
 
 [tasks.openapi]
 description = "Generate OpenAPI schema"

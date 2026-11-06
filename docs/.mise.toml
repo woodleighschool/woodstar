@@ -11,13 +11,11 @@ description = "Clean generated docs API reference"
 run = "pnpm run clean-api-docs"
 
 [tasks.dev]
-description = "Generate API docs and start the development server"
-depends = [":deps"]
+depends = [":gen-api-docs"]
 run = "pnpm run dev"
 
 [tasks.build]
-description = "Generate API docs and build the site"
-depends = [":deps"]
+depends = [":gen-api-docs"]
 run = "pnpm run build"
 
 [tasks.serve]
@@ -26,8 +24,7 @@ depends = [":build"]
 run = "pnpm run serve"
 
 [tasks.typecheck]
-description = "Generate API docs and type-check"
-depends = [":deps"]
+depends = [":gen-api-docs"]
 run = "pnpm run typecheck"
 
 [tasks.format]
@@ -37,12 +34,10 @@ run = "pnpm run format"
 run = "oxfmt --check"
 
 [tasks.lint]
-description = "Lint and type-check"
 depends = [":deps"]
 run = "pnpm run lint"
 
 [tasks.lint-fix]
-description = "Fix lint issues and type-check"
 depends = [":deps"]
 run = "pnpm run lint:fix"
 
