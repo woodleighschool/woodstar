@@ -1,49 +1,44 @@
 [tasks.deps]
-description = "Install web dependencies"
 run = "pnpm install --frozen-lockfile"
 
 [tasks.dev]
-description = "Run web development server"
+description = "Start the dev server with the local CA"
 depends = [":deps"]
 run = """
 NODE_EXTRA_CA_CERTS="../.local/tls/ca/rootCA.pem" pnpm run dev
 """
 
 [tasks.build]
-description = "Build web bundle"
+description = "Type-check and build the web bundle"
 depends = [":deps"]
 run = "pnpm run build"
 
 [tasks.serve]
-description = "Serve the built web bundle"
+description = "Serve the production build"
 run = "pnpm run preview"
 
 [tasks.lint]
-description = "Run web lint and typecheck"
+description = "Lint and type-check"
 depends = [":deps"]
 run = "pnpm run lint"
 
 [tasks.lint-fix]
-description = "Run web lint fixes and typecheck"
+description = "Fix lint issues and type-check"
 depends = [":deps"]
 run = "pnpm run lint:fix"
 
 [tasks.typecheck]
-description = "Run web typecheck"
 depends = [":deps"]
 run = "pnpm run typecheck"
 
 [tasks.format]
-description = "Format web code"
 run = "pnpm run format"
 
 [tasks.test]
-description = "Test application navigation permissions"
 depends = [":deps"]
 run = "pnpm run test"
 
 [tasks.fmt-check]
-description = "Check web formatting"
 run = "oxfmt --check"
 
 [tasks.openapi-types]
@@ -52,5 +47,4 @@ depends = [":deps"]
 run = "pnpm run openapi:types"
 
 [tasks.clean]
-description = "Remove web build output"
 run = "rm -rf dist"

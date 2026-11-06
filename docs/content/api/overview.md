@@ -31,7 +31,7 @@ Errors use `application/problem+json` and include a readable `detail`. Validatio
 The backend generates the [OpenAPI schema](https://github.com/woodleighschool/woodstar/blob/main/web/openapi.yaml) from its registered routes. Use this machine-readable contract for operation parameters, request bodies, and responses. The docs site turns that schema into the operation pages in this section.
 
 ```bash
-mise run openapi-types
+mise run generate
 mise run //docs:gen-api-docs
 ```
 

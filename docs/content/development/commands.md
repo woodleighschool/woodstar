@@ -70,12 +70,11 @@ mise run //docs:lint
 ## Generated files
 
 ```bash
-mise run openapi-types
 mise run generate
 mise run schema-sync
 ```
 
-`openapi-types` regenerates `web/openapi.yaml`, the frontend client, and the Go E2E client. `schema-sync` refreshes the vendored osquery schema data.
+`generate` regenerates `web/openapi.yaml`, the frontend client, and the Go E2E client. `schema-sync` refreshes the vendored osquery schema data.
 
 ## Repository checks
 

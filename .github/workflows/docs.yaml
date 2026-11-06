@@ -10,6 +10,10 @@ on:
         type: boolean
         required: true
 
+env:
+  MISE_NO_HOOKS: "1"
+  MISE_TASK_RUN_AUTO_INSTALL: "false"
+
 jobs:
   build:
     name: Build docs site
@@ -26,8 +30,7 @@ jobs:
       - name: Setup Mise
         uses: jdx/mise-action@f5be966e4a917d54244728e6a5fdcd1d93a35e6c # v5.2.6
         with:
-          experimental: true
-          install_args: --locked
+          install_args: --locked node pnpm oxfmt
 
       - name: Configure Pages
         if: ${{ inputs.deploy }}

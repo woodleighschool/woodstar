@@ -24,11 +24,9 @@ lockfile = true
 config_roots = ["web", "docs", "stemma"]
 
 [tasks.go-deps]
-description = "Download Go dependencies"
 run = "go mod download"
 
 [tasks.deps]
-description = "Install backend and web dependencies"
 depends = ["go-deps", "//web:deps"]
 
 [tasks.dev]
@@ -52,7 +50,6 @@ depends = ["dev-tls"]
 run = 'CAROOT="$PWD/.local/tls/ca" mkcert -install'
 
 [tasks.dev-backend]
-description = "Run backend development server"
 depends = ["geoip"]
 run = "air"
 
@@ -62,7 +59,7 @@ depends = ["//web:build"]
 run = { task = "backend" }
 
 [tasks.docs]
-description = "Validate and build the docs site"
+description = "Check and build the documentation"
 run = [
   { task = "//docs:fmt-check" },
   { task = "//docs:lint" },
@@ -70,7 +67,7 @@ run = [
 ]
 
 [tasks.backend]
-description = "Build backend binary"
+description = "Build the backend binary"
 run = "go build -o woodstar ./cmd/woodstar"
 
 [tasks.geoip]
@@ -78,21 +75,18 @@ description = "Download the current DB-IP Lite databases"
 run = "go run ./tools/geoipdb --output .local/geoip"
 
 [tasks.tidy]
-description = "Tidy the Go module"
 run = "go mod tidy"
 
 [tasks.tidy-check]
-description = "Check the Go module is tidy"
 run = "go mod tidy -diff"
 
 [tasks.vulncheck]
-description = "Scan for known vulnerabilities with govulncheck"
 run = "govulncheck ./..."
 
 [tasks.migration]
 description = "Create a timestamped PostgreSQL migration"
 usage = '''
-arg "<name>" help="Migration name"
+arg "<name>"
 '''
 run = '''
 goose -dir internal/postgres/migrations create "${usage_name?}" sql
@@ -103,7 +97,7 @@ description = "Validate PostgreSQL migration files"
 run = "goose -dir internal/postgres/migrations validate"
 
 [tasks.test]
-description = "Run Go checks"
+description = "Fetch GeoIP data and run race-enabled tests"
 depends = ["geoip"]
 run = [
   "WOODSTAR_GEOIP_CITY_FILE=$PWD/.local/geoip/dbip-city-lite.mmdb WOODSTAR_GEOIP_ASN_FILE=$PWD/.local/geoip/dbip-asn-lite.mmdb go vet ./...",
@@ -118,42 +112,42 @@ WOODSTAR_TEST_DATABASE_URL="${WOODSTAR_TEST_DATABASE_URL:-postgres://woodstar:wo
 """
 
 [tasks.test-e2e-munki]
-description = "Run the Munki end-to-end lifecycle"
+description = "Requires PostgreSQL"
 run = """
 WOODSTAR_TEST_DATABASE_URL="${WOODSTAR_TEST_DATABASE_URL:-postgres://woodstar:woodstar@127.0.0.1:5432/postgres?sslmode=disable}" \
   go test -race -count=1 -tags=e2e -v -run '^TestMunki$' ./test/e2e
 """
 
 [tasks.test-e2e-osquery]
-description = "Run the osquery end-to-end lifecycles"
+description = "Requires PostgreSQL"
 run = """
 WOODSTAR_TEST_DATABASE_URL="${WOODSTAR_TEST_DATABASE_URL:-postgres://woodstar:woodstar@127.0.0.1:5432/postgres?sslmode=disable}" \
   go test -race -count=1 -tags=e2e -v -run '^TestOsquery(d)?$' ./test/e2e
 """
 
 [tasks.test-e2e-santa]
-description = "Run the Santa end-to-end protobuf lifecycle"
+description = "Requires PostgreSQL"
 run = """
 WOODSTAR_TEST_DATABASE_URL="${WOODSTAR_TEST_DATABASE_URL:-postgres://woodstar:woodstar@127.0.0.1:5432/postgres?sslmode=disable}" \
   go test -race -count=1 -tags=e2e -v -run '^TestSanta$' ./test/e2e
 """
 
 [tasks.test-e2e-mdp]
-description = "Run the MDP end-to-end mirroring lifecycle"
+description = "Requires PostgreSQL"
 run = """
 WOODSTAR_TEST_DATABASE_URL="${WOODSTAR_TEST_DATABASE_URL:-postgres://woodstar:woodstar@127.0.0.1:5432/postgres?sslmode=disable}" \
   go test -race -count=1 -tags=e2e -v -run '^TestMDP$' ./test/e2e
 """
 
 [tasks.test-e2e-orbit]
-description = "Run the Orbit protocol fixture lifecycle"
+description = "Requires PostgreSQL"
 run = """
 WOODSTAR_TEST_DATABASE_URL="${WOODSTAR_TEST_DATABASE_URL:-postgres://woodstar:woodstar@127.0.0.1:5432/postgres?sslmode=disable}" \
   go test -race -count=1 -tags=e2e -v -run '^TestOrbit$' ./test/e2e
 """
 
 [tasks.test-e2e]
-description = "Run all end-to-end lifecycles"
+description = "Run end-to-end tests against PostgreSQL"
 run = """
 WOODSTAR_TEST_DATABASE_URL="${WOODSTAR_TEST_DATABASE_URL:-postgres://woodstar:woodstar@127.0.0.1:5432/postgres?sslmode=disable}" \
   go test -race -count=1 -tags=e2e -v ./test/e2e
@@ -167,52 +161,46 @@ run = [{ task = "test" }, { task = "test-postgres" }, { task = "test-e2e" }]
 description = "Generate OpenAPI schema"
 run = "go run ./cmd/woodstar openapi --output web/openapi.yaml"
 
-[tasks.openapi-types]
-description = "Generate OpenAPI schema and clients"
+[tasks.generate]
+description = "Regenerate the OpenAPI schema and clients"
 run = [
   { task = "openapi" },
   { task = "//web:openapi-types" },
   "go tool oapi-codegen -config test/e2e/adminapi/oapi-codegen.yaml -o test/e2e/adminapi/client.gen.go web/openapi.yaml",
 ]
 
-[tasks.generate]
-description = "Regenerate checked-in generated artifacts"
-run = { task = "openapi-types" }
-
 [tasks.go-lint]
-description = "Run Go linters"
 run = "golangci-lint run"
 
 [tasks.go-lint-fix]
-description = "Run Go linters and apply fixes"
 run = "golangci-lint run --fix"
 
 [tasks.lint-fix]
-description = "Run backend, web, and docs linters and apply fixes"
+description = "Fix lint issues in the backend, web app and docs"
 depends = ["go-lint-fix", "//web:lint-fix", "//docs:lint-fix"]
 
 [tasks.lint]
-description = "Run backend, web, and docs linters"
+description = "Lint the backend, web app and docs"
 depends = ["go-lint", "//web:lint", "//docs:lint"]
 
 [tasks.go-format]
-description = "Format Go code"
 run = "go fmt ./..."
 
 [tasks.go-fmt-check]
-description = "Check Go formatting"
-run = "test -z \"$(gofmt -l .)\" || { gofmt -l .; exit 1; }"
+run = '''
+unformatted=$(gofmt -l .) || exit 1
+test -z "$unformatted" || { printf '%s\n' "$unformatted"; exit 1; }
+'''
 
 [tasks.format]
-description = "Format backend, web, and docs code"
+description = "Format the backend, web app and docs"
 depends = ["go-format", "//web:format", "//docs:format"]
 
 [tasks.fmt-check]
-description = "Check backend, web, and docs formatting"
+description = "Check formatting in the backend, web app and docs"
 depends = ["go-fmt-check", "//web:fmt-check", "//docs:fmt-check"]
 
 [tasks.clean]
-description = "Remove local build outputs"
 run = "rm -rf woodstar .air build web/dist"
 
 [tasks.schema-sync]
@@ -220,7 +208,6 @@ description = "Refresh the osquery schema snapshot"
 run = "./schema/sync.sh"
 
 [tasks.container-build]
-description = "Build the production container locally"
 run = '''
 docker build \
   --build-arg GO_VERSION="$(mise config get tools.go)" \

@@ -42,7 +42,7 @@ The API operation pages are generated from `web/openapi.yaml` with `docusaurus-o
 mise run //docs:gen-api-docs
 ```
 
-Do not edit generated files under `docs/content/api/`. Change the backend contract, run `mise run openapi-types`, then regenerate the docs.
+Do not edit generated files under `docs/content/api/`. Change the backend contract, run `mise run generate`, then regenerate the docs.
 
 ## Writing
 

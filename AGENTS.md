@@ -67,6 +67,6 @@ Guidance for agents and humans working in this repository. This file is self-con
 ## Repository contract
 
 - `cmd/woodstar` owns composition; capability packages own behaviour. PostgreSQL details remain inside stores and `internal/postgres`.
-- The generated contract flows from Go to `web/openapi.yaml`, then to the TypeScript and Go E2E clients. Run `mise run openapi-types` for contract changes and edit source rather than generated clients.
+- The generated contract flows from Go to `web/openapi.yaml`, then to the TypeScript and Go E2E clients. Run `mise run generate` for contract changes and edit source rather than generated clients.
 - Protocol handlers preserve Munki, Santa, osquery, Orbit, and MDP wire behaviour. Use the generated API client for ordinary admin API coverage and raw requests for protocol-specific contracts.
 - The docs site owns setup, configuration, protocol, and API guidance. Keep it synchronized with current behaviour and generated API documentation.
