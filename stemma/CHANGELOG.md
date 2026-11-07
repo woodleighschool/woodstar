@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.4](https://github.com/woodleighschool/woodstar/compare/stemma-v2.0.3...stemma-v2.0.4) (2026-11-07)
+
+
+### Bug Fixes
+
+* **go:** update module github.com/woodleighschool/stemma (v0.12.2 → v0.12.3) ([#680](https://github.com/woodleighschool/woodstar/issues/680)) ([6bb6f5d](https://github.com/woodleighschool/woodstar/commit/6bb6f5d7b1292f3d725c03313541a182909d1548))
+
 ## [2.0.3](https://github.com/woodleighschool/woodstar/compare/stemma-v2.0.2...stemma-v2.0.3) (2026-11-03)
 
 
