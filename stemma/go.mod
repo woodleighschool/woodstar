@@ -10,7 +10,7 @@ require (
 	github.com/woodleighschool/goodies/bloby v1.4.1
 	github.com/woodleighschool/stemma v0.12.3
 	github.com/woodleighschool/woodstar v0.12.0
-	golang.org/x/sync v0.24.0
+	golang.org/x/sync v0.25.0
 	resty.dev/v3 v3.0.0-rc.4
 )
 
