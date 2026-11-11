@@ -1,5 +1,5 @@
 [tools]
-"github:woodleighschool/stemma" = "v0.12.3"
+"github:woodleighschool/stemma" = "v0.12.4"
 
 [tasks.deps]
 run = "go mod download"
