@@ -13,27 +13,25 @@
     "clean-api-docs": "docusaurus clean-api-docs all",
     "gen-api-docs": "pnpm run clean-api-docs && docusaurus gen-api-docs all"
   },
-  "dependencies": {
+  "devDependencies": {
     "@docusaurus/core": "3.10.2",
     "@docusaurus/faster": "3.10.2",
+    "@docusaurus/module-type-aliases": "3.10.2",
     "@docusaurus/preset-classic": "3.10.2",
+    "@docusaurus/tsconfig": "3.10.2",
+    "@docusaurus/types": "3.10.2",
     "@easyops-cn/docusaurus-search-local": "^0.55.3",
     "@mdx-js/react": "^3.1.1",
+    "@types/react": "^19.3.0",
     "docusaurus-plugin-llms": "^0.6.1",
     "docusaurus-plugin-openapi-docs": "^5.2.0",
     "docusaurus-plugin-sass": "^0.2.7",
     "docusaurus-theme-openapi-docs": "^5.2.0",
+    "oxlint": "1.93.0",
     "prism-react-renderer": "^2.4.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
-    "sass": "^1.108.1"
-  },
-  "devDependencies": {
-    "@docusaurus/module-type-aliases": "3.10.2",
-    "@docusaurus/tsconfig": "3.10.2",
-    "@docusaurus/types": "3.10.2",
-    "@types/react": "^19.3.0",
-    "oxlint": "1.93.0",
+    "sass": "^1.108.1",
     "typescript": "~6.0.3"
   },
   "browserslist": {
