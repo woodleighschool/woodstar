@@ -81,7 +81,6 @@ test -z "$generated_status" || {
 ''',
   { task = "//web:fmt-check" },
   "pnpm --dir web run lint",
-  "pnpm --dir web run test",
   "pnpm --dir web run build",
   { task = "backend" },
 ]

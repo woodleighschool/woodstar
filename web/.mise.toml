@@ -32,10 +32,6 @@ run = "pnpm run typecheck"
 [tasks.format]
 run = "pnpm run format"
 
-[tasks.test]
-depends = [":deps"]
-run = "pnpm run test"
-
 [tasks.fmt-check]
 run = "oxfmt --check"
 

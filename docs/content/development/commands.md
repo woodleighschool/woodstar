@@ -40,7 +40,6 @@ mise run test
 mise run test-postgres
 mise run test-e2e
 mise run test-all
-mise run //web:test
 ```
 
 `mise run test` runs the dependency-free Go suite. `test-postgres` runs that suite with PostgreSQL component coverage. It and the E2E tasks use the local PostgreSQL service unless `WOODSTAR_TEST_DATABASE_URL` is set.
@@ -54,8 +53,6 @@ mise run test-e2e-santa
 mise run test-e2e-mdp
 mise run test-e2e-orbit
 ```
-
-The frontend tests cover navigation permissions, query invalidation and route parameter parsing.
 
 ## Lint and format
 
@@ -85,4 +82,4 @@ mise run frontend-check
 mise run docs
 ```
 
-`frontend-check` verifies generated API contracts, formatting, lint, tests, types and the production application build. `docs` checks formatting, lint and types, then builds the documentation site.
+`frontend-check` verifies generated API contracts, formatting, lint, types and the production application build. `docs` checks formatting, lint and types, then builds the documentation site.
