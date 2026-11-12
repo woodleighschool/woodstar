@@ -114,7 +114,7 @@ function SoftwareVersions({ title }: { title: SoftwareTitle }) {
   return (
     <TableSurface
       heading="Versions"
-      empty={versions.length ? undefined : <PanelEmptyState>No Versions Yet</PanelEmptyState>}
+      empty={versions.length ? undefined : <PanelEmptyState>No Versions</PanelEmptyState>}
     >
       <Table>
         <TableHeader>

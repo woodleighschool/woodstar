@@ -52,7 +52,7 @@ export function RecentOsqueryActivityCard() {
         ) : (
           <Empty className="min-h-40">
             <EmptyHeader>
-              <EmptyTitle>No osquery Activity Yet</EmptyTitle>
+              <EmptyTitle>No osquery Activity</EmptyTitle>
               <EmptyDescription>
                 Enrollments and administrative changes will appear here.
               </EmptyDescription>

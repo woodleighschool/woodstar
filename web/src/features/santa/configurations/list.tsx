@@ -106,7 +106,6 @@ export function ConfigurationListPage() {
       filtered={tableSearch.isFiltered}
       title="No Client Configurations"
       description="Create a configuration for Santa clients."
-      filteredDescription="No configurations matched the current filters."
     />
   );
   return (

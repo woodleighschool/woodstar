@@ -199,7 +199,6 @@ export function RuleListPage() {
               filtered={tableSearch.isFiltered}
               title="No Execution Rules"
               description="Create a rule, then attach label targets."
-              filteredDescription="No rules matched these filters."
             />
           }
         >

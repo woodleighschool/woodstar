@@ -115,7 +115,6 @@ export function PolicyListPage() {
               filtered={tableSearch.isFiltered}
               title="No Health Policies"
               description="Create a policy from SQL."
-              filteredDescription="No policies matched the current search."
             />
           }
         >

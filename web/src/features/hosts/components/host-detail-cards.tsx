@@ -98,7 +98,7 @@ export function HostIdentityCard({ host }: { host: HostDetail }) {
   return (
     <>
       <KeyValueSection
-        title="Primary User"
+        title="Assigned User"
         actions={
           canEdit ? (
             <Button type="button" variant="outline" size="sm" onClick={() => setDialogOpen(true)}>
@@ -226,8 +226,8 @@ function HostPrimaryUserDialog({
     >
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{manual ? "Edit Primary User" : "Set Primary User"}</DialogTitle>
-          <DialogDescription>Set the email or UPN to prefer for this host.</DialogDescription>
+          <DialogTitle>{manual ? "Edit Assigned User" : "Set Assigned User"}</DialogTitle>
+          <DialogDescription>Assign a user by email or UPN.</DialogDescription>
         </DialogHeader>
         <form
           noValidate

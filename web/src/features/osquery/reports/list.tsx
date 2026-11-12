@@ -105,7 +105,6 @@ export function ReportListPage() {
               filtered={tableSearch.isFiltered}
               title="No Saved Queries"
               description="Create a report from SQL."
-              filteredDescription="No reports matched the current search."
             />
           }
         >

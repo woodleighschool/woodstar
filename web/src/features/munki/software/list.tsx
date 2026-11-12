@@ -180,10 +180,8 @@ export function MunkiSoftwareListPage() {
             <DataTableEmpty
               icon={<PackageSearch />}
               filtered={tableSearch.isFiltered}
-              filteredTitle="No Matching Software"
               title="No Software"
               description="Create software to manage Munki packages."
-              filteredDescription="Try a different search."
             />
           }
         >

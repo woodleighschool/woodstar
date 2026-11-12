@@ -10,9 +10,9 @@ The host list shows every enrolled Mac. Search and filters can narrow the list b
 
 ## Host details
 
-A host page combines its hardware and operating-system details with users, batteries, certificates, software, labels, and osquery results. Santa and Munki sections appear after those clients have reported state.
+A host page combines its hardware and operating-system details with users, batteries, certificates, software, labels, and osquery results. Agent-specific tabs appear after the corresponding agent contacts the server. Empty tables retain their columns and controls. The host header shows when inventory was fetched.
 
-Use **User affinity** to correct or clear the person associated with a Mac.
+Use **Assigned User** to correct or clear the person associated with a Mac.
 
 ## Labels
 

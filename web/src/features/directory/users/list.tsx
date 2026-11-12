@@ -217,7 +217,6 @@ export function UserListPage() {
               filtered={tableSearch.isFiltered}
               title="No Users"
               description="Create a local user or configure directory sync."
-              filteredDescription="No users matched the current filters."
             />
           }
         >

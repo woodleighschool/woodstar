@@ -211,7 +211,7 @@ export function useSetHostPrimaryUser() {
   return useMutation<HostDetail, ApiError, { id: number; body: HostPrimaryUserMutation }>({
     mutationFn: ({ id, body }) => unwrap(setHostPrimaryUser({ path: { id }, body })),
     onSuccess: async (host) => {
-      toast.add({ title: "Primary User Set", type: "success" });
+      toast.add({ title: "Assigned User Set", type: "success" });
       queryClient.setQueryData(hostKeys.detail(host.id), host);
       await queryClient.invalidateQueries({ queryKey: hostKeys.all });
     },
@@ -223,7 +223,7 @@ export function useClearHostPrimaryUser() {
   return useMutation<HostDetail, ApiError, number>({
     mutationFn: (id) => unwrap(clearHostPrimaryUser({ path: { id } })),
     onSuccess: async (host) => {
-      toast.add({ title: "Primary User Cleared", type: "success" });
+      toast.add({ title: "Assigned User Cleared", type: "success" });
       queryClient.setQueryData(hostKeys.detail(host.id), host);
       await queryClient.invalidateQueries({ queryKey: hostKeys.all });
     },

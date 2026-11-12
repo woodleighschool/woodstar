@@ -1,4 +1,4 @@
-import { Outlet, useNavigate, useParams, useRouterState } from "@tanstack/react-router";
+import { Navigate, Outlet, useNavigate, useParams, useRouterState } from "@tanstack/react-router";
 import { canAll } from "@woodleighschool/authz";
 import { ChevronDown, RefreshCw, Trash2 } from "lucide-react";
 import { useState } from "react";
@@ -39,56 +39,16 @@ import {
   useHostSantaState,
   useRequestHostInventoryRefresh,
 } from "@features/hosts/queries";
-import type { HostDetail } from "@lib/api";
-
-const hostSections = [
-  { value: "details", label: "Details", path: "/hosts/$id", permissions: [] },
-  {
-    value: "activity",
-    label: "Activity",
-    path: "/hosts/$id/activity",
-    permissions: [{ resource: "activity", access: "view" }],
-  },
-  {
-    value: "software",
-    label: "Software",
-    path: "/hosts/$id/software",
-    permissions: [{ resource: "software", access: "view" }],
-  },
-  {
-    value: "reports",
-    label: "Reports",
-    path: "/hosts/$id/reports",
-    permissions: [{ resource: "osquery.reports", access: "view" }],
-  },
-  {
-    value: "policies",
-    label: "Policies",
-    path: "/hosts/$id/policies",
-    permissions: [{ resource: "osquery.policies", access: "view" }],
-  },
-  {
-    value: "munki",
-    label: "Munki",
-    path: "/hosts/$id/munki",
-    heartbeatSource: "munki",
-    permissions: [{ resource: "munki.software", access: "view" }],
-  },
-  {
-    value: "santa",
-    label: "Santa",
-    path: "/hosts/$id/santa",
-    heartbeatSource: "santa",
-    permissions: [
-      { resource: "santa.configurations", access: "view" },
-      { resource: "santa.rules", access: "view" },
-    ],
-  },
-] as const;
+import { availableHostSections, hostSections, type HostSection } from "@features/hosts/sections";
 
 export function HostDetailPage() {
   const hostID = useHostID();
   const navigate = useNavigate();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const active =
+    hostSections.find(
+      (section) => section.value !== "details" && pathname.endsWith(`/${section.value}`),
+    )?.value ?? "details";
   const canEdit = useCan({ resource: "hosts", access: "edit" });
   const [deleteOpen, setDeleteOpen] = useState(false);
   const refresh = useRequestHostInventoryRefresh();
@@ -108,6 +68,12 @@ export function HostDetailPage() {
     );
   }
 
+  const sections = availableHostSections(host);
+  const hasOsquery = host.heartbeats.some((heartbeat) => heartbeat.source === "osquery");
+  if (!sections.some((section) => section.value === active)) {
+    return <Navigate to="/hosts/$id" params={{ id: hostID }} replace />;
+  }
+
   return (
     <>
       <PageShell>
@@ -122,17 +88,19 @@ export function HostDetailPage() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="min-w-44">
                   <DropdownMenuGroup>
-                    <DropdownMenuItem
-                      disabled={refresh.isPending || host.inventory_refresh_requested}
-                      onClick={() => refresh.mutate(host.id)}
-                    >
-                      <RefreshCw />
-                      {refresh.isPending
-                        ? "Requesting…"
-                        : host.inventory_refresh_requested
-                          ? "Refresh Requested"
-                          : "Refresh Inventory"}
-                    </DropdownMenuItem>
+                    {hasOsquery ? (
+                      <DropdownMenuItem
+                        disabled={refresh.isPending || host.inventory_refresh_requested}
+                        onClick={() => refresh.mutate(host.id)}
+                      >
+                        <RefreshCw />
+                        {refresh.isPending
+                          ? "Requesting…"
+                          : host.inventory_refresh_requested
+                            ? "Refresh Requested"
+                            : "Refresh Inventory"}
+                      </DropdownMenuItem>
+                    ) : null}
                     <DropdownMenuItem variant="destructive" onClick={() => setDeleteOpen(true)}>
                       <Trash2 />
                       Delete
@@ -143,7 +111,7 @@ export function HostDetailPage() {
             ) : null
           }
         />
-        <HostSectionNav hostID={hostID} host={host} />
+        <HostSectionNav hostID={hostID} sections={sections} active={active} />
         <Outlet />
       </PageShell>
       <HostDeleteDialog
@@ -163,7 +131,7 @@ export function HostDetailsPage() {
   if (!host) {
     return (
       <QueryGate
-        title="Failed to load host details"
+        title="Failed to Load Host Details"
         error={query.error}
         onRetry={() => void query.refetch()}
       />
@@ -224,24 +192,22 @@ export function HostSantaPage() {
   );
 }
 
-function HostSectionNav({ hostID, host }: { hostID: number; host: HostDetail }) {
+function HostSectionNav({
+  hostID,
+  sections,
+  active,
+}: {
+  hostID: number;
+  sections: readonly HostSection[];
+  active: HostSection["value"];
+}) {
   const account = useAccount();
-  const pathname = useRouterState({ select: (state) => state.location.pathname });
-  const active =
-    hostSections.find(
-      (section) => section.value !== "details" && pathname.endsWith(`/${section.value}`),
-    )?.value ?? "details";
 
   return (
     <ScrollableTabs value={active}>
       <ScrollableTabsList>
-        {hostSections
+        {sections
           .filter((section) => canAll(account.data?.effective_permissions, section.permissions))
-          .filter(
-            (section) =>
-              !("heartbeatSource" in section) ||
-              host.heartbeats.some((heartbeat) => heartbeat.source === section.heartbeatSource),
-          )
           .map((section) => (
             <TabsTrigger
               key={section.value}

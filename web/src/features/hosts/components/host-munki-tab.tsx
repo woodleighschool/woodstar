@@ -114,8 +114,8 @@ export function HostMunkiTab({
   return (
     <div className="flex flex-col gap-4">
       {stateError && munki === undefined ? (
-        <QueryError title="Failed to load Munki state" error={stateError} onRetry={onStateRetry} />
-      ) : munki && hasReport ? (
+        <QueryError title="Failed to Load Munki State" error={stateError} onRetry={onStateRetry} />
+      ) : munki === undefined ? null : munki && hasReport ? (
         <KeyValueSection title="Overview">
           {munki.version ? <KeyValueRow label="Version" value={munki.version} /> : null}
           {showManifest ? <KeyValueRow label="Manifest" value={munki.manifest_name} /> : null}
@@ -124,7 +124,7 @@ export function HostMunkiTab({
           ) : null}
         </KeyValueSection>
       ) : (
-        <PanelEmptyState>No Munki report</PanelEmptyState>
+        <PanelEmptyState>No Munki Report</PanelEmptyState>
       )}
 
       {problems.length > 0 ? (
@@ -137,7 +137,7 @@ export function HostMunkiTab({
           <Separator />
           <div className="px-3">
             <QueryError
-              title="Failed to load Munki software"
+              title="Failed to Load Munki Software"
               error={software.error}
               onRetry={() => void software.refetch()}
             />
@@ -148,7 +148,7 @@ export function HostMunkiTab({
           heading="Software"
           columns={softwareColumns}
           data={software.data?.items ?? []}
-          empty={<PanelEmptyState>No software in this host&apos;s manifest</PanelEmptyState>}
+          empty={<PanelEmptyState>No Software</PanelEmptyState>}
         />
       )}
     </div>

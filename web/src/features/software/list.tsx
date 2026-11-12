@@ -67,7 +67,7 @@ export function SoftwareListPage() {
 
   return (
     <PageShell>
-      <PageHeader title="Software" description="Search software observed in host inventory." />
+      <PageHeader title="Software" description="Search software in host inventory." />
 
       {query.isLoadingError ? (
         <QueryError
@@ -85,9 +85,8 @@ export function SoftwareListPage() {
             <DataTableEmpty
               icon={<Package />}
               filtered={tableSearch.isFiltered}
-              title="No Observed Software"
+              title="No Software"
               description="Inventory appears after hosts refresh."
-              filteredDescription="No titles matched the current filters."
             />
           }
         >

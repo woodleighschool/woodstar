@@ -3,6 +3,7 @@ import { Disc3, FileArchive, Package, Trash2 } from "lucide-react";
 import { type ReactNode, useRef } from "react";
 
 import { TableSurface } from "@components/data-table/table-surface";
+import { PanelEmptyState } from "@components/panel-empty-state";
 import {
   Attachment,
   AttachmentAction,
@@ -415,105 +416,105 @@ export function InstallsTable({
       <FieldDescription>
         Files and bundles Munki uses to determine installed state and version.
       </FieldDescription>
-      {rows.length > 0 ? (
-        <TableSurface>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="min-w-56">Path</TableHead>
-                <TableHead className="w-36">Type</TableHead>
-                <TableHead className="min-w-40">CFBundleName</TableHead>
-                <TableHead className="min-w-48">CFBundleIdentifier</TableHead>
-                <TableHead className="min-w-36">CFBundleShortVersionString</TableHead>
-                <TableHead className="min-w-36">CFBundleVersion</TableHead>
-                <TableHead className="min-w-36">Minimum Update</TableHead>
-                <TableHead className="w-9" />
+      <TableSurface
+        empty={rows.length ? undefined : <PanelEmptyState>No Install Items</PanelEmptyState>}
+      >
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="min-w-56">Path</TableHead>
+              <TableHead className="w-36">Type</TableHead>
+              <TableHead className="min-w-40">CFBundleName</TableHead>
+              <TableHead className="min-w-48">CFBundleIdentifier</TableHead>
+              <TableHead className="min-w-36">CFBundleShortVersionString</TableHead>
+              <TableHead className="min-w-36">CFBundleVersion</TableHead>
+              <TableHead className="min-w-36">Minimum Update</TableHead>
+              <TableHead className="w-9" />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((row, index) => (
+              <TableRow key={row.rowID} className="hover:bg-transparent">
+                <TableCell className="p-0">
+                  <CellInput
+                    value={row.path}
+                    onValueChange={(value) => onReplace(index, { ...row, path: value })}
+                  />
+                </TableCell>
+                <TableCell className="p-0">
+                  <Select
+                    items={MUNKI_INSTALL_ITEM_TYPE_OPTIONS}
+                    value={row.type}
+                    onValueChange={(next) => {
+                      if (next !== null) onReplace(index, { ...row, type: next });
+                    }}
+                  >
+                    <SelectTrigger className="h-8 rounded-none border-0 bg-transparent px-2 shadow-none focus-visible:ring-1 focus-visible:ring-inset dark:bg-transparent">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        {MUNKI_INSTALL_ITEM_TYPE_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </TableCell>
+                <TableCell className="p-0">
+                  <CellInput
+                    value={row.bundle_name ?? ""}
+                    onValueChange={(value) => onReplace(index, { ...row, bundle_name: value })}
+                  />
+                </TableCell>
+                <TableCell className="p-0">
+                  <CellInput
+                    value={row.bundle_identifier ?? ""}
+                    onValueChange={(value) =>
+                      onReplace(index, { ...row, bundle_identifier: value })
+                    }
+                  />
+                </TableCell>
+                <TableCell className="p-0">
+                  <CellInput
+                    value={row.bundle_short_version ?? ""}
+                    onValueChange={(value) =>
+                      onReplace(index, {
+                        ...row,
+                        bundle_short_version: value,
+                      })
+                    }
+                  />
+                </TableCell>
+                <TableCell className="p-0">
+                  <CellInput
+                    value={row.bundle_version ?? ""}
+                    onValueChange={(value) => onReplace(index, { ...row, bundle_version: value })}
+                  />
+                </TableCell>
+                <TableCell className="p-0">
+                  <CellInput
+                    value={row.minimum_update_version ?? ""}
+                    onValueChange={(value) =>
+                      onReplace(index, {
+                        ...row,
+                        minimum_update_version: value,
+                      })
+                    }
+                  />
+                </TableCell>
+                <TableCell className="w-9 p-0 pr-1 text-right">
+                  <IconButton label="Remove" onClick={() => onRemove(index)}>
+                    <Trash2 />
+                  </IconButton>
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((row, index) => (
-                <TableRow key={row.rowID} className="hover:bg-transparent">
-                  <TableCell className="p-0">
-                    <CellInput
-                      value={row.path}
-                      onValueChange={(value) => onReplace(index, { ...row, path: value })}
-                    />
-                  </TableCell>
-                  <TableCell className="p-0">
-                    <Select
-                      items={MUNKI_INSTALL_ITEM_TYPE_OPTIONS}
-                      value={row.type}
-                      onValueChange={(next) => {
-                        if (next !== null) onReplace(index, { ...row, type: next });
-                      }}
-                    >
-                      <SelectTrigger className="h-8 rounded-none border-0 bg-transparent px-2 shadow-none focus-visible:ring-1 focus-visible:ring-inset dark:bg-transparent">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectGroup>
-                          {MUNKI_INSTALL_ITEM_TYPE_OPTIONS.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
-                  <TableCell className="p-0">
-                    <CellInput
-                      value={row.bundle_name ?? ""}
-                      onValueChange={(value) => onReplace(index, { ...row, bundle_name: value })}
-                    />
-                  </TableCell>
-                  <TableCell className="p-0">
-                    <CellInput
-                      value={row.bundle_identifier ?? ""}
-                      onValueChange={(value) =>
-                        onReplace(index, { ...row, bundle_identifier: value })
-                      }
-                    />
-                  </TableCell>
-                  <TableCell className="p-0">
-                    <CellInput
-                      value={row.bundle_short_version ?? ""}
-                      onValueChange={(value) =>
-                        onReplace(index, {
-                          ...row,
-                          bundle_short_version: value,
-                        })
-                      }
-                    />
-                  </TableCell>
-                  <TableCell className="p-0">
-                    <CellInput
-                      value={row.bundle_version ?? ""}
-                      onValueChange={(value) => onReplace(index, { ...row, bundle_version: value })}
-                    />
-                  </TableCell>
-                  <TableCell className="p-0">
-                    <CellInput
-                      value={row.minimum_update_version ?? ""}
-                      onValueChange={(value) =>
-                        onReplace(index, {
-                          ...row,
-                          minimum_update_version: value,
-                        })
-                      }
-                    />
-                  </TableCell>
-                  <TableCell className="w-9 p-0 pr-1 text-right">
-                    <IconButton label="Remove" onClick={() => onRemove(index)}>
-                      <Trash2 />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableSurface>
-      ) : null}
+            ))}
+          </TableBody>
+        </Table>
+      </TableSurface>
       <Button type="button" variant="outline" size="sm" className="w-fit" onClick={onAdd}>
         Add Install Item
       </Button>
@@ -536,70 +537,70 @@ export function ReceiptsTable({
     <FieldSet className="min-w-0 gap-4">
       <FieldLegend variant="label">Receipts</FieldLegend>
       <FieldDescription>Package receipts Munki uses to determine installed state.</FieldDescription>
-      {rows.length > 0 ? (
-        <TableSurface>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="min-w-[16rem]">Package ID</TableHead>
-                <TableHead className="min-w-36">Version</TableHead>
-                <TableHead className="min-w-40">Name</TableHead>
-                <TableHead className="min-w-32">Installed Size</TableHead>
-                <TableHead className="w-24 text-center">Optional</TableHead>
-                <TableHead className="w-9" />
+      <TableSurface
+        empty={rows.length ? undefined : <PanelEmptyState>No Receipts</PanelEmptyState>}
+      >
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="min-w-[16rem]">Package ID</TableHead>
+              <TableHead className="min-w-36">Version</TableHead>
+              <TableHead className="min-w-40">Name</TableHead>
+              <TableHead className="min-w-32">Installed Size</TableHead>
+              <TableHead className="w-24 text-center">Optional</TableHead>
+              <TableHead className="w-9" />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((row, index) => (
+              <TableRow key={row.rowID} className="hover:bg-transparent">
+                <TableCell className="p-0">
+                  <CellInput
+                    value={row.package_id}
+                    onValueChange={(value) => onReplace(index, { ...row, package_id: value })}
+                  />
+                </TableCell>
+                <TableCell className="p-0">
+                  <CellInput
+                    value={row.version ?? ""}
+                    onValueChange={(value) => onReplace(index, { ...row, version: value })}
+                  />
+                </TableCell>
+                <TableCell className="p-0">
+                  <CellInput
+                    value={row.name ?? ""}
+                    onValueChange={(value) => onReplace(index, { ...row, name: value })}
+                  />
+                </TableCell>
+                <TableCell className="p-0">
+                  <CellInput
+                    type="number"
+                    min={0}
+                    value={row.installed_size ?? ""}
+                    onValueChange={(value) =>
+                      onReplace(index, {
+                        ...row,
+                        installed_size: numberOrUndefined(value),
+                      })
+                    }
+                  />
+                </TableCell>
+                <TableCell className="text-center">
+                  <Checkbox
+                    checked={row.optional === true}
+                    onCheckedChange={(value) => onReplace(index, { ...row, optional: value })}
+                  />
+                </TableCell>
+                <TableCell className="w-9 p-0 pr-1 text-right">
+                  <IconButton label="Remove" onClick={() => onRemove(index)}>
+                    <Trash2 />
+                  </IconButton>
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((row, index) => (
-                <TableRow key={row.rowID} className="hover:bg-transparent">
-                  <TableCell className="p-0">
-                    <CellInput
-                      value={row.package_id}
-                      onValueChange={(value) => onReplace(index, { ...row, package_id: value })}
-                    />
-                  </TableCell>
-                  <TableCell className="p-0">
-                    <CellInput
-                      value={row.version ?? ""}
-                      onValueChange={(value) => onReplace(index, { ...row, version: value })}
-                    />
-                  </TableCell>
-                  <TableCell className="p-0">
-                    <CellInput
-                      value={row.name ?? ""}
-                      onValueChange={(value) => onReplace(index, { ...row, name: value })}
-                    />
-                  </TableCell>
-                  <TableCell className="p-0">
-                    <CellInput
-                      type="number"
-                      min={0}
-                      value={row.installed_size ?? ""}
-                      onValueChange={(value) =>
-                        onReplace(index, {
-                          ...row,
-                          installed_size: numberOrUndefined(value),
-                        })
-                      }
-                    />
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <Checkbox
-                      checked={row.optional === true}
-                      onCheckedChange={(value) => onReplace(index, { ...row, optional: value })}
-                    />
-                  </TableCell>
-                  <TableCell className="w-9 p-0 pr-1 text-right">
-                    <IconButton label="Remove" onClick={() => onRemove(index)}>
-                      <Trash2 />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableSurface>
-      ) : null}
+            ))}
+          </TableBody>
+        </Table>
+      </TableSurface>
       <Button type="button" variant="outline" size="sm" className="w-fit" onClick={onAdd}>
         Add Receipt
       </Button>

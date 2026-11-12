@@ -228,7 +228,7 @@ function MunkiSoftwareDetailForm({
                     <LabelAssignmentList
                       title="Exclude"
                       addLabel="Add Exclude"
-                      emptyText="No Excludes Yet"
+                      emptyText="No Excludes"
                       rows={field.state.value.exclude}
                       crossListLabelIDs={includeLabelIDs}
                       includeBuiltins={false}
@@ -247,8 +247,7 @@ function MunkiSoftwareDetailForm({
       label: "Packages",
       content: (
         <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-base font-semibold">Packages</h2>
+          <div className="flex justify-end">
             <Button
               size="sm"
               variant="outline"
@@ -259,11 +258,11 @@ function MunkiSoftwareDetailForm({
               Add Package
             </Button>
           </div>
-          {packages.length > 0 ? (
-            <DataTableStatic columns={packageColumns} data={packages} />
-          ) : (
-            <PanelEmptyState>No Packages Yet</PanelEmptyState>
-          )}
+          <DataTableStatic
+            columns={packageColumns}
+            data={packages}
+            empty={<PanelEmptyState>No Packages</PanelEmptyState>}
+          />
         </div>
       ),
     },

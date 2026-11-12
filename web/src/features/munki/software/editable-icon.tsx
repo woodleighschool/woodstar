@@ -175,7 +175,7 @@ function IconPickerDialog({
           </div>
         ) : (
           <p className="py-6 text-center text-sm text-muted-foreground">
-            {icons.isLoading ? "Loading Icons…" : "No Icons Uploaded Yet"}
+            {icons.isLoading ? "Loading Icons…" : "No Icons"}
           </p>
         )}
         <DialogFooter>

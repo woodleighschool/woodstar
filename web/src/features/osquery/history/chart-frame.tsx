@@ -72,9 +72,7 @@ export function HistoryChartFrame({
         <Empty className="min-h-72">
           <EmptyHeader>
             <EmptyTitle>{emptyTitle}</EmptyTitle>
-            <EmptyDescription>
-              The first five-minute snapshot will appear here shortly.
-            </EmptyDescription>
+            <EmptyDescription>No snapshots in this period.</EmptyDescription>
           </EmptyHeader>
         </Empty>
       )}

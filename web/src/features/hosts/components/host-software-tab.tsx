@@ -168,7 +168,7 @@ export function HostSoftwareTab({ hostId }: { hostId: number }) {
       pending={query.isPlaceholderData}
       empty={
         <PanelEmptyState>
-          {tableSearch.isFiltered ? "No Matching Software" : "No Observed Software"}
+          {tableSearch.isFiltered ? "No Matching Software" : "No Software"}
         </PanelEmptyState>
       }
     >

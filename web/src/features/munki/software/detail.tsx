@@ -127,7 +127,7 @@ export function MunkiSoftwareDetailPage() {
         heading="Packages"
         columns={packageColumns}
         data={software.packages}
-        empty={<PanelEmptyState>No Packages Yet</PanelEmptyState>}
+        empty={<PanelEmptyState>No Packages</PanelEmptyState>}
       />
 
       <MunkiSoftwareDeleteDialog

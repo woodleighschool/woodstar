@@ -168,9 +168,8 @@ export function HostListPage() {
             <DataTableEmpty
               icon={<ServerCog />}
               filtered={tableSearch.isFiltered}
-              title="No Enrolled Devices"
+              title="No Hosts"
               description="Create a host enrollment secret, then deploy Orbit or osquery."
-              filteredDescription="No hosts matched the current filters."
             />
           }
         >

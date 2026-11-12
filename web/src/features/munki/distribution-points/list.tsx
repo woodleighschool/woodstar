@@ -96,7 +96,6 @@ export function DistributionPointListPage() {
       filtered={tableSearch.isFiltered}
       title="No Distribution Points"
       description="Create a distribution point for Munki clients."
-      filteredDescription="No distribution points matched the current filters."
     />
   );
   return (

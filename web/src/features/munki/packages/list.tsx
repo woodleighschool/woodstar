@@ -191,10 +191,8 @@ export function MunkiPackageListPage() {
             <DataTableEmpty
               icon={<PackageCheck />}
               filtered={tableSearch.isFiltered}
-              filteredTitle="No Matching Packages"
               title="No Packages"
               description="Create package versions for Munki software."
-              filteredDescription="Try a different search."
             />
           }
         >

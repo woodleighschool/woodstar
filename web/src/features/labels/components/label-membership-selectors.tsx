@@ -1,15 +1,12 @@
 import {
-  type ColumnFiltersState,
   type PaginationState,
   type RowSelectionState,
   type SortingState,
-  type Updater,
   useTable,
 } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
 
 import { DataTable } from "@components/data-table/data-table";
-import { DataTableFacetedFilter } from "@components/data-table/data-table-faceted-filter";
 import { DataTableSearchInput } from "@components/data-table/data-table-search-input";
 import { DATA_TABLE_DEFAULT_COLUMN } from "@components/data-table/data-table-sizing";
 import { selectColumn } from "@components/data-table/select-column";
@@ -19,6 +16,7 @@ import {
   type DataTableRowData,
 } from "@components/data-table/types";
 import { encodeSort } from "@components/data-table/use-data-table-search";
+import { FacetedFilter } from "@components/faceted-filter";
 import { PanelEmptyState } from "@components/panel-empty-state";
 import { QueryError } from "@components/query-error";
 import { useGroups } from "@features/directory/groups/queries";
@@ -65,7 +63,7 @@ export function HostSelector({
         id: "hardware.model_identifier",
         accessorFn: (row) => row.hardware.model_identifier,
         header: "Model",
-        cell: ({ row }) => row.original.hardware.model_identifier || "Unknown",
+        cell: ({ row }) => row.original.hardware.model_identifier || "-",
       },
     ],
     [],
@@ -87,7 +85,7 @@ export function HostSelector({
         onChange(ids.map(Number).filter((id) => Number.isInteger(id) && id > 0))
       }
       getRowId={(host) => String(host.id)}
-      emptyTitle={showSelected ? "No Selected Hosts" : "No Hosts Found"}
+      emptyTitle={showSelected ? "No Selected Hosts" : "No Hosts"}
     />
   );
 }
@@ -155,7 +153,7 @@ function DepartmentSelector({
       selectedRowIds={value}
       onSelectedRowIdsChange={onChange}
       getRowId={(department) => department.value}
-      emptyTitle={showSelected ? "No Selected Departments" : "No Departments Found"}
+      emptyTitle={showSelected ? "No Selected Departments" : "No Departments"}
     />
   );
 }
@@ -188,7 +186,7 @@ function GroupSelector({
       {
         accessorKey: "mail_nickname",
         header: "Nickname",
-        cell: ({ row }) => row.original.mail_nickname ?? "None",
+        cell: ({ row }) => row.original.mail_nickname || "-",
       },
     ],
     [],
@@ -208,7 +206,7 @@ function GroupSelector({
       selectedRowIds={value}
       onSelectedRowIdsChange={onChange}
       getRowId={(group) => group.external_id}
-      emptyTitle={showSelected ? "No Selected Groups" : "No Groups Found"}
+      emptyTitle={showSelected ? "No Selected Groups" : "No Groups"}
     />
   );
 }
@@ -241,7 +239,7 @@ function UserSelector({
       {
         accessorKey: "department",
         header: "Department",
-        cell: ({ row }) => row.original.department ?? "None",
+        cell: ({ row }) => row.original.department || "-",
       },
     ],
     [],
@@ -261,7 +259,7 @@ function UserSelector({
       selectedRowIds={value}
       onSelectedRowIdsChange={onChange}
       getRowId={(user) => String(user.id)}
-      emptyTitle={showSelected ? "No Selected Users" : "No Users Found"}
+      emptyTitle={showSelected ? "No Selected Users" : "No Users"}
     />
   );
 }
@@ -276,24 +274,20 @@ interface SelectorControls {
   filter: SelectionFilter;
   pagination: PaginationState;
   sorting: SortingState;
-  columnFilters: ColumnFiltersState;
   setPagination: React.Dispatch<React.SetStateAction<PaginationState>>;
   setSorting: React.Dispatch<React.SetStateAction<SortingState>>;
-  setColumnFilters: (updater: Updater<ColumnFiltersState>) => void;
+  setFilter: (filter: SelectionFilter) => void;
   setSearch: (next: string | undefined) => void;
 }
 
 function useSelectorControls(defaultSorting: SortingState): SelectorControls {
   const [q, setQ] = useState("");
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [filter, setFilter] = useState<SelectionFilter>("all");
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: SELECTOR_PAGE_SIZE,
   });
   const [sorting, setSorting] = useState<SortingState>(defaultSorting);
-  const selectionFilter = columnFilters.find((item) => item.id === "select")?.value;
-  const filter: SelectionFilter =
-    Array.isArray(selectionFilter) && selectionFilter.includes("selected") ? "selected" : "all";
 
   function resetPage() {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
@@ -304,15 +298,14 @@ function useSelectorControls(defaultSorting: SortingState): SelectorControls {
     filter,
     pagination,
     sorting,
-    columnFilters,
     setPagination,
     setSorting,
     setSearch: (next: string | undefined) => {
       setQ(next ?? "");
       resetPage();
     },
-    setColumnFilters: (updater) => {
-      setColumnFilters((previous) => (typeof updater === "function" ? updater(previous) : updater));
+    setFilter: (next) => {
+      setFilter(next);
       resetPage();
     },
   };
@@ -374,7 +367,6 @@ function SelectorTable<TData extends DataTableRowData>({
       pagination: controls.pagination,
       rowSelection,
       sorting: controls.sorting,
-      columnFilters: controls.columnFilters,
     },
     onPaginationChange: controls.setPagination,
     onRowSelectionChange: (updater) => {
@@ -386,7 +378,6 @@ function SelectorTable<TData extends DataTableRowData>({
         singleSort(typeof updater === "function" ? updater(prev) : updater),
       );
     },
-    onColumnFiltersChange: controls.setColumnFilters,
     manualFiltering: true,
   });
 
@@ -403,7 +394,7 @@ function SelectorTable<TData extends DataTableRowData>({
         isLoading ? (
           <div className="h-24 text-center leading-24 text-muted-foreground">Loading...</div>
         ) : (
-          <PanelEmptyState>{emptyTitle}</PanelEmptyState>
+          <PanelEmptyState>{controls.q ? "No Matches" : emptyTitle}</PanelEmptyState>
         )
       }
     >
@@ -413,10 +404,11 @@ function SelectorTable<TData extends DataTableRowData>({
         loading={isLoading || isPlaceholderData}
         placeholder={searchPlaceholder}
       />
-      <DataTableFacetedFilter
-        column={table.getColumn("select")}
+      <FacetedFilter
         title="Selection"
         options={[{ label: "Selected", value: "selected", count: selectedCount }]}
+        value={controls.filter === "selected" ? ["selected"] : []}
+        onValueChange={(next) => controls.setFilter(next.includes("selected") ? "selected" : "all")}
       />
     </DataTable>
   );

@@ -421,7 +421,6 @@ function EventsEmptyState({ hasFilters, noun }: { hasFilters: boolean; noun: str
       filtered={hasFilters}
       title={`No ${noun}`}
       description="Client decisions appear after Santa syncs."
-      filteredDescription="No events matched these filters."
     />
   );
 }

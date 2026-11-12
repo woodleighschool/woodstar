@@ -95,7 +95,7 @@ export function HostStatusChart() {
           onRetry={() => void history.refetch()}
           isLoading={history.isLoading}
           hasData={Boolean(points?.length && latest)}
-          emptyTitle="No Host History Yet"
+          emptyTitle="No Host History"
         >
           <ChartContainer config={chartConfig} className="aspect-auto h-72 w-full">
             <LineChart

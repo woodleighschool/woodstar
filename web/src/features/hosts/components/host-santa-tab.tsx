@@ -85,9 +85,9 @@ export function HostSantaTab({ hostId, santa, stateError, onStateRetry }: HostSa
   return (
     <div className="flex flex-col gap-4">
       {stateError && santa === undefined ? (
-        <QueryError title="Failed to load Santa state" error={stateError} onRetry={onStateRetry} />
+        <QueryError title="Failed to Load Santa State" error={stateError} onRetry={onStateRetry} />
       ) : santa === null ? (
-        <PanelEmptyState>No Santa sync reported</PanelEmptyState>
+        <PanelEmptyState>No Santa Sync</PanelEmptyState>
       ) : santa ? (
         <KeyValueSection
           title="Overview"
@@ -133,7 +133,7 @@ export function HostSantaTab({ hostId, santa, stateError, onStateRetry }: HostSa
           heading="Rules"
           columns={santaRuleColumns}
           data={items}
-          empty={<PanelEmptyState>No Matching Rules</PanelEmptyState>}
+          empty={<PanelEmptyState>No Rules</PanelEmptyState>}
         />
       )}
     </div>

@@ -25,7 +25,7 @@ export function HostActivityPage() {
       page={search.page}
       perPage={search.per_page}
       showArea
-      emptyTitle="No Host Activity Yet"
+      emptyTitle="No Host Activity"
       emptyDescription="Actions and enrollments associated with this host will appear here."
       onPageChange={(page) =>
         void navigate({ replace: true, search: (previous) => ({ ...previous, page }) })

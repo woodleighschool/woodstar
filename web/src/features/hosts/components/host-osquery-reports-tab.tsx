@@ -130,12 +130,6 @@ export function HostOsqueryReportsTab({ hostId }: { hostId: number }) {
     paginateExpandedRows: false,
   });
 
-  if (hostId === null) {
-    return (
-      <QueryError title="Failed to Load Reports" error={{ message: "Host route is invalid." }} />
-    );
-  }
-
   if (reports.isLoadingError) {
     return (
       <QueryError
@@ -172,14 +166,13 @@ export function HostOsqueryReportsTab({ hostId }: { hostId: number }) {
     <DataTable
       table={table}
       pending={reports.isPlaceholderData}
-      heading="Reports"
       exportOptions={exportOptions}
       renderSubRow={(row) => (
         <SnapshotResultRows rows={row.original.rows} columnNames={columnNames} />
       )}
       empty={
         <PanelEmptyState>
-          {tableSearch.isFiltered ? "No Matching Reports" : "No Assigned Reports"}
+          {tableSearch.isFiltered ? "No Matching Reports" : "No Reports"}
         </PanelEmptyState>
       }
     >

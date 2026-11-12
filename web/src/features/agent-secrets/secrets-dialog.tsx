@@ -137,7 +137,7 @@ function SecretManager({ agent, rows }: { agent: SecretAgent; rows: AgentSecret[
   return (
     <div className="grid gap-3">
       {rows.length === 0 && activeRow?.kind !== "create" ? (
-        <PanelEmptyState>No Secrets Yet</PanelEmptyState>
+        <PanelEmptyState>No Secrets</PanelEmptyState>
       ) : null}
 
       <ItemGroup>

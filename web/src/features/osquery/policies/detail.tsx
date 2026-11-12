@@ -391,7 +391,7 @@ export function PolicyDetailPage() {
               }
               empty={
                 <PanelEmptyState>
-                  {tableSearch.isFiltered ? "No Matching Policy Results" : "No Policy Results Yet"}
+                  {tableSearch.isFiltered ? "No Matching Policy Results" : "No Policy Results"}
                 </PanelEmptyState>
               }
             >

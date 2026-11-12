@@ -75,7 +75,7 @@ export function ActivityPage() {
         page={search.page}
         perPage={search.per_page}
         showArea
-        emptyTitle={filtersChanged ? "No Matching Activity" : "No Activity Yet"}
+        emptyTitle={filtersChanged ? "No Matching Activity" : "No Activity"}
         emptyDescription={
           filtersChanged
             ? "Try changing or resetting the current filters."

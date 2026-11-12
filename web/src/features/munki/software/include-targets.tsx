@@ -125,65 +125,63 @@ export function MunkiIncludeTargets({
         </Button>
       }
     >
-      {rows.length > 0 ? (
-        <DraggableTableRows
-          value={rows}
-          onValueChange={(next) =>
-            onChange(next.map((row, index) => ({ ...row, priority: index + 1 })))
-          }
-          getRowId={(row) => row.id}
+      <DraggableTableRows
+        value={rows}
+        onValueChange={(next) =>
+          onChange(next.map((row, index) => ({ ...row, priority: index + 1 })))
+        }
+        getRowId={(row) => row.id}
+      >
+        <TableSurface
+          empty={rows.length ? undefined : <PanelEmptyState>No Includes</PanelEmptyState>}
         >
-          <TableSurface>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-10" />
-                  <TableHead>Label</TableHead>
-                  <TableHead>Package</TableHead>
-                  <TableHead>Actions</TableHead>
-                  <TableHead className="w-12" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rows.map((row) => (
-                  <DraggableTableRow key={row.id} id={row.id}>
-                    <TableCell className="w-10">
-                      <DraggableTableRowHandle disabled={rows.length <= 1}>
-                        <GripVertical className="text-muted-foreground" />
-                      </DraggableTableRowHandle>
-                    </TableCell>
-                    <TableCell>
-                      {row.label_id === null
-                        ? "-"
-                        : (labelsByID.get(row.label_id) ?? `Label ${row.label_id}`)}
-                    </TableCell>
-                    <TableCell>{packageLabel(row.package, packages)}</TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {MUNKI_SOFTWARE_ACTION_OPTIONS.filter((option) =>
-                          row.actions.includes(option.value),
-                        ).map((option) => (
-                          <Badge key={option.value} variant="secondary" className="font-normal">
-                            {option.label}
-                          </Badge>
-                        ))}
-                      </div>
-                    </TableCell>
-                    <TableCell className="w-12">
-                      <MunkiIncludeRowActions
-                        onEdit={() => openEdit(row)}
-                        onRemove={() => onChange(rows.filter((item) => item.id !== row.id))}
-                      />
-                    </TableCell>
-                  </DraggableTableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableSurface>
-        </DraggableTableRows>
-      ) : (
-        <PanelEmptyState>No Includes Yet</PanelEmptyState>
-      )}
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-10" />
+                <TableHead>Label</TableHead>
+                <TableHead>Package</TableHead>
+                <TableHead>Actions</TableHead>
+                <TableHead className="w-12" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map((row) => (
+                <DraggableTableRow key={row.id} id={row.id}>
+                  <TableCell className="w-10">
+                    <DraggableTableRowHandle disabled={rows.length <= 1}>
+                      <GripVertical className="text-muted-foreground" />
+                    </DraggableTableRowHandle>
+                  </TableCell>
+                  <TableCell>
+                    {row.label_id === null
+                      ? "-"
+                      : (labelsByID.get(row.label_id) ?? `Label ${row.label_id}`)}
+                  </TableCell>
+                  <TableCell>{packageLabel(row.package, packages)}</TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {MUNKI_SOFTWARE_ACTION_OPTIONS.filter((option) =>
+                        row.actions.includes(option.value),
+                      ).map((option) => (
+                        <Badge key={option.value} variant="secondary" className="font-normal">
+                          {option.label}
+                        </Badge>
+                      ))}
+                    </div>
+                  </TableCell>
+                  <TableCell className="w-12">
+                    <MunkiIncludeRowActions
+                      onEdit={() => openEdit(row)}
+                      onRemove={() => onChange(rows.filter((item) => item.id !== row.id))}
+                    />
+                  </TableCell>
+                </DraggableTableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableSurface>
+      </DraggableTableRows>
 
       {dialog ? (
         <MunkiIncludeDialog

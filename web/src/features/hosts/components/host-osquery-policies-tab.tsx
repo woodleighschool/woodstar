@@ -117,10 +117,9 @@ export function HostOsqueryPoliciesTab({ hostId }: { hostId: number }) {
     <DataTable
       table={table}
       pending={query.isPlaceholderData}
-      heading="Policies"
       empty={
         <PanelEmptyState>
-          {tableSearch.isFiltered ? "No Matching Policies" : "No Policies Yet"}
+          {tableSearch.isFiltered ? "No Matching Policies" : "No Policies"}
         </PanelEmptyState>
       }
     >

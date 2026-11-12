@@ -179,7 +179,6 @@ export function LabelListPage() {
               filtered={tableSearch.isFiltered}
               title="No Labels"
               description="Create labels for host targeting."
-              filteredDescription="No labels matched the current filters."
             />
           }
         >

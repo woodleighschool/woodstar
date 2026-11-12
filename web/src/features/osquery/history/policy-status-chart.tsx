@@ -100,7 +100,7 @@ export function PolicyStatusChart({ policyID }: { policyID: number }) {
       onRetry={() => void history.refetch()}
       isLoading={history.isLoading}
       hasData={Boolean(points?.length)}
-      emptyTitle="No Policy History Yet"
+      emptyTitle="No Policy History"
     >
       <ChartContainer config={chartConfig} className="aspect-auto h-72 w-full">
         <LineChart

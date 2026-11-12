@@ -260,7 +260,7 @@ export function RuleForm({
                           <LabelAssignmentList
                             title="Exclude"
                             addLabel="Add Exclude"
-                            emptyText="No Excludes Yet"
+                            emptyText="No Excludes"
                             rows={field.state.value.exclude}
                             crossListLabelIDs={selectedIncludeLabelIDs(field.state.value.include)}
                             includeBuiltins={false}

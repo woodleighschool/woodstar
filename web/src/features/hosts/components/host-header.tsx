@@ -14,12 +14,14 @@ export function HostHeader({ host, actions }: { host: Host; actions?: ReactNode 
       context={<HostOnlineDot status={host.status} animated />}
       actions={actions}
       meta={
-        host.inventory_updated_at ? (
+        !host.heartbeats.some(
+          (heartbeat) => heartbeat.source === "osquery",
+        ) ? null : host.inventory_updated_at ? (
           <span title={new Date(host.inventory_updated_at).toLocaleString()}>
-            Last fetched {formatRelative(host.inventory_updated_at)}
+            Inventory fetched {formatRelative(host.inventory_updated_at)}
           </span>
         ) : (
-          "Never Fetched"
+          "Inventory Not Fetched"
         )
       }
     />

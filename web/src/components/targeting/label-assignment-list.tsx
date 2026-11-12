@@ -78,36 +78,32 @@ export function LabelAssignmentList({
         </Button>
       }
     >
-      {rows.length > 0 ? (
-        <TableSurface>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Label</TableHead>
-                <TableHead className="w-12">
-                  <span className="sr-only">Actions</span>
-                </TableHead>
+      <TableSurface
+        empty={rows.length ? undefined : <PanelEmptyState>{emptyText}</PanelEmptyState>}
+      >
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Label</TableHead>
+              <TableHead className="w-12">
+                <span className="sr-only">Actions</span>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((row) => (
+              <TableRow key={row.label_id}>
+                <TableCell>{labelsByID.get(row.label_id) ?? `Label ${row.label_id}`}</TableCell>
+                <TableCell className="w-12">
+                  <LabelAssignmentRowActions
+                    onRemove={() => onChange(rows.filter((item) => item.label_id !== row.label_id))}
+                  />
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((row) => (
-                <TableRow key={row.label_id}>
-                  <TableCell>{labelsByID.get(row.label_id) ?? `Label ${row.label_id}`}</TableCell>
-                  <TableCell className="w-12">
-                    <LabelAssignmentRowActions
-                      onRemove={() =>
-                        onChange(rows.filter((item) => item.label_id !== row.label_id))
-                      }
-                    />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableSurface>
-      ) : (
-        <PanelEmptyState>{emptyText}</PanelEmptyState>
-      )}
+            ))}
+          </TableBody>
+        </Table>
+      </TableSurface>
 
       {adding ? (
         <LabelAssignmentDialog

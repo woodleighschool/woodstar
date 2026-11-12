@@ -111,7 +111,6 @@ export function GroupListPage() {
               filtered={tableSearch.isFiltered}
               title="No Groups"
               description="Groups appear after directory sync."
-              filteredDescription="No groups matched the current search."
             />
           }
         >

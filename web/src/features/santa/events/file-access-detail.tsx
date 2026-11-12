@@ -96,36 +96,36 @@ export function SantaFileAccessEventDetailPage() {
         </TabsContent>
 
         <TabsContent value="process-chain">
-          {processChain.length === 0 ? (
-            <PanelEmptyState>No Process Chain</PanelEmptyState>
-          ) : (
-            <TableSurface>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Process</TableHead>
-                    <TableHead>PID</TableHead>
-                    <TableHead>SHA-256</TableHead>
-                    <TableHead>Signing ID</TableHead>
-                    <TableHead>Team ID</TableHead>
-                    <TableHead>CDHash</TableHead>
+          <TableSurface
+            empty={
+              processChain.length ? undefined : <PanelEmptyState>No Process Chain</PanelEmptyState>
+            }
+          >
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Process</TableHead>
+                  <TableHead>PID</TableHead>
+                  <TableHead>SHA-256</TableHead>
+                  <TableHead>Signing ID</TableHead>
+                  <TableHead>Team ID</TableHead>
+                  <TableHead>CDHash</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {processChain.map((process) => (
+                  <TableRow key={`${process.pid}:${process.file_sha256}:${process.file_path}`}>
+                    <TableCell>{process.file_name || "-"}</TableCell>
+                    <TableCell>{process.pid}</TableCell>
+                    <TableCell className="break-all">{process.file_sha256 || "-"}</TableCell>
+                    <TableCell>{process.signing_id || "-"}</TableCell>
+                    <TableCell>{process.team_id || "-"}</TableCell>
+                    <TableCell className="break-all">{process.cdhash || "-"}</TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {processChain.map((process) => (
-                    <TableRow key={`${process.pid}:${process.file_sha256}:${process.file_path}`}>
-                      <TableCell>{process.file_name || "-"}</TableCell>
-                      <TableCell>{process.pid}</TableCell>
-                      <TableCell className="break-all">{process.file_sha256 || "-"}</TableCell>
-                      <TableCell>{process.signing_id || "-"}</TableCell>
-                      <TableCell>{process.team_id || "-"}</TableCell>
-                      <TableCell className="break-all">{process.cdhash || "-"}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableSurface>
-          )}
+                ))}
+              </TableBody>
+            </Table>
+          </TableSurface>
         </TabsContent>
       </ScrollableTabs>
     </PageShell>

@@ -88,44 +88,42 @@ export function SantaIncludeTargets({
         </Button>
       }
     >
-      {include.length > 0 ? (
-        <TableSurface>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Label</TableHead>
-                <TableHead>Policy</TableHead>
-                <TableHead className="w-12">
-                  <span className="sr-only">Actions</span>
-                </TableHead>
+      <TableSurface
+        empty={include.length ? undefined : <PanelEmptyState>No Includes</PanelEmptyState>}
+      >
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Label</TableHead>
+              <TableHead>Policy</TableHead>
+              <TableHead className="w-12">
+                <span className="sr-only">Actions</span>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {include.map((row) => (
+              <TableRow key={row.id}>
+                <TableCell>{includeLabel(row, labelsByID)}</TableCell>
+                <TableCell>
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span>{POLICIES[row.policy].name}</span>
+                    {row.policy === "cel" && row.cel_expression ? (
+                      <code className="text-xs text-muted-foreground">{row.cel_expression}</code>
+                    ) : null}
+                  </div>
+                </TableCell>
+                <TableCell className="w-12">
+                  <SantaIncludeRowActions
+                    onEdit={() => openEdit(row)}
+                    onRemove={() => onChange(include.filter((item) => item.id !== row.id))}
+                  />
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {include.map((row) => (
-                <TableRow key={row.id}>
-                  <TableCell>{includeLabel(row, labelsByID)}</TableCell>
-                  <TableCell>
-                    <div className="flex min-w-0 items-center gap-2">
-                      <span>{POLICIES[row.policy].name}</span>
-                      {row.policy === "cel" && row.cel_expression ? (
-                        <code className="text-xs text-muted-foreground">{row.cel_expression}</code>
-                      ) : null}
-                    </div>
-                  </TableCell>
-                  <TableCell className="w-12">
-                    <SantaIncludeRowActions
-                      onEdit={() => openEdit(row)}
-                      onRemove={() => onChange(include.filter((item) => item.id !== row.id))}
-                    />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableSurface>
-      ) : (
-        <PanelEmptyState>No Includes Yet</PanelEmptyState>
-      )}
+            ))}
+          </TableBody>
+        </Table>
+      </TableSurface>
 
       {dialog ? (
         <SantaIncludeDialog

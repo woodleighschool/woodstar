@@ -1,5 +1,5 @@
 import { useNavigate, useParams } from "@tanstack/react-router";
-import { KeyRound, Pencil, Smile, Trash2 } from "lucide-react";
+import { KeyRound, Pencil, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { AsyncButton } from "@components/async-button";
@@ -10,10 +10,10 @@ import { EnumStatusIndicator } from "@components/enum-status-indicator";
 import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link, TextLink } from "@components/link";
+import { PanelEmptyState } from "@components/panel-empty-state";
 import { QueryGate } from "@components/query-gate";
 import { TokenList } from "@components/token-list";
 import { Button } from "@components/ui/button";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@components/ui/empty";
 import { toast } from "@components/ui/toast";
 import { useCan } from "@features/authz/access";
 import { SoftwareArtwork } from "@features/software/software-icon";
@@ -144,19 +144,7 @@ function PackageStateTable({ packages }: { packages: MunkiPackageState[] }) {
       heading="Package Sync"
       columns={packageStateColumns}
       data={nonCurrentPackages}
-      empty={
-        <Empty className="min-h-40 border-0">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <Smile />
-            </EmptyMedia>
-            <EmptyTitle>Everything is up to date</EmptyTitle>
-            <EmptyDescription>
-              Nothing is waiting to sync, and there are no errors to fix.
-            </EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-      }
+      empty={<PanelEmptyState>All Packages Up to Date</PanelEmptyState>}
     />
   );
 }
