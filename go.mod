@@ -21,7 +21,7 @@ require (
 	github.com/microsoft/kiota-abstractions-go v1.12.1
 	github.com/microsoftgraph/msgraph-sdk-go v1.106.0
 	github.com/microsoftgraph/msgraph-sdk-go-core v1.4.1
-	github.com/oapi-codegen/runtime v1.8.0
+	github.com/oapi-codegen/runtime v1.9.0
 	github.com/oschwald/geoip2-golang/v2 v2.5.0
 	github.com/pressly/goose/v3 v3.30.0
 	github.com/riverqueue/river v0.51.2
