@@ -30,7 +30,7 @@ require (
 	github.com/rs/cors v1.11.1
 	github.com/spf13/cobra v1.10.2
 	github.com/testcontainers/testcontainers-go v0.45.0
-	github.com/woodleighschool/goodies/auth v1.1.0
+	github.com/woodleighschool/goodies/auth v1.1.1-0.20261112102811-eb85a57a3a9c
 	github.com/woodleighschool/goodies/bloby v1.4.1
 	github.com/woodleighschool/goodies/pglock v0.1.1
 	golang.org/x/term v0.48.0
@@ -159,7 +159,7 @@ require (
 	golang.org/x/exp v0.0.0-20261109185158-a52e3aef5920 // indirect
 	golang.org/x/mod v0.42.0 // indirect
 	golang.org/x/net v0.62.0 // indirect
-	golang.org/x/oauth2 v0.37.0 // indirect
+	golang.org/x/oauth2 v0.38.0 // indirect
 	golang.org/x/sync v0.25.0 // indirect
 	golang.org/x/sys v0.50.0 // indirect
 	golang.org/x/time v0.16.0 // indirect

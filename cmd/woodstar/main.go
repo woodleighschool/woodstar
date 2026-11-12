@@ -20,6 +20,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/woodleighschool/goodies/auth/authn"
 	"github.com/woodleighschool/goodies/auth/authz"
+	authoidc "github.com/woodleighschool/goodies/auth/oidc"
 	"github.com/woodleighschool/goodies/bloby"
 	blobydb "github.com/woodleighschool/goodies/bloby/pgxstore"
 	"github.com/woodleighschool/goodies/pglock"
@@ -617,7 +618,7 @@ func newAuth(
 		Admit: authorization.HasAccess, SuccessRedirect: "/hosts", FailureRedirect: "/login", Logger: logger,
 	}
 	if cfg.OIDCEnabled() {
-		authConfig.OIDC = &authn.OIDCConfig{
+		authConfig.OIDC = &authoidc.Config{
 			IssuerURL:    cfg.OIDCIssuerURL,
 			ClientID:     cfg.OIDCClientID,
 			ClientSecret: cfg.OIDCClientSecret,
