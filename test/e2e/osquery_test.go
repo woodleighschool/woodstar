@@ -387,12 +387,16 @@ func TestOsquery(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear proto
 		case "primary_interface_unix":
 			queryRows[name] = []map[string]string{{"primary_ip": "192.0.2.10", "primary_mac": "aa:bb:cc:dd:ee:ff"}}
 			requiredOverlays[suffix] = true
-		case "users":
+		case "accounts":
 			queryRows[name] = []map[string]string{{
-				"uid": "501", "username": "integration", "type": "local",
-				"description": "Integration User", "directory": "/Users/integration", "shell": "/bin/zsh",
+				"uid": "501", "username": "integration", "uuid": "account-uuid", "is_admin": "1", "is_hidden": "0", "logged_in": "1",
+				"display_name": "Integration User", "home_directory": "/Users/integration", "shell": "/bin/zsh",
 			}}
 			requiredOverlays[suffix] = true
+		case "account_filevault":
+			queryRows[name] = []map[string]string{{"uuid": "account-uuid"}}
+		case "account_apfs":
+			queryRows[name] = []map[string]string{{"uuid": "account-uuid", "type": "LocalOpenDirectory", "volume_owner": "1"}}
 		case "software_macos":
 			queryRows[name] = []map[string]string{{
 				"name": softwareName, "version": "1.129.1", "source": "apps",
@@ -431,7 +435,7 @@ func TestOsquery(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear proto
 	}
 	for _, suffix := range []string{
 		"os_version", "system_info", "osquery_info", "uptime", "root_disk_darwin",
-		"primary_interface_unix", "users", "software_macos",
+		"primary_interface_unix", "accounts", "software_macos",
 	} {
 		if !requiredOverlays[suffix] {
 			t.Fatalf("distributed work did not include required detail query %q", suffix)
@@ -689,10 +693,15 @@ func TestOsquery(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear proto
 			hostDetail.Heartbeats,
 		)
 	}
-	if len(hostDetail.Users) != 1 || hostDetail.Users[0].Uid != "501" ||
-		hostDetail.Users[0].Username != "integration" || hostDetail.Users[0].Type != "local" ||
-		hostDetail.Users[0].Directory != "/Users/integration" || hostDetail.Users[0].Shell != "/bin/zsh" {
-		t.Fatalf("host users = %+v, want projected integration account", hostDetail.Users)
+	if len(hostDetail.Accounts) != 1 || hostDetail.Accounts[0].Uid != "501" ||
+		hostDetail.Accounts[0].Username != "integration" || !hostDetail.Accounts[0].IsAdmin ||
+		hostDetail.Accounts[0].HomeDirectory != "/Users/integration" || hostDetail.Accounts[0].Shell != "/bin/zsh" {
+		t.Fatalf("host users = %+v, want projected integration account", hostDetail.Accounts)
+	}
+
+	account := hostDetail.Accounts[0]
+	if account.SecureToken == nil || !*account.SecureToken || account.FilevaultUnlock == nil || !*account.FilevaultUnlock || account.VolumeOwner == nil || !*account.VolumeOwner || !account.LoggedIn {
+		t.Fatalf("account security/login = %+v", account)
 	}
 
 	softwareResponse, err := server.Admin.ListHostSoftwareWithResponse(t.Context(), host.Id, nil)

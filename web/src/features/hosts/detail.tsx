@@ -18,12 +18,12 @@ import {
 import { TabsTrigger } from "@components/ui/tabs";
 import { useAccount } from "@features/account/queries";
 import { useCan } from "@features/authz/access";
+import { HostAccountsTab } from "@features/hosts/components/host-accounts-tab";
 import {
   HostCertificatesCard,
   HostIdentityCard,
   HostInfoCard,
   HostLabelsCard,
-  HostUsersCard,
 } from "@features/hosts/components/host-detail-cards";
 import { HostHeader } from "@features/hosts/components/host-header";
 import { HostHeartbeatTable } from "@features/hosts/components/host-heartbeats";
@@ -140,16 +140,28 @@ export function HostDetailsPage() {
 
   return (
     <div className="flex flex-col gap-5">
-      <HostInfoCard host={host} />
-      <HostHeartbeatTable heartbeats={host.heartbeats} />
       <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,28rem),1fr))] items-start gap-5">
         <HostIdentityCard host={host} />
         <HostLabelsCard host={host} />
-        <HostUsersCard host={host} />
       </div>
+      <HostInfoCard host={host} />
+      <HostHeartbeatTable heartbeats={host.heartbeats} />
       <HostCertificatesCard host={host} />
     </div>
   );
+}
+
+export function HostAccountsPage() {
+  const query = useHost(useHostID());
+  if (!query.data)
+    return (
+      <QueryGate
+        title="Failed to Load Accounts"
+        error={query.error}
+        onRetry={() => void query.refetch()}
+      />
+    );
+  return <HostAccountsTab host={query.data} />;
 }
 
 export function HostSoftwarePage() {

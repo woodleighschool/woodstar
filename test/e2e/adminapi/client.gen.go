@@ -1725,6 +1725,22 @@ type Host struct {
 // HostStatus defines model for Host.Status.
 type HostStatus string
 
+// HostAccount defines model for HostAccount.
+type HostAccount struct {
+	DisplayName     string `json:"display_name"`
+	FilevaultUnlock *bool  `json:"filevault_unlock"`
+	HomeDirectory   string `json:"home_directory"`
+	IsAdmin         bool   `json:"is_admin"`
+	IsHidden        bool   `json:"is_hidden"`
+	LoggedIn        bool   `json:"logged_in"`
+	SecureToken     *bool  `json:"secure_token"`
+	Shell           string `json:"shell"`
+	Uid             string `json:"uid"`
+	Username        string `json:"username"`
+	Uuid            string `json:"uuid"`
+	VolumeOwner     *bool  `json:"volume_owner"`
+}
+
 // HostAgents defines model for HostAgents.
 type HostAgents struct {
 	Munki   HostMunkiAgent   `json:"munki"`
@@ -1782,6 +1798,7 @@ type HostCertificate struct {
 
 // HostDetail defines model for HostDetail.
 type HostDetail struct {
+	Accounts                  []HostAccount                `json:"accounts"`
 	Agents                    HostAgents                   `json:"agents"`
 	Batteries                 []HostBattery                `json:"batteries"`
 	Certificates              []HostCertificate            `json:"certificates"`
@@ -1807,7 +1824,6 @@ type HostDetail struct {
 	Status                    HostDetailStatus             `json:"status"`
 	Storage                   HostStorage                  `json:"storage"`
 	UpdatedAt                 time.Time                    `json:"updated_at"`
-	Users                     []HostUser                   `json:"users"`
 }
 
 // HostDetailStatus defines model for HostDetail.Status.
@@ -1912,16 +1928,6 @@ type HostSoftwareInstalledVersion struct {
 // HostStorage defines model for HostStorage.
 type HostStorage struct {
 	BootVolume HostBootVolume `json:"boot_volume"`
-}
-
-// HostUser defines model for HostUser.
-type HostUser struct {
-	Description string `json:"description"`
-	Directory   string `json:"directory"`
-	Shell       string `json:"shell"`
-	Type        string `json:"type"`
-	Uid         string `json:"uid"`
-	Username    string `json:"username"`
 }
 
 // Label defines model for Label.

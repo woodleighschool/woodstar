@@ -3,6 +3,13 @@ import type { Host } from "@lib/api";
 export const hostSections = [
   { value: "details", label: "Details", path: "/hosts/$id", permissions: [] },
   {
+    value: "accounts",
+    label: "Accounts",
+    path: "/hosts/$id/accounts",
+    heartbeatSource: "osquery",
+    permissions: [],
+  },
+  {
     value: "activity",
     label: "Activity",
     path: "/hosts/$id/activity",

@@ -407,7 +407,7 @@ func TestFinalizeDetailPassSendsMunkiQueryFamilyTogether(t *testing.T) {
 			InventoryProjector: projector,
 			MunkiCollector:     collector,
 		}}
-		if err := s.finalizeDetailPass(context.Background(), testHost(42), pass); err != nil {
+		if err := s.finalizeDetailPass(context.Background(), &hosts.Host{ID: 42}, pass); err != nil {
 			t.Fatalf("finalize detail pass: %v", err)
 		}
 		if !projector.markedFresh {
@@ -439,7 +439,7 @@ func TestFinalizeDetailPassSendsMunkiQueryFamilyTogether(t *testing.T) {
 			InventoryProjector: &recordingInventoryProjector{},
 			MunkiCollector:     collector,
 		}}
-		if err := s.finalizeDetailPass(context.Background(), testHost(42), pass); err != nil {
+		if err := s.finalizeDetailPass(context.Background(), &hosts.Host{ID: 42}, pass); err != nil {
 			t.Fatalf("finalize detail pass: %v", err)
 		}
 		if len(collector.collections) != 1 {
@@ -459,7 +459,7 @@ func TestFinalizeDetailPassSendsMunkiQueryFamilyTogether(t *testing.T) {
 			InventoryProjector: &recordingInventoryProjector{},
 			MunkiCollector:     collector,
 		}}
-		if err := s.finalizeDetailPass(context.Background(), testHost(42), pass); err != nil {
+		if err := s.finalizeDetailPass(context.Background(), &hosts.Host{ID: 42}, pass); err != nil {
 			t.Fatalf("finalize detail pass: %v", err)
 		}
 		if len(collector.collections) != 0 {
@@ -470,6 +470,45 @@ func TestFinalizeDetailPassSendsMunkiQueryFamilyTogether(t *testing.T) {
 
 type recordingInventoryProjector struct {
 	markedFresh bool
+	accounts    map[string][]map[string]string
+}
+
+func TestAccountCollectionRequiresSuccessfulBase(t *testing.T) {
+	for _, status := range []string{"0", "1"} {
+		t.Run("base status "+status, func(t *testing.T) {
+			projector := &recordingInventoryProjector{}
+			service := &AgentService{deps: Dependencies{Logger: testLogger(), InventoryProjector: projector, MunkiCollector: &recordingMunkiCollector{}}}
+			pass := newDetailDispatchPass()
+			for _, result := range []struct{ name, status string }{
+				{catalog.QueryAccountFileVault, "1"},
+				{catalog.QueryAccountAPFS, "0"},
+				{catalog.QueryAccounts, status},
+				{"users", "0"},
+			} {
+				if err := service.handleDetailResult(t.Context(), 42, result.name, []map[string]string{}, json.RawMessage(result.status), true, "", pass); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if projector.accounts != nil {
+				t.Fatal("accounts projected before finalization")
+			}
+			if err := service.finalizeDetailPass(t.Context(), &hosts.Host{ID: 42}, pass); err != nil {
+				t.Fatal(err)
+			}
+			if (projector.accounts != nil) != (status == "0") {
+				t.Fatalf("base status %s projected accounts: %v", status, projector.accounts)
+			}
+			if _, ok := projector.accounts[catalog.QueryAccountFileVault]; ok {
+				t.Fatal("failed security query treated as known")
+			}
+			if _, ok := projector.accounts[catalog.QueryAccountAPFS]; ok != (status == "0") {
+				t.Fatal("security projection did not follow base result")
+			}
+			if projector.markedFresh {
+				t.Fatal("partial collection advanced hourly inventory")
+			}
+		})
+	}
 }
 
 func (p *recordingInventoryProjector) IngestDetail(
@@ -508,10 +547,11 @@ func (c *recordingMunkiCollector) IngestCollection(
 	return nil
 }
 
-func testHost(id int64) *hosts.Host {
-	return &hosts.Host{ID: id}
-}
-
 func testLogger() *slog.Logger {
 	return slog.New(slog.DiscardHandler)
+}
+
+func (p *recordingInventoryProjector) IngestAccounts(_ context.Context, _ int64, rows map[string][]map[string]string) error {
+	p.accounts = rows
+	return nil
 }

@@ -17,7 +17,7 @@ import (
 type hostStore interface {
 	MarkInventoryFresh(ctx context.Context, hostID int64, detailQueryHash string) error
 	ApplyInventory(ctx context.Context, hostID int64, update hosts.InventoryUpdate) error
-	ReplaceUsers(ctx context.Context, hostID int64, users []hosts.HostUser) error
+	ReplaceAccounts(ctx context.Context, hostID int64, accounts []hosts.HostAccount) error
 	ReplaceBatteries(ctx context.Context, hostID int64, batteries []hosts.HostBattery) error
 	ReplaceCertificates(ctx context.Context, hostID int64, certificates []hosts.HostCertificate) error
 }
@@ -59,13 +59,11 @@ func (p *Projector) IngestDetail(
 		return ingestOsqueryFlags(ctx, p, hostID, rows)
 	case catalog.IngestUptime:
 		return ingestUptime(ctx, p, hostID, rows)
-	case catalog.IngestUsers:
-		return ingestUsers(ctx, p, hostID, rows)
 	case catalog.IngestBatteries:
 		return ingestBatteries(ctx, p, hostID, rows)
 	case catalog.IngestCertificates:
 		return ingestCertificates(ctx, p, hostID, rows)
-	case catalog.IngestMunkiInfo, catalog.IngestMunkiInstalls,
+	case catalog.IngestAccounts, catalog.IngestAccountSecurity, catalog.IngestMunkiInfo, catalog.IngestMunkiInstalls,
 		catalog.IngestSoftwareBase, catalog.IngestSoftwareEnrichment:
 		return fmt.Errorf("deferred detail ingest %q cannot be projected alone", query.Ingest)
 	default:
@@ -161,10 +159,6 @@ func ingestUptime(ctx context.Context, projector *Projector, hostID int64, rows 
 	)
 }
 
-func ingestUsers(ctx context.Context, projector *Projector, hostID int64, rows []map[string]string) error {
-	return projector.hostStore.ReplaceUsers(ctx, hostID, parseHostUsers(rows))
-}
-
 func ingestBatteries(ctx context.Context, projector *Projector, hostID int64, rows []map[string]string) error {
 	return projector.hostStore.ReplaceBatteries(ctx, hostID, parseHostBatteries(rows))
 }
@@ -176,26 +170,6 @@ func ingestCertificates(
 	rows []map[string]string,
 ) error {
 	return projector.hostStore.ReplaceCertificates(ctx, hostID, parseHostCertificates(rows))
-}
-
-func parseHostUsers(rows []map[string]string) []hosts.HostUser {
-	users := make([]hosts.HostUser, 0, len(rows))
-	for _, row := range rows {
-		username := row["username"]
-		uid := row["uid"]
-		if username == "" || uid == "" {
-			continue
-		}
-		users = append(users, hosts.HostUser{
-			UID:         uid,
-			Username:    username,
-			Type:        row["type"],
-			Description: row["description"],
-			Directory:   row["directory"],
-			Shell:       row["shell"],
-		})
-	}
-	return users
 }
 
 func parseHostBatteries(rows []map[string]string) []hosts.HostBattery {

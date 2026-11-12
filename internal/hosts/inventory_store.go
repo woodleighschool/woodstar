@@ -75,46 +75,6 @@ WHERE id = @id`, pgx.StructArgs(write))
 	return err
 }
 
-func (s *Store) ReplaceUsers(ctx context.Context, hostID int64, users []HostUser) error {
-	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
-		if _, err := tx.Exec(ctx, `DELETE FROM host_users WHERE host_id = $1`, hostID); err != nil {
-			return err
-		}
-		for _, user := range users {
-			if user.UID == "" || user.Username == "" {
-				continue
-			}
-			if _, err := tx.Exec(ctx, `
-INSERT INTO host_users (
-	host_id,
-	uid,
-	username,
-	type,
-	description,
-	directory,
-	shell
-)
-VALUES (
-	@host_id,
-	@uid,
-	@username,
-	@type,
-	@description,
-	@directory,
-	@shell
-)
-ON CONFLICT (host_id, uid, username) DO UPDATE SET
-	type = EXCLUDED.type,
-	description = EXCLUDED.description,
-	directory = EXCLUDED.directory,
-	shell = EXCLUDED.shell`, pgx.StructArgs(newHostUserWrite(hostID, user))); err != nil {
-				return err
-			}
-		}
-		return nil
-	})
-}
-
 func (s *Store) ReplaceBatteries(ctx context.Context, hostID int64, batteries []HostBattery) error {
 	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, `DELETE FROM host_batteries WHERE host_id = $1`, hostID); err != nil {
@@ -260,20 +220,6 @@ ON CONFLICT (host_id, sha1, source, username) DO UPDATE SET
 	})
 }
 
-func (s *Store) ListUsers(ctx context.Context, hostID int64) ([]HostUser, error) {
-	rows, err := s.pool.Query(ctx, `
-SELECT id, host_id, uid, username, type, description, directory, shell
-FROM host_users
-WHERE host_id = $1
-ORDER BY username, uid, id`,
-		hostID,
-	)
-	if err != nil {
-		return nil, err
-	}
-	return pgx.CollectRows(rows, pgx.RowToStructByName[HostUser])
-}
-
 func (s *Store) ListBatteries(ctx context.Context, hostID int64) ([]HostBattery, error) {
 	rows, err := s.pool.Query(ctx, `
 SELECT
@@ -377,28 +323,6 @@ type applyInventoryWrite struct {
 	PrimaryMAC                        string     `db:"primary_mac"`
 	OsqueryDistributedIntervalSeconds *int32     `db:"osquery_distributed_interval_seconds"`
 	OsqueryConfigRefreshSeconds       *int32     `db:"osquery_config_refresh_seconds"`
-}
-
-type hostUserWrite struct {
-	HostID      int64  `db:"host_id"`
-	UID         string `db:"uid"`
-	Username    string `db:"username"`
-	Type        string `db:"type"`
-	Description string `db:"description"`
-	Directory   string `db:"directory"`
-	Shell       string `db:"shell"`
-}
-
-func newHostUserWrite(hostID int64, user HostUser) hostUserWrite {
-	return hostUserWrite{
-		HostID:      hostID,
-		UID:         user.UID,
-		Username:    user.Username,
-		Type:        user.Type,
-		Description: user.Description,
-		Directory:   user.Directory,
-		Shell:       user.Shell,
-	}
 }
 
 type hostBatteryWrite struct {

@@ -293,6 +293,17 @@ func (s *AgentService) finalizeDetailPass(
 	host *hosts.Host,
 	pass *detailDispatchPass,
 ) error {
+	if base, ok := pass.results[catalog.QueryAccounts]; ok && distributedStatusOK(base.status, base.hasStatus) {
+		rows := map[string][]map[string]string{catalog.QueryAccounts: base.rows}
+		for _, name := range []string{catalog.QueryAccountFileVault, catalog.QueryAccountAPFS} {
+			if result, ok := pass.results[name]; ok && distributedStatusOK(result.status, result.hasStatus) {
+				rows[name] = result.rows
+			}
+		}
+		if err := s.deps.InventoryProjector.IngestAccounts(ctx, host.ID, rows); err != nil {
+			return fmt.Errorf("ingest accounts: %w", err)
+		}
+	}
 	if softwareRows, ok := successfulSoftwareRows(pass); ok {
 		if err := s.deps.InventoryProjector.IngestSoftware(ctx, host.ID, softwareRows); err != nil {
 			return fmt.Errorf("ingest software inventory: %w", err)

@@ -201,7 +201,7 @@ type HostDetail struct {
 	Host
 
 	Labels       []labels.Label    `json:"labels"`
-	Users        []HostUser        `json:"users"`
+	Accounts     []HostAccount     `json:"accounts"`
 	Batteries    []HostBattery     `json:"batteries"`
 	Certificates []HostCertificate `json:"certificates"`
 }
@@ -213,18 +213,6 @@ type HostPrimaryUser struct {
 	Department string            `json:"department"`
 	Groups     []string          `json:"groups"`
 	Source     PrimaryUserSource `json:"source"`
-}
-
-// HostUser is one local account reported by osquery.
-type HostUser struct {
-	ID          int64  `json:"-"           db:"id"`
-	HostID      int64  `json:"-"           db:"host_id"`
-	UID         string `json:"uid"         db:"uid"`
-	Username    string `json:"username"    db:"username"`
-	Type        string `json:"type"        db:"type"`
-	Description string `json:"description" db:"description"`
-	Directory   string `json:"directory"   db:"directory"`
-	Shell       string `json:"shell"       db:"shell"`
 }
 
 // HostBattery is one battery reported by osquery.

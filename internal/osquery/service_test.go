@@ -285,6 +285,20 @@ type fakeHostStore struct {
 	getErr       error
 }
 
+func TestDistributedReadSkipsFreshInventory(t *testing.T) {
+	t.Parallel()
+	now := time.Now()
+	host := &hosts.Host{ID: 42, InventoryUpdatedAt: &now, InventoryQueryHash: catalog.DetailQueryHash()}
+	service := newTestAgentService(&fakeOsqueryHeartbeatRecorder{}, &fakeHostStore{host: host})
+	response, err := service.DistributedRead(t.Context(), "node", heartbeats.Contact{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(response.Queries) != 0 || len(response.Discovery) != 0 {
+		t.Fatalf("fresh inventory queued work: %+v", response)
+	}
+}
+
 func (s *fakeHostStore) UpsertOnOsqueryEnroll(
 	_ context.Context,
 	update hosts.InventoryUpdate,

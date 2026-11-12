@@ -22,7 +22,9 @@ const (
 	QueryUptime                      = "uptime"
 	QueryRootDiskDarwin              = "root_disk_darwin"
 	QueryPrimaryInterfaceUnix        = "primary_interface_unix"
-	QueryUsers                       = "users"
+	QueryAccounts                    = "accounts"
+	QueryAccountFileVault            = "account_filevault"
+	QueryAccountAPFS                 = "account_apfs"
 	QueryBatteries                   = "batteries"
 	QueryCertificatesDarwin          = "certificates_darwin"
 	QueryMunkiInfo                   = "munki_info"
@@ -41,6 +43,7 @@ var queryFS embed.FS
 
 var tableDiscoverySQL = map[string]string{
 	"battery":           tableDiscovery("battery"),
+	"filevault_users":   tableDiscovery("filevault_users"),
 	"certificates":      tableDiscovery("certificates"),
 	"disk_space":        tableDiscovery("disk_space"),
 	"executable_hashes": tableDiscovery("executable_hashes"),
@@ -72,7 +75,8 @@ const (
 	IngestHostDetail         DetailIngest = "host_detail"
 	IngestOsqueryFlags       DetailIngest = "osquery_flags"
 	IngestUptime             DetailIngest = "uptime"
-	IngestUsers              DetailIngest = "users"
+	IngestAccounts           DetailIngest = "accounts"
+	IngestAccountSecurity    DetailIngest = "account_security"
 	IngestBatteries          DetailIngest = "batteries"
 	IngestCertificates       DetailIngest = "certificates"
 	IngestMunkiInfo          DetailIngest = "munki_info"
@@ -82,7 +86,7 @@ const (
 )
 
 func (q DetailQuery) Deferred() bool {
-	return q.Ingest == IngestMunkiInfo ||
+	return q.Ingest == IngestAccounts || q.Ingest == IngestAccountSecurity || q.Ingest == IngestMunkiInfo ||
 		q.Ingest == IngestMunkiInstalls ||
 		q.Ingest == IngestSoftwareBase ||
 		q.Ingest == IngestSoftwareEnrichment
@@ -137,9 +141,21 @@ func buildDetailQueries() map[string]DetailQuery {
 			SQL:    mustQuery("queries/primary_interface_unix.sql"),
 			Ingest: IngestHostDetail,
 		},
-		QueryUsers: {
-			SQL:    mustQuery("queries/users.sql"),
-			Ingest: IngestUsers,
+		QueryAccounts: {
+			SQL:    mustQuery("queries/accounts.sql"),
+			Ingest: IngestAccounts,
+		},
+		QueryAccountFileVault: {
+			SQL:       "SELECT uuid FROM filevault_users;",
+			Discovery: tableExistsSQL("filevault_users"),
+			Optional:  true,
+			Ingest:    IngestAccountSecurity,
+		},
+		QueryAccountAPFS: {
+			SQL:       mustQuery("queries/account_apfs.sql"),
+			Discovery: "SELECT count(*) FROM osquery_registry WHERE active = true AND registry = 'table' AND name IN ('apfs_volumes', 'apfs_crypto_users') HAVING count(DISTINCT name) = 2;",
+			Optional:  true,
+			Ingest:    IngestAccountSecurity,
 		},
 		QueryBatteries: {
 			SQL:       mustQuery("queries/batteries.sql"),

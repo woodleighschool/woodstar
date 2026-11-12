@@ -15,7 +15,7 @@ func TestDetailQueriesDue(t *testing.T) {
 		QueryUptime,
 		QueryRootDiskDarwin,
 		QueryPrimaryInterfaceUnix,
-		QueryUsers,
+		QueryAccounts,
 		QuerySoftwareMacOS,
 	} {
 		if got.Queries[name] == "" {
@@ -195,17 +195,11 @@ func TestRootDiskQueryUsesOrbitDiskSpace(t *testing.T) {
 	}
 }
 
-func TestUsersQueryFiltersServiceAccounts(t *testing.T) {
-	sql := DetailQueries()[QueryUsers].SQL
-	for _, want := range []string{
-		"type <> 'special'",
-		"shell NOT LIKE '%/false'",
-		"shell NOT LIKE '%/nologin'",
-		"shell NOT LIKE '%/shutdown'",
-		"shell NOT LIKE '%/halt'",
-	} {
-		if !strings.Contains(sql, want) {
-			t.Fatalf("users SQL missing %q: %s", want, sql)
+func TestAccountsQueryIncludesSystemAndHiddenAccounts(t *testing.T) {
+	sql := DetailQueries()[QueryAccounts].SQL
+	for _, unwanted := range []string{"shell NOT", "uid >", "type <>"} {
+		if strings.Contains(sql, unwanted) {
+			t.Fatalf("accounts query filters inventory: %s", sql)
 		}
 	}
 }

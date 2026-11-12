@@ -153,6 +153,21 @@ export type Host = {
     updated_at: string;
 };
 
+export type HostAccount = {
+    display_name: string;
+    filevault_unlock: boolean | null;
+    home_directory: string;
+    is_admin: boolean;
+    is_hidden: boolean;
+    logged_in: boolean;
+    secure_token: boolean | null;
+    shell: string;
+    uid: string;
+    username: string;
+    uuid: string;
+    volume_owner: boolean | null;
+};
+
 export type HostAgents = {
     munki: HostMunkiAgent;
     orbit: HostOrbitAgent;
@@ -204,6 +219,7 @@ export type HostCertificate = {
 };
 
 export type HostDetail = {
+    accounts: Array<HostAccount>;
     agents: HostAgents;
     batteries: Array<HostBattery>;
     certificates: Array<HostCertificate>;
@@ -229,7 +245,6 @@ export type HostDetail = {
     status: 'online' | 'offline';
     storage: HostStorage;
     updated_at: string;
-    users: Array<HostUser>;
 };
 
 export type HostEnrollment = {
@@ -313,15 +328,6 @@ export type HostSoftwareInstalledVersion = {
 
 export type HostStorage = {
     boot_volume: HostBootVolume;
-};
-
-export type HostUser = {
-    description: string;
-    directory: string;
-    shell: string;
-    type: string;
-    uid: string;
-    username: string;
 };
 
 export type Label = {
@@ -1543,6 +1549,7 @@ export type UserSummary = {
 };
 
 export type HostDetailWritable = {
+    accounts: Array<HostAccount>;
     agents: HostAgents;
     batteries: Array<HostBattery>;
     certificates: Array<HostCertificate>;
@@ -1568,7 +1575,6 @@ export type HostDetailWritable = {
     status: 'online' | 'offline';
     storage: HostStorage;
     updated_at: string;
-    users: Array<HostUser>;
 };
 
 export type LabelWritable = {

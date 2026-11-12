@@ -396,6 +396,53 @@ components:
         - updated_at
         - inventory_refresh_requested
       type: object
+    HostAccount:
+      additionalProperties: false
+      properties:
+        display_name:
+          type: string
+        filevault_unlock:
+          type:
+            - boolean
+            - "null"
+        home_directory:
+          type: string
+        is_admin:
+          type: boolean
+        is_hidden:
+          type: boolean
+        logged_in:
+          type: boolean
+        secure_token:
+          type:
+            - boolean
+            - "null"
+        shell:
+          type: string
+        uid:
+          type: string
+        username:
+          type: string
+        uuid:
+          type: string
+        volume_owner:
+          type:
+            - boolean
+            - "null"
+      required:
+        - uid
+        - username
+        - uuid
+        - display_name
+        - home_directory
+        - shell
+        - is_admin
+        - is_hidden
+        - filevault_unlock
+        - secure_token
+        - volume_owner
+        - logged_in
+      type: object
     HostAgents:
       additionalProperties: false
       properties:
@@ -531,6 +578,10 @@ components:
     HostDetail:
       additionalProperties: false
       properties:
+        accounts:
+          items:
+            $ref: "#/components/schemas/HostAccount"
+          type: array
         agents:
           $ref: "#/components/schemas/HostAgents"
         batteries:
@@ -601,13 +652,9 @@ components:
         updated_at:
           format: date-time
           type: string
-        users:
-          items:
-            $ref: "#/components/schemas/HostUser"
-          type: array
       required:
         - labels
-        - users
+        - accounts
         - batteries
         - certificates
         - id
@@ -845,29 +892,6 @@ components:
           $ref: "#/components/schemas/HostBootVolume"
       required:
         - boot_volume
-      type: object
-    HostUser:
-      additionalProperties: false
-      properties:
-        description:
-          type: string
-        directory:
-          type: string
-        shell:
-          type: string
-        type:
-          type: string
-        uid:
-          type: string
-        username:
-          type: string
-      required:
-        - uid
-        - username
-        - type
-        - description
-        - directory
-        - shell
       type: object
     Label:
       additionalProperties: false

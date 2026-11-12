@@ -142,34 +142,6 @@ export function HostLabelsCard({ host }: { host: HostDetail }) {
     </section>
   );
 }
-export function HostUsersCard({ host }: { host: HostDetail }) {
-  const users = (host.users ?? []).filter((u) => u.username);
-  if (users.length === 0) return null;
-  return <DataTableStatic heading="Local User Accounts" columns={userColumns} data={users} />;
-}
-
-const userColumns: DataTableColumnDef<NonNullable<HostDetail["users"]>[number]>[] = [
-  {
-    accessorKey: "username",
-    header: () => "Username",
-    cell: ({ row }) => <span className="font-medium">{row.original.username}</span>,
-  },
-  {
-    accessorKey: "type",
-    header: () => "Type",
-    cell: ({ row }) => row.original.type || "-",
-  },
-  {
-    accessorKey: "directory",
-    header: () => "Directory",
-    cell: ({ row }) => row.original.directory || "-",
-  },
-  {
-    accessorKey: "shell",
-    header: () => "Shell",
-    cell: ({ row }) => row.original.shell || "-",
-  },
-];
 function UserGroups({ groups }: { groups: readonly string[] }) {
   const uniqueGroups = [...new Set(groups)];
   if (uniqueGroups.length === 0) return <span>-</span>;

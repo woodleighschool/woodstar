@@ -9,7 +9,7 @@ func (s *Store) LoadDetail(ctx context.Context, host *Host) (*HostDetail, error)
 	if err != nil {
 		return nil, err
 	}
-	hostUsers, err := s.ListUsers(ctx, host.ID)
+	accounts, err := s.ListAccounts(ctx, host.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -33,7 +33,7 @@ func (s *Store) LoadDetail(ctx context.Context, host *Host) (*HostDetail, error)
 	return &HostDetail{
 		Host:         detailHost,
 		Labels:       hostLabels,
-		Users:        hostUsers,
+		Accounts:     accounts,
 		Batteries:    batteries,
 		Certificates: certificates,
 	}, nil
