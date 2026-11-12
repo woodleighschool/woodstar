@@ -132,8 +132,8 @@ github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UV
 github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 github.com/stretchr/testify v1.12.1 h1:EuwCh5fleGS7H32xRwO3wRGT7DxrDhLAT6FF8MpWDWE=
 github.com/stretchr/testify v1.12.1/go.mod h1:MDEgiDPPsNp5cuIrHPPCyornHKgEVbtFUmoNlxoYthg=
-github.com/woodleighschool/goodies/auth v1.1.0 h1:aKG94NoRSMJ/Kr+ubyL8MLA+MTQ1yOmcXMWMu5BdgWQ=
-github.com/woodleighschool/goodies/auth v1.1.0/go.mod h1:yQ287/BbisN7wrOxcwj1bWPk2LbK+A8UdMN+tr1Nh0U=
+github.com/woodleighschool/goodies/auth v1.2.0 h1:iRVY2UgJQ7tt1ofOnKnr6WW+Gm9v5Fa5YH3h0B3WL4s=
+github.com/woodleighschool/goodies/auth v1.2.0/go.mod h1:FyDBM8G7uB9nocrIgdYpZJRekWwVFsbbyUMIN4kKhYw=
 github.com/woodleighschool/goodies/bloby v1.4.1 h1:AqZqDgrsvAKcq5zFBQ6EiBFOavKhpCiwYk65WuAQLRU=
 github.com/woodleighschool/goodies/bloby v1.4.1/go.mod h1:msGVaS9OhMKukeDzHK45H2B4hPuaMP4VcZgbTm9OH5g=
 github.com/woodleighschool/goodies/pglock v0.1.1 h1:qiueWQw5yf24TgPfqZsI5p0wjVnVZujjptWInZiPeWA=

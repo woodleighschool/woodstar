@@ -6,7 +6,7 @@ require (
 	github.com/danielgtaylor/huma/v2 v2.40.0
 	github.com/go-chi/chi/v5 v5.5.0
 	github.com/invopop/jsonschema v0.14.0
-	github.com/woodleighschool/goodies/auth v1.1.0
+	github.com/woodleighschool/goodies/auth v1.2.0
 	github.com/woodleighschool/goodies/bloby v1.4.1
 	github.com/woodleighschool/stemma v0.12.4
 	github.com/woodleighschool/woodstar v0.12.1
