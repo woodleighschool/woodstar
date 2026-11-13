@@ -118,19 +118,6 @@ func TestMDP(t *testing.T) { //nolint:funlen // Linear product lifecycle; splitt
 		)
 	}
 
-	mirroredPath := filepath.Join(workerDataDir, fmt.Sprintf("%d-%s", pkg.Id, installerFilename))
-	mirroredBytes, err := os.ReadFile(mirroredPath) //nolint:gosec // Test-owned temporary path.
-	if err != nil {
-		t.Fatalf("read mirrored installer: %v", err)
-	}
-	if !bytes.Equal(mirroredBytes, installerBytes) {
-		t.Fatalf(
-			"mirrored installer bytes = %d bytes, want exact %d-byte upload",
-			len(mirroredBytes),
-			len(installerBytes),
-		)
-	}
-
 	redirectClient := verifyingClient(t, server.CACertificate)
 	redirectClient.CheckRedirect = func(_ *http.Request, _ []*http.Request) error {
 		return http.ErrUseLastResponse

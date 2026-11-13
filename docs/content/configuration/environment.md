@@ -124,7 +124,7 @@ These settings belong to the separate `woodstar mdp` process.
 | `WOODSTAR_MDP_SERVER_URL`           | required | Server HTTPS origin                                         |
 | `WOODSTAR_MDP_SERVER_CA_FILE`       | empty    | Additional CA certificate trusted by the worker             |
 | `WOODSTAR_MDP_KEY`                  | required | Key shown when the distribution point is created or rotated |
-| `WOODSTAR_MDP_DATA_DIR`             | required | Directory for cached installers and worker state            |
+| `WOODSTAR_MDP_DATA_DIR`             | required | Dedicated directory owned and cleaned by the worker         |
 | `WOODSTAR_MDP_LISTEN_ADDR`          | `:8080`  | Address that serves package downloads                       |
 | `WOODSTAR_MDP_TLS_CERT_FILE`        | empty    | Certificate chain for direct TLS; set with the key file     |
 | `WOODSTAR_MDP_TLS_KEY_FILE`         | empty    | Private key for direct TLS; set with the certificate file   |

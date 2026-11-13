@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"path"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -70,8 +71,8 @@ func (s *server) serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	path := s.mirror.localPath(claims.PackageID, state.Filename)
-	file, err := os.Open(path) //nolint:gosec // mirror.localPath confines the file to the configured data directory.
+	filePath := s.mirror.localPath(claims.PackageID, state.SHA256)
+	file, err := os.Open(filePath) //nolint:gosec // mirror.localPath confines the file to the configured data directory.
 	if errors.Is(err, os.ErrNotExist) {
 		s.reject(w, r, http.StatusNotFound, "file missing")
 		return
@@ -98,7 +99,7 @@ func (s *server) serve(w http.ResponseWriter, r *http.Request) {
 	// Serve-path integrity is the grant/mirror SHA match plus this size stat, not
 	// a full re-hash. Installers are large, their bytes were hashed at download
 	// time, and Munki re-verifies installer_item_hash on the client.
-	http.ServeContent(w, r, state.Filename, info.ModTime(), file)
+	http.ServeContent(w, r, path.Base(claims.InstallerItemLocation), info.ModTime(), file)
 }
 
 // reject answers a request that cannot be served and records why, since the

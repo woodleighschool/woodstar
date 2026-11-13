@@ -59,6 +59,13 @@ SET connection_id = EXCLUDED.connection_id,
 		); err != nil {
 			return err
 		}
+		// A new process must verify its files before prior reports can route
+		// clients to it. Package reports belong to the claimed session.
+		if _, err := tx.Exec(ctx, `
+DELETE FROM munki_distribution_package_states
+WHERE distribution_point_id = $1`, pointID); err != nil {
+			return err
+		}
 		_, err := tx.Exec(ctx, `
 DELETE FROM munki_distribution_worker_rejections
 WHERE distribution_point_id = $1`, pointID)

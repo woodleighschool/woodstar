@@ -103,7 +103,7 @@ type ClientCandidate struct {
 }
 
 // DesiredPackage is one installer a distribution point should mirror: a stable
-// id, the filename to store it under, and the bytes to verify against. The
+// ID, its original filename, and the bytes to verify against. The
 // worker fetches a fresh download URL per job, so none is carried here.
 type DesiredPackage struct {
 	PackageID int64

@@ -2,11 +2,11 @@ package worker
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
+	"io"
 	"log/slog"
-	"os"
-	"path/filepath"
-	"sync"
+	"strings"
 	"time"
 
 	"github.com/coder/websocket"
@@ -35,10 +35,7 @@ type session struct {
 	desiredCh  chan []wire.DesiredPackage
 	retryDelay time.Duration
 
-	mu      sync.Mutex
-	desired map[int64]wire.DesiredPackage
-	jobs    map[int64]*jobHandle
-	wg      sync.WaitGroup
+	jobs map[int64]*jobHandle
 }
 
 // jobHandle tracks one running mirror job and the exact bytes it targets, so a
@@ -47,6 +44,7 @@ type jobHandle struct {
 	cancel context.CancelFunc
 	sha    string
 	size   int64
+	done   chan struct{}
 }
 
 func newSession(
@@ -67,7 +65,6 @@ func newSession(
 		events:     make(chan wire.PackageEvent, eventBuffer),
 		desiredCh:  make(chan []wire.DesiredPackage, 1),
 		retryDelay: retryDelay,
-		desired:    map[int64]wire.DesiredPackage{},
 		jobs:       map[int64]*jobHandle{},
 	}
 }
@@ -91,12 +88,32 @@ func (s *session) submitDesired(pkgs []wire.DesiredPackage) {
 
 // reconcileLoop applies desired sets one at a time until the connection ends.
 func (s *session) reconcileLoop(ctx context.Context) {
+	defer s.wait()
+	var desired []wire.DesiredPackage
+	var retry <-chan time.Time
+	delay := s.retryDelay
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case pkgs := <-s.desiredCh:
-			s.applyDesiredSet(ctx, pkgs)
+		case desired = <-s.desiredCh:
+			delay = s.retryDelay
+		case <-retry:
+		}
+		retry = nil
+		if err := s.applyDesiredSet(ctx, desired); err != nil && ctx.Err() == nil {
+			s.logger.WarnContext(ctx, "cache reconciliation failed", "err", err)
+			for _, pkg := range desired {
+				if _, active := s.jobs[pkg.PackageID]; active {
+					continue
+				}
+				if state, ok := s.mirror.get(pkg.PackageID); ok && state.SHA256 == pkg.SHA256 && state.SizeBytes == pkg.SizeBytes {
+					continue
+				}
+				s.emit(ctx, wire.PackageEvent{Type: wire.EventPackageError, PackageID: pkg.PackageID, Error: err.Error()})
+			}
+			retry = time.After(delay)
+			delay = min(delay*2, maxJobRetry)
 		}
 	}
 }
@@ -116,112 +133,76 @@ func (s *session) writeEvents(ctx context.Context, ws *websocket.Conn) {
 	}
 }
 
-// wait blocks until every running job has stopped. The caller cancels the
-// session context first, so jobs abort their downloads and clean up temp files
-// before a reconnect reuses their paths.
+// The coordinator owns jobs and joins them before the next session can start.
 func (s *session) wait() {
-	s.wg.Wait()
+	for _, handle := range s.jobs {
+		handle.cancel()
+	}
+	for _, handle := range s.jobs {
+		<-handle.done
+	}
 }
 
-// applyDesiredSet reconciles the mirror against the full desired list: it starts
-// or restarts jobs for missing or changed packages, re-advertises packages it
-// already holds, and prunes everything no longer wanted.
-func (s *session) applyDesiredSet(ctx context.Context, pkgs []wire.DesiredPackage) {
-	wanted := make(map[int64]bool, len(pkgs))
-	var current, start []wire.DesiredPackage
-
-	s.mu.Lock()
+func (s *session) applyDesiredSet(ctx context.Context, pkgs []wire.DesiredPackage) error {
+	wanted := make(map[int64]wire.DesiredPackage, len(pkgs))
 	for _, pkg := range pkgs {
-		wanted[pkg.PackageID] = true
-		s.desired[pkg.PackageID] = pkg
-		if s.mirror.satisfies(pkg.PackageID, pkg.SHA256, pkg.SizeBytes) {
-			s.cancelJobLocked(pkg.PackageID)
-			current = append(current, pkg)
-		} else {
-			start = append(start, pkg)
+		digest, err := hex.DecodeString(pkg.SHA256)
+		if err != nil || len(digest) != 32 || pkg.SHA256 != strings.ToLower(pkg.SHA256) ||
+			pkg.PackageID <= 0 || pkg.SizeBytes < 0 {
+			return fmt.Errorf("invalid desired package %d", pkg.PackageID)
+		}
+		if _, exists := wanted[pkg.PackageID]; exists {
+			return fmt.Errorf("duplicate desired package %d", pkg.PackageID)
+		}
+		wanted[pkg.PackageID] = pkg
+	}
+	for id, handle := range s.jobs {
+		pkg, keep := wanted[id]
+		if !keep || pkg.SHA256 != handle.sha || pkg.SizeBytes != handle.size {
+			handle.cancel()
+			<-handle.done
+			delete(s.jobs, id)
 		}
 	}
-	prune := s.prunableLocked(wanted)
-	for _, id := range prune {
-		s.cancelJobLocked(id)
-		delete(s.desired, id)
-	}
-	for _, pkg := range start {
-		s.ensureJobLocked(ctx, pkg)
-	}
-	s.mu.Unlock()
-
-	for _, pkg := range current {
-		s.logger.DebugContext(ctx, "package already current",
-			"package_id", pkg.PackageID, "filename", pkg.Filename)
-		s.emit(ctx, wire.PackageEvent{
-			Type: wire.EventPackageCurrent, PackageID: pkg.PackageID, SHA256: pkg.SHA256,
-		})
-	}
-	for _, id := range prune {
-		s.logger.DebugContext(ctx, "pruning package", "package_id", id)
-		s.pruneBytes(id)
-	}
-	if len(prune) > 0 {
-		s.save(ctx)
-	}
-	s.logger.DebugContext(ctx, "reconciled desired set",
-		"desired", len(pkgs),
-		"already_current", len(current),
-		"downloading", len(start),
-		"pruned", len(prune),
-	)
-}
-
-// prunableLocked returns mirrored or in-flight package ids no longer wanted.
-func (s *session) prunableLocked(wanted map[int64]bool) []int64 {
-	seen := map[int64]bool{}
-	var prune []int64
-	add := func(id int64) {
-		if !wanted[id] && !seen[id] {
-			seen[id] = true
-			prune = append(prune, id)
+	active := make(map[int64]bool, len(s.jobs))
+	for id, handle := range s.jobs {
+		select {
+		case <-handle.done:
+			delete(s.jobs, id)
+		default:
+			active[id] = true
 		}
 	}
-	for id := range s.jobs {
-		add(id)
+	reconcileErr := s.mirror.reconcile(ctx, pkgs, active)
+	if err := ctx.Err(); err != nil {
+		return err
 	}
-	for _, id := range s.mirror.packageIDs() {
-		add(id)
-	}
-	return prune
-}
-
-func (s *session) cancelJobLocked(packageID int64) {
-	if handle, ok := s.jobs[packageID]; ok {
-		handle.cancel()
-		delete(s.jobs, packageID)
-	}
-}
-
-// ensureJobLocked starts a mirror job for a package unless one targeting the
-// same bytes is already running; a job for different bytes is cancelled first.
-func (s *session) ensureJobLocked(ctx context.Context, pkg wire.DesiredPackage) {
-	if handle, ok := s.jobs[pkg.PackageID]; ok {
-		if handle.sha == pkg.SHA256 && handle.size == pkg.SizeBytes {
-			return
+	for _, pkg := range pkgs {
+		if active[pkg.PackageID] {
+			continue
 		}
-		handle.cancel()
-		delete(s.jobs, pkg.PackageID)
+		if state, ok := s.mirror.get(pkg.PackageID); ok && state.SHA256 == pkg.SHA256 && state.SizeBytes == pkg.SizeBytes {
+			s.emit(ctx, wire.PackageEvent{Type: wire.EventPackageCurrent, PackageID: pkg.PackageID, SHA256: pkg.SHA256})
+			continue
+		}
+		if reconcileErr != nil {
+			continue
+		}
+		jobCtx, cancel := context.WithCancel(ctx)
+		handle := &jobHandle{cancel: cancel, sha: pkg.SHA256, size: pkg.SizeBytes, done: make(chan struct{})}
+		s.jobs[pkg.PackageID] = handle
+		go func() {
+			defer close(handle.done)
+			s.runJob(jobCtx, pkg)
+		}()
 	}
-	jobCtx, cancel := context.WithCancel(ctx)
-	s.jobs[pkg.PackageID] = &jobHandle{cancel: cancel, sha: pkg.SHA256, size: pkg.SizeBytes}
-	s.wg.Add(1)
-	go s.runJob(jobCtx, pkg)
+	return reconcileErr
 }
 
 // runJob mirrors one package, retrying on failure until it succeeds, the package
 // changes, or the connection ends. It emits syncing once, an error per failed
 // attempt, and current when the verified bytes land.
 func (s *session) runJob(ctx context.Context, pkg wire.DesiredPackage) {
-	defer s.wg.Done()
-	defer s.finishJob(pkg)
-
 	s.logger.DebugContext(ctx, "mirroring package",
 		"package_id", pkg.PackageID, "filename", pkg.Filename, "size_bytes", pkg.SizeBytes)
 	s.emit(ctx, wire.PackageEvent{Type: wire.EventPackageSyncing, PackageID: pkg.PackageID})
@@ -265,18 +246,6 @@ func (s *session) logFailure(ctx context.Context, packageID int64, attempt int, 
 		"package_id", packageID, "attempt", attempt, "err", err)
 }
 
-func (s *session) finishJob(pkg wire.DesiredPackage) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if handle, ok := s.jobs[pkg.PackageID]; ok &&
-		handle.sha == pkg.SHA256 && handle.size == pkg.SizeBytes {
-		delete(s.jobs, pkg.PackageID)
-	}
-}
-
-// fetchOnce downloads and verifies one package. It holds a transfer slot for the
-// whole attempt so the URL it fetches is used immediately rather than queued
-// behind other downloads until it expires.
 func (s *session) fetchOnce(ctx context.Context, pkg wire.DesiredPackage) error {
 	select {
 	case s.sem <- struct{}{}:
@@ -284,47 +253,20 @@ func (s *session) fetchOnce(ctx context.Context, pkg wire.DesiredPackage) error 
 		return ctx.Err()
 	}
 	defer func() { <-s.sem }()
-
-	url, err := s.client.downloadURL(ctx, pkg.PackageID)
-	if err != nil {
-		return fetchError("url", pkg.PackageID, err)
+	if err := ctx.Err(); err != nil {
+		return err
 	}
-
-	path := s.mirror.localPath(pkg.PackageID, pkg.Filename)
-	tmp := path + ".download"
-	if err := s.client.download(ctx, url, tmp); err != nil {
-		_ = os.Remove(tmp)
-		return fetchError("download", pkg.PackageID, err)
-	}
-	if err := verifyFile(tmp, pkg.SizeBytes, pkg.SHA256); err != nil {
-		_ = os.Remove(tmp)
-		return fetchError("verify", pkg.PackageID, err)
-	}
-	if err := os.Rename(tmp, path); err != nil {
-		_ = os.Remove(tmp)
-		return fetchError("commit", pkg.PackageID, err)
-	}
-	s.mirror.put(pkg.PackageID, packageState{
-		Filename:   filepath.Base(pkg.Filename),
-		SHA256:     pkg.SHA256,
-		SizeBytes:  pkg.SizeBytes,
-		VerifiedAt: time.Now(),
+	err := s.mirror.fetch(ctx, pkg, func(dest io.Writer) (int64, error) {
+		url, err := s.client.downloadURL(ctx, pkg.PackageID)
+		if err != nil {
+			return 0, err
+		}
+		return s.client.download(ctx, url, dest, pkg.SizeBytes)
 	})
-	s.save(ctx)
+	if err != nil {
+		return fmt.Errorf("cache package %d: %w", pkg.PackageID, err)
+	}
 	return nil
-}
-
-func (s *session) pruneBytes(packageID int64) {
-	if state, ok := s.mirror.get(packageID); ok {
-		_ = os.Remove(s.mirror.localPath(packageID, state.Filename))
-	}
-	s.mirror.remove(packageID)
-}
-
-func (s *session) save(ctx context.Context) {
-	if err := s.mirror.save(); err != nil {
-		s.logger.WarnContext(ctx, "snapshot failed", "err", err)
-	}
 }
 
 // emit hands a package event to the writer, dropping it if the connection has
@@ -334,8 +276,4 @@ func (s *session) emit(ctx context.Context, event wire.PackageEvent) {
 	case s.events <- event:
 	case <-ctx.Done():
 	}
-}
-
-func fetchError(operation string, packageID int64, err error) error {
-	return fmt.Errorf("package %d %s: %w", packageID, operation, err)
 }

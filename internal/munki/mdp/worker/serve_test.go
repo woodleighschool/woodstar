@@ -53,19 +53,19 @@ func TestServeNodeProbes(t *testing.T) {
 
 func TestServeNodeAppliesGrantAndIntegrityChecks(t *testing.T) {
 	dir := t.TempDir()
-	mirror, err := loadMirror(dir)
+	mirror, err := openMirror(dir)
 	if err != nil {
-		t.Fatalf("loadMirror: %v", err)
+		t.Fatalf("openMirror: %v", err)
 	}
 	content := []byte("installer-bytes-0123456789")
 	sha := sha256Hex(content)
 	size := int64(len(content))
-	if err := os.WriteFile(mirror.localPath(7, "Chrome.pkg"), content, 0o600); err != nil {
+	if err := os.WriteFile(mirror.localPath(7, sha), content, 0o600); err != nil {
 		t.Fatalf("write mirror file: %v", err)
 	}
-	mirror.put(7, packageState{Filename: "Chrome.pkg", SHA256: sha, SizeBytes: size})
+	mirror.put(7, packageState{SHA256: sha, SizeBytes: size})
 	// A package known to the mirror but whose file is gone.
-	mirror.put(9, packageState{Filename: "Gone.pkg", SHA256: sha, SizeBytes: size})
+	mirror.put(9, packageState{SHA256: sha, SizeBytes: size})
 
 	key := []byte("dp-key")
 	handler := (&Worker{
@@ -147,18 +147,17 @@ func TestServeNodeAppliesGrantAndIntegrityChecks(t *testing.T) {
 
 func TestServeNodeAcceptsEquivalentEscapingForGrantedLocation(t *testing.T) {
 	dir := t.TempDir()
-	mirror, err := loadMirror(dir)
+	mirror, err := openMirror(dir)
 	if err != nil {
-		t.Fatalf("loadMirror: %v", err)
+		t.Fatalf("openMirror: %v", err)
 	}
 	content := []byte("zoom-installer")
 	sha := sha256Hex(content)
 	size := int64(len(content))
-	const filename = "Zoom-7.1.5 (84650).pkg"
-	if err := os.WriteFile(mirror.localPath(38, filename), content, 0o600); err != nil {
+	if err := os.WriteFile(mirror.localPath(38, sha), content, 0o600); err != nil {
 		t.Fatalf("write mirror file: %v", err)
 	}
-	mirror.put(38, packageState{Filename: filename, SHA256: sha, SizeBytes: size})
+	mirror.put(38, packageState{SHA256: sha, SizeBytes: size})
 
 	key := []byte("dp-key")
 	const location = "packages/38/installer/Zoom-7.1.5 (84650).pkg"

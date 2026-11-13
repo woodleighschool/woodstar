@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -45,15 +46,17 @@ func newTestWorker(t *testing.T, serverURL string) *Worker {
 
 func newTestSession(t *testing.T, serverURL string) *session {
 	t.Helper()
-	mirror, err := loadMirror(t.TempDir())
+	mirror, err := openMirror(t.TempDir())
 	if err != nil {
-		t.Fatalf("loadMirror: %v", err)
+		t.Fatalf("openMirror: %v", err)
 	}
 	client, err := newWoodstarClient(serverURL, "dp-key", "")
 	if err != nil {
 		t.Fatalf("new server client: %v", err)
 	}
-	return newSession(mirror, client, discardLogger(), 2, time.Millisecond)
+	session := newSession(mirror, client, discardLogger(), 2, time.Millisecond)
+	t.Cleanup(session.wait)
+	return session
 }
 
 // The fake server provides a per-job download URL that points
@@ -92,13 +95,15 @@ func TestSessionPrunesUndesiredMirror(t *testing.T) {
 	sha := sha256Hex(content)
 	size := int64(len(content))
 	sess := newTestSession(t, "http://woodstar.invalid")
-	path := sess.mirror.localPath(7, "Chrome.pkg")
+	path := sess.mirror.localPath(7, sha)
 	if err := os.WriteFile(path, content, 0o600); err != nil {
 		t.Fatalf("seed mirror file: %v", err)
 	}
-	sess.mirror.put(7, packageState{Filename: "Chrome.pkg", SHA256: sha, SizeBytes: size})
+	sess.mirror.put(7, packageState{SHA256: sha, SizeBytes: size})
 
-	sess.applyDesiredSet(t.Context(), nil)
+	if err := sess.applyDesiredSet(t.Context(), nil); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := os.Stat(path); !os.IsNotExist(err) {
 		t.Fatalf("stale file still present: %v", err)
 	}
@@ -113,9 +118,11 @@ func TestSessionRejectsCorruptDownload(t *testing.T) {
 	})
 	sess := newTestSession(t, srv.URL)
 
-	sess.applyDesiredSet(t.Context(), []wire.DesiredPackage{
+	if err := sess.applyDesiredSet(t.Context(), []wire.DesiredPackage{
 		{PackageID: 7, Filename: "Chrome.pkg", SHA256: sha256Hex([]byte("expected")), SizeBytes: 8},
-	})
+	}); err != nil {
+		t.Fatal(err)
+	}
 
 	if event := waitEvent(t, sess.events, wire.EventPackageError); event.PackageID != 7 || event.Error == "" {
 		t.Fatalf("error event = %+v, want package 7 with message", event)
@@ -124,7 +131,7 @@ func TestSessionRejectsCorruptDownload(t *testing.T) {
 	if _, ok := sess.mirror.get(7); ok {
 		t.Fatal("corrupt download was accepted into the mirror")
 	}
-	if _, err := os.Stat(sess.mirror.localPath(7, "Chrome.pkg")); !os.IsNotExist(err) {
+	if _, err := os.Stat(sess.mirror.localPath(7, sha256Hex([]byte("expected")))); !os.IsNotExist(err) {
 		t.Fatalf("corrupt file left on disk: %v", err)
 	}
 }
@@ -140,14 +147,16 @@ func TestSessionRetriesUntilDownloadSucceeds(t *testing.T) {
 	})
 	sess := newTestSession(t, srv.URL)
 
-	sess.applyDesiredSet(t.Context(), []wire.DesiredPackage{
+	if err := sess.applyDesiredSet(t.Context(), []wire.DesiredPackage{
 		{
 			PackageID: 7,
 			Filename:  "Chrome.pkg",
 			SHA256:    sha256Hex([]byte("expected")),
 			SizeBytes: int64(len("expected")),
 		},
-	})
+	}); err != nil {
+		t.Fatal(err)
+	}
 
 	if event := waitEvent(t, sess.events, wire.EventPackageCurrent); event.PackageID != 7 {
 		t.Fatalf("current event = %+v, want package 7 after retries", event)
@@ -164,7 +173,7 @@ func TestDownloadErrorRedactsPresignedCredentials(t *testing.T) {
 		})},
 	}
 	const rawURL = "https://access:secret@storage.example/package.pkg?signature=private" //nolint:gosec // Credential-redaction fixture.
-	err := client.download(t.Context(), rawURL, t.TempDir()+"/package.pkg")
+	_, err := client.download(t.Context(), rawURL, io.Discard, 1)
 	if err == nil {
 		t.Fatal("download returned nil error")
 	}
@@ -224,10 +233,10 @@ func TestConnectOnceReportsCurrentForMirroredPackage(t *testing.T) {
 	worker := newTestWorker(t, srv.URL)
 	// Pre-seed the mirror so the desired package is already satisfied and the
 	// worker reports current without needing a download.
-	if err := os.WriteFile(worker.mirror.localPath(7, "Chrome.pkg"), content, 0o600); err != nil {
+	if err := os.WriteFile(worker.mirror.localPath(7, sha), content, 0o600); err != nil {
 		t.Fatalf("seed mirror file: %v", err)
 	}
-	worker.mirror.put(7, packageState{Filename: "Chrome.pkg", SHA256: sha, SizeBytes: size})
+	worker.mirror.put(7, packageState{SHA256: sha, SizeBytes: size})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -382,30 +391,6 @@ func waitForProbeStatus(t *testing.T, handler http.Handler, path string, want in
 			t.Fatalf("%s status remained %d, want %d", path, rec.Code, want)
 		case <-ticker.C:
 		}
-	}
-}
-
-func TestMirrorSnapshotRoundTrips(t *testing.T) {
-	dir := t.TempDir()
-	mirror, err := loadMirror(dir)
-	if err != nil {
-		t.Fatalf("loadMirror: %v", err)
-	}
-	mirror.setIdentity(wire.PointIdentity{ID: 3, Name: "Melbourne"})
-	mirror.put(7, packageState{Filename: "Chrome.pkg", SHA256: sha256Hex([]byte("x")), SizeBytes: 1})
-	if err := mirror.save(); err != nil {
-		t.Fatalf("save: %v", err)
-	}
-
-	reloaded, err := loadMirror(dir)
-	if err != nil {
-		t.Fatalf("reload: %v", err)
-	}
-	if reloaded.identity.ID != 3 {
-		t.Fatalf("identity = %+v, want id 3", reloaded.identity)
-	}
-	if _, ok := reloaded.get(7); !ok {
-		t.Fatal("package state not restored from snapshot")
 	}
 }
 

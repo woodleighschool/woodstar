@@ -108,23 +108,33 @@ func (c *woodstarClient) downloadURL(ctx context.Context, packageID int64) (stri
 	return body.DownloadURL, nil
 }
 
-// download streams a package installer from a presigned storage URL to path.
-func (c *woodstarClient) download(ctx context.Context, downloadURL string, path string) error {
+// download streams a bounded installer response from a presigned storage URL.
+func (c *woodstarClient) download(ctx context.Context, downloadURL string, dest io.Writer, size int64) (int64, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, downloadURL, nil)
 	if err != nil {
-		return err
+		return 0, err
 	}
-
 	resp, err := c.downloadHTTP.Do(req)
 	if err != nil {
-		return sanitizedRequestError("download", downloadURL, err)
+		return 0, sanitizedRequestError("download", downloadURL, err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("download: unexpected status %d", resp.StatusCode)
+		return 0, fmt.Errorf("download: unexpected status %d", resp.StatusCode)
 	}
-
-	return writeBody(path, resp.Body)
+	n, err := io.CopyN(dest, resp.Body, size)
+	if err != nil {
+		return n, err
+	}
+	// Probe without writing beyond the reserved space. Preallocation can set
+	// the logical file size, so the received byte count must also be checked.
+	var extra [1]byte
+	if _, err := io.ReadFull(resp.Body, extra[:]); errors.Is(err, io.EOF) {
+		return n, nil
+	} else if err != nil {
+		return n, err
+	}
+	return n, errSizeMismatch
 }
 
 func sanitizedRequestError(operation, rawURL string, err error) error {
@@ -140,16 +150,4 @@ func sanitizedRequestError(operation, rawURL string, err error) error {
 	parsed.ForceQuery = false
 	parsed.Fragment = ""
 	return fmt.Errorf("%s %s: %w", operation, parsed.String(), err)
-}
-
-func writeBody(path string, body io.Reader) error {
-	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600) //nolint:gosec // Callers provide a mirror path under the configured data directory.
-	if err != nil {
-		return err
-	}
-	if _, err := io.Copy(file, body); err != nil {
-		_ = file.Close()
-		return err
-	}
-	return file.Close()
 }

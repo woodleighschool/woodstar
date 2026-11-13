@@ -397,9 +397,16 @@ func TestReplicasShareAndReplaceWorkerSession(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetByID: %v", err)
 	}
-	if len(states.Packages) != 1 || states.Packages[0].Status != mdp.PackageStatusCurrent {
-		t.Fatalf("package state after stale write = %+v, want current", states.Packages)
+	if len(states.Packages) != 1 || states.Packages[0].Status != mdp.PackageStatusPending || states.Packages[0].Error != "" {
+		t.Fatalf("package state after stale write = %+v, want pending verification", states.Packages)
 	}
+	writePackageEvent(t, ctx, workerB, wire.PackageEvent{
+		Type: wire.EventPackageCurrent, PackageID: packageID, SHA256: sha,
+	})
+	eventually(t, func() bool {
+		resolved, resolveErr := storeA.ResolveForClient(ctx, netip.MustParseAddr("10.1.2.3"), packageID)
+		return resolveErr == nil && resolved != nil && resolved.ID == point.ID
+	})
 
 	if err := workerB.Close(websocket.StatusNormalClosure, ""); err != nil {
 		t.Fatalf("close replacement worker: %v", err)

@@ -52,12 +52,12 @@ type Worker struct {
 	controlConnected atomic.Bool
 }
 
-// New restores the worker's mirror and wires its collaborators.
+// New opens the worker cache and configures its server connection.
 func New(cfg Config, version string, logger *slog.Logger) (*Worker, error) {
 	if !wire.ValidBuildVersion(version) {
 		return nil, errors.New("invalid server build version")
 	}
-	m, err := loadMirror(cfg.DataDir)
+	m, err := openMirror(cfg.DataDir)
 	if err != nil {
 		return nil, err
 	}
@@ -225,12 +225,15 @@ func (w *Worker) connectOnce(ctx context.Context) error {
 
 	connCtx, cancel := context.WithCancel(ctx)
 	session := newSession(w.mirror, w.client, w.logger, w.cfg.DownloadConcurrency, initialJobRetry)
+	reconciled := make(chan struct{})
+	written := make(chan struct{})
 	defer func() {
 		cancel()
-		session.wait()
+		<-reconciled
+		<-written
 	}()
-	go session.reconcileLoop(connCtx)
-	go session.writeEvents(connCtx, ws)
+	go func() { defer close(reconciled); session.reconcileLoop(connCtx) }()
+	go func() { defer close(written); session.writeEvents(connCtx, ws) }()
 
 	for {
 		_, data, err := ws.Read(connCtx)
@@ -245,7 +248,6 @@ func (w *Worker) connectOnce(ctx context.Context) error {
 		case wire.MessageHello:
 			w.logger.DebugContext(connCtx, "received identity",
 				"id", msg.DistributionPoint.ID, "name", msg.DistributionPoint.Name)
-			w.mirror.setIdentity(msg.DistributionPoint)
 			w.controlConnected.Store(true)
 		case wire.MessageDesiredSet:
 			session.submitDesired(msg.Packages)

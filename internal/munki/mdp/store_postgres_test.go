@@ -260,8 +260,18 @@ func TestWorkerSessionReplacementRejectsStaleState(t *testing.T) {
 	if err := store.ClaimWorkerSession(ctx, point.ID, "key-mel", "old", worker); err != nil {
 		t.Fatalf("claim old session: %v", err)
 	}
+	if err := store.RecordPackageState(ctx, point.ID, "old", pkg, mdp.PackageStatusCurrent, sha, ""); err != nil {
+		t.Fatalf("record old package: %v", err)
+	}
+	clientIP := netip.MustParseAddr("10.1.50.107")
+	if resolved, err := store.ResolveForClient(ctx, clientIP, pkg); err != nil || resolved == nil {
+		t.Fatalf("verified old session = %+v, %v, want redirect", resolved, err)
+	}
 	if err := store.ClaimWorkerSession(ctx, point.ID, "key-mel", "new", worker); err != nil {
 		t.Fatalf("claim replacement session: %v", err)
+	}
+	if resolved, err := store.ResolveForClient(ctx, clientIP, pkg); err != nil || resolved != nil {
+		t.Fatalf("unverified replacement session = %+v, %v, want primary storage", resolved, err)
 	}
 
 	if err := store.RecordPackageState(
@@ -276,6 +286,9 @@ func TestWorkerSessionReplacementRejectsStaleState(t *testing.T) {
 		ctx, point.ID, "new", pkg, mdp.PackageStatusCurrent, sha, "",
 	); err != nil {
 		t.Fatalf("replacement RecordPackageState: %v", err)
+	}
+	if resolved, err := store.ResolveForClient(ctx, clientIP, pkg); err != nil || resolved == nil {
+		t.Fatalf("verified replacement session = %+v, %v, want redirect", resolved, err)
 	}
 	assertWorker(t, ctx, store, point.ID, &worker)
 }

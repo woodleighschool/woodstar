@@ -82,11 +82,15 @@ See [Environment](../configuration/environment#distribution-point-worker) for ev
 
 ## Caching
 
-The worker keeps a WebSocket connection to the server and receives the complete desired package list. Missing or changed installers are cached and checked by size and SHA-256. Unwanted installers are removed.
+The worker keeps a WebSocket connection to the server and receives the complete desired package list. It owns the data directory and reconciles its files against that list. Use a dedicated directory: obsolete files and abandoned downloads are removed before missing installers are fetched. Filesystem-owned `lost+found` directories are preserved.
+
+Cache files are identified by package ID and SHA-256. Changing an installer's filename does not duplicate its cached bytes. Changed or removed packages are withdrawn from the cache, and their downloads are stopped before their files are removed. Cleanup failures are reported and retried without waiting for another package change.
 
 The WebSocket upgrade requires an exact protocol match. The server rejects mismatched workers, and the UI marks them as incompatible. The two processes exchange build versions for diagnostics; build versions do not control protocol compatibility. Run the same release for both.
 
-Cache state is kept in the data directory, and downloads resume after a restart. The UI reports each package as pending, syncing, current, or in error.
+After a restart, the worker verifies retained files by size and SHA-256 before advertising them as current. New worker connections clear previous package reports, so clients use primary storage until the cache reports that the requested package is ready. Interrupted downloads restart from the beginning. The UI reports each package as pending, syncing, current, or in error.
+
+The cache filesystem must support allocating file storage in advance. Each download reserves its full size before requesting installer bytes. If space or quota is insufficient, the worker reports the allocation failure and retries locally until storage becomes available, without repeatedly downloading the installer. Only complete, verified files are served.
 
 The worker uses the distribution-point key to connect and request short-lived download URLs. Database and storage credentials stay on the server.
 
