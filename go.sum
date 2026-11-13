@@ -381,8 +381,8 @@ github.com/tklauser/numcpus v0.12.0 h1:NR85qdvHA9pFse3x3weVZ0r0ST8R6l5RHbZrlRaqo
 github.com/tklauser/numcpus v0.12.0/go.mod h1:ABHeXzJnr/qqwguhClkZKT1/8VABcYrsyUiUGobwWJg=
 github.com/vmware-labs/yaml-jsonpath v0.3.2 h1:/5QKeCBGdsInyDCyVNLbXyilb61MXGi9NP674f9Hobk=
 github.com/vmware-labs/yaml-jsonpath v0.3.2/go.mod h1:U6whw1z03QyqgWdgXxvVnQ90zN1BWz5V+51Ewf8k+rQ=
-github.com/woodleighschool/goodies/auth v1.1.1-0.20261112102811-eb85a57a3a9c h1:s1utLV6gDoofL3Danm0aGwkqNYH3DH8hUtK2Fzn5JEU=
-github.com/woodleighschool/goodies/auth v1.1.1-0.20261112102811-eb85a57a3a9c/go.mod h1:FyDBM8G7uB9nocrIgdYpZJRekWwVFsbbyUMIN4kKhYw=
+github.com/woodleighschool/goodies/auth v1.2.0 h1:iRVY2UgJQ7tt1ofOnKnr6WW+Gm9v5Fa5YH3h0B3WL4s=
+github.com/woodleighschool/goodies/auth v1.2.0/go.mod h1:FyDBM8G7uB9nocrIgdYpZJRekWwVFsbbyUMIN4kKhYw=
 github.com/woodleighschool/goodies/bloby v1.4.2 h1:/Mv/2ynH9CaN4qSvF3Jf5/cew3wfdLJxocy6G/L52nE=
 github.com/woodleighschool/goodies/bloby v1.4.2/go.mod h1:z7ZeG8Hh1o4k6FaPjgLRN/BSK89k7gEzb3gnvHgBOc0=
 github.com/woodleighschool/goodies/pglock v0.1.2 h1:tO1MV62WTutYb2fGhGQ7f20Mmzy9MoAa+y6AG9H0WP8=
