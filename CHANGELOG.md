@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.12.2](https://github.com/woodleighschool/woodstar/compare/v0.12.1...v0.12.2) (2026-11-13)
+
+
+### Features
+
+* **hosts:** add account inventory snapshots ([9daa761](https://github.com/woodleighschool/woodstar/commit/9daa76182c2a2a9bfcd8547b3c089b5bd337ad82))
+
+
+### Bug Fixes
+
+* **go:** update goodies/auth to v1.2.0 ([aa52a6e](https://github.com/woodleighschool/woodstar/commit/aa52a6e3a00d599e491f463324a71e56db931c63))
+* **go:** update module buf.build/gen/go/northpolesec/protos/protocolbuffers/go (v1.36.12-20261110050858-45efc1527e61.2 → v1.36.12-20261111021127-bdcf69605ade.2) ([#738](https://github.com/woodleighschool/woodstar/issues/738)) ([a577b1b](https://github.com/woodleighschool/woodstar/commit/a577b1b30a78a2359fa2eee8513e714e07e949e9))
+* **go:** update module buf.build/gen/go/northpolesec/protos/protocolbuffers/go (v1.36.12-20261111021127-bdcf69605ade.2 → v1.36.12-20261111163929-b71ecbc2a235.2) ([#740](https://github.com/woodleighschool/woodstar/issues/740)) ([57d71fb](https://github.com/woodleighschool/woodstar/commit/57d71fbfed575b0a02e6749df4fd12e3097809df))
+* **go:** update module github.com/jackc/pgx/v5 (v5.12.0 → v5.13.0) ([#746](https://github.com/woodleighschool/woodstar/issues/746)) ([1496f9a](https://github.com/woodleighschool/woodstar/commit/1496f9aa3ecd8d444120cf5e04ee0381547f5fe3))
+* **go:** update module github.com/oapi-codegen/runtime (v1.8.0 → v1.9.0) ([#735](https://github.com/woodleighschool/woodstar/issues/735)) ([ab81333](https://github.com/woodleighschool/woodstar/commit/ab813338aa8b26d43a0212ed13941b3a32966d3c))
+* **go:** update module github.com/pressly/goose/v3 (v3.29.0 → v3.30.0) ([#732](https://github.com/woodleighschool/woodstar/issues/732)) ([4b6fe2e](https://github.com/woodleighschool/woodstar/commit/4b6fe2ed3ba9e340108e849ba33176c66cc23cdd))
+* **go:** update module github.com/woodleighschool/goodies/bloby (v1.4.1 → v1.4.2) ([#741](https://github.com/woodleighschool/woodstar/issues/741)) ([e444de3](https://github.com/woodleighschool/woodstar/commit/e444de30c5405de4b8d908efa75a6ecd908cea48))
+* **go:** update module github.com/woodleighschool/goodies/pglock (v0.1.1 → v0.1.2) ([#742](https://github.com/woodleighschool/woodstar/issues/742)) ([dbaeefd](https://github.com/woodleighschool/woodstar/commit/dbaeefd3abdb4d2ba134b460ba210cdd5ff2442f))
+* **mdp:** reconcile cache files and reserve download space ([23ff995](https://github.com/woodleighschool/woodstar/commit/23ff99519bde0e5041be7df48fca820df2e7e448))
+* **npm:** update dependency @woodleighschool/bloby-client (1.3.1 → 1.3.2) ([#743](https://github.com/woodleighschool/woodstar/issues/743)) ([dde0c49](https://github.com/woodleighschool/woodstar/commit/dde0c491e4aca603a3f3e8a711f144efabc3e5f8))
+* **npm:** update dependency lucide-react (1.71.0 → 1.72.0) ([#739](https://github.com/woodleighschool/woodstar/issues/739)) ([5d43ec9](https://github.com/woodleighschool/woodstar/commit/5d43ec937b4d357ae688a471afc469d7ddeb366d))
+* **npm:** update dependency papaparse (5.7.0 → 5.7.1) ([#744](https://github.com/woodleighschool/woodstar/issues/744)) ([3901d50](https://github.com/woodleighschool/woodstar/commit/3901d509a7c1f29cea45472904755f8b5b266075))
+
 ## [0.12.1](https://github.com/woodleighschool/woodstar/compare/v0.12.0...v0.12.1) (2026-11-11)
 
 
