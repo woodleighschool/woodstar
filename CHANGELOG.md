@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.12.3](https://github.com/woodleighschool/woodstar/compare/v0.12.2...v0.12.3) (2026-11-14)
+
+
+### Bug Fixes
+
+* **go:** update module github.com/pressly/goose/v3 (v3.30.0 → v3.30.1) ([#752](https://github.com/woodleighschool/woodstar/issues/752)) ([9ead796](https://github.com/woodleighschool/woodstar/commit/9ead796ae93c9977aa21f194b499ee1f5a97a8af))
+* **npm:** update dependency filesize (11.0.30 → 11.0.31) ([#748](https://github.com/woodleighschool/woodstar/issues/748)) ([2ad9e91](https://github.com/woodleighschool/woodstar/commit/2ad9e91c62e71f4b4c2b87d3b5bb7dc1f92ebf74))
+* **npm:** update dependency filesize (11.0.31 → 11.0.32) ([#753](https://github.com/woodleighschool/woodstar/issues/753)) ([6242729](https://github.com/woodleighschool/woodstar/commit/6242729f7372f98f5078369734fc3dbc77a7623a))
+
 ## [0.12.2](https://github.com/woodleighschool/woodstar/compare/v0.12.1...v0.12.2) (2026-11-13)
 
 
