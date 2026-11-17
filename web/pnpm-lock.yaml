@@ -248,8 +248,8 @@ importers:
         specifier: ^4.4.0
         version: 4.4.0
       filesize:
-        specifier: ^11.0.32
-        version: 11.0.32
+        specifier: ^11.0.33
+        version: 11.0.33
       lucide-react:
         specifier: ^1.73.0
         version: 1.73.0(@types/react@19.3.0)(react@19.3.1)
@@ -2106,8 +2106,8 @@ packages:
   file-entry-cache@11.1.5:
     resolution: {integrity: sha512-+PFTHITI08JIGhnNpGNI8T8inUpgZfk3GNEqfT9R2zZV2iFXg3CvqzSl/uEhs7TSGujYRELEANyDvS8Fj7+S7Q==}
 
-  filesize@11.0.32:
-    resolution: {integrity: sha512-XDm8d3VpwwIknUHaO+eZ79opT+do/j4jeST4JD4ip3QMncAy7UK1Qc+Bifly4FVkeXylM4wvKVAJrcsA0Hbm4A==}
+  filesize@11.0.33:
+    resolution: {integrity: sha512-EVfT6unvzJUIxVoTN+xKdIpZOYH6jMao1g+Uym58eJMNzh2bxC/5Y9X4IP2nkXNV5UYr22fkOLVhBzkUW3UliQ==}
     engines: {node: '>= 10.8.0'}
 
   fill-range@7.1.1:
@@ -5185,7 +5185,7 @@ snapshots:
     dependencies:
       flat-cache: 6.1.23
 
-  filesize@11.0.32: {}
+  filesize@11.0.33: {}
 
   fill-range@7.1.1:
     dependencies:
