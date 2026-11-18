@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.12.4](https://github.com/woodleighschool/woodstar/compare/v0.12.3...v0.12.4) (2026-11-18)
+
+
+### Bug Fixes
+
+* **hosts:** preserve hardware identity across enrollments ([f54d268](https://github.com/woodleighschool/woodstar/commit/f54d26815482b4cc5fe80dc1f04ccdcff64f5e83))
+* **hosts:** reject known serial conflicts before inserting ([9d6bb8e](https://github.com/woodleighschool/woodstar/commit/9d6bb8e96cb28b5ec895dada40f1fea6583d383e))
+* **npm:** update dependency lucide-react (1.73.0 → 1.74.0) ([#768](https://github.com/woodleighschool/woodstar/issues/768)) ([9a88e53](https://github.com/woodleighschool/woodstar/commit/9a88e53db9b767c6377b53857ff49c8f6873513f))
+* **npm:** update dependency recharts (3.10.1 → 3.11.0) ([#770](https://github.com/woodleighschool/woodstar/issues/770)) ([592d32c](https://github.com/woodleighschool/woodstar/commit/592d32c00af5f0dc19b939b0472291f1c0ab3c9c))
+* **npm:** update tanstack-query monorepo (5.107.1 → 5.107.2) ([#767](https://github.com/woodleighschool/woodstar/issues/767)) ([c38e63f](https://github.com/woodleighschool/woodstar/commit/c38e63fd671339e7ac6cafcea1e54eea7f0fad25))
+* **npm:** update tanstack-query monorepo (5.107.2 → 5.108.0) ([#771](https://github.com/woodleighschool/woodstar/issues/771)) ([039d5ef](https://github.com/woodleighschool/woodstar/commit/039d5ef79b11f5474aa438e73bea0eb5807fc221))
+* **osquery:** record the enrollment timestamp ([68f1e39](https://github.com/woodleighschool/woodstar/commit/68f1e3913a78a955f1bb922dbaca9f7430a6ac23))
+
+
+### Performance Improvements
+
+* **agents:** narrow host lookups and osquery assignment queries ([b5a5652](https://github.com/woodleighschool/woodstar/commit/b5a5652565a2a4ca13788fd7830b355d52a4e524))
+* **directory:** reconcile group and label membership changes ([b8cb22f](https://github.com/woodleighschool/woodstar/commit/b8cb22fd87b3b8f0928dd534228bdce28473f662))
+* **hosts:** reconcile hardware and account snapshots by key ([b97362a](https://github.com/woodleighschool/woodstar/commit/b97362ab5a1656cd8f8f734df455be337cf60568))
+* **inventory:** reconcile reported software by host and source ([d8621b7](https://github.com/woodleighschool/woodstar/commit/d8621b72fe695dc889ea834cded0451bffeb3323))
+* **munki:** reconcile collected items by host and name ([69b3fd6](https://github.com/woodleighschool/woodstar/commit/69b3fd65925580201fbc0d97b176d97748dbfd96))
+* **osquery:** apply host detail fields once per response ([1ab0c49](https://github.com/woodleighschool/woodstar/commit/1ab0c49df4e94f263f2279158ae537bd33577a1c))
+* **santa:** reconcile sync targets by rule identity ([008f360](https://github.com/woodleighschool/woodstar/commit/008f360b24c6926165128c608215ad188389512f))
+* **santa:** reuse unchanged event references ([6c2a1ec](https://github.com/woodleighschool/woodstar/commit/6c2a1eca4783dcafdd89c80728d612a2d858cf86))
+
 ## [0.12.3](https://github.com/woodleighschool/woodstar/compare/v0.12.2...v0.12.3) (2026-11-18)
 
 
