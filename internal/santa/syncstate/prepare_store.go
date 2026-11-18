@@ -2,7 +2,6 @@ package syncstate
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
@@ -27,7 +26,6 @@ func (s *Store) PreparePending(
 	if err := validatePolicyDigest(policyDigest); err != nil {
 		return "", err
 	}
-	desired = sortedTargets(desired)
 
 	var pendingSyncType SyncType
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
@@ -35,23 +33,34 @@ func (s *Store) PreparePending(
 		if err != nil {
 			return err
 		}
+		changes := normalSyncPayload(desired, applied.targets)
 		pendingSyncType = applied.requiredSyncType(
 			policyDigest,
 			desired,
+			len(changes) != 0,
 			reported,
 			requestCleanSync,
 			clientRulesHash,
 		)
 
-		if err := upsertPreflight(ctx, tx, preflightParams{
-			hostID:          hostID,
-			policyDigest:    policyDigest,
-			pendingSyncType: pendingSyncType,
-			clientRulesHash: clientRulesHash,
-		}); err != nil {
+		// A successful postflight leaves desired and applied identical.
+		if applied.hasPending || applied.policyDigest == nil {
+			current, err := loadTargets(ctx, tx, hostID, phaseDesired)
+			if err != nil {
+				return err
+			}
+			changes = normalSyncPayload(desired, current)
+		}
+		_, err = tx.Exec(ctx, `
+UPDATE santa_sync_state
+SET pending_sync_type = $2::santa_sync_type, pending_policy_digest = $3,
+    preflight_rules_hash = $4, updated_at = now()
+WHERE host_id = $1 AND (pending_sync_type, pending_policy_digest, preflight_rules_hash)
+    IS DISTINCT FROM ($2::santa_sync_type, $3, $4)`, hostID, pendingSyncType, policyDigest, clientRulesHash)
+		if err != nil {
 			return err
 		}
-		return rewritePendingState(ctx, tx, hostID, desired)
+		return applyTargetChanges(ctx, tx, hostID, phaseDesired, changes)
 	})
 	if err != nil {
 		return "", err
@@ -64,19 +73,22 @@ type priorState struct {
 	policyDigest       *string
 	targets            []Target
 	confirmedRulesHash *string
+	hasPending         bool
 }
 
 func loadPriorState(ctx context.Context, tx pgx.Tx, hostID int64) (priorState, error) {
+	// The state row serializes preflight and postflight, including a host's first sync.
+	_, err := tx.Exec(ctx, `INSERT INTO santa_sync_state (host_id) VALUES ($1) ON CONFLICT DO NOTHING`, hostID)
+	if err != nil {
+		return priorState{}, err
+	}
 	var state priorState
-	err := tx.QueryRow(
-		ctx,
-		`SELECT applied_policy_digest, confirmed_rules_hash
-		 FROM santa_sync_state WHERE host_id = $1`,
-		hostID,
-	).Scan(&state.policyDigest, &state.confirmedRulesHash)
-	if errors.Is(err, pgx.ErrNoRows) {
-		state = priorState{}
-	} else if err != nil {
+	err = tx.QueryRow(ctx, `
+SELECT applied_policy_digest, confirmed_rules_hash, pending_sync_type IS NOT NULL
+FROM santa_sync_state WHERE host_id = $1 FOR UPDATE`, hostID).Scan(
+		&state.policyDigest, &state.confirmedRulesHash, &state.hasPending,
+	)
+	if err != nil {
 		return priorState{}, err
 	}
 	targets, err := loadTargets(ctx, tx, hostID, phaseApplied)
@@ -90,6 +102,7 @@ func loadPriorState(ctx context.Context, tx pgx.Tx, hostID int64) (priorState, e
 func (p priorState) requiredSyncType(
 	policyDigest string,
 	desired []Target,
+	targetsChanged bool,
 	reported RuleCounts,
 	requestCleanSync bool,
 	clientRulesHash string,
@@ -102,59 +115,10 @@ func (p priorState) requiredSyncType(
 	}
 	if requestCleanSync ||
 		(p.confirmedRulesHash != nil && *p.confirmedRulesHash != clientRulesHash) ||
-		(targetsEqual(desired, p.targets) && !countTargets(desired).MatchesReported(reported)) {
+		(!targetsChanged && !countTargets(desired).MatchesReported(reported)) {
 		return SyncTypeClean
 	}
 	return SyncTypeNormal
-}
-
-type preflightParams struct {
-	hostID          int64
-	policyDigest    string
-	pendingSyncType SyncType
-	clientRulesHash string
-}
-
-const upsertPreflightSQL = `
-INSERT INTO santa_sync_state (
-    host_id,
-    pending_sync_type,
-    pending_policy_digest,
-    preflight_rules_hash,
-    updated_at
-)
-VALUES (
-    $1, $2::santa_sync_type, $3, $4, now()
-)
-ON CONFLICT (host_id) DO UPDATE SET
-    pending_sync_type = EXCLUDED.pending_sync_type,
-    pending_policy_digest = EXCLUDED.pending_policy_digest,
-    preflight_rules_hash = EXCLUDED.preflight_rules_hash,
-    updated_at = now()`
-
-func upsertPreflight(ctx context.Context, tx pgx.Tx, p preflightParams) error {
-	_, err := tx.Exec(ctx, upsertPreflightSQL,
-		p.hostID,
-		p.pendingSyncType,
-		p.policyDigest,
-		p.clientRulesHash,
-	)
-	return err
-}
-
-func rewritePendingState(
-	ctx context.Context,
-	tx pgx.Tx,
-	hostID int64,
-	desired []Target,
-) error {
-	if _, err := tx.Exec(ctx,
-		`DELETE FROM santa_sync_targets WHERE host_id = $1 AND phase = $2::santa_sync_target_phase`,
-		hostID, phaseDesired,
-	); err != nil {
-		return err
-	}
-	return insertTargets(ctx, tx, hostID, phaseDesired, desired)
 }
 
 func validateRuleCounts(counts RuleCounts) error {

@@ -5,6 +5,7 @@ package syncstate_test
 import (
 	"context"
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 
@@ -58,6 +59,29 @@ func TestPreparePendingNormalSyncSendsChangedRulesAndRemovals(t *testing.T) {
 		t.Fatalf("promote initial: %v", err)
 	}
 
+	versions := func() []string {
+		t.Helper()
+		var result []string
+		if err := db.QueryRow(ctx, `
+SELECT array_agg(xmin::text ORDER BY phase)
+FROM santa_sync_targets WHERE host_id = $1 AND identifier = 'stay'`, host.ID).Scan(&result); err != nil {
+			t.Fatal(err)
+		}
+		return result
+	}
+	original := versions()
+	if len(original) != 2 {
+		t.Fatalf("expected desired and applied rows, got %v", original)
+	}
+
+	// Replace an unconfirmed preflight whose desired targets differ from the applied set.
+	interrupted := []syncstate.Target{initial[1], target("binary", "abandoned", "blocklist", "")}
+	if _, err := store.PreparePending(ctx, host.ID, settingsDigest, interrupted, syncstate.RuleCounts{
+		Binary: 2,
+	}, false, syncedRulesHash); err != nil {
+		t.Fatalf("prepare interrupted sync: %v", err)
+	}
+
 	next := []syncstate.Target{
 		target("binary", "stay", "blocklist", "stay-hash"),
 		target("certificate", "new-cert", "blocklist", "new-cert-hash"),
@@ -78,6 +102,12 @@ func TestPreparePendingNormalSyncSendsChangedRulesAndRemovals(t *testing.T) {
 	}
 	if got := payloadSummary(page.Rules); got != "binary:remove-me::true,certificate:new-cert:blocklist:false" {
 		t.Fatalf("payload = %q, want changed rules and removals", got)
+	}
+	if err := store.PromotePending(ctx, host.ID, 2, 2, syncstate.SyncTypeNormal, syncedRulesHash); err != nil {
+		t.Fatalf("promote delta: %v", err)
+	}
+	if got := versions(); !slices.Equal(got, original) {
+		t.Fatalf("unchanged target row versions = %v, want %v", got, original)
 	}
 }
 

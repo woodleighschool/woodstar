@@ -41,17 +41,19 @@ FOR UPDATE`, hostID).Scan(
 		if err != nil {
 			return err
 		}
-		payload := cleanSyncPayload(desired)
-		if state.PendingSyncType == SyncTypeNormal {
-			applied, err := loadTargets(ctx, tx, hostID, phaseApplied)
-			if err != nil {
-				return err
-			}
-			payload = normalSyncPayload(desired, applied)
+		applied, err := loadTargets(ctx, tx, hostID, phaseApplied)
+		if err != nil {
+			return err
+		}
+		changes := normalSyncPayload(desired, applied)
+		payloadCount := len(changes)
+		if state.PendingSyncType != SyncTypeNormal {
+			// Empty clean syncs deliver the tombstone rule.
+			payloadCount = max(1, len(desired))
 		}
 		if err := validatePostflight(
 			state,
-			uint64(len(payload)),
+			uint64(payloadCount),
 			rulesReceived,
 			rulesProcessed,
 			syncType,
@@ -59,34 +61,7 @@ FOR UPDATE`, hostID).Scan(
 		); err != nil {
 			return err
 		}
-		if _, err := tx.Exec(ctx,
-			`DELETE FROM santa_sync_targets WHERE host_id = $1 AND phase = $2::santa_sync_target_phase`,
-			hostID, phaseApplied,
-		); err != nil {
-			return err
-		}
-		if _, err := tx.Exec(ctx, `
-INSERT INTO santa_sync_targets (
-    host_id, phase, position, rule_type, identifier, policy,
-    cel_expression, custom_message, custom_url, notification_app_name, updated_at
-)
-SELECT
-    host_id,
-    'applied'::santa_sync_target_phase,
-    position,
-    rule_type,
-    identifier,
-    policy,
-    cel_expression,
-    custom_message,
-    custom_url,
-    notification_app_name,
-    now()
-FROM santa_sync_targets
-WHERE santa_sync_targets.host_id = $1 AND santa_sync_targets.phase = 'desired'
-ORDER BY position`,
-			hostID,
-		); err != nil {
+		if err := applyTargetChanges(ctx, tx, hostID, phaseApplied, changes); err != nil {
 			return err
 		}
 		_, err = tx.Exec(ctx, `

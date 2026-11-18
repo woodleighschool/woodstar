@@ -34,32 +34,9 @@ func (s *Store) LoadPendingPayloadPage(
 		return PayloadRulePage{}, err
 	}
 
-	var pendingSyncType *string
-	err = s.pool.QueryRow(ctx,
-		`SELECT pending_sync_type::text
-		 FROM santa_sync_state WHERE host_id = $1`,
-		hostID,
-	).Scan(&pendingSyncType)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return PayloadRulePage{}, nil
-	}
+	payload, err := s.pendingPayload(ctx, hostID)
 	if err != nil {
 		return PayloadRulePage{}, err
-	}
-	if pendingSyncType == nil {
-		return PayloadRulePage{}, nil
-	}
-	desired, err := loadTargets(ctx, s.pool, hostID, phaseDesired)
-	if err != nil {
-		return PayloadRulePage{}, err
-	}
-	payload := cleanSyncPayload(desired)
-	if SyncType(*pendingSyncType) == SyncTypeNormal {
-		applied, err := loadTargets(ctx, s.pool, hostID, phaseApplied)
-		if err != nil {
-			return PayloadRulePage{}, err
-		}
-		payload = normalSyncPayload(desired, applied)
 	}
 	start := int(offset)
 	if start >= len(payload) {
@@ -76,6 +53,38 @@ func (s *Store) LoadPendingPayloadPage(
 		}
 	}
 	return PayloadRulePage{Rules: rules, Cursor: nextCursor}, nil
+}
+
+func (s *Store) pendingPayload(ctx context.Context, hostID int64) ([]PayloadRule, error) {
+	// Preflight can replace the pending set and postflight can promote it during a download.
+	var payload []PayloadRule
+	opts := pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly}
+	err := pgx.BeginTxFunc(ctx, s.pool, opts, func(tx pgx.Tx) error {
+		var mode SyncType
+		err := tx.QueryRow(ctx, `
+SELECT pending_sync_type::text FROM santa_sync_state
+WHERE host_id = $1 AND pending_sync_type IS NOT NULL`, hostID).Scan(&mode)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		desired, err := loadTargets(ctx, tx, hostID, phaseDesired)
+		if err != nil {
+			return err
+		}
+		if mode != SyncTypeNormal {
+			payload = cleanSyncPayload(desired)
+			return nil
+		}
+		applied, err := loadTargets(ctx, tx, hostID, phaseApplied)
+		if err == nil {
+			payload = normalSyncPayload(desired, applied)
+		}
+		return err
+	})
+	return payload, err
 }
 
 func decodeCursor(cursor string) (int32, error) {

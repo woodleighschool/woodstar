@@ -8,13 +8,13 @@ import (
 const cleanSyncTombstoneIdentifier = "babd20c244e498bf4c19374cd3de5c0a63a50c7d5f6cac77d915e5eb8d638e6b"
 
 type Target struct {
-	RuleType      string `json:"rule_type"`
-	Identifier    string `json:"identifier"`
-	Policy        string `json:"policy"`
-	CELExpression string `json:"cel_expression,omitempty"`
-	CustomMessage string `json:"custom_message,omitempty"`
-	CustomURL     string `json:"custom_url,omitempty"`
-	AppName       string `json:"notification_app_name,omitempty"`
+	RuleType      string `json:"rule_type" db:"rule_type"`
+	Identifier    string `json:"identifier" db:"identifier"`
+	Policy        string `json:"policy" db:"policy"`
+	CELExpression string `json:"cel_expression,omitempty" db:"cel_expression"`
+	CustomMessage string `json:"custom_message,omitempty" db:"custom_message"`
+	CustomURL     string `json:"custom_url,omitempty" db:"custom_url"`
+	AppName       string `json:"notification_app_name,omitempty" db:"notification_app_name"`
 }
 
 type PayloadRule struct {
@@ -46,7 +46,7 @@ func normalSyncPayload(desired []Target, applied []Target) []PayloadRule {
 		appliedByIdentity[target.identityKey()] = target
 	}
 	currentIdentities := make(map[string]struct{}, len(desired))
-	payload := make([]PayloadRule, 0, len(desired)+len(applied))
+	var payload []PayloadRule
 	for _, target := range desired {
 		currentIdentities[target.identityKey()] = struct{}{}
 		current, ok := appliedByIdentity[target.identityKey()]
@@ -101,12 +101,6 @@ func payloadRuleFromTarget(target Target) PayloadRule {
 	}
 }
 
-func targetsEqual(a []Target, b []Target) bool {
-	return slices.EqualFunc(sortedTargets(a), sortedTargets(b), func(left Target, right Target) bool {
-		return left == right
-	})
-}
-
 func transitiveAuthorityRemoved(applied []Target, desired []Target) bool {
 	desiredAuthorities := transitiveAuthorities(desired)
 	for authority := range transitiveAuthorities(applied) {
@@ -134,23 +128,8 @@ func transitiveAuthorities(targets []Target) map[string]struct{} {
 	return authorities
 }
 
-func sortedTargets(targets []Target) []Target {
-	out := slices.Clone(targets)
-	slices.SortFunc(out, func(left Target, right Target) int {
-		if n := cmp.Compare(ruleTypeSort(left.RuleType), ruleTypeSort(right.RuleType)); n != 0 {
-			return n
-		}
-		if n := cmp.Compare(left.Identifier, right.Identifier); n != 0 {
-			return n
-		}
-		return 0
-	})
-	return out
-}
-
 func sortedPayloadRules(rules []PayloadRule) []PayloadRule {
-	out := slices.Clone(rules)
-	slices.SortFunc(out, func(left PayloadRule, right PayloadRule) int {
+	slices.SortFunc(rules, func(left PayloadRule, right PayloadRule) int {
 		if n := cmp.Compare(ruleTypeSort(left.RuleType), ruleTypeSort(right.RuleType)); n != 0 {
 			return n
 		}
@@ -166,7 +145,7 @@ func sortedPayloadRules(rules []PayloadRule) []PayloadRule {
 			return -1
 		}
 	})
-	return out
+	return rules
 }
 
 func ruleTypeSort(ruleType string) int {
