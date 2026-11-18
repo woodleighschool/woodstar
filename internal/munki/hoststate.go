@@ -13,11 +13,11 @@ type hostObservation struct {
 }
 
 type itemObservation struct {
-	Name             string
-	DisplayName      string
-	Installed        bool
-	InstalledVersion string
-	TargetVersion    string
+	Name             string `json:"name"`
+	DisplayName      string `json:"display_name"`
+	Installed        bool   `json:"installed"`
+	InstalledVersion string `json:"installed_version"`
+	TargetVersion    string `json:"target_version"`
 }
 
 // QueryResult is one member of the Munki detail-query collection.

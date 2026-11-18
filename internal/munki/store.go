@@ -6,6 +6,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/woodleighschool/woodstar/internal/postgres"
 )
 
 type Store struct {
@@ -45,16 +47,20 @@ WHERE host_id = ANY($1::bigint[])`, hostIDs)
 
 func (s *Store) applyCollection(ctx context.Context, update collectionUpdate) error {
 	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		// A host may have no status row yet. Lock the host before reading its
+		// prior snapshot, including when an absent report clears it.
+		if _, err := tx.Exec(ctx, `SELECT id FROM hosts WHERE id = $1 FOR NO KEY UPDATE`, update.HostID); err != nil {
+			return err
+		}
 		if !update.HasReport {
-			if _, err := tx.Exec(ctx, `DELETE FROM munki_host_items WHERE host_id = $1`, update.HostID); err != nil {
-				return err
-			}
-			_, err := tx.Exec(ctx, `DELETE FROM munki_host_status WHERE host_id = $1`, update.HostID)
+			_, err := tx.Exec(ctx, `
+				WITH removed AS (DELETE FROM munki_host_items WHERE host_id = $1)
+				DELETE FROM munki_host_status WHERE host_id = $1`, update.HostID)
 			return err
 		}
 
 		if _, err := tx.Exec(ctx, `
-INSERT INTO munki_host_status (
+INSERT INTO munki_host_status AS status (
 	host_id,
 	version,
 	manifest_name,
@@ -81,7 +87,8 @@ ON CONFLICT (host_id) DO UPDATE SET
 	warnings = EXCLUDED.warnings,
 	problem_installs = EXCLUDED.problem_installs,
 	run_started_at = EXCLUDED.run_started_at,
-	run_ended_at = EXCLUDED.run_ended_at`, pgx.NamedArgs{
+	run_ended_at = EXCLUDED.run_ended_at
+WHERE status IS DISTINCT FROM EXCLUDED`, pgx.NamedArgs{
 			"host_id":          update.HostID,
 			"version":          update.Observation.Version,
 			"manifest_name":    update.Observation.ManifestName,
@@ -93,46 +100,29 @@ ON CONFLICT (host_id) DO UPDATE SET
 		}); err != nil {
 			return err
 		}
-		if _, err := tx.Exec(ctx, `DELETE FROM munki_host_items WHERE host_id = $1`, update.HostID); err != nil {
-			return err
-		}
-		for _, item := range update.Items {
-			if _, err := tx.Exec(ctx, `
-INSERT INTO munki_host_items (
-	host_id,
-	name,
-	display_name,
-	installed,
-	installed_version,
-	target_version
-)
-VALUES (
-	@host_id,
-	@name,
-	@display_name,
-	@installed,
-	@installed_version,
-	@target_version
-)
-ON CONFLICT (host_id, name) DO UPDATE SET
-	display_name = EXCLUDED.display_name,
-	installed = EXCLUDED.installed,
-	installed_version = EXCLUDED.installed_version,
-	target_version = EXCLUDED.target_version`,
-				pgx.NamedArgs{
-					"host_id":           update.HostID,
-					"name":              item.Name,
-					"display_name":      item.DisplayName,
-					"installed":         item.Installed,
-					"installed_version": item.InstalledVersion,
-					"target_version":    item.TargetVersion,
-				}); err != nil {
-				return err
-			}
-		}
-		return nil
+		_, err := tx.Exec(ctx, reconcileHostItemsSQL, update.HostID, postgres.JSONSlice[itemObservation](update.Items))
+		return err
 	})
 }
+
+const reconcileHostItemsSQL = `
+WITH observed AS (
+	SELECT DISTINCT ON (name) name, display_name, installed, installed_version, target_version
+	FROM jsonb_populate_recordset(NULL::munki_host_items, $2::jsonb) WITH ORDINALITY
+	ORDER BY name, ordinality DESC
+), removed AS (
+	DELETE FROM munki_host_items item
+	WHERE item.host_id = $1 AND NOT EXISTS (SELECT FROM observed WHERE name = item.name)
+)
+MERGE INTO munki_host_items item
+USING observed ON item.host_id = $1 AND item.name = observed.name
+WHEN MATCHED AND (item.display_name, item.installed, item.installed_version, item.target_version)
+	IS DISTINCT FROM (observed.display_name, observed.installed, observed.installed_version, observed.target_version)
+	THEN UPDATE SET (display_name, installed, installed_version, target_version) =
+		(observed.display_name, observed.installed, observed.installed_version, observed.target_version)
+WHEN NOT MATCHED THEN
+	INSERT (host_id, name, display_name, installed, installed_version, target_version)
+	VALUES ($1, observed.name, observed.display_name, observed.installed, observed.installed_version, observed.target_version)`
 
 // LoadHostState returns the latest Munki report for a host.
 func (s *Store) LoadHostState(ctx context.Context, hostID int64) (*HostState, error) {
