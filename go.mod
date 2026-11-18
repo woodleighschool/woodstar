@@ -5,7 +5,7 @@ go 1.27.0
 ignore node_modules/
 
 require (
-	buf.build/gen/go/northpolesec/protos/protocolbuffers/go v1.36.12-20261113211313-fde281b3f2d5.2
+	buf.build/gen/go/northpolesec/protos/protocolbuffers/go v1.36.12-20261116191535-e644f3c915d0.2
 	cel.dev/cel-go v0.33.2
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.15.0
 	github.com/alexedwards/scs/pgxstore v0.0.0-20251002162104-209de6e426de
