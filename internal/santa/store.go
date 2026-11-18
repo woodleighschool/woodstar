@@ -102,7 +102,7 @@ func (s *Store) UpsertHostObservation(ctx context.Context, observation HostObser
 // Santa's default MachineID is the hardware UUID reported by Orbit or osquery.
 func (s *Store) hostIDByMachineID(ctx context.Context, machineID string) (int64, error) {
 	var id int64
-	err := s.pool.QueryRow(ctx, `SELECT id FROM hosts WHERE hardware_uuid = $1`, machineID).Scan(&id)
+	err := s.pool.QueryRow(ctx, `SELECT id FROM hosts WHERE hardware_uuid = canonical_host_identity($1)`, machineID).Scan(&id)
 	return id, postgres.GetError(err)
 }
 

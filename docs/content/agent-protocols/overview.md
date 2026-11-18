@@ -18,6 +18,6 @@ The server exposes the native protocol expected by each Mac client. These routes
 
 Create the shared Orbit/osquery secret from **Hosts > Enroll Hosts** or the **osquery** overview. Santa and Munki secrets live on their integration overviews. The deployment profiles are documented with each protocol.
 
-Orbit and osquery can enroll a new host. Santa and Munki require a host that has already enrolled with the same hardware UUID or serial number.
+Orbit and osquery identify hosts by hardware UUID. osquery falls back to its host identifier when hardware UUID is unavailable. Re-enrollment preserves a known serial when the agent omits it. A serial already assigned to another host returns HTTP 409. Santa and Munki require a host that has already enrolled with the same hardware UUID or serial number.
 
 See [Agent Secrets](../concepts/agent-secrets) for the credential model and [Mutual TLS](./mutual-tls) for edge-terminated client certificate authentication.

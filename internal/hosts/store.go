@@ -2,14 +2,26 @@ package hosts
 
 import (
 	"context"
+	"errors"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/postgres"
 )
+
+// ErrSerialConflict means the reported serial belongs to a different host.
+var ErrSerialConflict = errors.New("hardware serial belongs to another host")
+
+func hostIdentityError(err error) error {
+	if pgErr, ok := errors.AsType[*pgconn.PgError](err); ok && pgErr.ConstraintName == "hosts_hardware_serial_idx" {
+		return ErrSerialConflict
+	}
+	return err
+}
 
 // Store persists hosts.
 type Store struct {

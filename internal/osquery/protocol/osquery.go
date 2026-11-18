@@ -12,6 +12,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/enrollment"
 	"github.com/woodleighschool/woodstar/internal/heartbeats"
+	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/httpx"
 	"github.com/woodleighschool/woodstar/internal/osquery"
 )
@@ -68,6 +69,9 @@ func osqueryEnrollHandler(svc agentService, logger *slog.Logger) http.HandlerFun
 				"host_identifier", req.HostIdentifier,
 			)
 			httpx.WriteError(w, http.StatusUnauthorized, "invalid enroll secret")
+			return
+		case errors.Is(err, hosts.ErrSerialConflict):
+			httpx.WriteError(w, http.StatusConflict, hosts.ErrSerialConflict.Error())
 			return
 		case errors.Is(err, enrollment.ErrMissingHardwareUUID):
 			httpx.WriteError(w, http.StatusBadRequest, "hardware_uuid is required")
@@ -149,6 +153,10 @@ func writeOsqueryResult(
 	body any,
 	err error,
 ) {
+	if errors.Is(err, hosts.ErrSerialConflict) {
+		httpx.WriteError(w, http.StatusConflict, hosts.ErrSerialConflict.Error())
+		return
+	}
 	if err != nil {
 		logger.ErrorContext(r.Context(), "osquery handler failed", "operation", operation, "err", err)
 		httpx.WriteError(w, http.StatusInternalServerError, "request failed")

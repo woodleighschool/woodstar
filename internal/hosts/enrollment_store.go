@@ -41,7 +41,7 @@ INSERT INTO hosts (
 	enrolled_at
 )
 VALUES (
-	@hardware_uuid,
+	canonical_host_identity(@hardware_uuid),
 	@display_name,
 	@hostname,
 	@computer_name,
@@ -55,7 +55,7 @@ ON CONFLICT (hardware_uuid) DO UPDATE SET
 	display_name = EXCLUDED.display_name,
 	hostname = EXCLUDED.hostname,
 	computer_name = EXCLUDED.computer_name,
-	hardware_serial = EXCLUDED.hardware_serial,
+	hardware_serial = COALESCE(NULLIF(EXCLUDED.hardware_serial, ''), hosts.hardware_serial),
 	hardware_model_identifier = EXCLUDED.hardware_model_identifier,
 	orbit_node_key = EXCLUDED.orbit_node_key,
 	orbit_device_auth_token = '',
@@ -123,7 +123,7 @@ INSERT INTO hosts (
 	inventory_updated_at
 )
 VALUES (
-	@hardware_uuid,
+	canonical_host_identity(@hardware_uuid),
 	@display_name,
 	@hostname,
 	@computer_name,
@@ -152,7 +152,7 @@ ON CONFLICT (hardware_uuid) DO UPDATE SET
 	display_name = EXCLUDED.display_name,
 	hostname = EXCLUDED.hostname,
 	computer_name = EXCLUDED.computer_name,
-	hardware_serial = EXCLUDED.hardware_serial,
+	hardware_serial = COALESCE(NULLIF(EXCLUDED.hardware_serial, ''), hosts.hardware_serial),
 	hardware_model_identifier = EXCLUDED.hardware_model_identifier,
 	os_version = EXCLUDED.os_version,
 	os_name = COALESCE(NULLIF(EXCLUDED.os_name, ''), hosts.os_name),
@@ -190,7 +190,7 @@ func upsertOnEnroll[W any](
 	err := pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
 		var hostID int64
 		if err := tx.QueryRow(ctx, sql, pgx.StructArgs(write)).Scan(&hostID); err != nil {
-			return err
+			return hostIdentityError(err)
 		}
 		if _, err := tx.Exec(ctx, `
 INSERT INTO label_membership (label_id, host_id)

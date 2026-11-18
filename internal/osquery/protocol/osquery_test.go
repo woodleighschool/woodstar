@@ -16,6 +16,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/enrollment"
 	"github.com/woodleighschool/woodstar/internal/heartbeats"
+	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/osquery"
 )
 
@@ -76,6 +77,7 @@ func TestOsqueryEnrollMapsServiceErrors(t *testing.T) {
 	}{
 		{name: "invalid enrollment secret", err: agentauth.ErrInvalidSecret, wantStatus: http.StatusUnauthorized},
 		{name: "missing hardware UUID", err: enrollment.ErrMissingHardwareUUID, wantStatus: http.StatusBadRequest},
+		{name: "serial owned by another host", err: hosts.ErrSerialConflict, wantStatus: http.StatusConflict},
 		{name: "service failure", err: errors.New("database unavailable"), wantStatus: http.StatusInternalServerError},
 	}
 	for _, tt := range tests {

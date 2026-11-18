@@ -72,7 +72,7 @@ SET
 	osquery_config_refresh_seconds = COALESCE(@osquery_config_refresh_seconds::integer, osquery_config_refresh_seconds),
 	updated_at = now()
 WHERE id = @id`, pgx.StructArgs(write))
-	return err
+	return hostIdentityError(err)
 }
 
 func (s *Store) ReplaceBatteries(ctx context.Context, hostID int64, batteries []HostBattery) error {

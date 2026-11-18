@@ -116,6 +116,9 @@ func orbitEnrollHandler(svc enrollmentService, logger *slog.Logger) http.Handler
 
 		host, nodeKey, err := svc.Enroll(r.Context(), req, requestContact(r))
 		switch {
+		case errors.Is(err, hosts.ErrSerialConflict):
+			httpx.WriteError(w, http.StatusConflict, hosts.ErrSerialConflict.Error())
+			return
 		case errors.Is(err, enrollment.ErrMissingHardwareUUID):
 			httpx.WriteError(w, http.StatusBadRequest, "hardware_uuid is required")
 			return

@@ -429,9 +429,9 @@ func TestEnrollAddsHostToAllHosts(t *testing.T) {
 func TestReenrollPreservesHostIdentity(t *testing.T) {
 	store, ctx := newPostgresHostStore(t)
 
-	const hardwareUUID = "test-reenroll-preserves-host-identity"
+	const hardwareUUID = "a0bc0000-0000-4000-8000-000000000001"
 	host, err := store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
-		Hardware:     HostHardware{UUID: hardwareUUID},
+		Hardware:     HostHardware{UUID: "A0BC0000-0000-4000-8000-000000000001", Serial: "REENROLL01"},
 		OrbitNodeKey: "orbit-key-initial",
 	}, heartbeats.Contact{})
 
@@ -445,6 +445,9 @@ func TestReenrollPreservesHostIdentity(t *testing.T) {
 
 	if err != nil {
 		t.Fatalf("enroll host with osquery: %v", err)
+	}
+	if attached.Hardware.Serial != "REENROLL01" {
+		t.Fatalf("re-enrollment erased serial: %q", attached.Hardware.Serial)
 	}
 	if attached.ID != host.ID {
 		t.Fatalf("first osquery enrollment host ID = %d, want Orbit host ID %d", attached.ID, host.ID)
@@ -550,8 +553,8 @@ func TestGetByHardwareSerialRequiresUniqueRealSerial(t *testing.T) {
 	if _, err := store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
 		Hardware:     HostHardware{UUID: "test-serial-identity-2", Serial: "C02SERIAL"},
 		OrbitNodeKey: "orbit-key-serial-2",
-	}, heartbeats.Contact{}); err == nil {
-		t.Fatal("duplicate hardware serial insert succeeded")
+	}, heartbeats.Contact{}); !errors.Is(err, ErrSerialConflict) {
+		t.Fatalf("duplicate serial error = %v, want ErrSerialConflict", err)
 	}
 }
 
