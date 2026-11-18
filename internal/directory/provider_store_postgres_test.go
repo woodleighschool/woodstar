@@ -251,8 +251,7 @@ func TestApplyProviderSnapshotReconcilesUsersAndGroups(t *testing.T) {
 			},
 		},
 	}
-	provider := store
-	if err := provider.ApplyProviderSnapshot(ctx, SourceEntra, first); err != nil {
+	if err := store.ApplyProviderSnapshot(ctx, SourceEntra, first); err != nil {
 		t.Fatalf("apply first snapshot: %v", err)
 	}
 
@@ -266,16 +265,7 @@ func TestApplyProviderSnapshotReconcilesUsersAndGroups(t *testing.T) {
 		t.Fatalf("user count = %d, want 2", userCount)
 	}
 
-	const retainedMembership = `
-SELECT m.xmin::text
-FROM directory_group_memberships m
-JOIN users u ON u.id = m.user_id
-JOIN directory_groups g ON g.id = m.group_id
-WHERE u.external_id = 'u-alice' AND g.external_id = 'g-ops'`
-	var before, after string
-	if err := database.QueryRow(ctx, retainedMembership).Scan(&before); err != nil {
-		t.Fatal(err)
-	}
+	before := membershipVersion(t, store, "u-alice", "g-ops")
 
 	second := ProviderSnapshot{
 		GeneratedAt: time.Now().UTC(),
@@ -293,14 +283,11 @@ WHERE u.external_id = 'u-alice' AND g.external_id = 'g-ops'`
 			},
 		},
 	}
-	if err := provider.ApplyProviderSnapshot(ctx, SourceEntra, second); err != nil {
+	if err := store.ApplyProviderSnapshot(ctx, SourceEntra, second); err != nil {
 		t.Fatalf("apply second snapshot: %v", err)
 	}
 
-	if err := database.QueryRow(ctx, retainedMembership).Scan(&after); err != nil {
-		t.Fatal(err)
-	}
-	if before != after {
+	if before != membershipVersion(t, store, "u-alice", "g-ops") {
 		t.Fatal("unchanged group membership was rewritten")
 	}
 
@@ -368,7 +355,7 @@ WHERE u.external_id = 'u-alice' AND g.external_id = 'g-ops'`
 			},
 		},
 	}
-	if err := provider.ApplyProviderSnapshot(ctx, SourceEntra, third); err != nil {
+	if err := store.ApplyProviderSnapshot(ctx, SourceEntra, third); err != nil {
 		t.Fatalf("apply third snapshot: %v", err)
 	}
 	bobDeletedAt = &time.Time{}
@@ -382,6 +369,20 @@ WHERE u.external_id = 'u-alice' AND g.external_id = 'g-ops'`
 	if bobDeletedAt != nil {
 		t.Fatalf("bob deleted_at = %v, want nil after returning to Entra", bobDeletedAt)
 	}
+}
+
+func membershipVersion(t *testing.T, store *Store, userExternalID, groupExternalID string) string {
+	t.Helper()
+	var version string
+	if err := store.pool.QueryRow(t.Context(), `
+SELECT m.xmin::text
+FROM directory_group_memberships m
+JOIN users u ON u.id = m.user_id
+JOIN directory_groups g ON g.id = m.group_id
+WHERE u.external_id = $1 AND g.external_id = $2`, userExternalID, groupExternalID).Scan(&version); err != nil {
+		t.Fatal(err)
+	}
+	return version
 }
 
 func TestApplyProviderSnapshotKeepsReplacedEntraObjectsDistinct(t *testing.T) {
