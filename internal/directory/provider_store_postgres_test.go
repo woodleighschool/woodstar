@@ -266,7 +266,17 @@ func TestApplyProviderSnapshotReconcilesUsersAndGroups(t *testing.T) {
 		t.Fatalf("user count = %d, want 2", userCount)
 	}
 
-	// Second snapshot misses Bob and removes the ops group; Alice moves to ops only.
+	const retainedMembership = `
+SELECT m.xmin::text
+FROM directory_group_memberships m
+JOIN users u ON u.id = m.user_id
+JOIN directory_groups g ON g.id = m.group_id
+WHERE u.external_id = 'u-alice' AND g.external_id = 'g-ops'`
+	var before, after string
+	if err := database.QueryRow(ctx, retainedMembership).Scan(&before); err != nil {
+		t.Fatal(err)
+	}
+
 	second := ProviderSnapshot{
 		GeneratedAt: time.Now().UTC(),
 		Groups: []ProviderGroup{
@@ -285,6 +295,13 @@ func TestApplyProviderSnapshotReconcilesUsersAndGroups(t *testing.T) {
 	}
 	if err := provider.ApplyProviderSnapshot(ctx, SourceEntra, second); err != nil {
 		t.Fatalf("apply second snapshot: %v", err)
+	}
+
+	if err := database.QueryRow(ctx, retainedMembership).Scan(&after); err != nil {
+		t.Fatal(err)
+	}
+	if before != after {
+		t.Fatal("unchanged group membership was rewritten")
 	}
 
 	var upn, name, department string

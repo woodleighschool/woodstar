@@ -52,26 +52,19 @@ func (s *PrimaryUserStore) Upsert(ctx context.Context, hostID int64, email strin
 		return err
 	}
 	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
-		if err := upsertPrimaryUser(ctx, tx, hostID, email, source); err != nil {
-			return err
+		tag, err := tx.Exec(ctx, upsertHostPrimaryUserSourceSQL, pgx.NamedArgs{
+			"host_id": hostID,
+			"email":   email,
+			"source":  string(source),
+		})
+		if err != nil {
+			return postgres.MutationError(err)
+		}
+		if tag.RowsAffected() == 0 {
+			return nil
 		}
 		return s.labels.RefreshDerivedForHostTx(ctx, tx, hostID)
 	})
-}
-
-func upsertPrimaryUser(
-	ctx context.Context,
-	tx pgx.Tx,
-	hostID int64,
-	email string,
-	source PrimaryUserSource,
-) error {
-	_, err := tx.Exec(ctx, upsertHostPrimaryUserSourceSQL, pgx.NamedArgs{
-		"host_id": hostID,
-		"email":   email,
-		"source":  string(source),
-	})
-	return postgres.MutationError(err)
 }
 
 func (s *PrimaryUserStore) Delete(ctx context.Context, hostID int64, source PrimaryUserSource) error {
@@ -259,7 +252,8 @@ VALUES (
 )
 ON CONFLICT (host_id, source) DO UPDATE SET
 	email = EXCLUDED.email,
-	updated_at = now()`
+	updated_at = now()
+WHERE host_primary_user_sources.email IS DISTINCT FROM EXCLUDED.email`
 
 const deleteHostPrimaryUserSourceSQL = `
 DELETE FROM host_primary_user_sources

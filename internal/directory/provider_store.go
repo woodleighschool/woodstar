@@ -204,34 +204,26 @@ WHEN NOT MATCHED BY SOURCE AND u.source = $1::directory_source AND u.deleted_at 
 }
 
 func reconcileGroupMembershipSnapshot(ctx context.Context, tx pgx.Tx, source Source) error {
-	if _, err := tx.Exec(ctx, `
-DELETE FROM directory_group_memberships membership
-USING users, directory_groups groups
-WHERE membership.user_id = users.id
-  AND membership.group_id = groups.id
-  AND users.source = $1::directory_source
-  AND groups.source = $1::directory_source`, string(source)); err != nil {
-		return err
-	}
-
 	_, err := tx.Exec(ctx, `
 WITH current_users AS (
-    SELECT DISTINCT ON (external_id)
-        external_id,
-        group_external_ids
+    SELECT DISTINCT ON (external_id) external_id, group_external_ids
     FROM directory_user_snapshot
     ORDER BY external_id, position DESC
+), desired AS (
+    SELECT DISTINCT u.id AS user_id, g.id AS group_id
+    FROM current_users snapshot
+    JOIN users u ON u.source = $1 AND u.external_id = snapshot.external_id
+    CROSS JOIN LATERAL unnest(snapshot.group_external_ids) AS member(external_id)
+    JOIN directory_groups g ON g.source = $1 AND g.external_id = member.external_id
+), removed AS (
+    DELETE FROM directory_group_memberships m
+    USING users u, directory_groups g
+    WHERE u.id = m.user_id AND u.source = $1
+      AND g.id = m.group_id AND g.source = $1
+      AND NOT EXISTS (SELECT FROM desired d WHERE (d.user_id, d.group_id) = (m.user_id, m.group_id))
 )
 INSERT INTO directory_group_memberships (user_id, group_id)
-SELECT DISTINCT users.id, groups.id
-FROM current_users snapshot
-CROSS JOIN LATERAL unnest(snapshot.group_external_ids) AS membership(group_external_id)
-JOIN users
-  ON users.source = $1::directory_source
- AND users.external_id = snapshot.external_id
-JOIN directory_groups groups
-  ON groups.source = $1::directory_source
- AND groups.external_id = membership.group_external_id
+SELECT user_id, group_id FROM desired
 ON CONFLICT DO NOTHING`, string(source))
 	return err
 }

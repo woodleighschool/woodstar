@@ -281,33 +281,9 @@ func refreshDerivedTx(ctx context.Context, tx pgx.Tx, scope derivedRefreshScope)
 			return err
 		}
 	}
-	labelID, hostID := scope.values()
-	if _, err := tx.Exec(ctx, deleteDerivedMembershipsSQL, labelID, hostID); err != nil {
-		return err
-	}
-	_, err = tx.Exec(ctx, insertDerivedMembershipsSQL(), labelID, hostID)
+	_, err = tx.Exec(ctx, reconcileDerivedMembershipsSQL, scope.labelID, scope.hostID)
 	return err
 }
-
-func (scope derivedRefreshScope) values() (any, any) {
-	var labelID any
-	if scope.labelID != nil {
-		labelID = *scope.labelID
-	}
-	var hostID any
-	if scope.hostID != nil {
-		hostID = *scope.hostID
-	}
-	return labelID, hostID
-}
-
-const deleteDerivedMembershipsSQL = `
-DELETE FROM label_membership AS membership
-USING labels AS label
-WHERE membership.label_id = label.id
-  AND label.label_membership_type = 'derived'
-  AND ($1::bigint IS NULL OR membership.label_id = $1)
-  AND ($2::bigint IS NULL OR membership.host_id = $2)`
 
 func listDerivedLabels(ctx context.Context, q postgres.Queryer, labelID *int64) ([]derivedLabelRow, error) {
 	rows, err := q.Query(ctx, `
@@ -494,8 +470,7 @@ FROM labels l
 LEFT JOIN label_membership lm ON lm.label_id = l.id`
 }
 
-func insertDerivedMembershipsSQL() string {
-	return `
+const reconcileDerivedMembershipsSQL = `
 WITH resolved AS (
 	SELECT host_id, user_id, department
 	FROM host_primary_users
@@ -534,9 +509,17 @@ matching_memberships AS (
 	JOIN criteria
 	  ON criteria.attribute = '` + string(DerivedAttributeUser) + `'
 	 AND criteria.value = resolved.user_id::text
+), removed AS (
+	DELETE FROM label_membership m
+	USING labels l
+	WHERE l.id = m.label_id AND l.label_membership_type = 'derived'
+	  AND ($1::bigint IS NULL OR m.label_id = $1)
+	  AND ($2::bigint IS NULL OR m.host_id = $2)
+	  AND NOT EXISTS (
+	      SELECT FROM matching_memberships wanted
+	      WHERE (wanted.label_id, wanted.host_id) = (m.label_id, m.host_id)
+	  )
 )
 INSERT INTO label_membership (label_id, host_id)
-SELECT label_id, host_id
-FROM matching_memberships
-ON CONFLICT (label_id, host_id) DO UPDATE SET updated_at = now()`
-}
+SELECT label_id, host_id FROM matching_memberships
+ON CONFLICT DO NOTHING`
