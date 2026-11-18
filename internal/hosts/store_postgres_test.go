@@ -556,6 +556,15 @@ func TestIDByHardwareSerialRequiresUniqueRealSerial(t *testing.T) {
 	}, heartbeats.Contact{}); !errors.Is(err, ErrSerialConflict) {
 		t.Fatalf("duplicate serial error = %v, want ErrSerialConflict", err)
 	}
+	if _, err := store.UpsertOnOsqueryEnroll(ctx, InventoryUpdate{
+		Hardware:       HostHardware{UUID: "test-serial-identity-2", Serial: "C02SERIAL"},
+		OsqueryNodeKey: "osquery-key-serial-2",
+	}, heartbeats.Contact{}); !errors.Is(err, ErrSerialConflict) {
+		t.Fatalf("duplicate osquery serial error = %v, want ErrSerialConflict", err)
+	}
+	if owner, err := store.IDByHardwareSerial(ctx, "C02SERIAL"); err != nil || owner != host.ID {
+		t.Fatalf("serial owner after conflicting enrollments = %d, %v", owner, err)
+	}
 }
 
 func TestHostProjectionUsesSourceSpecificHeartbeats(t *testing.T) {

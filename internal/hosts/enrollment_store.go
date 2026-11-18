@@ -2,6 +2,7 @@ package hosts
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -12,6 +13,15 @@ import (
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/postgres"
 )
+
+// A repeat claim on an owned serial should return a conflict without attempting
+// a write. The unique index also covers concurrent first claims.
+const enrollmentSerialAvailable = `
+WHERE NOT EXISTS (
+	SELECT FROM hosts
+	WHERE hardware_serial <> '' AND hardware_serial = @hardware_serial
+	  AND hardware_uuid <> canonical_host_identity(@hardware_uuid)
+)`
 
 // UpsertOnOrbitEnroll creates a host or refreshes its Orbit enrollment without replacing its identity.
 func (s *Store) UpsertOnOrbitEnroll(
@@ -40,7 +50,7 @@ INSERT INTO hosts (
 	enrollment_agent,
 	enrolled_at
 )
-VALUES (
+SELECT
 	canonical_host_identity(@hardware_uuid),
 	@display_name,
 	@hostname,
@@ -50,7 +60,7 @@ VALUES (
 	@orbit_node_key,
 	'orbit',
 	now()
-)
+`+enrollmentSerialAvailable+`
 ON CONFLICT (hardware_uuid) DO UPDATE SET
 	display_name = EXCLUDED.display_name,
 	hostname = EXCLUDED.hostname,
@@ -122,7 +132,7 @@ INSERT INTO hosts (
 	os_kernel_version,
 	enrolled_at
 )
-VALUES (
+SELECT
 	canonical_host_identity(@hardware_uuid),
 	@display_name,
 	@hostname,
@@ -147,7 +157,7 @@ VALUES (
 	@hardware_vendor,
 	@os_kernel_version,
 	now()
-)
+`+enrollmentSerialAvailable+`
 ON CONFLICT (hardware_uuid) DO UPDATE SET
 	display_name = EXCLUDED.display_name,
 	hostname = EXCLUDED.hostname,
@@ -191,6 +201,9 @@ func upsertOnEnroll[W any](
 	err := pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
 		var hostID int64
 		if err := tx.QueryRow(ctx, sql, pgx.StructArgs(write)).Scan(&hostID); err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return ErrSerialConflict
+			}
 			return hostIdentityError(err)
 		}
 		if _, err := tx.Exec(ctx, `
