@@ -13,13 +13,9 @@ export interface UserDeleteDialogProps {
 
 export function UserDeleteDialog({ open, onOpenChange, user, onDeleted }: UserDeleteDialogProps) {
   const remove = useDeleteUser();
-  const isLocal = user?.source === "local";
-  const action = "Delete User";
   const name = nonEmpty(user?.name) ?? nonEmpty(user?.email) ?? "";
   const userDescription = user?.name ? `${name} (${user.email})` : name;
-  const description = isLocal
-    ? "This permanently deletes the local user. Their next request will sign them out automatically."
-    : "This removes the user from the current directory view. Directory sync can restore the user if the source still contains it.";
+  const description = "This permanently deletes the local user.";
 
   async function handleConfirm() {
     if (!user) return;
@@ -36,7 +32,7 @@ export function UserDeleteDialog({ open, onOpenChange, user, onDeleted }: UserDe
         if (!next) remove.reset();
         onOpenChange(next);
       }}
-      title={action}
+      title="Delete User"
       description={userDescription ? `${description} Delete ${userDescription}?` : description}
       confirmLabel="Delete"
       variant="destructive"

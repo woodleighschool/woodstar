@@ -146,7 +146,9 @@ FROM (
 ON CONFLICT (source, external_id) DO UPDATE SET
     display_name = EXCLUDED.display_name,
     mail_nickname = EXCLUDED.mail_nickname,
-    updated_at = now()`, string(source)); err != nil {
+    updated_at = now()
+WHERE (directory_groups.display_name, directory_groups.mail_nickname)
+      IS DISTINCT FROM (EXCLUDED.display_name, EXCLUDED.mail_nickname)`, string(source)); err != nil {
 		return err
 	}
 
@@ -162,59 +164,42 @@ WHERE groups.source = $1::directory_source
 }
 
 func reconcileUserSnapshot(ctx context.Context, tx pgx.Tx, source Source) error {
-	// Provider object IDs own identity. Tombstoning the current generation first
-	// lets current attributes move between objects without reassigning old rows.
-	if _, err := tx.Exec(ctx, `
-UPDATE users
-SET
-    deleted_at = now(),
-    updated_at = now()
-WHERE source = $1::directory_source
-  AND deleted_at IS NULL`, string(source)); err != nil {
-		return err
-	}
-
 	_, err := tx.Exec(ctx, `
-INSERT INTO users (
-    email, name, source, external_id, user_principal_name,
-    mail_nickname, given_name, family_name, department, deleted_at
-)
-SELECT
-    COALESCE(mail, user_principal_name),
-    display_name,
-    $1::directory_source,
-    external_id,
-    user_principal_name,
-    mail_nickname,
-    given_name,
-    family_name,
-    department,
-    CASE WHEN enabled THEN NULL ELSE now() END
-FROM (
+MERGE INTO users AS u
+USING (
     SELECT DISTINCT ON (external_id)
-        position,
-        external_id,
-        user_principal_name,
-        mail,
-        mail_nickname,
-        display_name,
-        given_name,
-        family_name,
-        department,
-        enabled
+        external_id, COALESCE(mail, user_principal_name) AS email, display_name,
+        user_principal_name, mail_nickname, given_name, family_name, department, enabled
     FROM directory_user_snapshot
     ORDER BY external_id, position DESC
-) snapshot
-ON CONFLICT (source, external_id) DO UPDATE SET
-    email = EXCLUDED.email,
-    name = EXCLUDED.name,
-    user_principal_name = EXCLUDED.user_principal_name,
-    mail_nickname = EXCLUDED.mail_nickname,
-    given_name = EXCLUDED.given_name,
-    family_name = EXCLUDED.family_name,
-    department = EXCLUDED.department,
-    deleted_at = EXCLUDED.deleted_at,
-    updated_at = now()`, string(source))
+) AS snapshot
+ON u.source = $1::directory_source AND u.external_id = snapshot.external_id
+WHEN MATCHED AND (
+    u.deleted_at IS NOT NULL OR
+    (u.email, u.name, u.user_principal_name, u.mail_nickname, u.given_name, u.family_name, u.department, u.account_enabled)
+    IS DISTINCT FROM
+    (snapshot.email, snapshot.display_name, snapshot.user_principal_name, snapshot.mail_nickname,
+     snapshot.given_name, snapshot.family_name, snapshot.department, snapshot.enabled)
+) THEN UPDATE SET
+    email = snapshot.email,
+    name = snapshot.display_name,
+    user_principal_name = snapshot.user_principal_name,
+    mail_nickname = snapshot.mail_nickname,
+    given_name = snapshot.given_name,
+    family_name = snapshot.family_name,
+    department = snapshot.department,
+    account_enabled = snapshot.enabled,
+    deleted_at = NULL,
+    updated_at = now()
+WHEN NOT MATCHED BY TARGET THEN INSERT (
+    source, external_id, email, name, user_principal_name,
+    mail_nickname, given_name, family_name, department, account_enabled
+) VALUES (
+    $1::directory_source, snapshot.external_id, snapshot.email, snapshot.display_name, snapshot.user_principal_name,
+    snapshot.mail_nickname, snapshot.given_name, snapshot.family_name, snapshot.department, snapshot.enabled
+)
+WHEN NOT MATCHED BY SOURCE AND u.source = $1::directory_source AND u.deleted_at IS NULL
+    THEN UPDATE SET deleted_at = now(), updated_at = now()`, string(source))
 	return err
 }
 

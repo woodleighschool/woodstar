@@ -85,6 +85,7 @@ func (c *Client) Fetch(ctx context.Context) (directory.ProviderSnapshot, error) 
 func (c *Client) fetchUsers(ctx context.Context) ([]directory.ProviderUser, error) {
 	page, err := c.graph.Users().Get(ctx, &graphusers.UsersRequestBuilderGetRequestConfiguration{
 		QueryParameters: &graphusers.UsersRequestBuilderGetQueryParameters{
+			Filter: new("userType eq 'Member'"),
 			Select: []string{
 				"id",
 				"userPrincipalName",
@@ -114,6 +115,7 @@ func (c *Client) fetchUsers(ctx context.Context) ([]directory.ProviderUser, erro
 
 	var users []directory.ProviderUser
 	err = iterator.Iterate(ctx, func(user graphmodels.Userable) bool {
+		accountEnabled := user.GetAccountEnabled()
 		users = append(users, directory.ProviderUser{
 			ExternalID:        deref(user.GetId()),
 			UserPrincipalName: deref(user.GetUserPrincipalName()),
@@ -123,7 +125,7 @@ func (c *Client) fetchUsers(ctx context.Context) ([]directory.ProviderUser, erro
 			GivenName:         deref(user.GetGivenName()),
 			FamilyName:        deref(user.GetSurname()),
 			Department:        deref(user.GetDepartment()),
-			Enabled:           enabled(user.GetAccountEnabled()),
+			Enabled:           accountEnabled != nil && *accountEnabled,
 		})
 		return true
 	})
@@ -291,10 +293,6 @@ func deref(value *string) string {
 		return ""
 	}
 	return *value
-}
-
-func enabled(value *bool) bool {
-	return value == nil || *value
 }
 
 func int32Pointer(value int32) *int32 {

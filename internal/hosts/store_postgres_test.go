@@ -6,9 +6,11 @@ import (
 	"context"
 	"errors"
 	"net/netip"
+	"slices"
 	"testing"
 	"time"
 
+	"github.com/woodleighschool/woodstar/internal/directory"
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/heartbeats"
 	"github.com/woodleighschool/woodstar/internal/labels"
@@ -121,31 +123,24 @@ func TestLoadDetailResolvesPrimaryUserFromSourceEmail(t *testing.T) {
 	}
 	if _, err := store.pool.Exec(ctx, `
 INSERT INTO users (email, name, password_hash)
-VALUES ('test1@woodleigh.vic.edu.au', 'Local Test One', 'password-hash')`); err != nil {
+VALUES ('member@example.invalid', 'Local Test One', 'password-hash')`); err != nil {
 		t.Fatalf("insert same-email local user: %v", err)
 	}
-	if _, err := store.pool.Exec(ctx, `
-INSERT INTO users (
-	email, name, source, external_id, user_principal_name,
-	mail_nickname, given_name, family_name, department
-)
-VALUES (
-	'test1@woodleigh.vic.edu.au',
-	'Test One',
-	'entra',
-	'test1-entra',
-	'test1@woodleigh.vic.edu.au',
-	'test1',
-	'Test',
-	'One',
-	'Students'
-)`); err != nil {
-		t.Fatalf("insert directory user: %v", err)
+	directoryStore := directory.NewStore(store.pool, labels.NewStore(store.pool))
+	if err := directoryStore.ApplyProviderSnapshot(ctx, directory.SourceEntra, directory.ProviderSnapshot{
+		Users: []directory.ProviderUser{{
+			ExternalID: "test1-entra", UserPrincipalName: "member@example.invalid",
+			DisplayName: "Test One", MailNickname: "test1", Department: "Students",
+			Enabled: false, GroupExternalIDs: []string{"class-group"},
+		}},
+		Groups: []directory.ProviderGroup{{ExternalID: "class-group", DisplayName: "Class"}},
+	}); err != nil {
+		t.Fatal(err)
 	}
 	if err := primaryUsers.Upsert(
 		ctx,
 		host.ID,
-		"test1@woodleigh.vic.edu.au",
+		"member@example.invalid",
 		PrimaryUserSourceOrbitProfile,
 	); err != nil {
 		t.Fatalf("seed primary user: %v", err)
@@ -159,7 +154,8 @@ VALUES (
 	if primaryUser == nil {
 		t.Fatal("PrimaryUser is nil")
 	}
-	if primaryUser.Email != "test1@woodleigh.vic.edu.au" ||
+	if primaryUser.Email != "member@example.invalid" ||
+		!slices.Equal(primaryUser.Groups, []string{"Class"}) ||
 		primaryUser.Username != "test1" ||
 		primaryUser.Name != "Test One" ||
 		primaryUser.Department != "Students" ||

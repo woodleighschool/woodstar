@@ -15,6 +15,7 @@ import { FilterChip } from "@components/filter-controls";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
 import { Link, TextLink } from "@components/link";
 import { QueryError } from "@components/query-error";
+import { Badge } from "@components/ui/badge";
 import { Button } from "@components/ui/button";
 import {
   DropdownMenu,
@@ -51,13 +52,18 @@ interface UserTableRow {
 function UserNameCell({ row }: DataTableCellContext<UserTableRow>) {
   const label = nonEmpty(row.original.user.name) ?? row.original.user.email;
   return (
-    <TextLink
-      to="/directory/users/$id"
-      params={{ id: row.original.user.id }}
-      className="font-medium"
-    >
-      {label}
-    </TextLink>
+    <div className="flex items-center gap-2">
+      <TextLink
+        to="/directory/users/$id"
+        params={{ id: row.original.user.id }}
+        className="font-medium"
+      >
+        {label}
+      </TextLink>
+      {row.original.user.account_enabled ? null : (
+        <Badge variant="secondary">Sign-in disabled</Badge>
+      )}
+    </div>
   );
 }
 
@@ -285,7 +291,7 @@ function UserRowActions({
           <DropdownMenuItem render={<Link {...userEditLink(user.id, isSelf ? user.id : null)} />}>
             Edit
           </DropdownMenuItem>
-          {!isSelf ? (
+          {!isSelf && user.source === "local" ? (
             <DropdownMenuItem variant="destructive" onClick={() => onDelete(user)}>
               Delete
             </DropdownMenuItem>

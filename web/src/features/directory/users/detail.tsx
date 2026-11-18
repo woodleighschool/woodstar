@@ -55,7 +55,7 @@ export function UserDetailPage() {
                   <Pencil data-icon="inline-start" />
                   Edit
                 </Button>
-                {canEdit && !isSelf ? (
+                {canEdit && !isSelf && user.source === "local" ? (
                   <Button
                     type="button"
                     variant="destructive"
@@ -74,6 +74,12 @@ export function UserDetailPage() {
         <KeyValueSection title="Overview">
           <KeyValueRow label="Name" value={nonEmpty(user.name) ?? "-"} />
           <KeyValueRow label="Email" value={user.email} />
+          {user.source === "entra" ? (
+            <KeyValueRow
+              label="Entra sign-in"
+              value={user.account_enabled ? "Enabled" : "Disabled"}
+            />
+          ) : null}
           <KeyValueRow
             label="Source"
             value={<EnumBadge value={user.source} metadata={DIRECTORY_SOURCES} />}

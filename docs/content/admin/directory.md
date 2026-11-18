@@ -6,13 +6,15 @@ description: Users and groups synced from Microsoft Entra ID.
 
 # Directory
 
-The server can sync users and groups from Microsoft Entra ID. The sync runs when the tenant ID, client ID, and client secret are configured. See [Environment](../configuration/environment#entra-directory-sync).
+The server syncs Microsoft Entra groups and member accounts only. The sync runs when the tenant ID, client ID, and client secret are configured. See [Environment](../configuration/environment#entra-directory-sync).
 
 Directory data is used for:
 
 - **User affinity**, which associates a person with a Mac.
 - **Derived labels**, which group hosts by user, group, or department.
 - **OIDC sign-in**, after a synced user has been given an app role.
+
+Disabled members cannot sign in or use personal API keys. A successful full sync soft-deletes absent members.
 
 Set `WOODSTAR_ENTRA_TRANSITIVE_GROUPS=true` if nested group membership should be expanded.
 

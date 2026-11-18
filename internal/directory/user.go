@@ -40,6 +40,7 @@ type User struct {
 	GivenName         string     `json:"given_name,omitempty"`
 	FamilyName        string     `json:"family_name,omitempty"`
 	Department        string     `json:"department,omitempty"`
+	AccountEnabled    bool       `json:"account_enabled" doc:"Whether the account is enabled for authentication."`
 	DeletedAt         *time.Time `json:"deleted_at,omitempty"`
 	CreatedAt         time.Time  `json:"created_at"`
 	UpdatedAt         time.Time  `json:"updated_at"`

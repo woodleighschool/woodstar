@@ -7,8 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/woodleighschool/goodies/auth/authn"
-
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/listing"
@@ -43,89 +41,6 @@ func TestDeleteRemovesLocalUsers(t *testing.T) {
 	}
 	if _, err := store.GetUserByID(ctx, user.ID); !errors.Is(err, fault.ErrNotFound) {
 		t.Fatalf("get deleted user err = %v, want %v", err, fault.ErrNotFound)
-	}
-}
-
-func TestDeleteSoftDeletesDirectoryUsers(t *testing.T) {
-	database, ctx := testdb.Open(t)
-	store := NewStore(database, labels.NewStore(database))
-	service := newTestUserService(store)
-	if _, err := service.Create(ctx, UserCreate{
-		Email:    "local-admin@example.test",
-		Name:     "Local Admin",
-		Role:     RoleAdmin,
-		Password: "correct-password",
-	}); err != nil {
-		t.Fatalf("create local admin: %v", err)
-	}
-
-	hash, err := authn.HashPassword("correct-password")
-	if err != nil {
-		t.Fatalf("hash password: %v", err)
-	}
-	const apiKey = "test-api-key"
-	var userID int64
-	if err := database.QueryRow(ctx, `
-INSERT INTO users (
-    email,
-    name,
-    password_hash,
-    source,
-    external_id,
-    api_key,
-    api_key_created_at,
-    user_principal_name
-)
-VALUES (
-    'source@example.test',
-    'Sourced User',
-    $1,
-    'entra',
-    'entra-user-1',
-    $2,
-    now(),
-    'source@example.test'
-)
-RETURNING id`, hash, apiKey).Scan(&userID); err != nil {
-		t.Fatalf("insert sourced user: %v", err)
-	}
-	if _, err := database.Exec(ctx, `
-INSERT INTO authz_user_roles (user_id, role_id)
-SELECT $1, id FROM authz_roles WHERE key = 'admin'`, userID); err != nil {
-		t.Fatalf("assign sourced user role: %v", err)
-	}
-
-	if err := service.Delete(ctx, userID); err != nil {
-		t.Fatalf("soft delete directory user: %v", err)
-	}
-
-	if _, err := store.GetUserByID(ctx, userID); !errors.Is(err, fault.ErrNotFound) {
-		t.Fatalf("get deleted directory user err = %v, want %v", err, fault.ErrNotFound)
-	}
-
-	var source Source
-	var externalID string
-	var role string
-	var deletedAt *time.Time
-	if err := database.QueryRow(ctx, `
-SELECT users.source::text, users.external_id, authz_roles.key, users.deleted_at
-FROM users
-JOIN authz_user_roles ON authz_user_roles.user_id = users.id
-JOIN authz_roles ON authz_roles.id = authz_user_roles.role_id
-WHERE users.id = $1`, userID).Scan(&source, &externalID, &role, &deletedAt); err != nil {
-		t.Fatalf("load soft-deleted directory user: %v", err)
-	}
-	if source != SourceEntra || externalID != "entra-user-1" {
-		t.Fatalf("source identity = %s/%q, want entra/entra-user-1", source, externalID)
-	}
-	if role != "admin" {
-		t.Fatalf("role = %q, want preserved admin", role)
-	}
-	if deletedAt == nil {
-		t.Fatal("deleted_at is nil, want soft-deleted")
-	}
-	if _, err := NewAuthnStore(store).GetPrincipalByAPIKey(ctx, apiKey); !errors.Is(err, authn.ErrPrincipalNotFound) {
-		t.Fatalf("authenticate soft-deleted user by api key err = %v, want %v", err, authn.ErrPrincipalNotFound)
 	}
 }
 
@@ -193,8 +108,8 @@ WHERE external_id = 'engineering'`).Scan(&engineeringGroupID); err != nil {
 	if err != nil {
 		t.Fatalf("list current Entra users: %v", err)
 	}
-	if count != 1 || len(users) != 1 || users[0].Email != "alice@example.edu" {
-		t.Fatalf("current Entra users = %+v count=%d, want Alice only", users, count)
+	if count != 2 || len(users) != 2 || !users[0].AccountEnabled || users[1].AccountEnabled {
+		t.Fatalf("current Entra users = %+v count=%d, want enabled Alice and disabled Bob", users, count)
 	}
 
 	users, count, err = store.ListUsers(ctx, UserListParams{GroupID: engineeringGroupID})
@@ -222,8 +137,8 @@ WHERE external_id = 'engineering'`).Scan(&engineeringGroupID); err != nil {
 	if err != nil {
 		t.Fatalf("list multiple roles and sources: %v", err)
 	}
-	if count != 2 || len(users) != 2 {
-		t.Fatalf("multi-filter users = %+v count=%d, want local admin and current Entra user", users, count)
+	if count != 3 || len(users) != 3 {
+		t.Fatalf("multi-filter users = %+v count=%d, want local admin and both Entra members", users, count)
 	}
 }
 

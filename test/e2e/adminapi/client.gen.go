@@ -2975,6 +2975,8 @@ type UploadTargetMethod string
 
 // User defines model for User.
 type User struct {
+	// AccountEnabled Whether the account is enabled for authentication.
+	AccountEnabled    bool                `json:"account_enabled"`
 	CreatedAt         time.Time           `json:"created_at"`
 	DeletedAt         *time.Time          `json:"deleted_at,omitempty"`
 	Department        *string             `json:"department,omitempty"`

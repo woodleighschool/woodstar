@@ -1513,6 +1513,10 @@ export type UploadTarget = {
 };
 
 export type User = {
+    /**
+     * Whether the account is enabled for authentication.
+     */
+    account_enabled: boolean;
     created_at: string;
     deleted_at?: string;
     department?: string;

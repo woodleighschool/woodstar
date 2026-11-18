@@ -4381,6 +4381,9 @@ components:
     User:
       additionalProperties: false
       properties:
+        account_enabled:
+          description: Whether the account is enabled for authentication.
+          type: boolean
         created_at:
           format: date-time
           type: string
@@ -4425,6 +4428,7 @@ components:
         - email
         - name
         - source
+        - account_enabled
         - created_at
         - updated_at
       type: object
@@ -12374,7 +12378,7 @@ paths:
       security:
         - cookieAuth: []
         - bearerAuth: []
-      summary: Delete a user
+      summary: Delete a local user
       tags:
         - Directory users
       x-authz:

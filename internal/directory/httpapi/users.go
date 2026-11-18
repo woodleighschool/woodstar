@@ -219,7 +219,7 @@ func registerDeleteUser(humaAPI huma.API, userService *directory.UserService, lo
 		Method:      http.MethodDelete,
 		Path:        userIDPath,
 		Tags:        []string{api.TagDirectoryUsers},
-		Summary:     "Delete a user",
+		Summary:     "Delete a local user",
 		Errors: []int{
 			http.StatusNotFound,
 			http.StatusConflict,
