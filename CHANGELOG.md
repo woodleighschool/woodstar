@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.12.3](https://github.com/woodleighschool/woodstar/compare/v0.12.2...v0.12.3) (2026-11-18)
+
+
+### Bug Fixes
+
+* **directory:** preserve disabled Entra members ([a156f23](https://github.com/woodleighschool/woodstar/commit/a156f23325c177e2136b851c76c2daeacd88ab6f))
+* **go:** update module buf.build/gen/go/northpolesec/protos/protocolbuffers/go (v1.36.12-20261111163929-b71ecbc2a235.2 → v1.36.12-20261113211313-fde281b3f2d5.2) ([#754](https://github.com/woodleighschool/woodstar/issues/754)) ([25330e9](https://github.com/woodleighschool/woodstar/commit/25330e98df21d4ee3dada898e548673097a67c48))
+* **go:** update module buf.build/gen/go/northpolesec/protos/protocolbuffers/go (v1.36.12-20261113211313-fde281b3f2d5.2 → v1.36.12-20261116191535-e644f3c915d0.2) ([#762](https://github.com/woodleighschool/woodstar/issues/762)) ([2e15b0e](https://github.com/woodleighschool/woodstar/commit/2e15b0e2c9d0ba708b83ef7ce52517d47dbeb2b6))
+* **go:** update module github.com/pressly/goose/v3 (v3.30.0 → v3.30.1) ([#752](https://github.com/woodleighschool/woodstar/issues/752)) ([9ead796](https://github.com/woodleighschool/woodstar/commit/9ead796ae93c9977aa21f194b499ee1f5a97a8af))
+* **npm:** update dependency filesize (11.0.30 → 11.0.31) ([#748](https://github.com/woodleighschool/woodstar/issues/748)) ([2ad9e91](https://github.com/woodleighschool/woodstar/commit/2ad9e91c62e71f4b4c2b87d3b5bb7dc1f92ebf74))
+* **npm:** update dependency filesize (11.0.31 → 11.0.32) ([#753](https://github.com/woodleighschool/woodstar/issues/753)) ([6242729](https://github.com/woodleighschool/woodstar/commit/6242729f7372f98f5078369734fc3dbc77a7623a))
+* **npm:** update dependency filesize (11.0.32 → 11.0.33) ([#759](https://github.com/woodleighschool/woodstar/issues/759)) ([b48e1f2](https://github.com/woodleighschool/woodstar/commit/b48e1f2a94635f6254bcccf78ea754d886652241))
+* **npm:** update dependency filesize (11.0.33 → 11.0.34) ([#763](https://github.com/woodleighschool/woodstar/issues/763)) ([4c96f32](https://github.com/woodleighschool/woodstar/commit/4c96f3236392c7acad4aff1e8e9bf259788681e9))
+* **npm:** update dependency lucide-react (1.72.0 → 1.73.0) ([#756](https://github.com/woodleighschool/woodstar/issues/756)) ([dc0d946](https://github.com/woodleighschool/woodstar/commit/dc0d946c588ba4fb4dd953dc133313b89f0e50bc))
+* **npm:** update dependency simple-icons (16.37.0 → 16.38.0) ([#758](https://github.com/woodleighschool/woodstar/issues/758)) ([e4128dc](https://github.com/woodleighschool/woodstar/commit/e4128dcc2566f06dbbd80affb595016c0d9c0d35))
+
 ## [0.12.2](https://github.com/woodleighschool/woodstar/compare/v0.12.1...v0.12.2) (2026-11-13)
 
 
