@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 
@@ -459,7 +460,7 @@ func TestIssueEvaluationsForHostUsesTargetRows(t *testing.T) {
 		t.Fatalf("create excluded policy: %v", err)
 	}
 
-	got, err := store.IssueEvaluationsForHost(ctx, host)
+	got, err := store.IssueEvaluationsForHost(ctx, host.ID)
 	if err != nil {
 		t.Fatalf("issue evaluations for host: %v", err)
 	}
@@ -484,7 +485,7 @@ func TestIssueEvaluationsForHostRequiresIncludeTarget(t *testing.T) {
 		t.Fatalf("create exclude-only policy: %v", err)
 	}
 
-	got, err := store.IssueEvaluationsForHost(ctx, host)
+	got, err := store.IssueEvaluationsForHost(ctx, host.ID)
 	if err != nil {
 		t.Fatalf("issue evaluations for host: %v", err)
 	}
@@ -1209,6 +1210,40 @@ func TestEvaluationRejectsSupersededResultBeforeLatestCompletes(t *testing.T) {
 	}
 }
 
+func TestRecordEvaluationsSharesThePolicyDefinition(t *testing.T) {
+	store, labelStore, hostStore, ctx := newPostgresPolicyStore(t)
+	host := enrollTestHostDetail(t, ctx, hostStore, "policy-concurrent-host")
+	policy, err := store.Create(ctx, makePolicy(PolicyMutation{
+		Name: "Concurrent policy", Query: "select 1;",
+		Targets: policyTargets([]int64{allHostsLabelID(t, ctx, labelStore)}, nil),
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	evaluation := issuePolicyEvaluation(t, ctx, store, host, policy.ID)
+
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	tx, err := store.pool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = tx.Rollback(context.WithoutCancel(ctx)) }()
+	if _, err := tx.Exec(ctx, `SELECT id FROM osquery_policies WHERE id = $1 FOR SHARE`, policy.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.RecordEvaluations(ctx, host.ID, []EvaluationResult{{
+		PolicyID: policy.ID, QueryHash: testQueryHash(policy.Query),
+		Revision: evaluation.Revision, Sequence: evaluation.Sequence, Status: PolicyStatusPass,
+	}}); err != nil {
+		t.Fatalf("record result while another reader holds the definition: %v", err)
+	}
+	results, _, err := store.PolicyResults(ctx, policy.ID, PolicyResultListParams{})
+	if err != nil || len(results) != 1 || results[0].Status != PolicyStatusPass {
+		t.Fatalf("policy results = %+v, %v; want one passing result", results, err)
+	}
+}
+
 func TestRecordEvaluationsPersistsPayloadInOneTransaction(t *testing.T) {
 	store, labelStore, hostStore, ctx := newPostgresPolicyStore(t)
 	host := enrollTestHostDetail(t, ctx, hostStore, "policy-batch-result-host")
@@ -1231,7 +1266,7 @@ func TestRecordEvaluationsPersistsPayloadInOneTransaction(t *testing.T) {
 		policies = append(policies, policy)
 	}
 
-	evaluations, err := store.IssueEvaluationsForHost(ctx, host)
+	evaluations, err := store.IssueEvaluationsForHost(ctx, host.ID)
 	if err != nil {
 		t.Fatalf("issue evaluations: %v", err)
 	}
@@ -1574,7 +1609,7 @@ func issuePolicyEvaluation(
 	policyID int64,
 ) Evaluation {
 	t.Helper()
-	evaluations, err := store.IssueEvaluationsForHost(ctx, host)
+	evaluations, err := store.IssueEvaluationsForHost(ctx, host.ID)
 	if err != nil {
 		t.Fatalf("issue evaluations: %v", err)
 	}
@@ -1639,7 +1674,7 @@ func (s *Store) recordEvaluation(
 	hostID int64,
 	passes *bool,
 ) error {
-	evaluations, err := s.IssueEvaluationsForHost(ctx, &hosts.Host{ID: hostID})
+	evaluations, err := s.IssueEvaluationsForHost(ctx, hostID)
 	if err != nil {
 		return err
 	}

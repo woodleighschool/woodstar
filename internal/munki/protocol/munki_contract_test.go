@@ -18,7 +18,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/heartbeats"
-	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/munki/mdp"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
@@ -900,18 +899,14 @@ type staticHostResolver struct {
 	err    error
 }
 
-func (r staticHostResolver) GetByHardwareSerial(_ context.Context, serial string) (*hosts.Host, error) {
+func (r staticHostResolver) IDByHardwareSerial(_ context.Context, serial string) (int64, error) {
 	if r.err != nil {
-		return nil, r.err
+		return 0, r.err
 	}
 	if serial != r.serial {
-		return nil, fault.ErrNotFound
+		return 0, fault.ErrNotFound
 	}
-	return &hosts.Host{
-		ID:          r.hostID,
-		DisplayName: "Test MacBook",
-		Hardware:    hosts.HostHardware{Serial: serial},
-	}, nil
+	return r.hostID, nil
 }
 
 const testSerialHeader = "X-Woodstar-Serial-Number"

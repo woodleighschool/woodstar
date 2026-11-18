@@ -51,7 +51,7 @@ type hostStore interface {
 		update hosts.InventoryUpdate,
 		contact heartbeats.Contact,
 	) (*hosts.Host, error)
-	GetByOsqueryNodeKey(ctx context.Context, nodeKey string) (*hosts.Host, error)
+	GetByOsqueryNodeKey(ctx context.Context, nodeKey string) (*hosts.OsqueryHost, error)
 }
 
 type heartbeatRecorder interface {
@@ -73,11 +73,11 @@ type inventoryProjector interface {
 
 type labelEvaluator interface {
 	ApplicableLabels(ctx context.Context) ([]labels.DynamicLabel, error)
-	Finalize(ctx context.Context, host *hosts.Host, results []ingest.LabelResult) error
+	Finalize(ctx context.Context, hostID int64, results []ingest.LabelResult) error
 }
 
 type reportStore interface {
-	ScheduledForHost(ctx context.Context, host *hosts.Host) ([]reports.Report, error)
+	ScheduledForHost(ctx context.Context, hostID int64) ([]reports.ScheduledReport, error)
 	OverwriteSnapshot(
 		ctx context.Context,
 		reportID int64,
@@ -97,7 +97,7 @@ type reportStore interface {
 }
 
 type policyStore interface {
-	IssueEvaluationsForHost(ctx context.Context, host *hosts.Host) ([]policies.Evaluation, error)
+	IssueEvaluationsForHost(ctx context.Context, hostID int64) ([]policies.Evaluation, error)
 	RecordEvaluations(
 		ctx context.Context,
 		hostID int64,
@@ -162,7 +162,7 @@ func (s *AgentService) Config(ctx context.Context, nodeKey string, contact heart
 	if !ok {
 		return ConfigResponse{NodeInvalid: true}, nil
 	}
-	schedule, err := buildScheduleForHost(ctx, s.deps.ReportStore, host)
+	schedule, err := buildScheduleForHost(ctx, s.deps.ReportStore, host.ID)
 	if err != nil {
 		return ConfigResponse{}, err
 	}
@@ -213,11 +213,11 @@ func (s *AgentService) DistributedRead(
 	if err != nil {
 		return DistributedReadResponse{}, err
 	}
-	policyCount, err := s.queuePolicyQueries(ctx, host, detailQueries)
+	policyCount, err := s.queuePolicyQueries(ctx, host.ID, detailQueries)
 	if err != nil {
 		return DistributedReadResponse{}, err
 	}
-	liveCount, err := s.queueLiveQueries(ctx, host, detailQueries)
+	liveCount, err := s.queueLiveQueries(ctx, host.ID, detailQueries)
 	if err != nil {
 		return DistributedReadResponse{}, err
 	}
@@ -257,10 +257,10 @@ func (s *AgentService) queueLabelQueries(
 
 func (s *AgentService) queuePolicyQueries(
 	ctx context.Context,
-	host *hosts.Host,
+	hostID int64,
 	queryMap map[string]string,
 ) (int, error) {
-	evaluations, err := s.deps.PolicyStore.IssueEvaluationsForHost(ctx, host)
+	evaluations, err := s.deps.PolicyStore.IssueEvaluationsForHost(ctx, hostID)
 	if err != nil {
 		return 0, err
 	}
@@ -273,10 +273,10 @@ func (s *AgentService) queuePolicyQueries(
 // queueLiveQueries injects unfinished live queries targeting host.
 func (s *AgentService) queueLiveQueries(
 	ctx context.Context,
-	host *hosts.Host,
+	hostID int64,
 	queryMap map[string]string,
 ) (int, error) {
-	work, err := s.deps.LiveQueries.PendingForHost(ctx, host.ID)
+	work, err := s.deps.LiveQueries.PendingForHost(ctx, hostID)
 	if err != nil {
 		return 0, err
 	}
@@ -327,7 +327,7 @@ func (s *AgentService) Log(ctx context.Context, nodeKey string, contact heartbea
 	return LogResponse{NodeInvalid: false}, nil
 }
 
-func (s *AgentService) hostByNodeKey(ctx context.Context, nodeKey string, contact heartbeats.Contact) (*hosts.Host, bool, error) {
+func (s *AgentService) hostByNodeKey(ctx context.Context, nodeKey string, contact heartbeats.Contact) (*hosts.OsqueryHost, bool, error) {
 	host, err := s.deps.HostStore.GetByOsqueryNodeKey(ctx, nodeKey)
 	if errors.Is(err, fault.ErrNotFound) {
 		return nil, false, nil

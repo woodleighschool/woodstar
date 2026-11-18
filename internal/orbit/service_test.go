@@ -298,14 +298,14 @@ func (s *fakeOrbitHostStore) UpsertOnOrbitEnroll(
 	return s.host, nil
 }
 
-func (s *fakeOrbitHostStore) GetByOrbitNodeKey(context.Context, string) (*hosts.Host, error) {
-	return s.host, s.getErr
+func (s *fakeOrbitHostStore) IDByOrbitNodeKey(context.Context, string) (int64, error) {
+	return s.host.ID, s.getErr
 }
 
 func (*fakeOrbitHostStore) SetOrbitDeviceAuthToken(context.Context, string, string) error { return nil }
 
-func (s *fakeOrbitHostStore) ValidateOrbitDeviceAuthToken(context.Context, string) (*hosts.Host, error) {
-	return s.host, s.validateErr
+func (s *fakeOrbitHostStore) IDByOrbitDeviceAuthToken(context.Context, string) (int64, error) {
+	return s.host.ID, s.validateErr
 }
 
 type fakeOrbitSecretVerifier struct{ ok bool }

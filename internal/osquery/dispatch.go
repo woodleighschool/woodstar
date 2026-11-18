@@ -166,7 +166,7 @@ type policyDispatchPass struct {
 // result to its kind handler, then finalizes policy, detail, and label state.
 func (s *AgentService) dispatchWriteResults(
 	ctx context.Context,
-	host *hosts.Host,
+	host *hosts.OsqueryHost,
 	req DistributedWriteRequest,
 ) error {
 	details := newDetailDispatchPass()
@@ -203,7 +203,7 @@ func (s *AgentService) dispatchWriteResults(
 	if err := s.finalizeDetailPass(ctx, host, details); err != nil {
 		return err
 	}
-	return s.finalizeLabelPass(ctx, host, labels)
+	return s.deps.LabelEvaluator.Finalize(ctx, host.ID, labels.results)
 }
 
 func (s *AgentService) handleLabelResult(
@@ -233,14 +233,6 @@ func (s *AgentService) handleLabelResult(
 		return
 	}
 	pass.results = append(pass.results, ingest.LabelResult{LabelID: labelID, Matched: matched})
-}
-
-func (s *AgentService) finalizeLabelPass(
-	ctx context.Context,
-	host *hosts.Host,
-	pass *labelDispatchPass,
-) error {
-	return s.deps.LabelEvaluator.Finalize(ctx, host, pass.results)
 }
 
 func (s *AgentService) handleDetailResult(
@@ -290,7 +282,7 @@ func (s *AgentService) handleDetailResult(
 
 func (s *AgentService) finalizeDetailPass(
 	ctx context.Context,
-	host *hosts.Host,
+	host *hosts.OsqueryHost,
 	pass *detailDispatchPass,
 ) error {
 	if base, ok := pass.results[catalog.QueryAccounts]; ok && distributedStatusOK(base.status, base.hasStatus) {
@@ -475,7 +467,7 @@ func distributedStatusOK(raw json.RawMessage, hasStatus bool) bool {
 
 func (s *AgentService) handleLiveResult(
 	ctx context.Context,
-	host *hosts.Host,
+	host *hosts.OsqueryHost,
 	suffix string,
 	rows []map[string]string,
 	status json.RawMessage,

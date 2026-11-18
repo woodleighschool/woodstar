@@ -58,9 +58,9 @@ type hostStore interface {
 		hosts.InventoryUpdate,
 		heartbeats.Contact,
 	) (*hosts.Host, error)
-	GetByOrbitNodeKey(context.Context, string) (*hosts.Host, error)
+	IDByOrbitNodeKey(context.Context, string) (int64, error)
 	SetOrbitDeviceAuthToken(context.Context, string, string) error
-	ValidateOrbitDeviceAuthToken(context.Context, string) (*hosts.Host, error)
+	IDByOrbitDeviceAuthToken(context.Context, string) (int64, error)
 }
 
 type primaryUserStore interface {
@@ -124,14 +124,11 @@ func (s *EnrollmentService) Enroll(ctx context.Context, req EnrollRequest, conta
 
 // Config returns the current Orbit config.
 func (s *EnrollmentService) Config(ctx context.Context, nodeKey string, contact heartbeats.Contact) (ConfigResponse, error) {
-	host, err := s.hostStore.GetByOrbitNodeKey(ctx, nodeKey)
+	hostID, err := s.hostByNodeKey(ctx, nodeKey, contact)
 	if err != nil {
 		return ConfigResponse{}, err
 	}
-	if err := s.heartbeats.Record(ctx, host.ID, heartbeats.SourceOrbit, contact); err != nil {
-		return ConfigResponse{}, fmt.Errorf("record heartbeat: %w", err)
-	}
-	pending, err := s.remediations.PendingRemediationExecutionIDs(ctx, host.ID)
+	pending, err := s.remediations.PendingRemediationExecutionIDs(ctx, hostID)
 	if err != nil {
 		return ConfigResponse{}, fmt.Errorf("list pending remediations: %w", err)
 	}
@@ -150,14 +147,11 @@ func (s *EnrollmentService) GetScript(
 	req ScriptRequest,
 	contact heartbeats.Contact,
 ) (*ScriptResponse, error) {
-	host, err := s.hostStore.GetByOrbitNodeKey(ctx, req.OrbitNodeKey)
+	hostID, err := s.hostByNodeKey(ctx, req.OrbitNodeKey, contact)
 	if err != nil {
 		return nil, err
 	}
-	if err := s.heartbeats.Record(ctx, host.ID, heartbeats.SourceOrbit, contact); err != nil {
-		return nil, fmt.Errorf("record heartbeat: %w", err)
-	}
-	execution, err := s.remediations.RemediationExecution(ctx, host.ID, req.ExecutionID)
+	execution, err := s.remediations.RemediationExecution(ctx, hostID, req.ExecutionID)
 	if err != nil {
 		return nil, err
 	}
@@ -181,14 +175,11 @@ func (s *EnrollmentService) RecordScriptResult(
 	req ScriptResult,
 	contact heartbeats.Contact,
 ) error {
-	host, err := s.hostStore.GetByOrbitNodeKey(ctx, req.OrbitNodeKey)
+	hostID, err := s.hostByNodeKey(ctx, req.OrbitNodeKey, contact)
 	if err != nil {
 		return err
 	}
-	if err := s.heartbeats.Record(ctx, host.ID, heartbeats.SourceOrbit, contact); err != nil {
-		return fmt.Errorf("record heartbeat: %w", err)
-	}
-	return s.remediations.RecordRemediationResult(ctx, host.ID, policies.RemediationResult{
+	return s.remediations.RecordRemediationResult(ctx, hostID, policies.RemediationResult{
 		ExecutionID:    req.ExecutionID,
 		Output:         req.Output,
 		RuntimeSeconds: req.Runtime,
@@ -198,14 +189,11 @@ func (s *EnrollmentService) RecordScriptResult(
 
 // SetPrimaryUser records a profile-provided email for the host.
 func (s *EnrollmentService) SetPrimaryUser(ctx context.Context, nodeKey, email string, contact heartbeats.Contact) error {
-	host, err := s.hostStore.GetByOrbitNodeKey(ctx, nodeKey)
+	hostID, err := s.hostByNodeKey(ctx, nodeKey, contact)
 	if err != nil {
 		return err
 	}
-	if err := s.heartbeats.Record(ctx, host.ID, heartbeats.SourceOrbit, contact); err != nil {
-		return fmt.Errorf("record heartbeat: %w", err)
-	}
-	return s.primaryUsers.Upsert(ctx, host.ID, email, hosts.PrimaryUserSourceOrbitProfile)
+	return s.primaryUsers.Upsert(ctx, hostID, email, hosts.PrimaryUserSourceOrbitProfile)
 }
 
 // SetDeviceAuthToken rotates the per-host token issued and retained by Orbit.
@@ -213,12 +201,8 @@ func (s *EnrollmentService) SetDeviceAuthToken(ctx context.Context, nodeKey, tok
 	if err := validateDeviceAuthToken(token); err != nil {
 		return err
 	}
-	host, err := s.hostStore.GetByOrbitNodeKey(ctx, nodeKey)
-	if err != nil {
+	if _, err := s.hostByNodeKey(ctx, nodeKey, contact); err != nil {
 		return err
-	}
-	if err := s.heartbeats.Record(ctx, host.ID, heartbeats.SourceOrbit, contact); err != nil {
-		return fmt.Errorf("record heartbeat: %w", err)
 	}
 	return s.hostStore.SetOrbitDeviceAuthToken(ctx, nodeKey, token)
 }
@@ -236,12 +220,23 @@ func validateDeviceAuthToken(token string) error {
 
 // ValidateDeviceAuthToken checks whether an Orbit machine token is active.
 func (s *EnrollmentService) ValidateDeviceAuthToken(ctx context.Context, token string, contact heartbeats.Contact) error {
-	host, err := s.hostStore.ValidateOrbitDeviceAuthToken(ctx, token)
+	hostID, err := s.hostStore.IDByOrbitDeviceAuthToken(ctx, token)
 	if err != nil {
 		return err
 	}
-	if err := s.heartbeats.Record(ctx, host.ID, heartbeats.SourceOrbit, contact); err != nil {
+	if err := s.heartbeats.Record(ctx, hostID, heartbeats.SourceOrbit, contact); err != nil {
 		return fmt.Errorf("record heartbeat: %w", err)
 	}
 	return nil
+}
+
+func (s *EnrollmentService) hostByNodeKey(ctx context.Context, key string, contact heartbeats.Contact) (int64, error) {
+	id, err := s.hostStore.IDByOrbitNodeKey(ctx, key)
+	if err != nil {
+		return 0, err
+	}
+	if err := s.heartbeats.Record(ctx, id, heartbeats.SourceOrbit, contact); err != nil {
+		return 0, fmt.Errorf("record heartbeat: %w", err)
+	}
+	return id, nil
 }

@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/osquery/reports"
 )
 
@@ -183,7 +182,7 @@ func (s *recordingReportStore) OverwriteError(
 	return nil
 }
 
-func (*recordingReportStore) ScheduledForHost(context.Context, *hosts.Host) ([]reports.Report, error) {
+func (*recordingReportStore) ScheduledForHost(context.Context, int64) ([]reports.ScheduledReport, error) {
 	return nil, nil
 }
 

@@ -210,7 +210,7 @@ func TestDispatchWriteResultsBatchesPolicyPayload(t *testing.T) {
 		},
 	}
 
-	if err := service.dispatchWriteResults(t.Context(), &hosts.Host{ID: 42}, req); err != nil {
+	if err := service.dispatchWriteResults(t.Context(), &hosts.OsqueryHost{ID: 42}, req); err != nil {
 		t.Fatalf("dispatch write results: %v", err)
 	}
 	if store.calls != 1 || store.hostID != 42 {
@@ -235,7 +235,7 @@ type recordingPolicyStore struct {
 	results []policies.EvaluationResult
 }
 
-func (*recordingPolicyStore) IssueEvaluationsForHost(context.Context, *hosts.Host) ([]policies.Evaluation, error) {
+func (*recordingPolicyStore) IssueEvaluationsForHost(context.Context, int64) ([]policies.Evaluation, error) {
 	return nil, nil
 }
 
@@ -338,7 +338,7 @@ func TestHandleLiveResultReplacesHostSnapshot(t *testing.T) {
 
 			if err := service.handleLiveResult(
 				context.Background(),
-				&hosts.Host{ID: 42, DisplayName: "current-name"},
+				&hosts.OsqueryHost{ID: 42, DisplayName: "current-name"},
 				strconv.FormatInt(7, 10),
 				rows,
 				tt.status,
@@ -407,7 +407,7 @@ func TestFinalizeDetailPassSendsMunkiQueryFamilyTogether(t *testing.T) {
 			InventoryProjector: projector,
 			MunkiCollector:     collector,
 		}}
-		if err := s.finalizeDetailPass(context.Background(), &hosts.Host{ID: 42}, pass); err != nil {
+		if err := s.finalizeDetailPass(context.Background(), &hosts.OsqueryHost{ID: 42}, pass); err != nil {
 			t.Fatalf("finalize detail pass: %v", err)
 		}
 		if !projector.markedFresh {
@@ -439,7 +439,7 @@ func TestFinalizeDetailPassSendsMunkiQueryFamilyTogether(t *testing.T) {
 			InventoryProjector: &recordingInventoryProjector{},
 			MunkiCollector:     collector,
 		}}
-		if err := s.finalizeDetailPass(context.Background(), &hosts.Host{ID: 42}, pass); err != nil {
+		if err := s.finalizeDetailPass(context.Background(), &hosts.OsqueryHost{ID: 42}, pass); err != nil {
 			t.Fatalf("finalize detail pass: %v", err)
 		}
 		if len(collector.collections) != 1 {
@@ -459,7 +459,7 @@ func TestFinalizeDetailPassSendsMunkiQueryFamilyTogether(t *testing.T) {
 			InventoryProjector: &recordingInventoryProjector{},
 			MunkiCollector:     collector,
 		}}
-		if err := s.finalizeDetailPass(context.Background(), &hosts.Host{ID: 42}, pass); err != nil {
+		if err := s.finalizeDetailPass(context.Background(), &hosts.OsqueryHost{ID: 42}, pass); err != nil {
 			t.Fatalf("finalize detail pass: %v", err)
 		}
 		if len(collector.collections) != 0 {
@@ -492,7 +492,7 @@ func TestAccountCollectionRequiresSuccessfulBase(t *testing.T) {
 			if projector.accounts != nil {
 				t.Fatal("accounts projected before finalization")
 			}
-			if err := service.finalizeDetailPass(t.Context(), &hosts.Host{ID: 42}, pass); err != nil {
+			if err := service.finalizeDetailPass(t.Context(), &hosts.OsqueryHost{ID: 42}, pass); err != nil {
 				t.Fatal(err)
 			}
 			if (projector.accounts != nil) != (status == "0") {

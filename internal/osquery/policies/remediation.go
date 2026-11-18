@@ -146,7 +146,7 @@ func (s *Store) RunRemediations(
 			SELECT remediation_script, remediation_revision
 			FROM osquery_policies
 			WHERE id = $1
-			FOR UPDATE`, policyID).Scan(&script, &remediationRevision)
+			FOR SHARE`, policyID).Scan(&script, &remediationRevision)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return fault.ErrNotFound
 		}

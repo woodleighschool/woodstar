@@ -2,18 +2,42 @@ package hosts
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/postgres"
 )
 
-func (s *Store) GetByOrbitNodeKey(ctx context.Context, nodeKey string) (*Host, error) {
-	return s.getByIdentity(ctx, "orbit_node_key", nodeKey)
+// OsqueryHost contains the host state used by the osquery protocol.
+type OsqueryHost struct {
+	ID                        int64      `db:"id"`
+	DisplayName               string     `db:"display_name"`
+	InventoryUpdatedAt        *time.Time `db:"inventory_updated_at"`
+	InventoryQueryHash        string     `db:"inventory_query_hash"`
+	InventoryRefreshRequested bool       `db:"inventory_refresh_requested"`
 }
 
-func (s *Store) GetByOsqueryNodeKey(ctx context.Context, nodeKey string) (*Host, error) {
-	return s.getByIdentity(ctx, "osquery_node_key", nodeKey)
+func (s *Store) GetByOsqueryNodeKey(ctx context.Context, nodeKey string) (*OsqueryHost, error) {
+	host, err := postgres.GetOne[OsqueryHost](ctx, s.pool, `
+SELECT id, display_name, inventory_updated_at, inventory_query_hash, inventory_refresh_requested
+FROM hosts WHERE osquery_node_key = $1 AND osquery_node_key <> ''`, nodeKey)
+	if err != nil {
+		return nil, err
+	}
+	return &host, nil
+}
+
+func (s *Store) IDByOrbitNodeKey(ctx context.Context, nodeKey string) (int64, error) {
+	var id int64
+	err := s.pool.QueryRow(ctx, `SELECT id FROM hosts WHERE orbit_node_key = $1 AND orbit_node_key <> ''`, nodeKey).Scan(&id)
+	return id, postgres.GetError(err)
+}
+
+func (s *Store) IDByHardwareSerial(ctx context.Context, serial string) (int64, error) {
+	var id int64
+	err := s.pool.QueryRow(ctx, `SELECT id FROM hosts WHERE hardware_serial = $1 AND hardware_serial <> ''`, strings.TrimSpace(serial)).Scan(&id)
+	return id, postgres.GetError(err)
 }
 
 // SetOrbitDeviceAuthToken replaces the machine token for an Orbit node key.
@@ -33,25 +57,8 @@ WHERE orbit_node_key = $1 AND orbit_node_key <> ''`, nodeKey, token)
 	return nil
 }
 
-// ValidateOrbitDeviceAuthToken confirms that a machine token belongs to a host.
-func (s *Store) ValidateOrbitDeviceAuthToken(ctx context.Context, token string) (*Host, error) {
-	row, err := postgres.GetOne[hostRow](ctx, s.pool, hostSelectSQL()+`
-WHERE orbit_device_auth_token = $1
-  AND orbit_device_auth_token <> ''`, token)
-	if err != nil {
-		return nil, err
-	}
-	host := hostFromRow(row, time.Now())
-	return &host, nil
-}
-
-func (s *Store) getByIdentity(ctx context.Context, column, value string) (*Host, error) {
-	row, err := postgres.GetOne[hostRow](ctx, s.pool, hostSelectSQL()+`
-WHERE `+column+` = $1
-  AND `+column+` <> ''`, value)
-	if err != nil {
-		return nil, err
-	}
-	host := hostFromRow(row, time.Now())
-	return &host, nil
+func (s *Store) IDByOrbitDeviceAuthToken(ctx context.Context, token string) (int64, error) {
+	var id int64
+	err := s.pool.QueryRow(ctx, `SELECT id FROM hosts WHERE orbit_device_auth_token = $1 AND orbit_device_auth_token <> ''`, token).Scan(&id)
+	return id, postgres.GetError(err)
 }

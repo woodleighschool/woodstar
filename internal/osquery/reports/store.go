@@ -9,7 +9,6 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/directory"
 	"github.com/woodleighschool/woodstar/internal/fault"
-	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/listing"
 	"github.com/woodleighschool/woodstar/internal/postgres"
 )
@@ -69,13 +68,7 @@ func (s *Store) Update(ctx context.Context, id int64, params ReportMutation) (*R
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		var resultsInvalidated bool
 		if err := tx.QueryRow(ctx, `
-			WITH current AS (
-				SELECT id, query, min_osquery_version
-				FROM osquery_reports
-				WHERE id = @id
-				FOR UPDATE
-			)
-			UPDATE osquery_reports r
+			UPDATE osquery_reports
 			SET
 				name = @name,
 				description = @description,
@@ -83,11 +76,10 @@ func (s *Store) Update(ctx context.Context, id int64, params ReportMutation) (*R
 				min_osquery_version = @min_osquery_version,
 				schedule_interval = @schedule_interval,
 				updated_at = now()
-			FROM current
-			WHERE r.id = current.id
+			WHERE id = @id
 			RETURNING
-				current.query IS DISTINCT FROM @query
-				OR current.min_osquery_version IS DISTINCT FROM @min_osquery_version`,
+				OLD.query IS DISTINCT FROM NEW.query
+				OR OLD.min_osquery_version IS DISTINCT FROM NEW.min_osquery_version`,
 			pgx.StructArgs(write),
 		).Scan(&resultsInvalidated); err != nil {
 			return postgres.MutationError(err)
@@ -195,25 +187,13 @@ func (s *Store) List(ctx context.Context, params ReportListParams) ([]Report, in
 }
 
 // ScheduledForHost returns reports that are scheduled and match the host's label membership.
-func (s *Store) ScheduledForHost(ctx context.Context, host *hosts.Host) ([]Report, error) {
-	qrows, err := s.pool.Query(ctx, reportSelectSQL()+`
-		JOIN osquery_report_assignments assignment
-			ON assignment.report_id = r.id
-		   AND assignment.host_id = $1
-		WHERE r.schedule_interval > 0
-		ORDER BY r.id`, host.ID)
-	if err != nil {
-		return nil, err
-	}
-	rows, err := pgx.CollectRows(qrows, pgx.RowToStructByName[reportRow])
-	if err != nil {
-		return nil, err
-	}
-	rpts := make([]Report, len(rows))
-	for i, row := range rows {
-		rpts[i] = reportFromRow(row)
-	}
-	return rpts, nil
+func (s *Store) ScheduledForHost(ctx context.Context, hostID int64) ([]ScheduledReport, error) {
+	return postgres.GetAll[ScheduledReport](ctx, s.pool, `
+		SELECT r.id, r.query, r.min_osquery_version, r.schedule_interval
+		FROM osquery_reports r
+		JOIN osquery_report_assignments assignment ON assignment.report_id = r.id
+		WHERE assignment.host_id = $1 AND r.schedule_interval > 0
+		ORDER BY r.id`, hostID)
 }
 
 func reportListWhere(params ReportListParams) (string, []any) {
@@ -237,49 +217,39 @@ func reportOrderKeys() map[string]postgres.OrderExpr {
 	}
 }
 
-type reportRow struct {
-	ID                int64     `db:"id"`
-	Name              string    `db:"name"`
-	Description       string    `db:"description"`
-	Query             string    `db:"query"`
-	MinOsqueryVersion *string   `db:"min_osquery_version"`
-	ScheduleInterval  int32     `db:"schedule_interval"`
-	CreatedByUserID   *int64    `db:"created_by_user_id"`
-	CreatedByName     string    `db:"created_by_name"`
-	CreatedByEmail    string    `db:"created_by_email"`
-	CreatedAt         time.Time `db:"created_at"`
-	UpdatedAt         time.Time `db:"updated_at"`
-}
-
 type reportSummaryRow struct {
-	reportRow
-
-	CollectedHostCount int32 `db:"collected_host_count"`
-	ErrorHostCount     int32 `db:"error_host_count"`
-	PendingHostCount   int32 `db:"pending_host_count"`
-}
-
-func reportFromRow(row reportRow) Report {
-	return Report{
-		ID:                row.ID,
-		Name:              row.Name,
-		Description:       row.Description,
-		Query:             row.Query,
-		MinOsqueryVersion: row.MinOsqueryVersion,
-		ScheduleInterval:  row.ScheduleInterval,
-		Targets:           emptyReportTargets(),
-		CreatedBy:         reportUserSummary(row.CreatedByUserID, row.CreatedByName, row.CreatedByEmail),
-		CreatedAt:         row.CreatedAt,
-		UpdatedAt:         row.UpdatedAt,
-	}
+	ID                 int64     `db:"id"`
+	Name               string    `db:"name"`
+	Description        string    `db:"description"`
+	Query              string    `db:"query"`
+	MinOsqueryVersion  *string   `db:"min_osquery_version"`
+	ScheduleInterval   int32     `db:"schedule_interval"`
+	CreatedByUserID    *int64    `db:"created_by_user_id"`
+	CreatedByName      string    `db:"created_by_name"`
+	CreatedByEmail     string    `db:"created_by_email"`
+	CreatedAt          time.Time `db:"created_at"`
+	UpdatedAt          time.Time `db:"updated_at"`
+	CollectedHostCount int32     `db:"collected_host_count"`
+	ErrorHostCount     int32     `db:"error_host_count"`
+	PendingHostCount   int32     `db:"pending_host_count"`
 }
 
 func reportFromSummaryRow(row reportSummaryRow) Report {
-	report := reportFromRow(row.reportRow)
-	report.CollectedHostCount = row.CollectedHostCount
-	report.ErrorHostCount = row.ErrorHostCount
-	report.PendingHostCount = row.PendingHostCount
-	return report
+	return Report{
+		ID:                 row.ID,
+		Name:               row.Name,
+		Description:        row.Description,
+		Query:              row.Query,
+		MinOsqueryVersion:  row.MinOsqueryVersion,
+		ScheduleInterval:   row.ScheduleInterval,
+		CollectedHostCount: row.CollectedHostCount,
+		ErrorHostCount:     row.ErrorHostCount,
+		PendingHostCount:   row.PendingHostCount,
+		Targets:            emptyReportTargets(),
+		CreatedBy:          reportUserSummary(row.CreatedByUserID, row.CreatedByName, row.CreatedByEmail),
+		CreatedAt:          row.CreatedAt,
+		UpdatedAt:          row.UpdatedAt,
+	}
 }
 
 type reportWrite struct {
@@ -300,24 +270,6 @@ func newReportWrite(p ReportMutation) reportWrite {
 		MinOsqueryVersion: p.MinOsqueryVersion,
 		ScheduleInterval:  p.ScheduleInterval,
 	}
-}
-
-func reportSelectSQL() string {
-	return `
-SELECT
-	r.id,
-	r.name,
-	r.description,
-	r.query,
-	r.min_osquery_version,
-	r.schedule_interval,
-	r.created_by_user_id,
-	COALESCE(creator.name, '') AS created_by_name,
-	COALESCE(creator.email, '') AS created_by_email,
-	r.created_at,
-	r.updated_at
-FROM osquery_reports r
-LEFT JOIN users creator ON creator.id = r.created_by_user_id`
 }
 
 func reportSummarySelectSQL() string {

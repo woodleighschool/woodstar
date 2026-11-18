@@ -4,7 +4,6 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
 )
 
@@ -37,7 +36,7 @@ func (e *LabelEvaluator) ApplicableLabels(ctx context.Context) ([]labels.Dynamic
 }
 
 // Finalize saves label results.
-func (e *LabelEvaluator) Finalize(ctx context.Context, host *hosts.Host, results []LabelResult) error {
+func (e *LabelEvaluator) Finalize(ctx context.Context, hostID int64, results []LabelResult) error {
 	if len(results) == 0 {
 		return nil
 	}
@@ -45,7 +44,7 @@ func (e *LabelEvaluator) Finalize(ctx context.Context, host *hosts.Host, results
 	for i, result := range results {
 		memberships[i] = labels.DynamicMembership{LabelID: result.LabelID, Matched: result.Matched}
 	}
-	handled, err := e.store.SetDynamicMemberships(ctx, host.ID, memberships)
+	handled, err := e.store.SetDynamicMemberships(ctx, hostID, memberships)
 	if err != nil {
 		return err
 	}
@@ -54,7 +53,7 @@ func (e *LabelEvaluator) Finalize(ctx context.Context, host *hosts.Host, results
 	}
 	e.logger.DebugContext(ctx, "osquery label results ingested",
 		"operation", "label_evaluation",
-		"host_id", host.ID,
+		"host_id", hostID,
 		"result_count", handled,
 	)
 	return nil

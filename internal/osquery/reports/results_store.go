@@ -88,16 +88,12 @@ func (s *Store) overwriteObservation(
 		var accepted bool
 		err := tx.QueryRow(ctx, `
 			SELECT true
-			FROM osquery_reports report_row
-			JOIN osquery_report_assignments assignment
-				ON assignment.report_id = report_row.id
-			   AND assignment.host_id = $3
-			WHERE report_row.id = $1
-			  AND encode(sha256(convert_to(report_row.query, 'UTF8')), 'hex') = $2
-			FOR UPDATE OF report_row`,
+			FROM osquery_reports
+			WHERE id = $1
+			  AND encode(sha256(convert_to(query, 'UTF8')), 'hex') = $2
+			FOR SHARE`,
 			reportID,
 			queryHash,
-			hostID,
 		).Scan(&accepted)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil
@@ -106,6 +102,8 @@ func (s *Store) overwriteObservation(
 			return err
 		}
 
+		// A concurrent edit may have replaced the targets while we waited for
+		// the definition lock. Read assignments in this statement's snapshot.
 		_, err = tx.Exec(ctx, `
 			INSERT INTO osquery_report_snapshots (
 				report_id,
@@ -114,7 +112,10 @@ func (s *Store) overwriteObservation(
 				status,
 				error,
 				reported_at
-			) VALUES ($1, $2, $3, $4::osquery_report_snapshot_status, $5, $6)
+			)
+			SELECT report_id, host_id, $3, $4::osquery_report_snapshot_status, $5, $6
+			FROM osquery_report_assignments
+			WHERE report_id = $1 AND host_id = $2
 			ON CONFLICT (report_id, host_id) DO UPDATE
 			SET
 				rows = EXCLUDED.rows,

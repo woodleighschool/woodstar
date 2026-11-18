@@ -16,7 +16,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/heartbeats"
-	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/httpx"
 	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/munki/mdp"
@@ -28,7 +27,7 @@ const (
 )
 
 type hostResolver interface {
-	GetByHardwareSerial(context.Context, string) (*hosts.Host, error)
+	IDByHardwareSerial(context.Context, string) (int64, error)
 }
 
 type heartbeatRecorder interface {
@@ -203,7 +202,7 @@ func (h handler) authorizedHost(w http.ResponseWriter, r *http.Request, operatio
 		w.WriteHeader(http.StatusUnauthorized)
 		return 0, false
 	}
-	host, err := h.hostResolver.GetByHardwareSerial(r.Context(), strings.TrimSpace(r.Header.Get(serialNumberHeader)))
+	hostID, err := h.hostResolver.IDByHardwareSerial(r.Context(), strings.TrimSpace(r.Header.Get(serialNumberHeader)))
 	if errors.Is(err, fault.ErrNotFound) {
 		w.WriteHeader(http.StatusNotFound)
 		return 0, false
@@ -213,7 +212,7 @@ func (h handler) authorizedHost(w http.ResponseWriter, r *http.Request, operatio
 		w.WriteHeader(http.StatusInternalServerError)
 		return 0, false
 	}
-	if err := h.heartbeats.Record(r.Context(), host.ID, heartbeats.SourceMunki, heartbeats.Contact{
+	if err := h.heartbeats.Record(r.Context(), hostID, heartbeats.SourceMunki, heartbeats.Contact{
 		RemoteIP:  chimiddleware.GetClientIP(r.Context()),
 		UserAgent: r.UserAgent(),
 	}); err != nil {
@@ -221,7 +220,7 @@ func (h handler) authorizedHost(w http.ResponseWriter, r *http.Request, operatio
 		w.WriteHeader(http.StatusInternalServerError)
 		return 0, false
 	}
-	return host.ID, true
+	return hostID, true
 }
 
 // redirectToDistributionPoint asks the selector for a matching distribution point.

@@ -74,19 +74,7 @@ func (s *Store) Update(ctx context.Context, id int64, in PolicyMutation) (*Polic
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		var queryChanged bool
 		if err := tx.QueryRow(ctx, `
-			WITH current AS (
-				SELECT
-					id,
-					query,
-					remediation_script,
-					automatic_remediation_enabled,
-					evaluation_revision,
-					remediation_revision
-				FROM osquery_policies
-				WHERE id = @id
-				FOR UPDATE
-			)
-			UPDATE osquery_policies c
+			UPDATE osquery_policies
 			SET
 				name = @name,
 				description = @description,
@@ -95,20 +83,19 @@ func (s *Store) Update(ctx context.Context, id int64, in PolicyMutation) (*Polic
 				remediation_script = @remediation_script,
 				automatic_remediation_enabled = @automatic_remediation_enabled,
 				evaluation_revision = CASE
-					WHEN current.query IS DISTINCT FROM @query
-					THEN current.evaluation_revision + 1
-					ELSE current.evaluation_revision
+					WHEN query IS DISTINCT FROM @query
+					THEN evaluation_revision + 1
+					ELSE evaluation_revision
 				END,
 				remediation_revision = CASE
-					WHEN current.remediation_script IS DISTINCT FROM @remediation_script
-						OR current.automatic_remediation_enabled IS DISTINCT FROM @automatic_remediation_enabled
-					THEN current.remediation_revision + 1
-					ELSE current.remediation_revision
+					WHEN remediation_script IS DISTINCT FROM @remediation_script
+						OR automatic_remediation_enabled IS DISTINCT FROM @automatic_remediation_enabled
+					THEN remediation_revision + 1
+					ELSE remediation_revision
 				END,
 				updated_at = now()
-			FROM current
-			WHERE c.id = current.id
-			RETURNING current.query IS DISTINCT FROM @query`,
+			WHERE id = @id
+			RETURNING OLD.query IS DISTINCT FROM NEW.query`,
 			pgx.StructArgs(write),
 		).Scan(&queryChanged); err != nil {
 			return postgres.MutationError(err)
@@ -220,23 +207,18 @@ func (s *Store) List(ctx context.Context, params PolicyListParams) ([]Policy, in
 
 // IssueEvaluationsForHost records a monotonically increasing identity for each
 // policy query returned to a host.
-func (s *Store) IssueEvaluationsForHost(ctx context.Context, host *hosts.Host) ([]Evaluation, error) {
-	rows, err := s.pool.Query(ctx, `
-		WITH applicable AS (
-			SELECT policy.id
-			FROM osquery_policies policy
-			JOIN osquery_policy_assignments assignment
-				ON assignment.policy_id = policy.id
-			   AND assignment.host_id = $1
-		),
-		issued AS (
+func (s *Store) IssueEvaluationsForHost(ctx context.Context, hostID int64) ([]Evaluation, error) {
+	return postgres.GetAll[Evaluation](ctx, s.pool, `
+		WITH issued AS (
 			INSERT INTO osquery_policy_membership (
 				policy_id,
 				host_id,
 				last_issued_sequence
 			)
-			SELECT applicable.id, $1, 1
-			FROM applicable
+			SELECT policy_id, host_id, 1
+			FROM osquery_policy_assignments
+			WHERE host_id = $1
+			ORDER BY policy_id
 			ON CONFLICT (policy_id, host_id) DO UPDATE SET
 				last_issued_sequence =
 					osquery_policy_membership.last_issued_sequence + 1
@@ -249,19 +231,7 @@ func (s *Store) IssueEvaluationsForHost(ctx context.Context, host *hosts.Host) (
 			issued.last_issued_sequence AS sequence
 		FROM issued
 		JOIN osquery_policies policy ON policy.id = issued.policy_id
-		ORDER BY policy.id`, host.ID)
-	if err != nil {
-		return nil, err
-	}
-	records, err := pgx.CollectRows(rows, pgx.RowToStructByName[policyEvaluationRow])
-	if err != nil {
-		return nil, err
-	}
-	evaluations := make([]Evaluation, len(records))
-	for i, row := range records {
-		evaluations[i] = Evaluation(row)
-	}
-	return evaluations, nil
+		ORDER BY policy.id`, hostID)
 }
 
 // RecordEvaluations records the current policy results from one distributed-write payload.
@@ -292,7 +262,7 @@ func (s *Store) RecordEvaluations(
 
 	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		rows, err := tx.Query(ctx, `
-			WITH input AS MATERIALIZED (
+			WITH input AS (
 				SELECT policy_id, query_hash, revision, sequence, status, error
 				FROM unnest(
 					$2::bigint[],
@@ -302,7 +272,14 @@ func (s *Store) RecordEvaluations(
 					$6::text[],
 					$7::text[]
 				) AS result(policy_id, query_hash, revision, sequence, status, error)
-			), eligible AS MATERIALIZED (
+			), definitions AS (
+				SELECT id, query, evaluation_revision, remediation_script,
+					remediation_revision, automatic_remediation_enabled
+				FROM osquery_policies
+				WHERE id = ANY($2)
+				ORDER BY id
+				FOR SHARE
+			), eligible AS (
 				SELECT
 					result.policy_id,
 					result.sequence,
@@ -322,7 +299,7 @@ func (s *Store) RecordEvaluations(
 				JOIN osquery_policy_membership membership
 					ON membership.policy_id = result.policy_id
 				   AND membership.host_id = $1
-				JOIN osquery_policies policy ON policy.id = result.policy_id
+				JOIN definitions policy ON policy.id = result.policy_id
 				JOIN osquery_policy_assignments assignment
 					ON assignment.policy_id = result.policy_id
 				   AND assignment.host_id = $1
@@ -331,7 +308,8 @@ func (s *Store) RecordEvaluations(
 				  AND policy.evaluation_revision = result.revision
 				  AND membership.last_issued_sequence = result.sequence
 				  AND result.sequence > membership.last_completed_sequence
-				FOR UPDATE OF policy, membership
+				ORDER BY result.policy_id
+				FOR UPDATE OF membership
 			), updated AS (
 				UPDATE osquery_policy_membership membership
 				SET
@@ -678,13 +656,6 @@ type policyRow struct {
 	CreatedByEmail              string    `db:"created_by_email"`
 	CreatedAt                   time.Time `db:"created_at"`
 	UpdatedAt                   time.Time `db:"updated_at"`
-}
-
-type policyEvaluationRow struct {
-	PolicyID int64  `db:"policy_id"`
-	Query    string `db:"query"`
-	Revision int64  `db:"revision"`
-	Sequence int64  `db:"sequence"`
 }
 
 type policyHostStatusRow struct {

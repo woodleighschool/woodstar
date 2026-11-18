@@ -25,7 +25,7 @@ import (
 func TestEnrollRequiresHardwareIdentity(t *testing.T) {
 	t.Parallel()
 
-	hostStore := &fakeHostStore{host: &hosts.Host{ID: 42}}
+	hostStore := &fakeHostStore{host: &hosts.OsqueryHost{ID: 42}}
 	service := NewAgentService(Dependencies{
 		HostStore:   hostStore,
 		SecretStore: fakeSecretVerifier{ok: true},
@@ -43,7 +43,7 @@ func TestEnrollRequiresHardwareIdentity(t *testing.T) {
 func TestEnrollUsesHostIdentifierAsHardwareUUID(t *testing.T) {
 	t.Parallel()
 
-	hostStore := &fakeHostStore{host: &hosts.Host{ID: 42}}
+	hostStore := &fakeHostStore{host: &hosts.OsqueryHost{ID: 42}}
 	service := NewAgentService(Dependencies{
 		HostStore:   hostStore,
 		SecretStore: fakeSecretVerifier{ok: true},
@@ -94,7 +94,7 @@ func TestLogPropagatesReportPersistenceFailure(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			service := NewAgentService(Dependencies{
-				HostStore:  &fakeHostStore{host: &hosts.Host{ID: 42}},
+				HostStore:  &fakeHostStore{host: &hosts.OsqueryHost{ID: 42}},
 				Heartbeats: &fakeOsqueryHeartbeatRecorder{},
 				ReportStore: fakeReportStore{
 					overwriteErr: wantErr,
@@ -172,7 +172,7 @@ func TestAgentServiceRecordsAuthenticatedHostContact(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			recorder := &fakeOsqueryHeartbeatRecorder{}
-			hostStore := &fakeHostStore{host: &hosts.Host{ID: 42}}
+			hostStore := &fakeHostStore{host: &hosts.OsqueryHost{ID: 42}}
 			service := newTestAgentService(recorder, hostStore)
 
 			tt.call(t, service)
@@ -201,7 +201,7 @@ func TestAgentServiceDoesNotRecordUnauthenticatedContact(t *testing.T) {
 	t.Parallel()
 
 	recorder := &fakeOsqueryHeartbeatRecorder{}
-	hostStore := &fakeHostStore{host: &hosts.Host{ID: 42}}
+	hostStore := &fakeHostStore{host: &hosts.OsqueryHost{ID: 42}}
 	service := newTestAgentService(recorder, hostStore)
 	service.deps.SecretStore = fakeSecretVerifier{ok: false}
 	_, err := service.Enroll(t.Context(), EnrollRequest{EnrollSecret: "bad", HostIdentifier: "hardware-uuid"}, heartbeats.Contact{})
@@ -212,7 +212,7 @@ func TestAgentServiceDoesNotRecordUnauthenticatedContact(t *testing.T) {
 		t.Fatalf("Record calls = %d, want 0", len(recorder.calls))
 	}
 
-	hostStore = &fakeHostStore{host: &hosts.Host{ID: 42}}
+	hostStore = &fakeHostStore{host: &hosts.OsqueryHost{ID: 42}}
 	service = newTestAgentService(recorder, hostStore)
 	hostStore.getErr = fault.ErrNotFound
 	resp, err := service.Config(t.Context(), "bad", heartbeats.Contact{})
@@ -228,7 +228,7 @@ func TestAgentServicePropagatesHeartbeatError(t *testing.T) {
 	t.Parallel()
 
 	wantErr := errors.New("heartbeat unavailable")
-	hostStore := &fakeHostStore{host: &hosts.Host{ID: 42}}
+	hostStore := &fakeHostStore{host: &hosts.OsqueryHost{ID: 42}}
 	service := newTestAgentService(&fakeOsqueryHeartbeatRecorder{err: wantErr}, hostStore)
 	_, err := service.Config(t.Context(), "node-key", heartbeats.Contact{})
 	if !errors.Is(err, wantErr) {
@@ -241,7 +241,7 @@ func TestConfigEnablesErrorStatusLogs(t *testing.T) {
 
 	service := newTestAgentService(
 		&fakeOsqueryHeartbeatRecorder{},
-		&fakeHostStore{host: &hosts.Host{ID: 42}},
+		&fakeHostStore{host: &hosts.OsqueryHost{ID: 42}},
 	)
 	response, err := service.Config(t.Context(), "node-key", heartbeats.Contact{})
 	if err != nil {
@@ -256,7 +256,7 @@ func TestDistributedReadQueuesFreshInventoryWhenRefreshRequested(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
-	hostStore := &fakeHostStore{host: &hosts.Host{
+	hostStore := &fakeHostStore{host: &hosts.OsqueryHost{
 		ID:                        42,
 		InventoryUpdatedAt:        &now,
 		InventoryQueryHash:        catalog.DetailQueryHash(),
@@ -278,7 +278,7 @@ func TestDistributedReadQueuesFreshInventoryWhenRefreshRequested(t *testing.T) {
 }
 
 type fakeHostStore struct {
-	host         *hosts.Host
+	host         *hosts.OsqueryHost
 	update       hosts.InventoryUpdate
 	contact      heartbeats.Contact
 	upsertCalled bool
@@ -288,7 +288,7 @@ type fakeHostStore struct {
 func TestDistributedReadSkipsFreshInventory(t *testing.T) {
 	t.Parallel()
 	now := time.Now()
-	host := &hosts.Host{ID: 42, InventoryUpdatedAt: &now, InventoryQueryHash: catalog.DetailQueryHash()}
+	host := &hosts.OsqueryHost{ID: 42, InventoryUpdatedAt: &now, InventoryQueryHash: catalog.DetailQueryHash()}
 	service := newTestAgentService(&fakeOsqueryHeartbeatRecorder{}, &fakeHostStore{host: host})
 	response, err := service.DistributedRead(t.Context(), "node", heartbeats.Contact{})
 	if err != nil {
@@ -307,7 +307,7 @@ func (s *fakeHostStore) UpsertOnOsqueryEnroll(
 	s.update = update
 	s.contact = contact
 	s.upsertCalled = true
-	return s.host, nil
+	return &hosts.Host{ID: s.host.ID, DisplayName: s.host.DisplayName}, nil
 }
 
 type fakeSecretVerifier struct {
@@ -318,7 +318,7 @@ func (v fakeSecretVerifier) Verify(context.Context, agentauth.Agent, string) (bo
 	return v.ok, nil
 }
 
-func (s *fakeHostStore) GetByOsqueryNodeKey(context.Context, string) (*hosts.Host, error) {
+func (s *fakeHostStore) GetByOsqueryNodeKey(context.Context, string) (*hosts.OsqueryHost, error) {
 	return s.host, s.getErr
 }
 
@@ -369,13 +369,13 @@ func (fakeLabelEvaluator) ApplicableLabels(context.Context) ([]labels.DynamicLab
 	return nil, nil
 }
 
-func (fakeLabelEvaluator) Finalize(context.Context, *hosts.Host, []ingest.LabelResult) error {
+func (fakeLabelEvaluator) Finalize(context.Context, int64, []ingest.LabelResult) error {
 	return nil
 }
 
 type fakePolicyStore struct{}
 
-func (fakePolicyStore) IssueEvaluationsForHost(context.Context, *hosts.Host) ([]policies.Evaluation, error) {
+func (fakePolicyStore) IssueEvaluationsForHost(context.Context, int64) ([]policies.Evaluation, error) {
 	return nil, nil
 }
 
@@ -395,7 +395,7 @@ func (fakeLiveQueries) PendingForHost(context.Context, int64) ([]livequery.Work,
 
 func (fakeLiveQueries) RecordResult(context.Context, livequery.Result) error { return nil }
 
-func (fakeReportStore) ScheduledForHost(context.Context, *hosts.Host) ([]reports.Report, error) {
+func (fakeReportStore) ScheduledForHost(context.Context, int64) ([]reports.ScheduledReport, error) {
 	return nil, nil
 }
 

@@ -2,8 +2,6 @@ package osquery
 
 import (
 	"context"
-
-	"github.com/woodleighschool/woodstar/internal/hosts"
 )
 
 // ScheduleEntry is one osquery scheduled query config item.
@@ -19,12 +17,12 @@ type ScheduleEntry struct {
 func buildScheduleForHost(
 	ctx context.Context,
 	store reportStore,
-	host *hosts.Host,
+	hostID int64,
 ) (map[string]ScheduleEntry, error) {
 	if store == nil {
 		return map[string]ScheduleEntry{}, nil
 	}
-	items, err := store.ScheduledForHost(ctx, host)
+	items, err := store.ScheduledForHost(ctx, hostID)
 	if err != nil {
 		return nil, err
 	}

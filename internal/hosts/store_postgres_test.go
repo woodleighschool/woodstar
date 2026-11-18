@@ -464,10 +464,10 @@ func TestReenrollPreservesHostIdentity(t *testing.T) {
 	if orbitReenrolled.ID != host.ID {
 		t.Fatalf("Orbit re-enrollment host ID = %d, want existing ID %d", orbitReenrolled.ID, host.ID)
 	}
-	if _, err := store.GetByOrbitNodeKey(ctx, "orbit-key-initial"); !errors.Is(err, fault.ErrNotFound) {
+	if _, err := store.IDByOrbitNodeKey(ctx, "orbit-key-initial"); !errors.Is(err, fault.ErrNotFound) {
 		t.Fatalf("get initial Orbit node key error = %v, want ErrNotFound", err)
 	}
-	if got, err := store.GetByOrbitNodeKey(ctx, "orbit-key-reenrolled"); err != nil || got.ID != host.ID {
+	if got, err := store.IDByOrbitNodeKey(ctx, "orbit-key-reenrolled"); err != nil || got != host.ID {
 		t.Fatalf("get re-enrolled Orbit node key = host %+v, error %v, want host %d", got, err, host.ID)
 	}
 	if got, err := store.GetByOsqueryNodeKey(ctx, "osquery-key-initial"); err != nil || got.ID != host.ID {
@@ -491,7 +491,7 @@ func TestReenrollPreservesHostIdentity(t *testing.T) {
 	if got, err := store.GetByOsqueryNodeKey(ctx, "osquery-key-reenrolled"); err != nil || got.ID != host.ID {
 		t.Fatalf("get re-enrolled osquery node key = host %+v, error %v, want host %d", got, err, host.ID)
 	}
-	if got, err := store.GetByOrbitNodeKey(ctx, "orbit-key-reenrolled"); err != nil || got.ID != host.ID {
+	if got, err := store.IDByOrbitNodeKey(ctx, "orbit-key-reenrolled"); err != nil || got != host.ID {
 		t.Fatalf("get preserved Orbit node key = host %+v, error %v, want host %d", got, err, host.ID)
 	}
 }
@@ -515,10 +515,10 @@ func TestReenrollRollsBackHostMutationWhenContactIsInvalid(t *testing.T) {
 	if !errors.Is(err, fault.ErrInvalidInput) {
 		t.Fatalf("re-enroll error = %v, want ErrInvalidInput", err)
 	}
-	if got, err := store.GetByOrbitNodeKey(ctx, "orbit-key-before-invalid-contact"); err != nil || got.ID != host.ID {
+	if got, err := store.IDByOrbitNodeKey(ctx, "orbit-key-before-invalid-contact"); err != nil || got != host.ID {
 		t.Fatalf("get original Orbit node key = host %+v, error %v, want host %d", got, err, host.ID)
 	}
-	if _, err := store.GetByOrbitNodeKey(ctx, "orbit-key-after-invalid-contact"); !errors.Is(err, fault.ErrNotFound) {
+	if _, err := store.IDByOrbitNodeKey(ctx, "orbit-key-after-invalid-contact"); !errors.Is(err, fault.ErrNotFound) {
 		t.Fatalf("get rolled-back Orbit node key error = %v, want ErrNotFound", err)
 	}
 
@@ -531,7 +531,7 @@ func TestReenrollRollsBackHostMutationWhenContactIsInvalid(t *testing.T) {
 	}
 }
 
-func TestGetByHardwareSerialRequiresUniqueRealSerial(t *testing.T) {
+func TestIDByHardwareSerialRequiresUniqueRealSerial(t *testing.T) {
 	store, ctx := newPostgresHostStore(t)
 
 	host, err := store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
@@ -542,12 +542,12 @@ func TestGetByHardwareSerialRequiresUniqueRealSerial(t *testing.T) {
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
 	}
-	got, err := store.GetByHardwareSerial(ctx, " C02SERIAL ")
+	got, err := store.IDByHardwareSerial(ctx, " C02SERIAL ")
 	if err != nil {
 		t.Fatalf("get by hardware serial: %v", err)
 	}
-	if got.ID != host.ID {
-		t.Fatalf("host id = %d, want %d", got.ID, host.ID)
+	if got != host.ID {
+		t.Fatalf("host id = %d, want %d", got, host.ID)
 	}
 
 	if _, err := store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
@@ -635,18 +635,14 @@ func TestNodeKeyAndTokenLookupsAreIdentityReads(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get host before lookups: %v", err)
 	}
-	lookups := []struct {
-		name string
-		load func() (*Host, error)
-	}{
-		{name: "orbit node key", load: func() (*Host, error) { return store.GetByOrbitNodeKey(ctx, host.OrbitNodeKey) }},
-		{name: "osquery node key", load: func() (*Host, error) { return store.GetByOsqueryNodeKey(ctx, host.OsqueryNodeKey) }},
-		{name: "orbit token", load: func() (*Host, error) { return store.ValidateOrbitDeviceAuthToken(ctx, token) }},
+	if id, err := store.IDByOrbitNodeKey(ctx, host.OrbitNodeKey); err != nil || id != host.ID {
+		t.Fatalf("Orbit key lookup = %d, %v", id, err)
 	}
-	for _, lookup := range lookups {
-		if _, err := lookup.load(); err != nil {
-			t.Fatalf("%s: %v", lookup.name, err)
-		}
+	if record, err := store.GetByOsqueryNodeKey(ctx, host.OsqueryNodeKey); err != nil || record.ID != host.ID {
+		t.Fatalf("osquery key lookup = %v, %v", record, err)
+	}
+	if id, err := store.IDByOrbitDeviceAuthToken(ctx, token); err != nil || id != host.ID {
+		t.Fatalf("Orbit token lookup = %d, %v", id, err)
 	}
 	after, err := store.GetByID(ctx, host.ID)
 	if err != nil {

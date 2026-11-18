@@ -2,13 +2,8 @@ package hosts
 
 import (
 	"context"
-	"fmt"
-	"strings"
 	"time"
 
-	"github.com/jackc/pgx/v5"
-
-	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/postgres"
 )
 
@@ -41,34 +36,6 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Host, error) {
 	}
 	host := hostFromRow(row, time.Now())
 	return &host, nil
-}
-
-// GetByHardwareSerial returns the existing host with serial.
-func (s *Store) GetByHardwareSerial(ctx context.Context, serial string) (*Host, error) {
-	serial = strings.TrimSpace(serial)
-	if serial == "" {
-		return nil, fault.ErrNotFound
-	}
-	rows, err := s.pool.Query(ctx, hostSelectSQL()+`
-WHERE hardware_serial = $1 AND hardware_serial <> ''
-ORDER BY updated_at DESC, id DESC
-LIMIT 2`, serial)
-	if err != nil {
-		return nil, err
-	}
-	records, err := pgx.CollectRows(rows, pgx.RowToStructByName[hostRow])
-	if err != nil {
-		return nil, err
-	}
-	switch len(records) {
-	case 0:
-		return nil, fault.ErrNotFound
-	case 1:
-		host := hostFromRow(records[0], time.Now())
-		return &host, nil
-	default:
-		return nil, fmt.Errorf("multiple hosts have hardware serial %q", serial)
-	}
 }
 
 func hostListQuery(params HostListParams, where string, args []any) postgres.ListQuery {

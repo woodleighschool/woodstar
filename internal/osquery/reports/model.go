@@ -34,6 +34,14 @@ type Report struct {
 	UpdatedAt          time.Time              `json:"updated_at"`
 }
 
+// ScheduledReport contains the settings osquery needs to run a report.
+type ScheduledReport struct {
+	ID                int64
+	Query             string
+	MinOsqueryVersion *string
+	ScheduleInterval  int32
+}
+
 // ReportMutation is the editable report state used by create and update.
 type ReportMutation struct {
 	Name              string        `json:"name"                          validate:"required,notblank" minLength:"1"`

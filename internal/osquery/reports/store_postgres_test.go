@@ -186,11 +186,11 @@ func TestScheduledForHostUsesTargetRows(t *testing.T) {
 		t.Fatalf("create excluded report: %v", err)
 	}
 
-	got, err := store.ScheduledForHost(ctx, host)
+	got, err := store.ScheduledForHost(ctx, host.ID)
 	if err != nil {
 		t.Fatalf("scheduled for host: %v", err)
 	}
-	if len(got) != 1 || got[0].Name != "Matching scheduled report" {
+	if len(got) != 1 || got[0].Query != "select 1;" {
 		t.Fatalf("ScheduledForHost returned %+v, want only matching report", got)
 	}
 }
@@ -211,7 +211,7 @@ func TestScheduledForHostRequiresIncludeTarget(t *testing.T) {
 		t.Fatalf("create exclude-only report: %v", err)
 	}
 
-	got, err := store.ScheduledForHost(ctx, host)
+	got, err := store.ScheduledForHost(ctx, host.ID)
 	if err != nil {
 		t.Fatalf("scheduled for host: %v", err)
 	}
@@ -262,11 +262,11 @@ func TestScheduledForHostUsesScheduleState(t *testing.T) {
 		t.Fatalf("create version-gated report: %v", err)
 	}
 
-	got, err := store.ScheduledForHost(ctx, host)
+	got, err := store.ScheduledForHost(ctx, host.ID)
 	if err != nil {
 		t.Fatalf("scheduled for host: %v", err)
 	}
-	if len(got) != 2 || got[0].Name != "Matching scheduled report" || got[1].Name != "Version-gated scheduled report" {
+	if len(got) != 2 || got[0].Query != "select 1;" || got[1].Query != "select 4;" {
 		t.Fatalf("ScheduledForHost returned %+v, want scheduled reports", got)
 	}
 	if got[1].MinOsqueryVersion == nil || *got[1].MinOsqueryVersion != "6.0.0" {
@@ -950,6 +950,65 @@ func TestResultsHiddenWhenHostLeavesScope(t *testing.T) {
 	if persistedName != "Alpha" {
 		t.Fatalf("retained report result = %q, want Alpha", persistedName)
 	}
+}
+
+func TestReportSubmissionRechecksTargetsAfterConcurrentEdit(t *testing.T) {
+	store, labelStore, hostStore, ctx := newPostgresReportStore(t)
+	host := enrollTestHost(t, ctx, hostStore, "report-edit-host")
+	report, err := store.Create(ctx, ReportCreateMutation{
+		Name: "Retargeted report", Query: "select 1;",
+		Targets: reportTargets([]int64{allHostsLabelID(t, ctx, labelStore)}, nil),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	tx, err := store.pool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = tx.Rollback(context.WithoutCancel(ctx)) }()
+	if _, err := tx.Exec(ctx, `UPDATE osquery_reports SET updated_at = now() WHERE id = $1`, report.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := replaceReportTargets(ctx, tx, report.ID, ReportTargets{}); err != nil {
+		t.Fatal(err)
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		done <- store.OverwriteSnapshot(ctx, report.ID, testQueryHash(report.Query), host.ID, nil, time.Now())
+	}()
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		var blocked bool
+		if err := store.pool.QueryRow(ctx, `
+			SELECT EXISTS (
+				SELECT FROM pg_stat_activity WHERE $1::integer = ANY(pg_blocking_pids(pid))
+			)`, tx.Conn().PgConn().PID()).Scan(&blocked); err != nil {
+			t.Fatal(err)
+		}
+		if blocked {
+			break
+		}
+		select {
+		case err := <-done:
+			t.Fatalf("submission finished before the edit committed: %v", err)
+		case <-ctx.Done():
+			t.Fatal(ctx.Err())
+		case <-ticker.C:
+		}
+	}
+	if err := tx.Commit(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	assertReportSnapshotCount(t, ctx, store, report.ID, host.ID, 0)
 }
 
 func TestUpdatePrunesResultsOutsideNewTargets(t *testing.T) {
