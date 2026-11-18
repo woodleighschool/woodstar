@@ -494,53 +494,13 @@ FROM labels l
 LEFT JOIN label_membership lm ON lm.label_id = l.id`
 }
 
-func primaryUserSourceOrderSQL() string {
-	return `CASE source
-		WHEN 'manual' THEN 0
-		WHEN 'orbit_profile' THEN 1
-		ELSE 10
-	END`
-}
-
-func resolvedPrimaryUsersSQL() string {
-	return `
-WITH preferred AS (
-	SELECT DISTINCT ON (host_id)
-		host_id,
-		email,
-		source::text AS source
-	FROM host_primary_user_sources
-	WHERE $2::bigint IS NULL OR host_id = $2
-	ORDER BY host_id, ` + primaryUserSourceOrderSQL() + `, source
-),
-resolved AS (
-	SELECT
-		p.host_id,
-		u.id AS user_id,
-		COALESCE(u.department, '') AS department
-	FROM preferred p
-	JOIN LATERAL (
-		SELECT u.id, u.department
-		FROM users u
-		WHERE u.deleted_at IS NULL
-		  AND (
-			u.email = p.email
-			OR (
-				u.user_principal_name IS NOT NULL
-				AND u.user_principal_name = p.email
-			)
-		  )
-		ORDER BY
-			CASE WHEN u.email = p.email THEN 0 ELSE 1 END,
-			CASE WHEN u.source <> 'local' THEN 0 ELSE 1 END,
-			u.id
-		LIMIT 1
-	) u ON true
-)`
-}
-
 func insertDerivedMembershipsSQL() string {
-	return resolvedPrimaryUsersSQL() + `,
+	return `
+WITH resolved AS (
+	SELECT host_id, user_id, department
+	FROM host_primary_users
+	WHERE user_id IS NOT NULL AND ($2::bigint IS NULL OR host_id = $2)
+),
 criteria AS (
 	SELECT
 		label.id AS label_id,

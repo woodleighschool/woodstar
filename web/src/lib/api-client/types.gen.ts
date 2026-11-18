@@ -1517,6 +1517,7 @@ export type User = {
     deleted_at?: string;
     department?: string;
     email: string;
+    enabled: boolean;
     external_id?: string;
     family_name?: string;
     given_name?: string;

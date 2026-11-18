@@ -4392,6 +4392,8 @@ components:
         email:
           format: email
           type: string
+        enabled:
+          type: boolean
         external_id:
           type: string
         family_name:
@@ -4425,6 +4427,7 @@ components:
         - email
         - name
         - source
+        - enabled
         - created_at
         - updated_at
       type: object

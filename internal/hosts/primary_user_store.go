@@ -246,12 +246,6 @@ func (s *Store) loadPrimaryUser(ctx context.Context, hostIDs []int64) (map[int64
 	return primaryUsers, nil
 }
 
-const primaryUserSourceOrderSQL = `CASE source
-	WHEN 'manual' THEN 0
-	WHEN 'orbit_profile' THEN 1
-	ELSE 10
-END`
-
 const upsertHostPrimaryUserSourceSQL = `
 INSERT INTO host_primary_user_sources (
 	host_id,
@@ -276,59 +270,23 @@ const listHostPrimaryUserSourcesForHostsSQL = `
 SELECT id, host_id, email, source, created_at, updated_at
 FROM host_primary_user_sources
 WHERE host_id = ANY($1::bigint[])
-ORDER BY host_id, ` + primaryUserSourceOrderSQL + `, source`
+ORDER BY host_id, source`
 
 const listHostPrimaryUsersSQL = `
-WITH preferred AS (
-	SELECT DISTINCT ON (host_id)
-		host_id,
-		email,
-		source::text AS source
-	FROM host_primary_user_sources
-	WHERE host_id = ANY($1::bigint[])
-	ORDER BY host_id, ` + primaryUserSourceOrderSQL + `, source
-),
-resolved AS (
-	SELECT
-		p.host_id,
-		p.email,
-		p.source,
-		u.id AS user_id,
-		COALESCE(u.mail_nickname, '') AS username,
-		COALESCE(u.name, '') AS name,
-		COALESCE(u.department, '') AS department
-	FROM preferred p
-	LEFT JOIN LATERAL (
-		SELECT u.id, u.mail_nickname, u.name, u.department
-		FROM users u
-		WHERE u.deleted_at IS NULL
-		  AND (
-			u.email = p.email
-			OR (
-				u.user_principal_name IS NOT NULL
-				AND u.user_principal_name = p.email
-			)
-		  )
-		ORDER BY
-			CASE WHEN u.email = p.email THEN 0 ELSE 1 END,
-			CASE WHEN u.source <> 'local' THEN 0 ELSE 1 END,
-			u.id
-		LIMIT 1
-	) u ON true
-)
 SELECT
 	r.host_id,
 	r.email,
-	r.source,
-	r.username,
-	r.name,
-	r.department,
+	r.source::text AS source,
+	COALESCE(r.mail_nickname, '') AS username,
+	COALESCE(r.name, '') AS name,
+	COALESCE(r.department, '') AS department,
 	COALESCE(
 		array_agg(eg.display_name ORDER BY lower(eg.display_name)) FILTER (WHERE eg.id IS NOT NULL),
 		ARRAY[]::text[]
 	)::text[] AS groups
-FROM resolved r
+FROM host_primary_users r
 LEFT JOIN directory_group_memberships egm ON egm.user_id = r.user_id
 LEFT JOIN directory_groups eg ON eg.id = egm.group_id
-GROUP BY r.host_id, r.email, r.source, r.username, r.name, r.department
+WHERE r.host_id = ANY($1::bigint[])
+GROUP BY r.host_id, r.email, r.source, r.mail_nickname, r.name, r.department
 ORDER BY r.host_id`

@@ -44,6 +44,7 @@ type userRow struct {
 	GivenName         *string    `db:"given_name"`
 	FamilyName        *string    `db:"family_name"`
 	Department        *string    `db:"department"`
+	Enabled           bool       `db:"enabled"`
 	DeletedAt         *time.Time `db:"deleted_at"`
 	CreatedAt         time.Time  `db:"created_at"`
 	UpdatedAt         time.Time  `db:"updated_at"`
@@ -69,6 +70,7 @@ func userColumnsSQL(alias string) string {
 		prefix + "given_name",
 		prefix + "family_name",
 		prefix + "department",
+		prefix + "enabled",
 		prefix + "deleted_at",
 		prefix + "created_at",
 		prefix + "updated_at",
@@ -133,6 +135,7 @@ func userFromRow(r userRow) User {
 		GivenName:         derefString(r.GivenName),
 		FamilyName:        derefString(r.FamilyName),
 		Department:        derefString(r.Department),
+		Enabled:           r.Enabled,
 		DeletedAt:         r.DeletedAt,
 		CreatedAt:         r.CreatedAt,
 		UpdatedAt:         r.UpdatedAt,
@@ -317,7 +320,7 @@ SELECT id
 FROM users
 WHERE lower(email) = lower($1)
   AND deleted_at IS NULL
-ORDER BY CASE WHEN source = 'local' THEN 1 ELSE 0 END, id
+ORDER BY enabled DESC, CASE WHEN source = 'local' THEN 1 ELSE 0 END, id
 LIMIT 1
 FOR UPDATE`, email).Scan(&userID); err != nil {
 			return postgres.GetError(err)
@@ -384,32 +387,26 @@ func (s *Store) deleteUser(
 	id int64,
 ) error {
 	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		// A snapshot writes users and memberships in separate statements. Serialize
+		// deletion with its user merge so it cannot restore a deleted membership.
+		if _, err := tx.Exec(ctx, `LOCK TABLE users IN SHARE ROW EXCLUSIVE MODE`); err != nil {
+			return err
+		}
 		var source Source
 		if err := tx.QueryRow(ctx, `
-SELECT source::text
-FROM users
-WHERE id = $1
-  AND deleted_at IS NULL
-FOR UPDATE`, id).Scan(&source); err != nil {
+SELECT source::text FROM users WHERE id = $1 AND deleted_at IS NULL`, id).Scan(&source); err != nil {
 			return postgres.GetError(err)
 		}
 
-		var deletedID int64
 		if source == SourceLocal {
-			if err := tx.QueryRow(ctx, `
-DELETE FROM users
-WHERE id = $1
-RETURNING id`, id).Scan(&deletedID); err != nil {
+			if _, err := tx.Exec(ctx, `DELETE FROM users WHERE id = $1`, id); err != nil {
 				return postgres.MutationError(err)
 			}
 		} else {
-			if err := tx.QueryRow(ctx, `
-UPDATE users
-SET
-    deleted_at = now(),
-    updated_at = now()
-WHERE id = $1
-RETURNING id`, id).Scan(&deletedID); err != nil {
+			if _, err := tx.Exec(ctx, `UPDATE users SET deleted_at = now(), updated_at = now() WHERE id = $1`, id); err != nil {
+				return postgres.MutationError(err)
+			}
+			if _, err := tx.Exec(ctx, `DELETE FROM directory_group_memberships WHERE user_id = $1`, id); err != nil {
 				return postgres.MutationError(err)
 			}
 		}
@@ -477,6 +474,7 @@ func userListQuery(params UserListParams, where string, args []any) postgres.Lis
 		OrderKeys: map[string]postgres.OrderExpr{
 			"name":       {SQL: "lower(u.name)"},
 			"email":      {SQL: "lower(u.email)"},
+			"enabled":    {SQL: "u.enabled"},
 			"role":       {SQL: directRoleKeySQL("u.id"), NullOrder: postgres.NullsLast},
 			"department": {SQL: "lower(u.department)", NullOrder: postgres.NullsLast},
 			"created_at": {SQL: "u.created_at"},

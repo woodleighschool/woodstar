@@ -2,6 +2,7 @@ import { useNavigate, useParams } from "@tanstack/react-router";
 import { Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 
+import { BooleanIndicator } from "@components/boolean-indicator";
 import { EnumBadge } from "@components/enum-badge";
 import { KeyValueRow, KeyValueSection } from "@components/key-value";
 import { PageHeader, PageShell } from "@components/layout/page-layout";
@@ -74,6 +75,7 @@ export function UserDetailPage() {
         <KeyValueSection title="Overview">
           <KeyValueRow label="Name" value={nonEmpty(user.name) ?? "-"} />
           <KeyValueRow label="Email" value={user.email} />
+          <KeyValueRow label="Enabled" value={<BooleanIndicator value={user.enabled} />} />
           <KeyValueRow
             label="Source"
             value={<EnumBadge value={user.source} metadata={DIRECTORY_SOURCES} />}

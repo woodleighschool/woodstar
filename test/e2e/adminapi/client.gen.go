@@ -2979,6 +2979,7 @@ type User struct {
 	DeletedAt         *time.Time          `json:"deleted_at,omitempty"`
 	Department        *string             `json:"department,omitempty"`
 	Email             openapi_types.Email `json:"email"`
+	Enabled           bool                `json:"enabled"`
 	ExternalId        *string             `json:"external_id,omitempty"`
 	FamilyName        *string             `json:"family_name,omitempty"`
 	GivenName         *string             `json:"given_name,omitempty"`

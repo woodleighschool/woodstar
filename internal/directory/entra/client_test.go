@@ -86,6 +86,9 @@ func (f *graphFetchTransport) RoundTrip(req *http.Request) (*http.Response, erro
 }
 
 func (f *graphFetchTransport) users(req *http.Request) *http.Response {
+	if filter := req.URL.Query().Get("$filter"); filter != "userType eq 'Member'" {
+		f.t.Fatalf("user filter = %q", filter)
+	}
 	if req.URL.Query().Get("$skiptoken") == "users-2" {
 		return jsonResponse(map[string]any{
 			"value": []map[string]any{{
@@ -108,7 +111,7 @@ func (f *graphFetchTransport) users(req *http.Request) *http.Response {
 		"accountEnabled",
 	})
 	return jsonResponse(map[string]any{
-		"@odata.nextLink": f.baseURL + "/users?$select=id,userPrincipalName,mail,mailNickname,displayName,givenName,surname,department,accountEnabled&$top=999&$skiptoken=users-2",
+		"@odata.nextLink": f.baseURL + "/users?$select=id,userPrincipalName,mail,mailNickname,displayName,givenName,surname,department,accountEnabled&$filter=userType%20eq%20%27Member%27&$top=999&$skiptoken=users-2",
 		"value": []map[string]any{{
 			"id":                "u-1",
 			"userPrincipalName": "one@example.invalid",
@@ -118,6 +121,7 @@ func (f *graphFetchTransport) users(req *http.Request) *http.Response {
 			"givenName":         "User",
 			"surname":           "One",
 			"department":        "IT",
+			"accountEnabled":    true,
 		}},
 	})
 }

@@ -40,6 +40,7 @@ type User struct {
 	GivenName         string     `json:"given_name,omitempty"`
 	FamilyName        string     `json:"family_name,omitempty"`
 	Department        string     `json:"department,omitempty"`
+	Enabled           bool       `json:"enabled"`
 	DeletedAt         *time.Time `json:"deleted_at,omitempty"`
 	CreatedAt         time.Time  `json:"created_at"`
 	UpdatedAt         time.Time  `json:"updated_at"`

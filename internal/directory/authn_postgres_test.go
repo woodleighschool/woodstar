@@ -86,18 +86,50 @@ func TestRotateAPIKeyReplacesAndRevokesBearerCredential(t *testing.T) {
 	}
 }
 
-func TestSSOResolvesProvisionedPrincipal(t *testing.T) {
+func TestAuthenticationFollowsDirectoryAccountState(t *testing.T) {
 	database, ctx := testdb.Open(t)
 	store := NewStore(database, labels.NewStore(database))
-	if err := store.ApplyProviderSnapshot(ctx, SourceEntra, ProviderSnapshot{Users: []ProviderUser{{
-		ExternalID: "provider-user", UserPrincipalName: "user@example.invalid", Mail: "user@example.invalid", DisplayName: "Provider User", Enabled: true,
-	}}}); err != nil {
-		t.Fatalf("apply provider snapshot: %v", err)
+	member := ProviderUser{
+		ExternalID: "provider-user", UserPrincipalName: "user@example.invalid", DisplayName: "Directory User", Enabled: true, GroupExternalIDs: []string{"team"},
+	}
+	snapshot := ProviderSnapshot{
+		Users:  []ProviderUser{member},
+		Groups: []ProviderGroup{{ExternalID: "team", DisplayName: "Team"}},
+	}
+	if err := store.ApplyProviderSnapshot(ctx, SourceEntra, snapshot); err != nil {
+		t.Fatal(err)
 	}
 
-	principal, err := NewAuthnStore(store).GetSSOPrincipalByEmail(ctx, "user@example.invalid")
-	if err != nil || principal.Email != "user@example.invalid" {
-		t.Fatalf("complete SSO login principal = %+v, error = %v", principal, err)
+	auth := NewAuthnStore(store)
+	principal, err := auth.GetSSOPrincipalByEmail(ctx, member.UserPrincipalName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const key = "synthetic-user-key"
+	if err := auth.SetAPIKey(ctx, principal.ID, key); err != nil {
+		t.Fatal(err)
+	}
+	snapshot.Users[0].Enabled = false
+	if err := store.ApplyProviderSnapshot(ctx, SourceEntra, snapshot); err != nil {
+		t.Fatal(err)
+	}
+
+	var groupID int64
+	if err := database.QueryRow(ctx, `SELECT id FROM directory_groups WHERE external_id = 'team'`).Scan(&groupID); err != nil {
+		t.Fatal(err)
+	}
+	members, count, err := NewUserService(store).List(ctx, UserListParams{GroupID: groupID})
+	if err != nil || count != 1 || len(members) != 1 || members[0].ID != principal.ID || members[0].Enabled {
+		t.Fatalf("disabled group member = %+v, count %d, error %v", members, count, err)
+	}
+	if _, err := auth.GetSSOPrincipalByEmail(ctx, member.UserPrincipalName); !errors.Is(err, authn.ErrPrincipalNotFound) {
+		t.Fatalf("disabled SSO = %v", err)
+	}
+	if _, err := auth.GetPrincipal(ctx, principal.ID); !errors.Is(err, authn.ErrPrincipalNotFound) {
+		t.Fatalf("disabled session = %v", err)
+	}
+	if _, err := auth.GetPrincipalByAPIKey(ctx, key); !errors.Is(err, authn.ErrPrincipalNotFound) {
+		t.Fatalf("disabled API key = %v", err)
 	}
 }
 

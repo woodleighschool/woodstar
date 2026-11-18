@@ -72,7 +72,7 @@ func (s *UserService) Update(ctx context.Context, targetID int64, params UserMut
 	})
 }
 
-// Delete hard-deletes local users and soft-deletes source-owned identities.
+// Delete removes the user. A synced identity can return in a later snapshot.
 func (s *UserService) Delete(ctx context.Context, targetID int64) error {
 	return s.store.deleteUser(ctx, targetID)
 }

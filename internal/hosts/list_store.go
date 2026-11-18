@@ -129,31 +129,12 @@ func hostListWhere(params HostListParams) (string, []any) {
 			)
 			OR EXISTS (
 				SELECT 1
-				FROM LATERAL (
-					SELECT s.email
-					FROM host_primary_user_sources s
-					WHERE s.host_id = hosts.id
-					ORDER BY ` + primaryUserSourceOrderSQL + `, source
-					LIMIT 1
-				) preferred
-				LEFT JOIN LATERAL (
-					SELECT u.mail_nickname, u.name, u.department
-					FROM users u
-					WHERE u.deleted_at IS NULL
-					  AND (
-						u.email = preferred.email
-						OR u.user_principal_name = preferred.email
-					  )
-					ORDER BY
-						CASE WHEN u.email = preferred.email THEN 0 ELSE 1 END,
-						CASE WHEN u.source <> 'local' THEN 0 ELSE 1 END,
-						u.id
-					LIMIT 1
-				) resolved ON true
-				WHERE preferred.email ILIKE ` + search + `
-				   OR resolved.mail_nickname ILIKE ` + search + `
-				   OR resolved.name ILIKE ` + search + `
-				   OR resolved.department ILIKE ` + search + `
+				FROM host_primary_users p
+				WHERE p.host_id = hosts.id
+				  AND (p.email ILIKE ` + search + `
+				    OR p.mail_nickname ILIKE ` + search + `
+				    OR p.name ILIKE ` + search + `
+				    OR p.department ILIKE ` + search + `)
 			)
 			)`)
 	}

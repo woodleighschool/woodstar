@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/woodleighschool/goodies/auth/authn"
+	"github.com/woodleighschool/woodstar/internal/fault"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/testutil/testdb"
 )
@@ -178,6 +179,46 @@ VALUES ('Invalid derived label', '{"attribute":"invalid","values":["value"]}', '
 	}
 	if count != 0 {
 		t.Fatalf("persisted users = %d, want 0", count)
+	}
+}
+
+func TestSyncRestoresDeletedMember(t *testing.T) {
+	db, ctx := testdb.Open(t)
+	store := NewStore(db, labels.NewStore(db))
+	users := NewUserService(store)
+	snapshot := ProviderSnapshot{
+		Users: []ProviderUser{{
+			ExternalID: "member", UserPrincipalName: "member@example.invalid", Enabled: true,
+			GroupExternalIDs: []string{"team"},
+		}},
+		Groups: []ProviderGroup{{ExternalID: "team", DisplayName: "Team"}},
+	}
+	if err := store.ApplyProviderSnapshot(ctx, SourceEntra, snapshot); err != nil {
+		t.Fatal(err)
+	}
+	var userID, groupID int64
+	if err := db.QueryRow(ctx, `SELECT user_id, group_id FROM directory_group_memberships`).Scan(&userID, &groupID); err != nil {
+		t.Fatal(err)
+	}
+	if err := users.Delete(ctx, userID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := users.Get(ctx, userID); !errors.Is(err, fault.ErrNotFound) {
+		t.Fatalf("get deleted user: %v", err)
+	}
+	var memberships int
+	if err := db.QueryRow(ctx, `SELECT count(*) FROM directory_group_memberships WHERE user_id = $1`, userID).Scan(&memberships); err != nil {
+		t.Fatal(err)
+	}
+	if memberships != 0 {
+		t.Fatalf("deleted user has %d memberships", memberships)
+	}
+	if err := store.ApplyProviderSnapshot(ctx, SourceEntra, snapshot); err != nil {
+		t.Fatal(err)
+	}
+	members, _, err := users.List(ctx, UserListParams{GroupID: groupID})
+	if err != nil || len(members) != 1 || members[0].ID != userID {
+		t.Fatalf("restored members = %+v, error = %v", members, err)
 	}
 }
 

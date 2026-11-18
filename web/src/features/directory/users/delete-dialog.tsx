@@ -13,20 +13,22 @@ export interface UserDeleteDialogProps {
 
 export function UserDeleteDialog({ open, onOpenChange, user, onDeleted }: UserDeleteDialogProps) {
   const remove = useDeleteUser();
-  const isLocal = user?.source === "local";
-  const action = "Delete User";
-  const name = nonEmpty(user?.name) ?? nonEmpty(user?.email) ?? "";
-  const userDescription = user?.name ? `${name} (${user.email})` : name;
-  const description = isLocal
-    ? "This permanently deletes the local user. Their next request will sign them out automatically."
-    : "This removes the user from the current directory view. Directory sync can restore the user if the source still contains it.";
+  const name = nonEmpty(user?.name);
+  const label = name ? `${name} (${user?.email})` : (user?.email ?? "this user");
+  const description =
+    user?.source === "local"
+      ? `Permanently delete ${label}?`
+      : `Delete ${label}? Sync will restore this user if they are still in the directory.`;
 
-  async function handleConfirm() {
+  function handleConfirm() {
     if (!user) return;
-    await remove.mutateAsync(user.id);
-    onOpenChange(false);
-    toast.add({ title: "User Deleted", type: "success" });
-    onDeleted?.();
+    remove.mutate(user.id, {
+      onSuccess: () => {
+        onOpenChange(false);
+        toast.add({ title: "User Deleted", type: "success" });
+        onDeleted?.();
+      },
+    });
   }
 
   return (
@@ -36,12 +38,12 @@ export function UserDeleteDialog({ open, onOpenChange, user, onDeleted }: UserDe
         if (!next) remove.reset();
         onOpenChange(next);
       }}
-      title={action}
-      description={userDescription ? `${description} Delete ${userDescription}?` : description}
+      title="Delete User"
+      description={description}
       confirmLabel="Delete"
       variant="destructive"
       pending={remove.isPending}
-      onConfirm={() => void handleConfirm()}
+      onConfirm={handleConfirm}
     />
   );
 }
