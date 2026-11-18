@@ -1,13 +1,56 @@
 package ingest
 
 import (
+	"context"
 	"net/netip"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/osquery/catalog"
 )
+
+// IngestHostDetails applies the successful host queries from one distributed write.
+func (p *Projector) IngestHostDetails(ctx context.Context, hostID int64, results map[string][]map[string]string) error {
+	details := make(map[string]map[string]string)
+	for name, rows := range results {
+		switch name {
+		case catalog.QueryBatteries, catalog.QueryCertificatesDarwin, catalog.QueryOsqueryFlags:
+			continue
+		case catalog.QueryRootDiskDarwin:
+			name = "root_disk"
+		case catalog.QueryPrimaryInterfaceUnix:
+			name = "primary_interface"
+		}
+		if len(rows) > 0 {
+			details[name] = rows[0]
+		}
+	}
+	update := ParseHostDetails(details)
+	for _, row := range results[catalog.QueryOsqueryFlags] {
+		switch row["name"] {
+		case "distributed_interval":
+			update.Agents.Osquery.DistributedIntervalSeconds = parseInt32Ptr(row["value"])
+		case "config_tls_refresh":
+			update.Agents.Osquery.ConfigRefreshSeconds = parseInt32Ptr(row["value"])
+		}
+	}
+	if update != (hosts.InventoryUpdate{}) {
+		if err := p.hostStore.ApplyInventory(ctx, hostID, update); err != nil {
+			return err
+		}
+	}
+	if rows, ok := results[catalog.QueryBatteries]; ok {
+		if err := p.hostStore.ReplaceBatteries(ctx, hostID, parseHostBatteries(rows)); err != nil {
+			return err
+		}
+	}
+	if rows, ok := results[catalog.QueryCertificatesDarwin]; ok {
+		return p.hostStore.ReplaceCertificates(ctx, hostID, parseHostCertificates(rows))
+	}
+	return nil
+}
 
 // ParseHostDetails maps osquery detail rows to host fields.
 func ParseHostDetails(details map[string]map[string]string) hosts.InventoryUpdate {

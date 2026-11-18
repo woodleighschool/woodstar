@@ -41,27 +41,6 @@ func TestParseSoftwareRows(t *testing.T) {
 	}
 }
 
-func TestParseOsqueryFlags(t *testing.T) {
-	got := parseOsqueryFlags([]map[string]string{
-		{"name": "distributed_interval", "value": "15"},
-		{"name": "config_tls_refresh", "value": "60"},
-	})
-	if got.Agents.Osquery.DistributedIntervalSeconds == nil ||
-		*got.Agents.Osquery.DistributedIntervalSeconds != 15 {
-		t.Fatalf("distributed interval seconds = %v, want 15", got.Agents.Osquery.DistributedIntervalSeconds)
-	}
-	if got.Agents.Osquery.ConfigRefreshSeconds == nil ||
-		*got.Agents.Osquery.ConfigRefreshSeconds != 60 {
-		t.Fatalf("config refresh seconds = %v, want 60", got.Agents.Osquery.ConfigRefreshSeconds)
-	}
-
-	got = parseOsqueryFlags([]map[string]string{{"name": "config_tls_refresh", "value": "30"}})
-	if got.Agents.Osquery.ConfigRefreshSeconds == nil ||
-		*got.Agents.Osquery.ConfigRefreshSeconds != 30 {
-		t.Fatalf("config refresh seconds = %v, want 30", got.Agents.Osquery.ConfigRefreshSeconds)
-	}
-}
-
 func TestParseHostCertificatesStructuresDistinguishedNames(t *testing.T) {
 	got := parseHostCertificates([]map[string]string{{
 		"sha1":        "sha1",

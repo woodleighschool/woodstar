@@ -59,13 +59,7 @@ type heartbeatRecorder interface {
 }
 
 type inventoryProjector interface {
-	IngestDetail(
-		ctx context.Context,
-		query catalog.DetailQuery,
-		status string,
-		hostID int64,
-		rows []map[string]string,
-	) error
+	IngestHostDetails(ctx context.Context, hostID int64, rows map[string][]map[string]string) error
 	IngestSoftware(ctx context.Context, hostID int64, rows map[string][]map[string]string) error
 	IngestAccounts(ctx context.Context, hostID int64, rows map[string][]map[string]string) error
 	MarkFresh(ctx context.Context, hostID int64) error

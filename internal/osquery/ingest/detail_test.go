@@ -1,10 +1,50 @@
 package ingest
 
 import (
+	"context"
 	"testing"
 
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/osquery/catalog"
 )
+
+type recordingHostInventory struct {
+	hostStore
+
+	updates []hosts.InventoryUpdate
+}
+
+func (r *recordingHostInventory) ApplyInventory(_ context.Context, _ int64, update hosts.InventoryUpdate) error {
+	r.updates = append(r.updates, update)
+	return nil
+}
+
+func TestHostDetailResultsApplyOneUpdate(t *testing.T) {
+	store := &recordingHostInventory{}
+	projector := Projector{hostStore: store}
+	rows := map[string][]map[string]string{
+		catalog.QuerySystemInfo:     {{"hostname": "test-mac"}},
+		catalog.QueryOsqueryInfo:    {{"version": "5.17"}},
+		catalog.QueryOsqueryFlags:   {{"name": "distributed_interval", "value": "15"}, {"name": "config_tls_refresh", "value": "60"}},
+		catalog.QueryRootDiskDarwin: {{"bytes_total": "1000", "bytes_available": "450"}},
+	}
+	if err := projector.IngestHostDetails(t.Context(), 1, rows); err != nil {
+		t.Fatal(err)
+	}
+	if err := projector.IngestHostDetails(t.Context(), 1, map[string][]map[string]string{catalog.QueryOSVersion: {}}); err != nil {
+		t.Fatal(err)
+	}
+	if len(store.updates) != 1 {
+		t.Fatalf("host updates = %d, want 1", len(store.updates))
+	}
+	got := store.updates[0]
+	agent := got.Agents.Osquery
+	if got.Hostname != "test-mac" || agent.Version != "5.17" || got.Storage.BootVolume.AvailableBytes == nil ||
+		*got.Storage.BootVolume.AvailableBytes != 450 || agent.DistributedIntervalSeconds == nil ||
+		*agent.DistributedIntervalSeconds != 15 || agent.ConfigRefreshSeconds == nil || *agent.ConfigRefreshSeconds != 60 {
+		t.Fatalf("merged host details = %+v", got)
+	}
+}
 
 func TestParseHostDetails(t *testing.T) {
 	details := map[string]map[string]string{

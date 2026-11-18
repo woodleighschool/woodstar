@@ -85,13 +85,6 @@ const (
 	IngestSoftwareEnrichment DetailIngest = "software_enrichment"
 )
 
-func (q DetailQuery) Deferred() bool {
-	return q.Ingest == IngestAccounts || q.Ingest == IngestAccountSecurity || q.Ingest == IngestMunkiInfo ||
-		q.Ingest == IngestMunkiInstalls ||
-		q.Ingest == IngestSoftwareBase ||
-		q.Ingest == IngestSoftwareEnrichment
-}
-
 // DueDetailQueries is due osquery work.
 type DueDetailQueries struct {
 	Queries   map[string]string

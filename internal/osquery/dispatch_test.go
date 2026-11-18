@@ -54,12 +54,10 @@ func TestQueryFailureLogLevels(t *testing.T) {
 					registry: map[string]catalog.DetailQuery{"optional": {Optional: true}},
 					results:  map[string]detailResult{},
 				}
-				if err := service.handleDetailResult(
+				service.handleDetailResult(
 					t.Context(), 42, "optional", nil, json.RawMessage(`1`), true,
 					"table unavailable", pass,
-				); err != nil {
-					t.Fatalf("handle detail result: %v", err)
-				}
+				)
 			},
 			wantLevel: "DEBUG",
 		},
@@ -71,12 +69,10 @@ func TestQueryFailureLogLevels(t *testing.T) {
 					registry: map[string]catalog.DetailQuery{"required": {}},
 					results:  map[string]detailResult{},
 				}
-				if err := service.handleDetailResult(
+				service.handleDetailResult(
 					t.Context(), 42, "required", nil, json.RawMessage(`1`), true,
 					"table unavailable", pass,
-				); err != nil {
-					t.Fatalf("handle detail result: %v", err)
-				}
+				)
 			},
 			wantLevel: "WARN",
 		},
@@ -399,7 +395,6 @@ func TestFinalizeDetailPassSendsMunkiQueryFamilyTogether(t *testing.T) {
 					hasStatus: true,
 				},
 			},
-			allSucceeded: true,
 		}
 
 		s := &AgentService{deps: Dependencies{
@@ -432,7 +427,6 @@ func TestFinalizeDetailPassSendsMunkiQueryFamilyTogether(t *testing.T) {
 			results: map[string]detailResult{
 				"required": {status: json.RawMessage(`0`), hasStatus: true},
 			},
-			allSucceeded: true,
 		}
 		s := &AgentService{deps: Dependencies{
 			Logger:             testLogger(),
@@ -451,9 +445,10 @@ func TestFinalizeDetailPassSendsMunkiQueryFamilyTogether(t *testing.T) {
 		}
 	})
 
-	t.Run("no detail results", func(t *testing.T) {
+	t.Run("unrelated partial inventory", func(t *testing.T) {
 		collector := &recordingMunkiCollector{}
-		pass := &detailDispatchPass{registry: registry, results: map[string]detailResult{}, allSucceeded: true}
+		pass := newDetailDispatchPass()
+		pass.results[catalog.QueryOSVersion] = detailResult{status: json.RawMessage(`0`), hasStatus: true}
 		s := &AgentService{deps: Dependencies{
 			Logger:             testLogger(),
 			InventoryProjector: &recordingInventoryProjector{},
@@ -485,9 +480,7 @@ func TestAccountCollectionRequiresSuccessfulBase(t *testing.T) {
 				{catalog.QueryAccounts, status},
 				{"users", "0"},
 			} {
-				if err := service.handleDetailResult(t.Context(), 42, result.name, []map[string]string{}, json.RawMessage(result.status), true, "", pass); err != nil {
-					t.Fatal(err)
-				}
+				service.handleDetailResult(t.Context(), 42, result.name, []map[string]string{}, json.RawMessage(result.status), true, "", pass)
 			}
 			if projector.accounts != nil {
 				t.Fatal("accounts projected before finalization")
@@ -511,13 +504,7 @@ func TestAccountCollectionRequiresSuccessfulBase(t *testing.T) {
 	}
 }
 
-func (p *recordingInventoryProjector) IngestDetail(
-	_ context.Context,
-	_ catalog.DetailQuery,
-	_ string,
-	_ int64,
-	_ []map[string]string,
-) error {
+func (p *recordingInventoryProjector) IngestHostDetails(context.Context, int64, map[string][]map[string]string) error {
 	return nil
 }
 

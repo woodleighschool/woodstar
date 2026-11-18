@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -135,9 +136,8 @@ func parsePolicyEvaluationIdentity(suffix string) (int64, string, int64, int64, 
 
 // detailDispatchPass accumulates detail-query state during one DistributedWrite call.
 type detailDispatchPass struct {
-	registry     map[string]catalog.DetailQuery
-	results      map[string]detailResult
-	allSucceeded bool
+	registry map[string]catalog.DetailQuery
+	results  map[string]detailResult
 }
 
 type detailResult struct {
@@ -148,9 +148,8 @@ type detailResult struct {
 
 func newDetailDispatchPass() *detailDispatchPass {
 	return &detailDispatchPass{
-		registry:     catalog.DetailQueries(),
-		results:      make(map[string]detailResult),
-		allSucceeded: true,
+		registry: catalog.DetailQueries(),
+		results:  make(map[string]detailResult),
 	}
 }
 
@@ -181,19 +180,17 @@ func (s *AgentService) dispatchWriteResults(
 		status, hasStatus := req.Statuses[name]
 		message := req.Messages[name]
 
-		var err error
 		switch kind { //nolint:exhaustive // parseQueryName excludes report queries.
 		case kindDetail:
-			err = s.handleDetailResult(ctx, host.ID, suffix, rows, status, hasStatus, message, details)
+			s.handleDetailResult(ctx, host.ID, suffix, rows, status, hasStatus, message, details)
 		case kindLabel:
 			s.handleLabelResult(ctx, host.ID, suffix, rows, status, hasStatus, message, labels)
 		case kindPolicy:
 			s.handlePolicyResult(ctx, host.ID, suffix, rows, status, hasStatus, message, policyResults)
 		case kindLive:
-			err = s.handleLiveResult(ctx, host, suffix, rows, status, hasStatus, message)
-		}
-		if err != nil {
-			return fmt.Errorf("ingest %s: %w", name, err)
+			if err := s.handleLiveResult(ctx, host, suffix, rows, status, hasStatus, message); err != nil {
+				return fmt.Errorf("ingest %s: %w", name, err)
+			}
 		}
 	}
 
@@ -244,7 +241,7 @@ func (s *AgentService) handleDetailResult(
 	hasStatus bool,
 	message string,
 	pass *detailDispatchPass,
-) error {
+) {
 	pass.results[suffix] = detailResult{
 		rows:      rows,
 		status:    status,
@@ -252,32 +249,23 @@ func (s *AgentService) handleDetailResult(
 	}
 
 	query, ok := pass.registry[suffix]
-	if !ok {
-		return nil
+	if !ok || distributedStatusOK(status, hasStatus) {
+		return
 	}
-	if !distributedStatusOK(status, hasStatus) {
-		if !query.Optional {
-			pass.allSucceeded = false
-		}
-		level := slog.LevelWarn
-		if query.Optional {
-			level = slog.LevelDebug
-		}
-		s.deps.Logger.Log(
-			ctx,
-			level,
-			"osquery detail query failed", "operation", "distributed_write",
-			"host_id", hostID,
-			"query", queryName(kindDetail, suffix),
-			"optional", query.Optional,
-			"message", message,
-		)
-		return nil
+
+	level := slog.LevelWarn
+	if query.Optional {
+		level = slog.LevelDebug
 	}
-	if query.Deferred() {
-		return nil
-	}
-	return s.deps.InventoryProjector.IngestDetail(ctx, query, suffix, hostID, rows)
+	s.deps.Logger.Log(
+		ctx,
+		level,
+		"osquery detail query failed", "operation", "distributed_write",
+		"host_id", hostID,
+		"query", queryName(kindDetail, suffix),
+		"optional", query.Optional,
+		"message", message,
+	)
 }
 
 func (s *AgentService) finalizeDetailPass(
@@ -285,23 +273,29 @@ func (s *AgentService) finalizeDetailPass(
 	host *hosts.OsqueryHost,
 	pass *detailDispatchPass,
 ) error {
-	if base, ok := pass.results[catalog.QueryAccounts]; ok && distributedStatusOK(base.status, base.hasStatus) {
-		rows := map[string][]map[string]string{catalog.QueryAccounts: base.rows}
-		for _, name := range []string{catalog.QueryAccountFileVault, catalog.QueryAccountAPFS} {
-			if result, ok := pass.results[name]; ok && distributedStatusOK(result.status, result.hasStatus) {
-				rows[name] = result.rows
-			}
+	hostRows := pass.successfulRows(
+		catalog.IngestHostDetail, catalog.IngestOsqueryFlags, catalog.IngestUptime,
+		catalog.IngestBatteries, catalog.IngestCertificates,
+	)
+	if len(hostRows) > 0 {
+		if err := s.deps.InventoryProjector.IngestHostDetails(ctx, host.ID, hostRows); err != nil {
+			return fmt.Errorf("ingest host inventory: %w", err)
 		}
+	}
+	rows := pass.successfulRows(catalog.IngestAccounts, catalog.IngestAccountSecurity)
+	if _, ok := rows[catalog.QueryAccounts]; ok {
 		if err := s.deps.InventoryProjector.IngestAccounts(ctx, host.ID, rows); err != nil {
 			return fmt.Errorf("ingest accounts: %w", err)
 		}
 	}
-	if softwareRows, ok := successfulSoftwareRows(pass); ok {
+	softwareRows := pass.successfulRows(catalog.IngestSoftwareBase, catalog.IngestSoftwareEnrichment)
+	if _, ok := softwareRows[catalog.QuerySoftwareMacOS]; ok {
 		if err := s.deps.InventoryProjector.IngestSoftware(ctx, host.ID, softwareRows); err != nil {
 			return fmt.Errorf("ingest software inventory: %w", err)
 		}
 	}
-	if pass.allSucceeded && sawEveryRequiredDetailQuery(pass) {
+	complete := sawEveryRequiredDetailQuery(pass)
+	if complete {
 		if err := s.deps.InventoryProjector.MarkFresh(ctx, host.ID); err != nil {
 			return err
 		}
@@ -312,17 +306,18 @@ func (s *AgentService) finalizeDetailPass(
 			"query_count", len(pass.results),
 		)
 	}
-	return s.finalizeMunkiCollection(ctx, host.ID, pass)
+	return s.finalizeMunkiCollection(ctx, host.ID, pass, complete)
 }
 
 func (s *AgentService) finalizeMunkiCollection(
 	ctx context.Context,
 	hostID int64,
 	pass *detailDispatchPass,
+	complete bool,
 ) error {
 	info, hasInfo := pass.results[catalog.QueryMunkiInfo]
 	installs, hasInstalls := pass.results[catalog.QueryMunkiInstalls]
-	if !hasInfo && !hasInstalls && !sawKnownDetailResult(pass) {
+	if !hasInfo && !hasInstalls && !complete {
 		return nil
 	}
 	if hasInfo != hasInstalls {
@@ -343,15 +338,6 @@ func (s *AgentService) finalizeMunkiCollection(
 	})
 }
 
-func sawKnownDetailResult(pass *detailDispatchPass) bool {
-	for name := range pass.results {
-		if _, ok := pass.registry[name]; ok {
-			return true
-		}
-	}
-	return false
-}
-
 func munkiQueryResult(present bool, result detailResult) munki.QueryResult {
 	queryResult := munki.QueryResult{Present: present, Rows: result.rows}
 	if !present {
@@ -363,25 +349,14 @@ func munkiQueryResult(present bool, result detailResult) munki.QueryResult {
 	return queryResult
 }
 
-func successfulSoftwareRows(
-	pass *detailDispatchPass,
-) (map[string][]map[string]string, bool) {
-	rowsBySuffix := make(map[string][]map[string]string)
-	baseSucceeded := false
-	for suffix, query := range pass.registry {
-		if query.Ingest != catalog.IngestSoftwareBase && query.Ingest != catalog.IngestSoftwareEnrichment {
-			continue
-		}
-		result, ok := pass.results[suffix]
-		if !ok || !distributedStatusOK(result.status, result.hasStatus) {
-			continue
-		}
-		rowsBySuffix[suffix] = result.rows
-		if query.Ingest == catalog.IngestSoftwareBase {
-			baseSucceeded = true
+func (p *detailDispatchPass) successfulRows(kinds ...catalog.DetailIngest) map[string][]map[string]string {
+	rows := make(map[string][]map[string]string)
+	for name, result := range p.results {
+		if slices.Contains(kinds, p.registry[name].Ingest) && distributedStatusOK(result.status, result.hasStatus) {
+			rows[name] = result.rows
 		}
 	}
-	return rowsBySuffix, baseSucceeded
+	return rows
 }
 
 func sawEveryRequiredDetailQuery(pass *detailDispatchPass) bool {

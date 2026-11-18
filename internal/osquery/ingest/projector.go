@@ -2,7 +2,6 @@ package ingest
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"path/filepath"
 	"strconv"
@@ -42,33 +41,6 @@ func NewProjector(hostStore hostStore, softwareStore softwareStore, logger *slog
 
 func (p *Projector) MarkFresh(ctx context.Context, hostID int64) error {
 	return p.hostStore.MarkInventoryFresh(ctx, hostID, catalog.DetailQueryHash())
-}
-
-// IngestDetail dispatches a single detail query result to the appropriate ingester.
-func (p *Projector) IngestDetail(
-	ctx context.Context,
-	query catalog.DetailQuery,
-	name string,
-	hostID int64,
-	rows []map[string]string,
-) error {
-	switch query.Ingest {
-	case catalog.IngestHostDetail:
-		return ingestHostDetail(ctx, p, hostID, name, rows)
-	case catalog.IngestOsqueryFlags:
-		return ingestOsqueryFlags(ctx, p, hostID, rows)
-	case catalog.IngestUptime:
-		return ingestUptime(ctx, p, hostID, rows)
-	case catalog.IngestBatteries:
-		return ingestBatteries(ctx, p, hostID, rows)
-	case catalog.IngestCertificates:
-		return ingestCertificates(ctx, p, hostID, rows)
-	case catalog.IngestAccounts, catalog.IngestAccountSecurity, catalog.IngestMunkiInfo, catalog.IngestMunkiInstalls,
-		catalog.IngestSoftwareBase, catalog.IngestSoftwareEnrichment:
-		return fmt.Errorf("deferred detail ingest %q cannot be projected alone", query.Ingest)
-	default:
-		return fmt.Errorf("unknown detail ingest %q", query.Ingest)
-	}
 }
 
 func (p *Projector) IngestSoftware(
@@ -113,63 +85,6 @@ func softwareRows(queryRows map[string][]map[string]string) []map[string]string 
 		rows = append(rows, queryRows[key]...)
 	}
 	return rows
-}
-
-func ingestHostDetail(
-	ctx context.Context,
-	projector *Projector,
-	hostID int64,
-	name string,
-	rows []map[string]string,
-) error {
-	if len(rows) == 0 {
-		return nil
-	}
-	name = canonicalHostDetailName(name)
-	return projector.hostStore.ApplyInventory(
-		ctx,
-		hostID,
-		ParseHostDetails(map[string]map[string]string{name: rows[0]}),
-	)
-}
-
-func canonicalHostDetailName(name string) string {
-	switch name {
-	case catalog.QueryRootDiskDarwin:
-		return "root_disk"
-	case catalog.QueryPrimaryInterfaceUnix:
-		return "primary_interface"
-	default:
-		return name
-	}
-}
-
-func ingestOsqueryFlags(ctx context.Context, projector *Projector, hostID int64, rows []map[string]string) error {
-	return projector.hostStore.ApplyInventory(ctx, hostID, parseOsqueryFlags(rows))
-}
-
-func ingestUptime(ctx context.Context, projector *Projector, hostID int64, rows []map[string]string) error {
-	if len(rows) == 0 {
-		return nil
-	}
-	return projector.hostStore.ApplyInventory(
-		ctx,
-		hostID,
-		ParseHostDetails(map[string]map[string]string{catalog.QueryUptime: rows[0]}),
-	)
-}
-
-func ingestBatteries(ctx context.Context, projector *Projector, hostID int64, rows []map[string]string) error {
-	return projector.hostStore.ReplaceBatteries(ctx, hostID, parseHostBatteries(rows))
-}
-
-func ingestCertificates(
-	ctx context.Context,
-	projector *Projector,
-	hostID int64,
-	rows []map[string]string,
-) error {
-	return projector.hostStore.ReplaceCertificates(ctx, hostID, parseHostCertificates(rows))
 }
 
 func parseHostBatteries(rows []map[string]string) []hosts.HostBattery {
@@ -302,19 +217,6 @@ func parseBool(value string) bool {
 	default:
 		return false
 	}
-}
-
-func parseOsqueryFlags(rows []map[string]string) hosts.InventoryUpdate {
-	var update hosts.InventoryUpdate
-	for _, row := range rows {
-		switch row["name"] {
-		case "distributed_interval":
-			update.Agents.Osquery.DistributedIntervalSeconds = parseInt32Ptr(row["value"])
-		case "config_tls_refresh":
-			update.Agents.Osquery.ConfigRefreshSeconds = parseInt32Ptr(row["value"])
-		}
-	}
-	return update
 }
 
 func parseInt32Ptr(value string) *int32 {
