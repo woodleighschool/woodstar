@@ -265,6 +265,61 @@ func assertEventUploadPersistsSigningChain(t *testing.T, fixture uploadedEventFi
 	}
 }
 
+func TestEventUploadKeepsUnchangedReferenceRows(t *testing.T) {
+	db, ctx := testdb.Open(t)
+	host, err := hosts.NewStore(db, labels.NewStore(db)).UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
+		Hardware:     hosts.HostHardware{UUID: "santa-reference-host"},
+		OrbitNodeKey: "santa-reference-orbit",
+	}, heartbeats.Contact{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := santaevents.NewStore(db)
+	event := concurrentExecutionEvent("example-executable", "example-bundle")
+	event.BundleName = "Example"
+	event.BundleBinaryCount = 1
+	event.SigningChain = []santaevents.CertificateInput{{SHA256: "leaf-sha", CommonName: "Leaf"}}
+
+	type versions struct{ executable, certificate, chain, entry, bundle string }
+	upload := func() versions {
+		t.Helper()
+		if _, err := store.IngestEvents(ctx, host.ID, []santaevents.ExecutionEventInput{event}, nil, nil); err != nil {
+			t.Fatal(err)
+		}
+		var v versions
+		err := db.QueryRow(ctx, `
+SELECT e.xmin::text, c.xmin::text, sc.xmin::text, ce.xmin::text, b.xmin::text
+FROM santa_executables e
+JOIN santa_bundle_executables be ON be.executable_id = e.id
+JOIN santa_bundles b ON b.id = be.bundle_id
+JOIN santa_executable_signing_chains es ON es.executable_id = e.id
+JOIN santa_signing_chains sc ON sc.id = es.signing_chain_id
+JOIN santa_signing_chain_entries ce ON ce.signing_chain_id = sc.id
+JOIN santa_certificates c ON c.id = ce.certificate_id
+WHERE e.sha256 = $1 AND b.uploaded_at IS NOT NULL AND b.name = 'Example'`, event.FileSHA256).
+			Scan(&v.executable, &v.certificate, &v.chain, &v.entry, &v.bundle)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return v
+	}
+	original := upload()
+	if repeat := upload(); repeat != original {
+		t.Fatalf("identical metadata changed rows: before %+v, after %+v", original, repeat)
+	}
+
+	event.SigningChain[0].CommonName = "Updated leaf"
+	event.FileName = "Updated executable"
+	event.BundleName = ""
+	event.BundleBinaryCount = 0
+	changed := upload()
+	if changed.executable == original.executable || changed.certificate == original.certificate ||
+		changed.chain != original.chain || changed.entry != original.entry || changed.bundle != original.bundle {
+		t.Fatalf("metadata update wrote unexpected rows: before %+v, after %+v", original, changed)
+	}
+	assertHostExecutionEventCount(t, db, host.ID, 3)
+}
+
 func TestEventUploadRequestsAndCollectsBundleBinaries(t *testing.T) {
 	db, ctx := testdb.Open(t)
 	hostStore := hosts.NewStore(db, labels.NewStore(db))

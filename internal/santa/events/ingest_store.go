@@ -2,9 +2,12 @@ package events
 
 import (
 	"context"
+	"maps"
+	"slices"
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 // IngestEvents persists one Santa upload atomically. It plans shared writes
@@ -52,7 +55,7 @@ func ingestEventsTx(
 	}
 	// Bundle completion is derived from the folded metadata and complete link
 	// set, so client order cannot mark a partially collected bundle complete.
-	if err := reconcilePlanBundleCompletion(ctx, tx, plan, ids); err != nil {
+	if err := reconcileBundleCompletion(ctx, tx, slices.Collect(maps.Values(ids.bundles))); err != nil {
 		return nil, err
 	}
 	if err := insertPlanOccurrences(ctx, tx, hostID, plan, ids); err != nil {
@@ -62,10 +65,11 @@ func ingestEventsTx(
 }
 
 type ingestReferenceIDs struct {
-	executables   map[string]int64
-	signingChains map[string]int64
-	certificates  map[string]int64
-	bundles       map[string]int64
+	newSigningChains []signingChainWrite
+	executables      map[string]int64
+	signingChains    map[string]int64
+	certificates     map[string]int64
+	bundles          map[string]int64
 }
 
 func upsertPlanReferences(ctx context.Context, tx pgx.Tx, plan ingestPlan) (ingestReferenceIDs, error) {
@@ -78,35 +82,55 @@ func upsertPlanReferences(ctx context.Context, tx pgx.Tx, plan ingestPlan) (inge
 		certificates:  make(map[string]int64, len(plan.certificates)),
 		bundles:       make(map[string]int64, len(plan.bundles)),
 	}
+	var batch pgx.Batch
 	for _, write := range plan.executables {
-		id, err := upsertExecutable(ctx, tx, write)
-		if err != nil {
-			return ingestReferenceIDs{}, err
-		}
-		ids.executables[write.SHA256] = id
+		batch.Queue(upsertExecutableSQL, pgx.StructArgs(write))
+		ids.executables[write.SHA256] = 0
 	}
-	for _, write := range plan.signingChains {
-		id, err := upsertSigningChain(ctx, tx, write)
-		if err != nil {
-			return ingestReferenceIDs{}, err
-		}
-		ids.signingChains[write.SHA256] = id
+	for _, chain := range plan.signingChains {
+		batch.Queue(`
+INSERT INTO santa_signing_chains (sha256) VALUES ($1) ON CONFLICT DO NOTHING`, chain.SHA256).Exec(
+			func(tag pgconn.CommandTag) error {
+				if tag.RowsAffected() == 1 {
+					ids.newSigningChains = append(ids.newSigningChains, chain)
+				}
+				return nil
+			})
+		ids.signingChains[chain.SHA256] = 0
 	}
-	for _, write := range plan.certificates {
-		id, err := upsertCertificate(ctx, tx, write)
-		if err != nil {
-			return ingestReferenceIDs{}, err
-		}
-		ids.certificates[write.SHA256] = id
+	for _, entry := range plan.certificates {
+		batch.Queue(upsertCertificateSQL, entry.certificateArgs())
+		ids.certificates[entry.SHA256] = 0
 	}
 	for _, write := range plan.bundles {
-		id, err := upsertBundle(ctx, tx, write)
-		if err != nil {
-			return ingestReferenceIDs{}, err
-		}
-		ids.bundles[write.SHA256] = id
+		batch.Queue(upsertBundleSQL, pgx.StructArgs(write))
+		ids.bundles[write.SHA256] = 0
 	}
-	return ids, nil
+
+	// A separate SELECT sees rows inserted by concurrent uploads after an upsert
+	// waited on their unique constraint. RETURNING omits unchanged conflicts.
+	queueReferenceIDs(&batch, "santa_executables", ids.executables)
+	queueReferenceIDs(&batch, "santa_signing_chains", ids.signingChains)
+	queueReferenceIDs(&batch, "santa_certificates", ids.certificates)
+	queueReferenceIDs(&batch, "santa_bundles", ids.bundles)
+	err := tx.SendBatch(ctx, &batch).Close()
+	return ids, err
+}
+
+func queueReferenceIDs(batch *pgx.Batch, table string, ids map[string]int64) {
+	if len(ids) == 0 {
+		return
+	}
+	query := "SELECT sha256, id FROM " + pgx.Identifier{table}.Sanitize() + " WHERE sha256 = ANY($1::text[])"
+	batch.Queue(query, slices.Collect(maps.Keys(ids))).Query(func(rows pgx.Rows) error {
+		var hash string
+		var id int64
+		_, err := pgx.ForEachRow(rows, []any{&hash, &id}, func() error {
+			ids[hash] = id
+			return nil
+		})
+		return err
+	})
 }
 
 func insertPlanRelationships(
@@ -117,7 +141,7 @@ func insertPlanRelationships(
 ) error {
 	// The plan sorts each relationship class by its natural composite key.
 	// Keep the class order stable for the same reason as reference writes.
-	for _, chain := range plan.signingChains {
+	for _, chain := range ids.newSigningChains {
 		for position, entry := range chain.Entries {
 			if err := linkSigningChainEntry(
 				ctx,
@@ -147,20 +171,6 @@ func insertPlanRelationships(
 			ids.bundles[link.bundleSHA256],
 			ids.executables[link.executableSHA256],
 		); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func reconcilePlanBundleCompletion(
-	ctx context.Context,
-	tx pgx.Tx,
-	plan ingestPlan,
-	ids ingestReferenceIDs,
-) error {
-	for _, bundle := range plan.bundles {
-		if err := reconcileBundleCompletion(ctx, tx, ids.bundles[bundle.SHA256]); err != nil {
 			return err
 		}
 	}

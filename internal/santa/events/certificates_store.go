@@ -23,20 +23,6 @@ type signingChainWrite struct {
 	Entries []signingChainEntry
 }
 
-func upsertSigningChain(ctx context.Context, tx pgx.Tx, write signingChainWrite) (int64, error) {
-	var id int64
-	if err := tx.QueryRow(ctx, `
-INSERT INTO santa_signing_chains (sha256)
-VALUES ($1)
-ON CONFLICT (sha256) DO UPDATE SET sha256 = EXCLUDED.sha256
-RETURNING id`,
-		write.SHA256,
-	).Scan(&id); err != nil {
-		return 0, err
-	}
-	return id, nil
-}
-
 func linkSigningChainEntry(
 	ctx context.Context,
 	tx pgx.Tx,
@@ -46,8 +32,7 @@ func linkSigningChainEntry(
 ) error {
 	_, err := tx.Exec(ctx, `
 INSERT INTO santa_signing_chain_entries (signing_chain_id, position, certificate_id)
-VALUES (@signing_chain_id, @position, @certificate_id)
-ON CONFLICT (signing_chain_id, position) DO UPDATE SET certificate_id = EXCLUDED.certificate_id`,
+VALUES (@signing_chain_id, @position, @certificate_id)`,
 		pgx.NamedArgs{
 			"signing_chain_id": signingChainID,
 			"position":         position,
@@ -73,10 +58,8 @@ ON CONFLICT DO NOTHING`,
 	return err
 }
 
-func upsertCertificate(ctx context.Context, tx pgx.Tx, entry signingChainEntry) (int64, error) {
-	var id int64
-	err := tx.QueryRow(ctx, `
-INSERT INTO santa_certificates (
+const upsertCertificateSQL = `
+INSERT INTO santa_certificates AS c (
 	sha256,
 	common_name,
 	organization,
@@ -101,19 +84,19 @@ ON CONFLICT (sha256) DO UPDATE SET
 	valid_from = EXCLUDED.valid_from,
 	valid_until = EXCLUDED.valid_until,
 	updated_at = now()
-RETURNING id`,
-		pgx.NamedArgs{
-			"sha256":              entry.SHA256,
-			"common_name":         entry.CommonName,
-			"organization":        entry.Org,
-			"organizational_unit": entry.OU,
-			"valid_from":          certificateTime(entry.ValidFrom),
-			"valid_until":         certificateTime(entry.ValidUntil),
-		}).Scan(&id)
-	if err != nil {
-		return 0, err
+WHERE (c.common_name, c.organization, c.organizational_unit, c.valid_from, c.valid_until)
+	IS DISTINCT FROM (EXCLUDED.common_name, EXCLUDED.organization, EXCLUDED.organizational_unit,
+	                  EXCLUDED.valid_from, EXCLUDED.valid_until)`
+
+func (entry signingChainEntry) certificateArgs() pgx.NamedArgs {
+	return pgx.NamedArgs{
+		"sha256":              entry.SHA256,
+		"common_name":         entry.CommonName,
+		"organization":        entry.Org,
+		"organizational_unit": entry.OU,
+		"valid_from":          certificateTime(entry.ValidFrom),
+		"valid_until":         certificateTime(entry.ValidUntil),
 	}
-	return id, nil
 }
 
 func signingChainEntries(chain []CertificateInput) []signingChainEntry {

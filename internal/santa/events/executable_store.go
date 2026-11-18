@@ -1,11 +1,6 @@
 package events
 
-import (
-	"context"
-	"time"
-
-	"github.com/jackc/pgx/v5"
-)
+import "time"
 
 func executableWriteFromEvent(event ExecutionEventInput) executableWrite {
 	return executableWrite{
@@ -31,10 +26,8 @@ func executableWriteFromEvent(event ExecutionEventInput) executableWrite {
 	}
 }
 
-func upsertExecutable(ctx context.Context, tx pgx.Tx, write executableWrite) (int64, error) {
-	var id int64
-	if err := tx.QueryRow(ctx, `
-INSERT INTO santa_executables (
+const upsertExecutableSQL = `
+INSERT INTO santa_executables AS e (
 	sha256,
 	file_name,
 	file_bundle_id,
@@ -98,11 +91,17 @@ ON CONFLICT (sha256) DO UPDATE SET
 	signing_time = EXCLUDED.signing_time,
 	entitlements = EXCLUDED.entitlements,
 	updated_at = now()
-RETURNING id`, pgx.StructArgs(write)).Scan(&id); err != nil {
-		return 0, err
-	}
-	return id, nil
-}
+WHERE (
+	e.file_name, e.file_bundle_id, e.file_bundle_path, e.file_bundle_executable_rel_path,
+	e.file_bundle_name, e.file_bundle_version, e.file_bundle_version_string, e.file_bundle_hash,
+	e.file_bundle_hash_millis, e.file_bundle_binary_count, e.signing_id, e.team_id, e.cdhash,
+	e.codesigning_flags, e.signing_status, e.secure_signing_time, e.signing_time, e.entitlements
+) IS DISTINCT FROM (
+	EXCLUDED.file_name, EXCLUDED.file_bundle_id, EXCLUDED.file_bundle_path, EXCLUDED.file_bundle_executable_rel_path,
+	EXCLUDED.file_bundle_name, EXCLUDED.file_bundle_version, EXCLUDED.file_bundle_version_string, EXCLUDED.file_bundle_hash,
+	EXCLUDED.file_bundle_hash_millis, EXCLUDED.file_bundle_binary_count, EXCLUDED.signing_id, EXCLUDED.team_id, EXCLUDED.cdhash,
+	EXCLUDED.codesigning_flags, EXCLUDED.signing_status, EXCLUDED.secure_signing_time, EXCLUDED.signing_time, EXCLUDED.entitlements
+)`
 
 func timeOrNil(t time.Time) *time.Time {
 	if t.IsZero() {
