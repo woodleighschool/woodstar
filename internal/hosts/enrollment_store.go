@@ -120,7 +120,7 @@ INSERT INTO hosts (
 	memory_bytes,
 	hardware_vendor,
 	os_kernel_version,
-	inventory_updated_at
+	enrolled_at
 )
 VALUES (
 	canonical_host_identity(@hardware_uuid),
@@ -146,7 +146,7 @@ VALUES (
 	@memory_bytes,
 	@hardware_vendor,
 	@os_kernel_version,
-	NULL
+	now()
 )
 ON CONFLICT (hardware_uuid) DO UPDATE SET
 	display_name = EXCLUDED.display_name,
@@ -171,6 +171,7 @@ ON CONFLICT (hardware_uuid) DO UPDATE SET
 	memory_bytes = EXCLUDED.memory_bytes,
 	hardware_vendor = EXCLUDED.hardware_vendor,
 	os_kernel_version = EXCLUDED.os_kernel_version,
+	enrolled_at = EXCLUDED.enrolled_at,
 	inventory_updated_at = NULL,
 	inventory_query_hash = '',
 	updated_at = now()

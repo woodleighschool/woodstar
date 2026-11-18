@@ -197,7 +197,7 @@ func TestOrbit(t *testing.T) { //nolint:cyclop,funlen // Linear protocol lifecyc
 	}
 
 	host := requireOnlyOrbitFixtureHost(t, server)
-	if host.Hardware.Uuid != orbitFixtureHardwareUUID ||
+	if host.Hardware.Uuid != strings.ToLower(orbitFixtureHardwareUUID) ||
 		host.DisplayName != "Orbit Fixture Mac" ||
 		host.PrimaryUser == nil ||
 		host.PrimaryUser.Email != orbitFixtureEmail ||

@@ -626,7 +626,7 @@ func TestOsquery(t *testing.T) { //nolint:cyclop,funlen,gocognit // Linear proto
 	}
 	host := hostList.Items[0]
 	osqueryHeartbeat := requireHeartbeat(t, host.Heartbeats, "osquery")
-	if host.Hardware.Uuid != hardwareUUID || host.Enrollment.Agent != "osquery" ||
+	if host.Hardware.Uuid != strings.ToLower(hardwareUUID) || host.Enrollment.Agent != "osquery" || host.Enrollment.EnrolledAt == nil ||
 		host.DisplayName != "Osquery Integration Mac" || host.Status != "online" ||
 		len(host.Heartbeats) != 1 || osqueryHeartbeat.LastSeenAt.Before(enrolledHeartbeat.LastSeenAt) ||
 		host.LastContact == nil ||
