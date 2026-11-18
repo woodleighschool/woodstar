@@ -82,7 +82,7 @@ func TestListForHostReturnsPathOwnedSignatureObservations(t *testing.T) {
 	unobserved := base
 	unobserved.InstalledPath = "/Applications/Unobserved.app"
 
-	if err := store.ReplaceHostSoftware(ctx, host.ID, []HostSoftwareEntry{signed, unsigned, unobserved}); err != nil {
+	if err := store.ReplaceHostSoftware(ctx, host.ID, fullSoftwareSnapshot(signed, unsigned, unobserved)); err != nil {
 		t.Fatalf("replace host software: %v", err)
 	}
 	software, total, err := store.ListForHost(ctx, host.ID, HostSoftwareListParams{})

@@ -64,7 +64,7 @@ func TestGetTitleLoadsSigningIdentities(t *testing.T) {
 		if err != nil {
 			t.Fatalf("enroll %s: %v", hostName, err)
 		}
-		if err := store.ReplaceHostSoftware(ctx, host.ID, []HostSoftwareEntry{{
+		if err := store.ReplaceHostSoftware(ctx, host.ID, fullSoftwareSnapshot(HostSoftwareEntry{
 			Name:             "Example",
 			Version:          "1.0",
 			Source:           "apps",
@@ -76,7 +76,7 @@ func TestGetTitleLoadsSigningIdentities(t *testing.T) {
 				Identifier:     "com.example.app",
 				Authority:      "Developer ID Application: Example, Inc. (TEAMID1234)",
 			},
-		}}); err != nil {
+		})); err != nil {
 			t.Fatalf("replace software for %s: %v", hostName, err)
 		}
 	}
@@ -163,14 +163,14 @@ func TestGetTitleSeparatesAuthoritiesAndExcludesUnsignedSignatures(t *testing.T)
 		if err != nil {
 			t.Fatalf("enroll %s: %v", observation.host, err)
 		}
-		if err := store.ReplaceHostSoftware(ctx, host.ID, []HostSoftwareEntry{{
+		if err := store.ReplaceHostSoftware(ctx, host.ID, fullSoftwareSnapshot(HostSoftwareEntry{
 			Name:             "Rotated App",
 			Version:          "1.0",
 			Source:           "apps",
 			BundleIdentifier: "com.example.rotated",
 			InstalledPath:    "/Applications/Rotated App.app",
 			Signature:        observation.signature,
-		}}); err != nil {
+		})); err != nil {
 			t.Fatalf("replace software for %s: %v", observation.host, err)
 		}
 	}
@@ -218,7 +218,7 @@ func TestGetTitleLoadsTeamIdentityWithoutIdentifier(t *testing.T) {
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
 	}
-	if err := store.ReplaceHostSoftware(ctx, host.ID, []HostSoftwareEntry{{
+	if err := store.ReplaceHostSoftware(ctx, host.ID, fullSoftwareSnapshot(HostSoftwareEntry{
 		Name:             "Team Only",
 		Version:          "1.0",
 		Source:           "apps",
@@ -228,7 +228,7 @@ func TestGetTitleLoadsTeamIdentityWithoutIdentifier(t *testing.T) {
 			Signed:         true,
 			TeamIdentifier: "TEAMID1234",
 		},
-	}}); err != nil {
+	})); err != nil {
 		t.Fatalf("replace software: %v", err)
 	}
 

@@ -19,7 +19,7 @@ OIDC and Entra sync remain disabled when their settings are empty. Supplying onl
 | `WOODSTAR_TLS_CERT_FILE`         | empty    | Certificate chain for direct TLS; set with `WOODSTAR_TLS_KEY_FILE`    |
 | `WOODSTAR_TLS_KEY_FILE`          | empty    | Private key for direct TLS; set with `WOODSTAR_TLS_CERT_FILE`         |
 | `WOODSTAR_SESSION_COOKIE_SECURE` | `true`   | Add the `Secure` attribute to session cookies                         |
-| `WOODSTAR_DATABASE_URL`          | required | PostgreSQL connection URL                                             |
+| `WOODSTAR_DATABASE_URL`          | required | Connection URL for PostgreSQL 18 or later                             |
 | `WOODSTAR_LOG_LEVEL`             | `info`   | `debug`, `info`, `warn`, or `error`                                   |
 | `WOODSTAR_CORS_ALLOWED_ORIGINS`  | empty    | Comma-separated web origins allowed to make credentialed API requests |
 

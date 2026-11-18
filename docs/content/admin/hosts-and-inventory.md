@@ -38,6 +38,8 @@ See [Hosts, Labels, and Software](../concepts/hosts-labels-and-software) for the
 
 The software inventory shows what osquery has observed across the fleet. Titles include installed versions, paths, signing details, and host counts.
 
+A successful software collection replaces the entries from each source that reported, including a source that returned zero rows. If an optional query fails or is unavailable, the host keeps the last observations for that source. The same rule applies to signatures and executable hashes on paths that are still installed.
+
 This inventory is read-only. Use [Munki](./munki) to manage desired software.
 
 ## Directory

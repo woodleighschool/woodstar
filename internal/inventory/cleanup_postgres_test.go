@@ -25,10 +25,10 @@ func TestPruneUnreferencedSoftwarePreservesReferencedVersions(t *testing.T) {
 	hostTwo := enrollCleanupTestHost(t, ctx, hostStore, "cleanup-shared-two")
 
 	v1 := cleanupTestSoftware("1.0")
-	if err := store.ReplaceHostSoftware(ctx, hostOne.ID, []HostSoftwareEntry{v1}); err != nil {
+	if err := store.ReplaceHostSoftware(ctx, hostOne.ID, fullSoftwareSnapshot(v1)); err != nil {
 		t.Fatalf("report first host software: %v", err)
 	}
-	if err := store.ReplaceHostSoftware(ctx, hostTwo.ID, []HostSoftwareEntry{v1}); err != nil {
+	if err := store.ReplaceHostSoftware(ctx, hostTwo.ID, fullSoftwareSnapshot(v1)); err != nil {
 		t.Fatalf("report second host software: %v", err)
 	}
 	var titleID int64
@@ -39,7 +39,7 @@ WHERE bundle_identifier = 'com.example.cleanup'`).Scan(&titleID); err != nil {
 		t.Fatalf("load software title ID: %v", err)
 	}
 
-	if err := store.ReplaceHostSoftware(ctx, hostOne.ID, nil); err != nil {
+	if err := store.ReplaceHostSoftware(ctx, hostOne.ID, fullSoftwareSnapshot()); err != nil {
 		t.Fatalf("clear first host software: %v", err)
 	}
 	result, err := store.PruneUnreferencedSoftware(ctx)
@@ -51,7 +51,7 @@ WHERE bundle_identifier = 'com.example.cleanup'`).Scan(&titleID); err != nil {
 	}
 
 	v2 := cleanupTestSoftware("2.0")
-	if err := store.ReplaceHostSoftware(ctx, hostTwo.ID, []HostSoftwareEntry{v2}); err != nil {
+	if err := store.ReplaceHostSoftware(ctx, hostTwo.ID, fullSoftwareSnapshot(v2)); err != nil {
 		t.Fatalf("replace second host software version: %v", err)
 	}
 	result, err = store.PruneUnreferencedSoftware(ctx)
@@ -69,7 +69,7 @@ WHERE bundle_identifier = 'com.example.cleanup'`).Scan(&titleID); err != nil {
 		t.Fatalf("retained versions = %+v, want version 2.0", title.Versions)
 	}
 
-	if err := store.ReplaceHostSoftware(ctx, hostTwo.ID, nil); err != nil {
+	if err := store.ReplaceHostSoftware(ctx, hostTwo.ID, fullSoftwareSnapshot()); err != nil {
 		t.Fatalf("clear final host software: %v", err)
 	}
 	result, err = store.PruneUnreferencedSoftware(ctx)
@@ -98,18 +98,18 @@ func TestPruneUnreferencedSoftwareAllowsFreshObservation(t *testing.T) {
 	host := enrollCleanupTestHost(t, ctx, hostStore, "cleanup-reobserved")
 	entry := cleanupTestSoftware("1.0")
 
-	if err := store.ReplaceHostSoftware(ctx, host.ID, []HostSoftwareEntry{entry}); err != nil {
+	if err := store.ReplaceHostSoftware(ctx, host.ID, fullSoftwareSnapshot(entry)); err != nil {
 		t.Fatalf("report initial software: %v", err)
 	}
 	oldTitleID, oldSoftwareID := cleanupTestSoftwareIDs(t, ctx, db)
-	if err := store.ReplaceHostSoftware(ctx, host.ID, nil); err != nil {
+	if err := store.ReplaceHostSoftware(ctx, host.ID, fullSoftwareSnapshot()); err != nil {
 		t.Fatalf("clear initial software: %v", err)
 	}
 	if _, err := store.PruneUnreferencedSoftware(ctx); err != nil {
 		t.Fatalf("prune initial software: %v", err)
 	}
 
-	if err := store.ReplaceHostSoftware(ctx, host.ID, []HostSoftwareEntry{entry}); err != nil {
+	if err := store.ReplaceHostSoftware(ctx, host.ID, fullSoftwareSnapshot(entry)); err != nil {
 		t.Fatalf("report software again: %v", err)
 	}
 	newTitleID, newSoftwareID := cleanupTestSoftwareIDs(t, ctx, db)
@@ -136,7 +136,7 @@ func TestPruneUnreferencedSoftwareAfterHostDeletion(t *testing.T) {
 	store := NewStore(db)
 	hostStore := hosts.NewStore(db, labels.NewStore(db))
 	host := enrollCleanupTestHost(t, ctx, hostStore, "cleanup-deleted-host")
-	if err := store.ReplaceHostSoftware(ctx, host.ID, []HostSoftwareEntry{cleanupTestSoftware("1.0")}); err != nil {
+	if err := store.ReplaceHostSoftware(ctx, host.ID, fullSoftwareSnapshot(cleanupTestSoftware("1.0"))); err != nil {
 		t.Fatalf("report software: %v", err)
 	}
 	titleID, _ := cleanupTestSoftwareIDs(t, ctx, db)
@@ -162,11 +162,11 @@ func TestPruneUnreferencedSoftwareSkipsLockedInventory(t *testing.T) {
 	hostStore := hosts.NewStore(db, labels.NewStore(db))
 	host := enrollCleanupTestHost(t, ctx, hostStore, "cleanup-concurrent")
 	entry := cleanupTestSoftware("1.0")
-	if err := store.ReplaceHostSoftware(ctx, host.ID, []HostSoftwareEntry{entry}); err != nil {
+	if err := store.ReplaceHostSoftware(ctx, host.ID, fullSoftwareSnapshot(entry)); err != nil {
 		t.Fatalf("report software: %v", err)
 	}
 	_, softwareID := cleanupTestSoftwareIDs(t, ctx, db)
-	if err := store.ReplaceHostSoftware(ctx, host.ID, nil); err != nil {
+	if err := store.ReplaceHostSoftware(ctx, host.ID, fullSoftwareSnapshot()); err != nil {
 		t.Fatalf("clear software: %v", err)
 	}
 
@@ -248,4 +248,72 @@ WHERE software_titles.bundle_identifier = 'com.example.cleanup'`).Scan(&titleID,
 		t.Fatalf("load cleanup software IDs: %v", err)
 	}
 	return titleID, softwareID
+}
+
+func TestCleanupRechecksSoftwareObservedDuringPruning(t *testing.T) {
+	db, ctx := testdb.Open(t)
+	store := NewStore(db)
+	host := enrollCleanupTestHost(t, ctx, hosts.NewStore(db, labels.NewStore(db)), "inventory-cleanup-race")
+	snapshot := fullSoftwareSnapshot(cleanupTestSoftware("1.0"))
+	if err := store.ReplaceHostSoftware(ctx, host.ID, snapshot); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.ReplaceHostSoftware(ctx, host.ID, fullSoftwareSnapshot()); err != nil {
+		t.Fatal(err)
+	}
+
+	// Hold the re-observation between catalog resolution and membership insertion.
+	gate, err := db.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = gate.Rollback(ctx) }()
+	if _, err := gate.Exec(ctx, `LOCK TABLE host_software IN SHARE MODE`); err != nil {
+		t.Fatal(err)
+	}
+	workCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	reported := make(chan error, 1)
+	go func() { reported <- store.ReplaceHostSoftware(workCtx, host.ID, snapshot) }()
+	waitForSoftwareWriters(t, workCtx, db, 1)
+	pruned := make(chan error, 1)
+	go func() {
+		_, err := store.PruneUnreferencedSoftware(workCtx)
+		pruned <- err
+	}()
+	waitForSoftwareWriters(t, workCtx, db, 2)
+	if err := gate.Rollback(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := <-reported; err != nil {
+		t.Fatal(err)
+	}
+	if err := <-pruned; err != nil {
+		t.Fatal(err)
+	}
+	_, count, err := store.ListForHost(ctx, host.ID, HostSoftwareListParams{})
+	if err != nil || count != 1 {
+		t.Fatalf("host software count after cleanup = %d, %v, want one", count, err)
+	}
+}
+
+func TestCleanupContinuesPastLockedOrphans(t *testing.T) {
+	db, ctx := testdb.Open(t)
+	if _, err := db.Exec(ctx, `
+INSERT INTO software_titles (name, source)
+SELECT 'Title ' || n, 'apps' FROM generate_series(1, $1::integer) AS n`, cleanupBatchSize+1); err != nil {
+		t.Fatal(err)
+	}
+	tx, err := db.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	if _, err := tx.Exec(ctx, `SELECT id FROM software_titles ORDER BY id LIMIT 1 FOR UPDATE`); err != nil {
+		t.Fatal(err)
+	}
+	result, err := NewStore(db).PruneUnreferencedSoftware(ctx)
+	if err != nil || result.SoftwareTitles != cleanupBatchSize {
+		t.Fatalf("cleanup = %+v, %v, want %d unlocked titles", result, err, cleanupBatchSize)
+	}
 }

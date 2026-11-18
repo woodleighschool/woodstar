@@ -22,7 +22,7 @@ type hostStore interface {
 }
 
 type softwareStore interface {
-	ReplaceHostSoftware(ctx context.Context, hostID int64, software []inventory.HostSoftwareEntry) error
+	ReplaceHostSoftware(ctx context.Context, hostID int64, snapshot inventory.SoftwareSnapshot) error
 }
 
 type Projector struct {
@@ -55,9 +55,16 @@ func (p *Projector) IngestSoftware(
 		queryRows[catalog.QuerySoftwareMacOSSignature],
 		queryRows[catalog.QuerySoftwareMacOSExecutableHash],
 	)
-	rows := softwareRows(queryRows)
-	entries := parseSoftwareRows(rows, enrichment)
-	if err := p.softwareStore.ReplaceHostSoftware(ctx, hostID, entries); err != nil {
+	rows, sources := softwareRows(queryRows)
+	_, signaturesReported := queryRows[catalog.QuerySoftwareMacOSSignature]
+	_, hashesReported := queryRows[catalog.QuerySoftwareMacOSExecutableHash]
+	snapshot := inventory.SoftwareSnapshot{
+		Entries:                  parseSoftwareRows(rows, enrichment),
+		Sources:                  sources,
+		SignaturesReported:       signaturesReported,
+		ExecutableHashesReported: hashesReported,
+	}
+	if err := p.softwareStore.ReplaceHostSoftware(ctx, hostID, snapshot); err != nil {
 		return err
 	}
 	p.logger.DebugContext(
@@ -65,26 +72,36 @@ func (p *Projector) IngestSoftware(
 		"software inventory ingested", "operation", "software_ingest",
 		"host_id", hostID,
 		"row_count", len(rows),
-		"entry_count", len(entries),
+		"entry_count", len(snapshot.Entries),
 		"signature_count", len(queryRows[catalog.QuerySoftwareMacOSSignature]),
 		"executable_hash_count", len(queryRows[catalog.QuerySoftwareMacOSExecutableHash]),
 	)
 	return nil
 }
 
-func softwareRows(queryRows map[string][]map[string]string) []map[string]string {
-	keys := []string{
-		catalog.QuerySoftwareMacOS,
-		catalog.QuerySoftwareVSCodeExtensions,
-		catalog.QuerySoftwareJetBrainsPlugins,
-		catalog.QuerySoftwareGoBinaries,
-		catalog.QuerySoftwarePythonPackages,
-	}
+func softwareRows(queryRows map[string][]map[string]string) ([]map[string]string, []inventory.SoftwareSource) {
 	var rows []map[string]string
-	for _, key := range keys {
-		rows = append(rows, queryRows[key]...)
+	var sources []inventory.SoftwareSource
+	for _, query := range []struct {
+		name    string
+		sources []inventory.SoftwareSource
+	}{
+		{catalog.QuerySoftwareMacOS, []inventory.SoftwareSource{
+			inventory.SoftwareSourceApps, inventory.SoftwareSourceChromeExtensions,
+			inventory.SoftwareSourceFirefoxAddons, inventory.SoftwareSourceSafariExtensions,
+			inventory.SoftwareSourceHomebrewPackages, inventory.SoftwareSourceNPMPackages,
+		}},
+		{catalog.QuerySoftwareVSCodeExtensions, []inventory.SoftwareSource{inventory.SoftwareSourceVSCodeExtensions}},
+		{catalog.QuerySoftwareJetBrainsPlugins, []inventory.SoftwareSource{inventory.SoftwareSourceJetBrainsPlugins}},
+		{catalog.QuerySoftwareGoBinaries, []inventory.SoftwareSource{inventory.SoftwareSourceGoBinaries}},
+		{catalog.QuerySoftwarePythonPackages, []inventory.SoftwareSource{inventory.SoftwareSourcePythonPackages}},
+	} {
+		if result, ok := queryRows[query.name]; ok {
+			rows = append(rows, result...)
+			sources = append(sources, query.sources...)
+		}
 	}
-	return rows
+	return rows, sources
 }
 
 func parseHostBatteries(rows []map[string]string) []hosts.HostBattery {

@@ -1,8 +1,14 @@
 package ingest
 
 import (
+	"context"
+	"log/slog"
+	"slices"
 	"testing"
 	"time"
+
+	"github.com/woodleighschool/woodstar/internal/inventory"
+	"github.com/woodleighschool/woodstar/internal/osquery/catalog"
 )
 
 func TestParseSoftwareRows(t *testing.T) {
@@ -108,4 +114,34 @@ func TestParseSoftwareRowsEnrichesInstalledPaths(t *testing.T) {
 		got[0].ExecutablePath != "/Applications/Example.app/Contents/MacOS/Example" {
 		t.Fatalf("enrichment parsed incorrectly: %#v", got[0])
 	}
+}
+
+func TestSoftwareSnapshotCoverageFollowsSuccessfulQueries(t *testing.T) {
+	recorder := &recordingSoftwareStore{}
+	projector := NewProjector(nil, recorder, slog.New(slog.DiscardHandler))
+	err := projector.IngestSoftware(t.Context(), 42, map[string][]map[string]string{
+		catalog.QuerySoftwareMacOS:          {{"name": "Example", "source": "apps"}},
+		catalog.QuerySoftwareGoBinaries:     nil,
+		catalog.QuerySoftwareMacOSSignature: nil,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []inventory.SoftwareSource{
+		inventory.SoftwareSourceApps, inventory.SoftwareSourceChromeExtensions, inventory.SoftwareSourceFirefoxAddons,
+		inventory.SoftwareSourceSafariExtensions, inventory.SoftwareSourceHomebrewPackages, inventory.SoftwareSourceNPMPackages,
+		inventory.SoftwareSourceGoBinaries,
+	}
+	if !slices.Equal(recorder.snapshot.Sources, want) || !recorder.snapshot.SignaturesReported || recorder.snapshot.ExecutableHashesReported {
+		t.Fatalf("reported sources and enrichment = %+v", recorder.snapshot)
+	}
+}
+
+type recordingSoftwareStore struct {
+	snapshot inventory.SoftwareSnapshot
+}
+
+func (s *recordingSoftwareStore) ReplaceHostSoftware(_ context.Context, _ int64, snapshot inventory.SoftwareSnapshot) error {
+	s.snapshot = snapshot
+	return nil
 }

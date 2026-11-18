@@ -62,6 +62,14 @@ func (source SoftwareSource) Valid() bool {
 	}
 }
 
+// SoftwareSnapshot covers the sources and path observations reported by successful queries.
+type SoftwareSnapshot struct {
+	Entries                  []HostSoftwareEntry
+	Sources                  []SoftwareSource
+	SignaturesReported       bool
+	ExecutableHashesReported bool
+}
+
 // HostSoftwareEntry is ingest-only installed software.
 type HostSoftwareEntry struct {
 	Name             string
