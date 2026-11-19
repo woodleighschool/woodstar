@@ -3,7 +3,7 @@ module github.com/woodleighschool/woodstar/stemma
 go 1.27.1
 
 require (
-	github.com/danielgtaylor/huma/v2 v2.40.0
+	github.com/danielgtaylor/huma/v2 v2.41.0
 	github.com/go-chi/chi/v5 v5.5.0
 	github.com/invopop/jsonschema v0.14.0
 	github.com/woodleighschool/goodies/auth v1.2.0
@@ -52,7 +52,7 @@ require (
 	github.com/jackc/puddle/v2 v2.2.3 // indirect
 	github.com/kaptinlin/jsonpointer v0.4.28 // indirect
 	github.com/kaptinlin/jsonschema v0.9.10 // indirect
-	github.com/klauspost/cpuid/v2 v2.4.1 // indirect
+	github.com/klauspost/cpuid/v2 v2.4.2 // indirect
 	github.com/leodido/go-urn v1.5.0 // indirect
 	github.com/mfridman/interpolate v0.2.0 // indirect
 	github.com/minio/crc64nvme v1.1.1 // indirect
@@ -71,8 +71,8 @@ require (
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.yaml.in/yaml/v4 v4.0.0 // indirect
-	golang.org/x/crypto v0.58.0 // indirect
-	golang.org/x/net v0.62.0 // indirect
+	golang.org/x/crypto v0.59.0 // indirect
+	golang.org/x/net v0.63.0 // indirect
 	golang.org/x/oauth2 v0.38.0 // indirect
 	golang.org/x/sys v0.50.0 // indirect
 	golang.org/x/text v0.44.0 // indirect
