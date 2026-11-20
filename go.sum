@@ -27,8 +27,8 @@ github.com/Microsoft/go-winio v0.6.4/go.mod h1:1xl5JXG4ze/m74GH6Dc4Mwxfc3VL5siRV
 github.com/RaveNoX/go-jsoncommentstrip v1.0.0/go.mod h1:78ihd09MekBnJnxpICcwzCMzGrKSKYe4AqU6PDYYpjk=
 github.com/alexedwards/argon2id v1.0.0 h1:wJzDx66hqWX7siL/SRUmgz3F8YMrd/nfX/xHHcQQP0w=
 github.com/alexedwards/argon2id v1.0.0/go.mod h1:tYKkqIjzXvZdzPvADMWOEZ+l6+BD6CtBXMj5fnJppiw=
-github.com/alexedwards/scs/pgxstore v0.0.0-20251002162104-209de6e426de h1:wNJVpr0ag/BL2nRGBIESdLe1qoljXIolF/qPi1gleRA=
-github.com/alexedwards/scs/pgxstore v0.0.0-20251002162104-209de6e426de/go.mod h1:hwveArYcjyOK66EViVgVU5Iqj7zyEsWjKXMQhDJrTLI=
+github.com/alexedwards/scs/pgxstore v0.0.0-20261119174900-ed2e92329119 h1:bVnX1wVk9gz8A/pHLXrkOxYJeCWXJ299LKu7YQzY4OE=
+github.com/alexedwards/scs/pgxstore v0.0.0-20261119174900-ed2e92329119/go.mod h1:hwveArYcjyOK66EViVgVU5Iqj7zyEsWjKXMQhDJrTLI=
 github.com/alexedwards/scs/v2 v2.9.0 h1:xa05mVpwTBm1iLeTMNFfAWpKUm4fXAW7CeAViqBVS90=
 github.com/alexedwards/scs/v2 v2.9.0/go.mod h1:ToaROZxyKukJKT/xLcVQAChi5k6+Pn1Gvmdl7h3RRj8=
 github.com/antlr4-go/antlr/v4 v4.13.1 h1:SqQKkuVZ+zWkMMNkjy5FZe5mr5WURWnlpmOuzYWrPrQ=
