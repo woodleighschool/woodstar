@@ -19,7 +19,7 @@ require (
 	github.com/jackc/pgerrcode v0.0.0-20250907135507-afb5586c32a6
 	github.com/jackc/pgx/v5 v5.13.0
 	github.com/microsoft/kiota-abstractions-go v1.12.2
-	github.com/microsoftgraph/msgraph-sdk-go v1.106.0
+	github.com/microsoftgraph/msgraph-sdk-go v1.107.0
 	github.com/microsoftgraph/msgraph-sdk-go-core v1.4.1
 	github.com/oapi-codegen/runtime v1.9.1
 	github.com/oschwald/geoip2-golang/v2 v2.5.0
