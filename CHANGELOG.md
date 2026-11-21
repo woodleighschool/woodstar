@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.12.5](https://github.com/woodleighschool/woodstar/compare/v0.12.4...v0.12.5) (2026-11-21)
+
+
+### Bug Fixes
+
+* **go:** update module cel.dev/cel-go (v0.33.2 → v0.33.4) ([#772](https://github.com/woodleighschool/woodstar/issues/772)) ([57e456a](https://github.com/woodleighschool/woodstar/commit/57e456a2f93dc1b1a9d5388191787ec933098cb1))
+* **go:** update module github.com/alexedwards/scs/pgxstore (209de6e → ed2e923) ([#782](https://github.com/woodleighschool/woodstar/issues/782)) ([a8051f8](https://github.com/woodleighschool/woodstar/commit/a8051f8837b2f3ebe99ca0661edb5485aa5703f2))
+* **go:** update module github.com/danielgtaylor/huma/v2 (v2.40.0 → v2.41.0) ([#775](https://github.com/woodleighschool/woodstar/issues/775)) ([db4b6c9](https://github.com/woodleighschool/woodstar/commit/db4b6c99fc2efb41af5ed9b4ea83f22a16114e57))
+* **go:** update module github.com/microsoft/kiota-abstractions-go (v1.12.1 → v1.12.2) ([#773](https://github.com/woodleighschool/woodstar/issues/773)) ([179ac5f](https://github.com/woodleighschool/woodstar/commit/179ac5fd456c3a16bdd68207ffab2b29fac92d41))
+* **npm:** update dependency filesize (11.0.34 → 11.0.35) ([#779](https://github.com/woodleighschool/woodstar/issues/779)) ([12d55d7](https://github.com/woodleighschool/woodstar/commit/12d55d77849e1b7dbc37bb3635bc381c65c9c93d))
+* **npm:** update dependency lucide-react (1.74.0 → 1.75.0) ([#777](https://github.com/woodleighschool/woodstar/issues/777)) ([fd0fec1](https://github.com/woodleighschool/woodstar/commit/fd0fec11983d19709651a6ccf3aea1b74b8669e7))
+* **npm:** update dependency lucide-react (1.75.0 → 1.76.0) ([#781](https://github.com/woodleighschool/woodstar/issues/781)) ([f1eb3c5](https://github.com/woodleighschool/woodstar/commit/f1eb3c521dea144ebfe4a2eaac0302af2dcc2d99))
+* **npm:** update dependency lucide-react (1.76.0 → 1.77.0) ([#785](https://github.com/woodleighschool/woodstar/issues/785)) ([37826d9](https://github.com/woodleighschool/woodstar/commit/37826d9bd6d48cedc75fd70cd2f2f3cc4dd30c50))
+* **npm:** update tanstack-query monorepo (5.108.0 → 5.108.1) ([#784](https://github.com/woodleighschool/woodstar/issues/784)) ([cd32f1d](https://github.com/woodleighschool/woodstar/commit/cd32f1d41a9b0c15348bb75c1cb7e78616427a93))
+
 ## [0.12.4](https://github.com/woodleighschool/woodstar/compare/v0.12.3...v0.12.4) (2026-11-18)
 
 
