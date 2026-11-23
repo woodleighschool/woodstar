@@ -29,12 +29,10 @@ run = "go mod download"
 depends = ["go-deps", "//web:deps"]
 
 [tasks.dev]
-description = "Run backend and web development servers"
 depends = ["//web:build"]
 run = { tasks = ["dev-backend", "//web:dev"] }
 
 [tasks.dev-tls]
-description = "Generate repo-local development TLS files"
 run = """
 mkdir -p .local/tls/ca
 CAROOT="$PWD/.local/tls/ca" mkcert \
@@ -44,7 +42,7 @@ CAROOT="$PWD/.local/tls/ca" mkcert \
 """
 
 [tasks.dev-tls-trust]
-description = "Trust the repo-local development CA on this machine"
+description = "Changes system trust"
 depends = ["dev-tls"]
 run = 'CAROOT="$PWD/.local/tls/ca" mkcert -install'
 
@@ -53,12 +51,10 @@ depends = ["geoip"]
 run = "air"
 
 [tasks.build]
-description = "Build web bundle and backend binary"
 depends = ["//web:build"]
 run = { task = "backend" }
 
 [tasks.docs]
-description = "Check and build the documentation"
 run = [
   { task = "//docs:fmt-check" },
   { task = "//docs:lint" },
@@ -67,7 +63,6 @@ run = [
 ]
 
 [tasks.frontend-check]
-description = "Verify the web app and generated API contracts"
 depends = ["generate"]
 run = [
   '''
@@ -86,11 +81,9 @@ test -z "$generated_status" || {
 ]
 
 [tasks.backend]
-description = "Build the backend binary"
 run = "go build -o woodstar ./cmd/woodstar"
 
 [tasks.geoip]
-description = "Download the current DB-IP Lite databases"
 run = "go run ./tools/geoipdb --output .local/geoip"
 
 [tasks.tidy]
@@ -103,7 +96,6 @@ run = "go mod tidy -diff"
 run = "govulncheck ./..."
 
 [tasks.migration]
-description = "Create a timestamped PostgreSQL migration"
 usage = '''
 arg "<name>"
 '''
@@ -112,11 +104,9 @@ goose -dir internal/postgres/migrations create "${usage_name?}" sql
 '''
 
 [tasks."migration:validate"]
-description = "Validate PostgreSQL migration files"
 run = "goose -dir internal/postgres/migrations validate"
 
 [tasks.test]
-description = "Fetch GeoIP data and run race-enabled tests"
 depends = ["geoip"]
 run = [
   "WOODSTAR_GEOIP_CITY_FILE=$PWD/.local/geoip/dbip-city-lite.mmdb WOODSTAR_GEOIP_ASN_FILE=$PWD/.local/geoip/dbip-asn-lite.mmdb go vet ./...",
@@ -124,7 +114,6 @@ run = [
 ]
 
 [tasks.test-postgres]
-description = "Run Go tests with PostgreSQL component coverage"
 depends = ["geoip"]
 run = """
 WOODSTAR_GEOIP_CITY_FILE="$PWD/.local/geoip/dbip-city-lite.mmdb" \
@@ -169,22 +158,19 @@ WOODSTAR_TEST_DATABASE_URL="${WOODSTAR_TEST_DATABASE_URL:-postgres://woodstar:wo
 """
 
 [tasks.test-e2e]
-description = "Run end-to-end tests against PostgreSQL"
+description = "Requires PostgreSQL"
 run = """
 WOODSTAR_TEST_DATABASE_URL="${WOODSTAR_TEST_DATABASE_URL:-postgres://woodstar:woodstar@127.0.0.1:5432/postgres?sslmode=disable}" \
   go test -race -count=1 -tags=e2e -v ./test/e2e
 """
 
 [tasks.test-all]
-description = "Run Go, PostgreSQL, and end-to-end tests"
 run = [{ task = "test-postgres" }, { task = "test-e2e" }]
 
 [tasks.openapi]
-description = "Generate OpenAPI schema"
 run = "go run ./cmd/woodstar openapi --output web/openapi.yaml"
 
 [tasks.generate]
-description = "Regenerate the OpenAPI schema and clients"
 run = [
   { task = "openapi" },
   { task = "//web:openapi-types" },
@@ -198,11 +184,9 @@ run = "golangci-lint run"
 run = "golangci-lint run --fix"
 
 [tasks.lint-fix]
-description = "Fix lint issues in the backend, web app and docs"
 depends = ["go-lint-fix", "//web:lint-fix", "//docs:lint-fix"]
 
 [tasks.lint]
-description = "Lint the backend, web app and docs"
 depends = ["go-lint", "//web:lint", "//docs:lint"]
 
 [tasks.go-format]
@@ -215,18 +199,15 @@ test -z "$unformatted" || { printf '%s\n' "$unformatted"; exit 1; }
 '''
 
 [tasks.format]
-description = "Format the backend, web app and docs"
 depends = ["go-format", "//web:format", "//docs:format"]
 
 [tasks.fmt-check]
-description = "Check formatting in the backend, web app and docs"
 depends = ["go-fmt-check", "//web:fmt-check", "//docs:fmt-check"]
 
 [tasks.clean]
 run = "rm -rf woodstar .air build web/dist"
 
 [tasks.schema-sync]
-description = "Refresh the osquery schema snapshot"
 run = "./schema/sync.sh"
 
 [tasks.container-build]

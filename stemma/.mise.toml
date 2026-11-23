@@ -8,16 +8,13 @@ run = "go mod download"
 run = "go build -trimpath -o build/plugin ./cmd/plugin"
 
 [tasks.test]
-description = "Vet Go code and run race-enabled tests"
 run = ["go vet ./...", "go test -race -count=1 ./..."]
 
 [tasks.bench]
-description = "Measure destination reconciliation"
 env = { GOMAXPROCS = "4", GOFLAGS = "-p=1" }
 run = "go test -run='^$' -bench=BenchmarkReconcile -benchtime=1s ./internal/destination"
 
 [tasks.test-postgres]
-description = "Test the Stemma destination against PostgreSQL"
 run = '''
 WOODSTAR_TEST_DATABASE_URL="${WOODSTAR_TEST_DATABASE_URL:-postgres://woodstar:woodstar@127.0.0.1:5432/postgres?sslmode=disable}" \
   go test -race -count=1 -tags=postgres ./...

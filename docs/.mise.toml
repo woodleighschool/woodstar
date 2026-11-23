@@ -2,12 +2,10 @@
 run = "pnpm install --frozen-lockfile"
 
 [tasks.gen-api-docs]
-description = "Generate docs API reference"
 depends = [":deps"]
 run = "pnpm run gen-api-docs"
 
 [tasks.clean-api-docs]
-description = "Clean generated docs API reference"
 run = "pnpm run clean-api-docs"
 
 [tasks.dev]
@@ -19,7 +17,6 @@ depends = [":gen-api-docs"]
 run = "pnpm run build"
 
 [tasks.serve]
-description = "Serve the production build"
 depends = [":build"]
 run = "pnpm run serve"
 
@@ -42,5 +39,4 @@ depends = [":deps"]
 run = "pnpm run lint:fix"
 
 [tasks.clean]
-description = "Remove build output and Docusaurus caches"
 run = "rm -rf build .docusaurus .cache-loader"
