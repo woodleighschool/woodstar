@@ -59,7 +59,7 @@
     "@tanstack/router-plugin": "^1.169.0",
     "@types/node": "^26.6.10",
     "@types/papaparse": "^5.5.2",
-    "@types/react": "^19.3.2",
+    "@types/react": "^19.3.3",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.3.0",
     "eslint-plugin-better-tailwindcss": "^4.11.0",
